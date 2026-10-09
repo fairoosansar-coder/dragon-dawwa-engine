@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    background-color: #040d12;
+    color: #e2e8f0;
+  }
+}
+
+.font-arabic {
+  font-family: 'Amiri Quran', 'Scheherazade New', 'Amiri', serif;
+}
+
+.font-display {
+  font-family: 'Cinzel', 'Outfit', serif;
+}
+
+.font-islamic {
+  font-family: 'Amiri', 'Cinzel', serif;
+}
+
+/* Islamic Geometric Background Pattern Overlay */
+.islamic-pattern-bg {
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l15 15-15 15-15-15L30 0zm0 60l15-15-15-15-15 15 15 15zM0 30l15 15 15-15-15-15L0 30zm60 0l-15 15-15-15 15-15 15 15z' fill='%23D4AF37' fill-opacity='0.035' fill-rule='evenodd'/%3E%3C/svg%3E");
+}
+
+/* Gold Illuminated Border Accent */
+.islamic-gold-border {
+  border-color: rgba(212, 175, 55, 0.35);
+}
+
+.islamic-gold-glow {
+  box-shadow: 0 0 25px -5px rgba(212, 175, 55, 0.15);
+}
+
+/* Custom delicate scrollbar with emerald & gold tint */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #040d12;
+}
+::-webkit-scrollbar-thumb {
+  background: #183d3d;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #265050;
+}
+

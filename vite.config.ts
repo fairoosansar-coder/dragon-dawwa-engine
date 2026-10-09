@@ -1,0 +1,108 @@
+import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+import { defineConfig, Plugin } from 'vite';
+import dotenv from 'dotenv';
+import { executeDragonDawwaAnalysis } from './src/server/hadithEngine.ts';
+import { synthesizeGeminiVoice } from './src/server/geminiTtsService.ts';
+
+dotenv.config();
+
+function dragonDawwaApiPlugin(): Plugin {
+  return {
+    name: 'dragon-dawwa-api-plugin',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (req.url === '/api/analyze' && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk) => {
+            body += chunk;
+          });
+          req.on('end', async () => {
+            try {
+              const parsed = JSON.parse(body || '{}');
+              const { hadith_input, isnad_input } = parsed;
+              if (!hadith_input || typeof hadith_input !== 'string') {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'hadith_input is required' }));
+                return;
+              }
+              const result = await executeDragonDawwaAnalysis(hadith_input, isnad_input);
+              res.statusCode = 200;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify(result));
+            } catch (err: any) {
+              console.error('Dragon Dawwa Vite API Error:', err);
+              res.statusCode = 500;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: err.message || 'Analysis failed' }));
+            }
+          });
+          return;
+        }
+
+        if (req.url === '/api/tts' && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk) => {
+            body += chunk;
+          });
+          req.on('end', async () => {
+            try {
+              const parsed = JSON.parse(body || '{}');
+              const { text, speaker } = parsed;
+              if (!text || typeof text !== 'string') {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'text is required' }));
+                return;
+              }
+              const result = await synthesizeGeminiVoice(text, speaker || 'Host');
+              res.statusCode = 200;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify(result));
+            } catch (err: any) {
+              console.error('Gemini TTS Vite API Error:', err);
+              res.statusCode = 500;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: err.message || 'TTS generation failed' }));
+            }
+          });
+          return;
+        }
+
+        if (req.url === '/api/health' && req.method === 'GET') {
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            status: 'online',
+            engine: 'Dragon Dawwa v2.5 with Gemini TTS',
+            hasKey: !!process.env.GEMINI_API_KEY,
+          }));
+          return;
+        }
+
+        next();
+      });
+    },
+  };
+}
+
+export default defineConfig(() => {
+  return {
+    plugins: [react(), tailwindcss(), dragonDawwaApiPlugin()],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, '.'),
+      },
+    },
+    server: {
+      // HMR is disabled in AI Studio via DISABLE_HMR env var.
+      // Do not modify—file watching is disabled to prevent flickering during agent edits.
+      hmr: process.env.DISABLE_HMR !== 'true',
+      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
+      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+    },
+  };
+});
+

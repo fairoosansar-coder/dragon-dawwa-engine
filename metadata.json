@@ -1,0 +1,6 @@
+{
+  "name": "Dragon Dawwa - AI Hadith Deep Search & Authentication Engine",
+  "description": "Enterprise-grade 6-agent Hadith deep search, Isnad chain analysis, Rijal narrator verification, circular purity confidence score gauge, and authenticity synthesis engine.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
