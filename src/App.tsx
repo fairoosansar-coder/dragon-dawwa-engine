@@ -1,9 +1,12 @@
 /**
  * Dragon Dawwa - Enterprise-Grade AI Hadith Deep Search & Authentication Engine
  * Prime Dragon Technologies
- * Dual-Tab Interface Architecture:
- * - TAB 1: Academic Deep Research Dossier (Agents 1-6 Technical Breakdowns)
- * - TAB 2: "Dragon Dawwa Live Studio" Roundtable Audio Script
+ * Islamic redesign (Night Masjid / Mushaf themes) — four modes:
+ * - Community: the religious social platform (home), with the live verified-hadith feed
+ * - Quran: Home, the Mushaf e-book, Search, Ayah Study and My Quran (Quran.ai reader standard)
+ * - Verify a Hadith: the six-agent dossier (Agents 1-6)
+ * - Live Studio: the roundtable audio script
+ * Design system: src/ds (see src/ds/README.md).
  */
 
 import React, { useState, useEffect } from 'react';
@@ -42,12 +45,15 @@ import { AgentStatusTracker, AgentStep } from './components/AgentStatusTracker';
 import { ShareModal } from './components/ShareModal';
 import { HadithSearchForm } from './components/HadithSearchForm';
 import { PublicWallFeed } from './components/PublicWallFeed';
-import IslamicFooter from './components/IslamicFooter';
 import { PrintDossierReport } from './components/PrintDossierReport';
 import { WallPost, UserAccount } from './types/wall';
 import { INITIAL_WALL_POSTS, CURRENT_DEFAULT_USER } from './data/wallFeedData';
 import { SupportedLanguage, SUPPORTED_LANGUAGES, TRANSLATIONS } from './utils/localization';
 import { getLocalizedAnalysis } from './utils/localizedAnalysis';
+import { AppHeader, AppFooter, MobileTabBar, MobileTab, AppMode, VerdictReport, BANNERS } from './ds/pages';
+import { ArchBanner, StarDivider } from './ds/ornaments';
+import { ProfileHeader, CommunityHome } from './ds/social';
+import { QuranApp } from './ds/quranApp';
 
 export default function App() {
   // Trilingual system (English, Tamil, Sinhala)
@@ -106,8 +112,11 @@ export default function App() {
     return getLocalizedAnalysis(currentAnalysis, currentLanguage);
   }, [currentAnalysis, currentLanguage]);
   
-  // Tri-Tab Master Selector: Tab 1 Dossier vs Tab 2 Live Studio vs Tab 3 Public Wall
-  const [masterTab, setMasterTab] = useState<'TAB_1_DOSSIER' | 'TAB_2_STUDIO' | 'TAB_3_WALL'>('TAB_1_DOSSIER');
+  // App mode: Community (home) · Quran · Verify a Hadith · Live Studio
+  const [mode, setMode] = useState<AppMode>('wall');
+  const [mobileTab, setMobileTab] = useState<MobileTab | undefined>(undefined);
+  // re-opens Community on the verified-hadith tab after publishing a search
+  const [wallView, setWallView] = useState<{ key: number; tab: 'foryou' | 'verified' }>({ key: 0, tab: 'foryou' });
   const [currentDossierStep, setCurrentDossierStep] = useState<AgentStep>('overview');
   
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
@@ -361,7 +370,7 @@ export default function App() {
     setHadithInput(post.query_text);
     setIsnadInput(post.isnad_preview || '');
     setCurrentAnalysis(post.full_analysis_payload);
-    setMasterTab('TAB_1_DOSSIER');
+    setMode('dossier');
     setCurrentDossierStep('overview');
     window.scrollTo({ top: 380, behavior: 'smooth' });
   };
@@ -397,7 +406,8 @@ export default function App() {
       };
       setWallPosts(prev => [newPost, ...prev]);
     }
-    setMasterTab('TAB_3_WALL');
+    setMode('wall');
+    setWallView(v => ({ key: v.key + 1, tab: 'verified' }));
   };
 
   const handleClearInputs = () => {
@@ -459,374 +469,108 @@ Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prim
     URL.revokeObjectURL(url);
   };
 
-  const handlePrintReport = () => {
-    window.print();
-  };
+  const handlePrintReport = () => window.print();
+  const printReportLabel = { en: 'Print Report', ta: 'அறிக்கையை அச்சிடுக', si: 'වාර්තාව මුද්‍රණය' }[currentLanguage];
 
-  const printReportLabel = {
-    en: 'Print Report',
-    ta: 'அறிக்கையை அச்சிடுக',
-    si: 'වාර්තාව මුද්‍රණය'
-  }[currentLanguage] || 'Print Report';
+  const goMode = (m: AppMode) => { setMode(m); setMobileTab(undefined); };
+  const onMobileTab = (tab: MobileTab) => {
+    if (tab === 'share' || tab === 'me') {
+      setMode('wall'); setMobileTab(tab);
+      setTimeout(() => {
+        const el = document.getElementById(tab === 'share' ? 'dd-composer' : 'dd-profile');
+        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (tab === 'share') (el?.querySelector('textarea') as HTMLTextAreaElement | null)?.focus();
+      }, 50);
+    } else goMode(tab);
+  };
+  const banner = BANNERS[mode];
 
   return (
     <>
-      <div className="screen-only print:hidden min-h-screen bg-[#060a0f] text-slate-100 flex flex-col selection:bg-amber-500/30 selection:text-amber-200">
-      
-      {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-40 bg-[#080d14]/90 border-b border-slate-800/80 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
-          
-          {/* Logo & Brand Identity */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 via-emerald-600 to-slate-900 p-0.5 shadow-lg shadow-amber-500/10 flex items-center justify-center">
-              <div className="w-full h-full bg-[#080d14] rounded-[10px] flex items-center justify-center">
-                <Flame className="w-5 h-5 text-amber-400" />
-              </div>
-            </div>
+    <div className="screen-only min-h-screen flex flex-col bg-[var(--surface-app)] text-slate-100 selection:bg-amber-500/30 selection:text-amber-200">
+      <AppHeader
+        language={currentLanguage}
+        onLanguage={handleLanguageChange}
+        user={currentUser}
+        mode={mode}
+        onMode={goMode}
+        onMe={() => onMobileTab('me')}
+        actions={{ onShare: handleShareAction, onCopy: handleCopyReport, copied: copiedReport, onExport: handleExportJSON, exportLabel: 'Export JSON', onPrint: handlePrintReport, printLabel: printReportLabel }}
+      />
 
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-extrabold tracking-tight text-white font-display">
-                  DRAGON DAWWA
-                </h1>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-600/40">
-                  v2.5 Enterprise Engine
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400">
-                Prime Dragon Technologies • Hadith Deep Search & Authentication
-              </p>
-            </div>
-          </div>
+      <main className="flex-1 max-w-7xl mx-auto w-full px-3 sm:px-6 lg:px-8 py-4 md:py-8 space-y-5 md:space-y-8">
+        {mode === 'wall' && <div id="dd-profile" className="scroll-mt-20"><ProfileHeader name={currentUser.display_name} photo={currentUser.profile_pic} /></div>}
+        {(mode === 'dossier' || mode === 'studio') && (
+          <ArchBanner compact={mode === 'studio'} title={banner.title} arabic={banner.arabic} subtitle={banner.subtitle} />
+        )}
 
-          {/* Action Header Buttons & Language Selector */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Trilingual Language Selector (English | Tamil | Sinhala) */}
-            <div className="flex items-center bg-slate-900/90 border border-slate-700/80 rounded-xl p-1 text-xs">
-              {SUPPORTED_LANGUAGES.map((lang) => (
-                <button
-                  key={lang.code}
-                  type="button"
-                  onClick={() => handleLanguageChange(lang.code)}
-                  className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
-                    currentLanguage === lang.code
-                      ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                  title={lang.nativeLabel}
-                >
-                  <span className="text-[11px]">{lang.flag}</span>
-                  <span className="hidden sm:inline">{lang.nativeLabel}</span>
-                  <span className="sm:hidden uppercase">{lang.code}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* User Profile Badge (Google OAuth Authenticated) */}
-            <div className="hidden md:flex items-center gap-2 pl-2 border-l border-slate-800">
-              <img
-                src={currentUser.profile_pic}
-                alt={currentUser.display_name}
-                className="w-8 h-8 rounded-xl object-cover border border-amber-500/40 shadow-sm"
-              />
-              <div className="text-left text-xs">
-                <span className="block font-bold text-white text-[11px] leading-tight">
-                  {currentUser.display_name}
-                </span>
-                <span className="text-[9px] font-mono text-emerald-400">
-                  {currentUser.badge}
-                </span>
-              </div>
-            </div>
-
-            {/* Web Share API & Share Modal Button */}
-            <button
-              type="button"
-              onClick={handleShareAction}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-emerald-500/15 to-amber-500/15 hover:from-amber-500/25 hover:to-emerald-500/25 text-amber-300 hover:text-amber-200 text-xs font-semibold border border-amber-500/40 hover:border-amber-400 transition-all cursor-pointer shadow-md shadow-amber-500/10"
-              title="Share report via device (Web Share API) or copy link"
-            >
-              <Share2 className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">Share</span>
-            </button>
-
-            {/* Print Report / Save PDF Button */}
-            <button
-              type="button"
-              onClick={handlePrintReport}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 hover:text-amber-200 text-xs font-semibold border border-amber-500/40 hover:border-amber-400 transition-all cursor-pointer shadow-md"
-              title="Print or Save PDF of the complete Hadith Authentication Dossier"
-            >
-              <Printer className="w-3.5 h-3.5 text-amber-400" />
-              <span>{printReportLabel}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleCopyReport}
-              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-medium border border-slate-700/80 transition-colors cursor-pointer"
-            >
-              {copiedReport ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-emerald-400">Copied Report</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Copy Report</span>
-                </>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleExportJSON}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-medium border border-slate-700/80 transition-colors cursor-pointer"
-            >
-              <FileDown className="w-3.5 h-3.5 text-amber-400" />
-              <span>Export JSON</span>
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        
-        {/* Unified Benchmark Dossiers and Hadith Deep Search Form with Clear Inputs & Fuzzy Normalization */}
-        <HadithSearchForm
-          initialMatn={hadithInput}
-          initialIsnad={isnadInput}
-          isAnalyzing={isAnalyzing}
-          analysisError={analysisError}
-          onRunEngine={(matn, isnad) => handleRunAnalysisWithInputs(matn, isnad)}
-          onClearInputs={handleClearInputs}
-          onSelectBenchmark={handleSelectBenchmarkById}
-          currentLanguage={currentLanguage}
-        />
-
-        {/* =========================================================================
-            MASTER TRI-TAB INTERFACE SELECTOR (TAB 1 VS TAB 2 VS TAB 3)
-            ========================================================================= */}
-        <div className="bg-[#0b1219] border border-slate-800 rounded-3xl p-3 shadow-2xl backdrop-blur-xl">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            
-            {/* TAB 1: ACADEMIC DEEP RESEARCH DOSSIER */}
-            <button
-              type="button"
-              onClick={() => setMasterTab('TAB_1_DOSSIER')}
-              className={`p-4 rounded-2xl border text-left transition-all duration-300 flex items-center justify-between gap-3 cursor-pointer ${
-                masterTab === 'TAB_1_DOSSIER'
-                  ? 'bg-gradient-to-r from-emerald-950/80 via-slate-900 to-slate-900 border-emerald-500/70 shadow-xl ring-1 ring-emerald-500/30'
-                  : 'bg-slate-900/50 border-slate-800 hover:border-slate-700 hover:bg-slate-900'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold border shrink-0 ${
-                  masterTab === 'TAB_1_DOSSIER'
-                    ? 'bg-emerald-950 text-emerald-300 border-emerald-500/60 shadow-lg'
-                    : 'bg-slate-800 text-slate-400 border-slate-700'
-                }`}>
-                  <FileSpreadsheet className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
-                      TAB 1
-                    </span>
-                    <h3 className="text-xs sm:text-sm font-extrabold text-white">
-                      {t.tab1Name}
-                    </h3>
-                  </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">
-                    {t.tab1Sub}
-                  </p>
-                </div>
-              </div>
-            </button>
-
-            {/* TAB 2: DRAGON DAWWA LIVE STUDIO ROUNDTABLE */}
-            <button
-              type="button"
-              onClick={() => setMasterTab('TAB_2_STUDIO')}
-              className={`p-4 rounded-2xl border text-left transition-all duration-300 flex items-center justify-between gap-3 cursor-pointer ${
-                masterTab === 'TAB_2_STUDIO'
-                  ? 'bg-gradient-to-r from-amber-950/80 via-slate-900 to-slate-900 border-amber-500/70 shadow-xl ring-1 ring-amber-500/30'
-                  : 'bg-slate-900/50 border-slate-800 hover:border-slate-700 hover:bg-slate-900'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold border shrink-0 ${
-                  masterTab === 'TAB_2_STUDIO'
-                    ? 'bg-amber-950 text-amber-300 border-amber-500/60 shadow-lg'
-                    : 'bg-slate-800 text-slate-400 border-slate-700'
-                }`}>
-                  <Radio className="w-5 h-5 text-amber-400" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-red-950 text-red-400 border border-red-800 flex items-center gap-1 font-bold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
-                      TAB 2 • ON AIR
-                    </span>
-                    <h3 className="text-xs sm:text-sm font-extrabold text-white">
-                      {t.tab2Name}
-                    </h3>
-                  </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">
-                    {t.tab2Sub}
-                  </p>
-                </div>
-              </div>
-            </button>
-
-            {/* TAB 3: PUBLIC COMMUNITY WALL FEEDS */}
-            <button
-              type="button"
-              onClick={() => setMasterTab('TAB_3_WALL')}
-              className={`p-4 rounded-2xl border text-left transition-all duration-300 flex items-center justify-between gap-3 cursor-pointer ${
-                masterTab === 'TAB_3_WALL'
-                  ? 'bg-gradient-to-r from-cyan-950/80 via-slate-900 to-slate-900 border-cyan-500/70 shadow-xl ring-1 ring-cyan-500/30'
-                  : 'bg-slate-900/50 border-slate-800 hover:border-slate-700 hover:bg-slate-900'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold border shrink-0 ${
-                  masterTab === 'TAB_3_WALL'
-                    ? 'bg-cyan-950 text-cyan-300 border-cyan-500/60 shadow-lg'
-                    : 'bg-slate-800 text-slate-400 border-slate-700'
-                }`}>
-                  <BookOpen className="w-5 h-5 text-cyan-400" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800 font-bold">
-                      TAB 3 • FEED ({wallPosts.length})
-                    </span>
-                    <h3 className="text-xs sm:text-sm font-extrabold text-white">
-                      {t.tabWallName}
-                    </h3>
-                  </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">
-                    {t.tabWallSub}
-                  </p>
-                </div>
-              </div>
-            </button>
-
-          </div>
-        </div>
-
-        {/* =========================================================================
-            TAB CONTENT RENDERING
-            ========================================================================= */}
-
-        {masterTab === 'TAB_1_DOSSIER' ? (
-          <div className="space-y-6">
-            
-            {/* Agent Navigation Tracker for Tab 1 */}
-            <AgentStatusTracker
-              currentTab={currentDossierStep}
-              onSelectTab={setCurrentDossierStep}
-              isLoading={isAnalyzing}
+        {mode === 'dossier' && (
+          <>
+            <HadithSearchForm
+              initialMatn={hadithInput}
+              initialIsnad={isnadInput}
+              isAnalyzing={isAnalyzing}
+              analysisError={analysisError}
+              onRunEngine={(matn, isnad) => handleRunAnalysisWithInputs(matn, isnad)}
+              onClearInputs={handleClearInputs}
+              onSelectBenchmark={handleSelectBenchmarkById}
               currentLanguage={currentLanguage}
             />
-
-            {/* Dossier Step View */}
-            <div className="transition-all duration-300">
-              {currentDossierStep === 'overview' && (
-                <DashboardVisualization
-                  data={displayedAnalysis}
-                  onSelectNarrator={() => setCurrentDossierStep('rijal')}
-                  onShare={handleShareAction}
-                  currentLanguage={currentLanguage}
-                  onSelectSearchItem={(matn, isnad) => handleRunAnalysisWithInputs(matn, isnad)}
-                />
-              )}
-
-              {currentDossierStep === 'takhrij' && (
-                <TakhrijView
-                  takhrij={displayedAnalysis.agent_1_takhrij}
-                  queryHadith={displayedAnalysis.query_hadith}
-                />
-              )}
-
-              {currentDossierStep === 'isnad' && (
-                <IsnadDiagram isnad={displayedAnalysis.agent_2_isnad} />
-              )}
-
-              {currentDossierStep === 'rijal' && (
-                <RijalDossier rijal={displayedAnalysis.agent_3_rijal} />
-              )}
-
-              {currentDossierStep === 'shawahid' && (
-                <ShawahidMatnView shawahid={displayedAnalysis.agent_4_shawahid_matn} />
-              )}
-
-              {currentDossierStep === 'scholars' && (
-                <ScholarsVerdictMatrix verdicts={displayedAnalysis.agent_5_scholars_verdict} />
-              )}
-
-              {currentDossierStep === 'report' && (
-                <div className="bg-[#0b1219] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
-                  <div className="border-b border-slate-800 pb-4 flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xl font-bold text-white flex items-center gap-2">
-                        <Award className="w-5 h-5 text-amber-400" />
-                        Executive Synthesis & Academic Verdict
-                      </h4>
-                      <p className="text-xs text-slate-400">Authored by Dragon Dawwa Chief Authentication Officer</p>
-                    </div>
-                    <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950 px-3 py-1 rounded-xl border border-emerald-800">
-                      Score: {displayedAnalysis.agent_6_synthesis.purity_confidence_score.toFixed(1)}%
-                    </span>
-                  </div>
-
-                  <div className="prose prose-invert max-w-none space-y-4 text-slate-300 text-sm leading-relaxed">
-                    {displayedAnalysis.agent_6_synthesis.executive_report_markdown.split('\n\n').map((paragraph, idx) => (
-                      <p key={idx} className="text-slate-200 leading-relaxed">
-                        {paragraph}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              )}
+            <div className="space-y-6">
+              <StarDivider label="تحقيق الحديث" />
+              <AgentStatusTracker currentTab={currentDossierStep} onSelectTab={setCurrentDossierStep} isLoading={isAnalyzing} />
+              <div className="transition-all duration-300">
+                {currentDossierStep === 'overview' && (
+                  <DashboardVisualization currentLanguage={currentLanguage} data={displayedAnalysis} onSelectNarrator={() => setCurrentDossierStep('rijal')} onShare={handleShareAction} />
+                )}
+                {currentDossierStep === 'takhrij' && <TakhrijView takhrij={displayedAnalysis.agent_1_takhrij} queryHadith={displayedAnalysis.query_hadith} />}
+                {currentDossierStep === 'isnad' && <IsnadDiagram isnad={displayedAnalysis.agent_2_isnad} />}
+                {currentDossierStep === 'rijal' && <RijalDossier rijal={displayedAnalysis.agent_3_rijal} />}
+                {currentDossierStep === 'shawahid' && <ShawahidMatnView shawahid={displayedAnalysis.agent_4_shawahid_matn} />}
+                {currentDossierStep === 'scholars' && <ScholarsVerdictMatrix verdicts={displayedAnalysis.agent_5_scholars_verdict} />}
+                {currentDossierStep === 'report' && <VerdictReport analysis={displayedAnalysis} />}
+              </div>
             </div>
-          </div>
-        ) : masterTab === 'TAB_2_STUDIO' ? (
-          /* TAB 2: DRAGON DAWWA LIVE STUDIO ROUNDTABLE BROADCAST */
+          </>
+        )}
+
+        {mode === 'studio' && (
           <div className="space-y-6">
+            <StarDivider label="مجلس العلم" />
             <PodcastScriptPlayer
               script={displayedAnalysis.agent_6_synthesis.podcast_script}
               executiveReport={displayedAnalysis.agent_6_synthesis.executive_report_markdown}
               onShare={handleShareAction}
             />
           </div>
-        ) : (
-          /* TAB 3: PUBLIC COMMUNITY WALL FEED & DISCUSSIONS */
-          <div className="space-y-6">
-            <PublicWallFeed
-              posts={wallPosts}
-              currentLanguage={currentLanguage}
-              currentUser={currentUser}
-              onLikePost={handleLikePost}
-              onAddComment={handleAddComment}
-              onSelectPostForAnalysis={handleSelectPostForAnalysis}
-              onSharePost={(post) => {
-                handleShareAction();
-              }}
-              currentSearchPost={wallPosts.find(p => p.query_text === displayedAnalysis.query_hadith) || null}
-              onPublishCurrentSearch={handlePublishCurrentSearch}
-            />
-          </div>
         )}
 
+        {mode === 'wall' && (
+          <CommunityHome
+            key={wallView.key}
+            initialTab={wallView.tab}
+            language={currentLanguage}
+            verifiedFeed={
+              <PublicWallFeed
+                posts={wallPosts}
+                currentLanguage={currentLanguage}
+                currentUser={currentUser}
+                onLikePost={handleLikePost}
+                onAddComment={handleAddComment}
+                onSelectPostForAnalysis={handleSelectPostForAnalysis}
+                onSharePost={() => handleShareAction()}
+                currentSearchPost={wallPosts.find(p => p.query_text === displayedAnalysis.query_hadith) || null}
+                onPublishCurrentSearch={handlePublishCurrentSearch}
+              />
+            }
+          />
+        )}
+
+        {mode === 'quran' && <QuranApp language={currentLanguage} dataUrl="/data/quran-en.json" />}
       </main>
 
-      {/* Unified Platform Footer & Aegis Intelligence Credits */}
-      <IslamicFooter />
+      <AppFooter />
+      <MobileTabBar mode={mode} active={mobileTab ?? mode} onSelect={onMobileTab} />
 
       {/* Web Share API & Link Sharing Modal */}
       <ShareModal

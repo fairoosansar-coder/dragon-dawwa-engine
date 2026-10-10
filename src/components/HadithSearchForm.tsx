@@ -581,7 +581,7 @@ export function HadithSearchForm({
   return (
     <div className="space-y-6">
       {/* TOP ROW: BENCHMARK DOSSIERS / RECENT SEARCHES */}
-      <div className="bg-[#0b0f17] border border-slate-800 rounded-2xl p-4 shadow-lg">
+      <div className="bg-[var(--surface-raised)] border border-slate-800 rounded-2xl p-4 shadow-lg">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
           <span className="text-xs font-bold uppercase tracking-wider text-amber-500 flex items-center gap-1.5">
             <span className="inline-block animate-pulse">⚡</span>
@@ -603,7 +603,7 @@ export function HadithSearchForm({
                 className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
                   activeBenchmark === item.id
                     ? "border-amber-500/80 bg-amber-500/15 shadow-md shadow-amber-950/40 ring-1 ring-amber-500/30"
-                    : "border-slate-800 bg-[#121824] hover:border-slate-700 hover:bg-[#161f30]"
+                    : "border-slate-800 bg-[var(--surface-raised)] hover:border-slate-700 hover:bg-[var(--surface-hover)]"
                 }`}
               >
                 <div className="flex justify-between items-start mb-1.5 gap-2">
@@ -624,7 +624,7 @@ export function HadithSearchForm({
       </div>
 
       {/* HADITH DEEP SEARCH & TRANSMISSION AUDIT FORM */}
-      <div className="bg-[#0f1523] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+      <div className="bg-[var(--surface-raised)] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-1/4 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 relative z-10">
@@ -657,7 +657,7 @@ export function HadithSearchForm({
 
         <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
           {/* OPTICAL MEDIA & MULTIMODAL CAPTURE RIBBON */}
-          <div className="p-3 rounded-2xl bg-[#090e17] border border-slate-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
+          <div className="p-3 rounded-2xl bg-[var(--surface-modal)] border border-slate-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
                 <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
@@ -782,7 +782,7 @@ export function HadithSearchForm({
                 value={hadithMatn}
                 onChange={(e) => setHadithMatn(e.target.value)}
                 placeholder={dictationLang === 'ar-SA' ? "اكتب أو اضغط على الميكروفون للتحدث بالمتن أو ألصق نص الحديث..." : "Type, click the mic to speak hands-free, or paste Hadith narration..."}
-                className={`w-full bg-[#080d15] border ${
+                className={`w-full bg-[var(--surface-inset)] border ${
                   isRecording 
                     ? 'border-rose-500 ring-2 ring-rose-500/30 bg-rose-950/10' 
                     : isTranscribing
@@ -856,7 +856,7 @@ export function HadithSearchForm({
               value={isnad}
               onChange={(e) => setIsnad(e.target.value)}
               placeholder="e.g. Qutaybah -> Yahya ibn Hamza -> Thawran ibn Yazid -> Khalid ibn Ma'dan -> 'Abdullah ibn Busr..."
-              className="w-full bg-[#080d15] border border-slate-700/80 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition-all font-mono"
+              className="w-full bg-[var(--surface-inset)] border border-slate-700/80 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition-all font-mono"
             />
           </div>
 
@@ -912,7 +912,7 @@ export function HadithSearchForm({
                   type="button"
                   onClick={() => onRunEngine(hadithMatn, isnad)}
                   disabled={isAnalyzing}
-                  className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                  className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-[var(--on-gold)] font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isAnalyzing ? 'animate-spin' : ''}`} />
                   Retry
@@ -940,11 +940,11 @@ export function HadithSearchForm({
               <button
                 type="submit"
                 disabled={isAnalyzing || !hadithMatn.trim()}
-                className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-slate-950 font-bold text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-amber-500/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-[var(--on-gold)] font-bold text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-amber-500/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isAnalyzing ? (
                   <>
-                    <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
+                    <RefreshCw className="w-4 h-4 animate-spin text-[var(--on-gold)]" />
                     <span>{t.runningEngine}</span>
                   </>
                 ) : (

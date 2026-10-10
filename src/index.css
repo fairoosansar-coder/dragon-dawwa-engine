@@ -1,54 +1,33 @@
 @import "tailwindcss";
+@import "./ds/theme.css";
+
+/* Islamic geometric lattice (8-point Khatam star), per theme */
+:root, [data-theme="night"] { --pattern-star: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2280%22%20height%3D%2280%22%20viewBox%3D%220%200%2080%2080%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23c39a34%22%20stroke-opacity%3D%220.09%22%20stroke-width%3D%221%22%3E%3Crect%20x%3D%2226%22%20y%3D%2226%22%20width%3D%2228%22%20height%3D%2228%22/%3E%3Crect%20x%3D%2226%22%20y%3D%2226%22%20width%3D%2228%22%20height%3D%2228%22%20transform%3D%22rotate%2845%2040%2040%29%22/%3E%3Crect%20x%3D%22-14%22%20y%3D%22-14%22%20width%3D%2228%22%20height%3D%2228%22/%3E%3Crect%20x%3D%22-14%22%20y%3D%22-14%22%20width%3D%2228%22%20height%3D%2228%22%20transform%3D%22rotate%2845%200%200%29%22/%3E%3Crect%20x%3D%2266%22%20y%3D%22-14%22%20width%3D%2228%22%20height%3D%2228%22/%3E%3Crect%20x%3D%2266%22%20y%3D%22-14%22%20width%3D%2228%22%20height%3D%2228%22%20transform%3D%22rotate%2845%2080%200%29%22/%3E%3Crect%20x%3D%22-14%22%20y%3D%2266%22%20width%3D%2228%22%20height%3D%2228%22/%3E%3Crect%20x%3D%22-14%22%20y%3D%2266%22%20width%3D%2228%22%20height%3D%2228%22%20transform%3D%22rotate%2845%200%2080%29%22/%3E%3Crect%20x%3D%2266%22%20y%3D%2266%22%20width%3D%2228%22%20height%3D%2228%22/%3E%3Crect%20x%3D%2266%22%20y%3D%2266%22%20width%3D%2228%22%20height%3D%2228%22%20transform%3D%22rotate%2845%2080%2080%29%22/%3E%3Crect%20x%3D%2235%22%20y%3D%22-5%22%20width%3D%2210%22%20height%3D%2210%22%20transform%3D%22rotate%2845%2040%200%29%22/%3E%3Crect%20x%3D%22-5%22%20y%3D%2235%22%20width%3D%2210%22%20height%3D%2210%22%20transform%3D%22rotate%2845%200%2040%29%22/%3E%3Crect%20x%3D%2275%22%20y%3D%2235%22%20width%3D%2210%22%20height%3D%2210%22%20transform%3D%22rotate%2845%2080%2040%29%22/%3E%3Crect%20x%3D%2235%22%20y%3D%2275%22%20width%3D%2210%22%20height%3D%2210%22%20transform%3D%22rotate%2845%2040%2080%29%22/%3E%3Cpath%20d%3D%22M54%2040H66M14%2040H26M40%2014V26M40%2054V66%22/%3E%3C/g%3E%3C/svg%3E"); --pattern-star-strong: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2280%22%20height%3D%2280%22%20viewBox%3D%220%200%2080%2080%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23c39a34%22%20stroke-opacity%3D%220.16%22%20stroke-width%3D%221%22%3E%3Crect%20x%3D%2226%22%20y%3D%2226%22%20width%3D%2228%22%20height%3D%2228%22/%3E%3Crect%20x%3D%2226%22%20y%3D%2226%22%20width%3D%2228%22%20height%3D%2228%22%20transform%3D%22rotate%2845%2040%2040%29%22/%3E%3Crect%20x%3D%22-14%22%20y%3D%22-14%22%20width%3D%2228%22%20height%3D%2228%22/%3E%3Crect%20x%3D%22-14%22%20y%3D%22-14%22%20width%3D%2228%22%20height%3D%2228%22%20transform%3D%22rotate%2845%200%200%29%22/%3E%3Crect%20x%3D%2266%22%20y%3D%22-14%22%20width%3D%2228%22%20height%3D%2228%22/%3E%3Crect%20x%3D%2266%22%20y%3D%22-14%22%20width%3D%2228%22%20height%3D%2228%22%20transform%3D%22rotate%2845%2080%200%29%22/%3E%3Crect%20x%3D%22-14%22%20y%3D%2266%22%20width%3D%2228%22%20height%3D%2228%22/%3E%3Crect%20x%3D%22-14%22%20y%3D%2266%22%20width%3D%2228%22%20height%3D%2228%22%20transform%3D%22rotate%2845%200%2080%29%22/%3E%3Crect%20x%3D%2266%22%20y%3D%2266%22%20width%3D%2228%22%20height%3D%2228%22/%3E%3Crect%20x%3D%2266%22%20y%3D%2266%22%20width%3D%2228%22%20height%3D%2228%22%20transform%3D%22rotate%2845%2080%2080%29%22/%3E%3Crect%20x%3D%2235%22%20y%3D%22-5%22%20width%3D%2210%22%20height%3D%2210%22%20transform%3D%22rotate%2845%2040%200%29%22/%3E%3Crect%20x%3D%22-5%22%20y%3D%2235%22%20width%3D%2210%22%20height%3D%2210%22%20transform%3D%22rotate%2845%200%2040%29%22/%3E%3Crect%20x%3D%2275%22%20y%3D%2235%22%20width%3D%2210%22%20height%3D%2210%22%20transform%3D%22rotate%2845%2080%2040%29%22/%3E%3Crect%20x%3D%2235%22%20y%3D%2275%22%20width%3D%2210%22%20height%3D%2210%22%20transform%3D%22rotate%2845%2040%2080%29%22/%3E%3Cpath%20d%3D%22M54%2040H66M14%2040H26M40%2014V26M40%2054V66%22/%3E%3C/g%3E%3C/svg%3E"); }
+[data-theme="mushaf"] { --pattern-star: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2280%22%20height%3D%2280%22%20viewBox%3D%220%200%2080%2080%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%239a7624%22%20stroke-opacity%3D%220.14%22%20stroke-width%3D%221%22%3E%3Crect%20x%3D%2226%22%20y%3D%2226%22%20width%3D%2228%22%20height%3D%2228%22/%3E%3Crect%20x%3D%2226%22%20y%3D%2226%22%20width%3D%2228%22%20height%3D%2228%22%20transform%3D%22rotate%2845%2040%2040%29%22/%3E%3Crect%20x%3D%22-14%22%20y%3D%22-14%22%20width%3D%2228%22%20height%3D%2228%22/%3E%3Crect%20x%3D%22-14%22%20y%3D%22-14%22%20width%3D%2228%22%20height%3D%2228%22%20transform%3D%22rotate%2845%200%200%29%22/%3E%3Crect%20x%3D%2266%22%20y%3D%22-14%22%20width%3D%2228%22%20height%3D%2228%22/%3E%3Crect%20x%3D%2266%22%20y%3D%22-14%22%20width%3D%2228%22%20height%3D%2228%22%20transform%3D%22rotate%2845%2080%200%29%22/%3E%3Crect%20x%3D%22-14%22%20y%3D%2266%22%20width%3D%2228%22%20height%3D%2228%22/%3E%3Crect%20x%3D%22-14%22%20y%3D%2266%22%20width%3D%2228%22%20height%3D%2228%22%20transform%3D%22rotate%2845%200%2080%29%22/%3E%3Crect%20x%3D%2266%22%20y%3D%2266%22%20width%3D%2228%22%20height%3D%2228%22/%3E%3Crect%20x%3D%2266%22%20y%3D%2266%22%20width%3D%2228%22%20height%3D%2228%22%20transform%3D%22rotate%2845%2080%2080%29%22/%3E%3Crect%20x%3D%2235%22%20y%3D%22-5%22%20width%3D%2210%22%20height%3D%2210%22%20transform%3D%22rotate%2845%2040%200%29%22/%3E%3Crect%20x%3D%22-5%22%20y%3D%2235%22%20width%3D%2210%22%20height%3D%2210%22%20transform%3D%22rotate%2845%200%2040%29%22/%3E%3Crect%20x%3D%2275%22%20y%3D%2235%22%20width%3D%2210%22%20height%3D%2210%22%20transform%3D%22rotate%2845%2080%2040%29%22/%3E%3Crect%20x%3D%2235%22%20y%3D%2275%22%20width%3D%2210%22%20height%3D%2210%22%20transform%3D%22rotate%2845%2040%2080%29%22/%3E%3Cpath%20d%3D%22M54%2040H66M14%2040H26M40%2014V26M40%2054V66%22/%3E%3C/g%3E%3C/svg%3E"); --pattern-star-strong: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2280%22%20height%3D%2280%22%20viewBox%3D%220%200%2080%2080%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%239a7624%22%20stroke-opacity%3D%220.22%22%20stroke-width%3D%221%22%3E%3Crect%20x%3D%2226%22%20y%3D%2226%22%20width%3D%2228%22%20height%3D%2228%22/%3E%3Crect%20x%3D%2226%22%20y%3D%2226%22%20width%3D%2228%22%20height%3D%2228%22%20transform%3D%22rotate%2845%2040%2040%29%22/%3E%3Crect%20x%3D%22-14%22%20y%3D%22-14%22%20width%3D%2228%22%20height%3D%2228%22/%3E%3Crect%20x%3D%22-14%22%20y%3D%22-14%22%20width%3D%2228%22%20height%3D%2228%22%20transform%3D%22rotate%2845%200%200%29%22/%3E%3Crect%20x%3D%2266%22%20y%3D%22-14%22%20width%3D%2228%22%20height%3D%2228%22/%3E%3Crect%20x%3D%2266%22%20y%3D%22-14%22%20width%3D%2228%22%20height%3D%2228%22%20transform%3D%22rotate%2845%2080%200%29%22/%3E%3Crect%20x%3D%22-14%22%20y%3D%2266%22%20width%3D%2228%22%20height%3D%2228%22/%3E%3Crect%20x%3D%22-14%22%20y%3D%2266%22%20width%3D%2228%22%20height%3D%2228%22%20transform%3D%22rotate%2845%200%2080%29%22/%3E%3Crect%20x%3D%2266%22%20y%3D%2266%22%20width%3D%2228%22%20height%3D%2228%22/%3E%3Crect%20x%3D%2266%22%20y%3D%2266%22%20width%3D%2228%22%20height%3D%2228%22%20transform%3D%22rotate%2845%2080%2080%29%22/%3E%3Crect%20x%3D%2235%22%20y%3D%22-5%22%20width%3D%2210%22%20height%3D%2210%22%20transform%3D%22rotate%2845%2040%200%29%22/%3E%3Crect%20x%3D%22-5%22%20y%3D%2235%22%20width%3D%2210%22%20height%3D%2210%22%20transform%3D%22rotate%2845%200%2040%29%22/%3E%3Crect%20x%3D%2275%22%20y%3D%2235%22%20width%3D%2210%22%20height%3D%2210%22%20transform%3D%22rotate%2845%2080%2040%29%22/%3E%3Crect%20x%3D%2235%22%20y%3D%2275%22%20width%3D%2210%22%20height%3D%2210%22%20transform%3D%22rotate%2845%2040%2080%29%22/%3E%3Cpath%20d%3D%22M54%2040H66M14%2040H26M40%2014V26M40%2054V66%22/%3E%3C/g%3E%3C/svg%3E"); }
 
 @layer base {
   body {
-    font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    background-color: #040d12;
-    color: #e2e8f0;
+    font-family: var(--font-sans);
+    background-color: var(--surface-body);
+    background-image: var(--pattern-star);
+    color: var(--text-body);
   }
 }
 
-.font-arabic {
-  font-family: 'Amiri Quran', 'Scheherazade New', 'Amiri', serif;
-}
+.font-arabic { font-family: var(--font-arabic); }
+.font-display { font-family: var(--font-display); }
+.font-islamic { font-family: var(--font-islamic); }
+.font-kufi { font-family: var(--font-kufi); }
 
-.font-display {
-  font-family: 'Cinzel', 'Outfit', serif;
-}
+.islamic-pattern-bg { background-image: var(--pattern-star-strong); }
+.islamic-gold-border { border-color: var(--gold-border); }
+.islamic-gold-glow { box-shadow: var(--shadow-gold-glow); }
 
-.font-islamic {
-  font-family: 'Amiri', 'Cinzel', serif;
-}
-
-/* Islamic Geometric Background Pattern Overlay */
-.islamic-pattern-bg {
-  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l15 15-15 15-15-15L30 0zm0 60l15-15-15-15-15 15 15 15zM0 30l15 15 15-15-15-15L0 30zm60 0l-15 15-15-15 15-15 15 15z' fill='%23D4AF37' fill-opacity='0.035' fill-rule='evenodd'/%3E%3C/svg%3E");
-}
-
-/* Gold Illuminated Border Accent */
-.islamic-gold-border {
-  border-color: rgba(212, 175, 55, 0.35);
-}
-
-.islamic-gold-glow {
-  box-shadow: 0 0 25px -5px rgba(212, 175, 55, 0.15);
-}
-
-/* Custom delicate scrollbar with emerald & gold tint */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #040d12;
-}
-::-webkit-scrollbar-thumb {
-  background: #183d3d;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #265050;
-}
+/* Charts: theme recharts' hard-coded SVG colours */
+.recharts-cartesian-grid line { stroke: var(--chart-grid); }
+.recharts-cartesian-axis-line, .recharts-cartesian-axis-tick-line { stroke: var(--chart-tick); }
+.recharts-cartesian-axis-tick-value { fill: var(--chart-axis); }
+.recharts-dot { stroke: var(--surface-panel); }
 
 /* =========================================================================
    PDF-READY PRINT STYLES FOR SCHOLARLY DOSSIER REPORT
@@ -98,3 +77,7 @@
   }
 }
 
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--surface-body); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
