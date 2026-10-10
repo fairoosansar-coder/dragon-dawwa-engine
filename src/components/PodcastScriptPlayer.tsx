@@ -67,6 +67,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
   const [useGeminiVoice, setUseGeminiVoice] = useState<boolean>(true);
   const [isSynthesizing, setIsSynthesizing] = useState<boolean>(false);
   const [testingPersonaVoice, setTestingPersonaVoice] = useState<PersonaId | null>(null);
+  const [imranVoice, setImranVoice] = useState<string>('Orus');
 
   const isPlayingRef = useRef<boolean>(false);
   const currentItemIndexRef = useRef<number>(-1);
@@ -78,6 +79,14 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
   const audioCacheRef = useRef<Map<number, string>>(new Map());
   const pendingFetchesRef = useRef<Map<number, Promise<string | null>>>(new Map());
   const preloadedAudioElementsRef = useRef<Map<number, HTMLAudioElement>>(new Map());
+
+  // Allows switching Sheikh Imran's voice profile with instant cache invalidation
+  const handleImranVoiceChange = (newVoice: string) => {
+    setImranVoice(newVoice);
+    audioCacheRef.current.clear();
+    preloadedAudioElementsRef.current.clear();
+    pendingFetchesRef.current.clear();
+  };
 
   // Persona configurations matching master Python Voice Map and Gemini Prebuilt Voices
   const personasConfig: Record<PersonaId, { 
@@ -137,14 +146,16 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
     'Sheikh Imran al-Hasani': {
       name: 'Sheikh Imran al-Hasani',
       role: 'Character Judge & Rijal Critic (Agent 3)',
-      geminiVoice: 'Charon',
-      voiceTag: 'Gemini Charon (Resonant male critic)',
+      geminiVoice: imranVoice,
+      voiceTag: imranVoice === 'Orus' 
+        ? 'Gemini Orus (Dignified classical orator)' 
+        : `Gemini ${imranVoice} (Biographical Rijal Critic)`,
       gender: 'M',
       color: 'text-purple-400',
       bg: 'bg-purple-950/60',
       border: 'border-purple-500/50',
-      pitch: 0.78,
-      rate: 0.95,
+      pitch: 0.95,
+      rate: 1.0,
       avatar: 'I'
     },
     'Dr. Zainab al-Mubarak': {
@@ -346,6 +357,8 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
     const clean = nextItem.text.replace(/\[[^\]]+\]/g, '').trim();
     if (!clean) return;
 
+    const targetVoice = personasConfig[nextItem.speaker]?.geminiVoice;
+
     const fetchPromise = (async () => {
       try {
         const res = await fetch('/api/tts', {
@@ -353,7 +366,8 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             text: clean,
-            speaker: nextItem.speaker
+            speaker: nextItem.speaker,
+            voiceName: targetVoice
           })
         });
         if (res.ok) {
@@ -393,10 +407,11 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
 
     try {
       setIsSynthesizing(true);
+      const targetVoice = personasConfig[speaker as PersonaId]?.geminiVoice;
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, speaker })
+        body: JSON.stringify({ text, speaker, voiceName: targetVoice })
       });
 
       if (!res.ok) {
@@ -674,10 +689,11 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
     setTestingPersonaVoice(personaId);
     try {
       const phrase = sampleVoicePhrases[personaId];
+      const targetVoice = personasConfig[personaId]?.geminiVoice;
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: phrase, speaker: personaId })
+        body: JSON.stringify({ text: phrase, speaker: personaId, voiceName: targetVoice })
       });
       if (res.ok) {
         const data = await res.json();
@@ -850,7 +866,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-400">
               <span className="font-semibold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
                 <Mic className="w-3.5 h-3.5 text-amber-400" />
-                Gemini Voice Cast (Puck, Fenrir, Kore, Charon, Zephyr)
+                Gemini Voice Cast (Puck, Fenrir, Kore, Orus, Zephyr)
               </span>
 
               {/* Realtime Waveform Visualizer */}
@@ -906,9 +922,30 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                       </div>
                       <div className="text-xs font-bold text-white truncate">{p.name.split('(')[0].trim()}</div>
                       <div className="text-[10px] text-slate-400 truncate mt-0.5">{p.role.split('(')[0].trim()}</div>
-                      <div className="text-[10px] text-amber-300 font-mono font-semibold truncate mt-1 bg-slate-950/80 py-0.5 px-1.5 rounded border border-slate-800">
-                        ✨ {p.geminiVoice}
-                      </div>
+                      
+                      {pId === 'Sheikh Imran al-Hasani' ? (
+                        <div className="mt-1 space-y-0.5">
+                          <label className="text-[9px] font-mono text-purple-300 block text-left px-0.5">
+                            Voice:
+                          </label>
+                          <select
+                            value={imranVoice}
+                            onChange={(e) => handleImranVoiceChange(e.target.value)}
+                            className="w-full text-[10px] font-mono font-bold bg-purple-950/90 text-amber-300 py-1 px-1 rounded-md border border-purple-500/60 hover:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer shadow-inner"
+                            title="Switch Sheikh Imran al-Hasani's voice profile"
+                          >
+                            <option value="Orus">✨ Orus (Orator)</option>
+                            <option value="Fenrir">✨ Fenrir (Jurist)</option>
+                            <option value="Puck">✨ Puck (Baritone)</option>
+                            <option value="Aoede">✨ Aoede (Academic)</option>
+                            <option value="Charon">✨ Charon (Critic)</option>
+                          </select>
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-amber-300 font-mono font-semibold truncate mt-1 bg-slate-950/80 py-0.5 px-1.5 rounded border border-slate-800">
+                          ✨ {p.geminiVoice}
+                        </div>
+                      )}
                     </div>
 
                     <button

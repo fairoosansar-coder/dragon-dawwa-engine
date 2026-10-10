@@ -96,7 +96,10 @@ export interface Agent6Synthesis {
 }
 
 export interface DragonDawwaAnalysis {
-  app_name: 'Dragon Dawwa';
+  app_name: 'Dragon Dawwa' | string;
+  version?: string;
+  platform_owner?: string;
+  designed_and_created_by?: string;
   query_hadith: string;
   agent_1_takhrij: Agent1Takhrij;
   agent_2_isnad: Agent2Isnad;

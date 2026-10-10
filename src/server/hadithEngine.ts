@@ -1,11 +1,19 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { DragonDawwaAnalysis } from "../types/hadith";
-import { SAMPLE_HADITHS } from "../data/sampleHadiths";
+import type { DragonDawwaAnalysis } from "../types/hadith.ts";
+import { SAMPLE_HADITHS } from "../data/sampleHadiths.ts";
+import { getLocalizedAnalysis } from "../utils/localizedAnalysis.ts";
 
 export function getDragonDawwaSystemInstruction(targetLang: 'en' | 'ta' | 'si' = 'en'): string {
   const langName = targetLang === 'ta' ? 'Tamil (தமிழ்)' : targetLang === 'si' ? 'Sinhala (සිංහල)' : 'English';
 
-  return `You are "Dragon Dawwa", the enterprise-grade AI Hadith Deep Search & Authentication Engine developed under Prime Dragon Technologies. 
+  return `You are "Dragon Dawwa", the enterprise-grade AI Hadith Deep Search & Authentication Engine.
+
+BRANDING & METADATA REQUIREMENT:
+- Core Platform Ownership: Prime Dragon Technologies (Pvt) Ltd
+- Platform Engineering & AI Architecture: Designed & Created by Aegis Intelligence Pvt Ltd, Sri Lanka
+
+Every generated report dossier and export payload must include the metadata footer:
+"Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prime Dragon Technologies"
 
 TARGET LANGUAGE: ${langName}
 
@@ -74,7 +82,10 @@ PODCAST SCRIPT REQUIREMENTS ("DRAGON DAWWA LIVE"):
 export const dragonDawwaResponseSchema = {
   type: Type.OBJECT,
   properties: {
-    app_name: { type: Type.STRING, enum: ["Dragon Dawwa"] },
+    app_name: { type: Type.STRING },
+    version: { type: Type.STRING },
+    platform_owner: { type: Type.STRING },
+    designed_and_created_by: { type: Type.STRING },
     query_hadith: { type: Type.STRING },
     agent_1_takhrij: {
       type: Type.OBJECT,
@@ -284,7 +295,14 @@ Isnad / Chain (if provided): ${isnadInput && isnadInput.trim().length > 0 ? isna
           const responseText = response.text;
           if (responseText && responseText.trim().startsWith("{")) {
             const parsed = JSON.parse(responseText) as DragonDawwaAnalysis;
-            return parsed;
+            parsed.version = parsed.version || "2.5 Enterprise Engine";
+            parsed.platform_owner = parsed.platform_owner || "Prime Dragon Technologies (Pvt) Ltd";
+            parsed.designed_and_created_by = parsed.designed_and_created_by || "Aegis Intelligence Pvt Ltd, Sri Lanka";
+
+            if (parsed.agent_6_synthesis?.executive_report_markdown && !parsed.agent_6_synthesis.executive_report_markdown.includes("Aegis Intelligence")) {
+              parsed.agent_6_synthesis.executive_report_markdown += `\n\n---\n*Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prime Dragon Technologies*`;
+            }
+            return getLocalizedAnalysis(parsed, preferredLanguage);
           }
         } catch (err: any) {
           lastError = err;
@@ -310,7 +328,7 @@ Isnad / Chain (if provided): ${isnadInput && isnadInput.trim().length > 0 ? isna
   // Graceful Scholarly Fallback Generation:
   // If the Gemini API is temporarily at capacity (503), construct a structured authentic 6-agent dossier
   // based on the query rather than showing a broken 503 screen to the user!
-  return generateIntelligentFallback(hadithInput, isnadInput);
+  return getLocalizedAnalysis(generateIntelligentFallback(hadithInput, isnadInput), preferredLanguage);
 }
 
 function generateIntelligentFallback(hadithText: string, isnadText?: string): DragonDawwaAnalysis {
@@ -349,6 +367,9 @@ function generateIntelligentFallback(hadithText: string, isnadText?: string): Dr
 
   return {
     app_name: "Dragon Dawwa",
+    version: "2.5 Enterprise Engine",
+    platform_owner: "Prime Dragon Technologies (Pvt) Ltd",
+    designed_and_created_by: "Aegis Intelligence Pvt Ltd, Sri Lanka",
     query_hadith: hadithText,
     agent_1_takhrij: {
       sources: [

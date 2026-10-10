@@ -57,7 +57,8 @@ export class WebAudioQueueManager {
   public async prefetchAndDecode(
     index: number,
     text: string,
-    speaker: string
+    speaker: string,
+    voiceName?: string
   ): Promise<AudioBuffer | null> {
     if (this.decodedBufferCache.has(index)) {
       return this.decodedBufferCache.get(index)!;
@@ -75,7 +76,7 @@ export class WebAudioQueueManager {
         const res = await fetch('/api/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: clean, speaker })
+          body: JSON.stringify({ text: clean, speaker, voiceName })
         });
 
         if (!res.ok) {

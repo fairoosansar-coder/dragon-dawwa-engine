@@ -77,12 +77,12 @@ app.post('/api/analyze', async (req, res) => {
 // API route for Gemini Multilingual Neural Text-to-Speech
 app.post('/api/tts', async (req, res) => {
   try {
-    const { text, speaker } = req.body;
+    const { text, speaker, voiceName } = req.body;
     if (!text || typeof text !== 'string') {
       return res.status(400).json({ error: 'text is required for speech synthesis.' });
     }
 
-    const result = await synthesizeGeminiVoice(text, speaker || 'Host');
+    const result = await synthesizeGeminiVoice(text, speaker || 'Host', voiceName);
     return res.json(result);
   } catch (error: any) {
     console.error('Gemini TTS API Error:', error);

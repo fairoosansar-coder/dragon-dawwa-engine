@@ -128,6 +128,9 @@ class PodcastScriptOutput(BaseModel):
 
 class MasterHadithAnalysisPayload(BaseModel):
     app_name: str = "Dragon Dawwa"
+    version: str = "2.5 Enterprise Engine"
+    platform_owner: str = "Prime Dragon Technologies (Pvt) Ltd"
+    designed_and_created_by: str = "Aegis Intelligence Pvt Ltd, Sri Lanka"
     query_hadith: str
     agent_1_takhrij: TakhrijReport
     agent_2_isnad: IsnadReport
@@ -193,7 +196,14 @@ VOICE_MAP = {
 # =====================================================================
 
 SYSTEM_INSTRUCTION_ANALYSIS = """
-You are "Dragon Dawwa", the enterprise-grade AI Hadith Deep Search & Authentication Engine developed under Prime Dragon Technologies.
+You are "Dragon Dawwa", the enterprise-grade AI Hadith Deep Search & Authentication Engine.
+
+BRANDING & METADATA REQUIREMENT:
+- Core Platform Ownership: Prime Dragon Technologies (Pvt) Ltd
+- Platform Engineering & AI Architecture: Designed & Created by Aegis Intelligence Pvt Ltd, Sri Lanka
+
+Every generated report dossier and export payload must include the metadata footer:
+"Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prime Dragon Technologies"
 
 Your task is to conduct a 6-agent deep search on the provided Hadith and generate a live radio podcast script.
 

@@ -1,4 +1,4 @@
-import { SampleHadithPreset } from '../types/hadith';
+import type { SampleHadithPreset } from '../types/hadith.ts';
 
 export const SAMPLE_HADITHS: SampleHadithPreset[] = [
   {
@@ -9,6 +9,9 @@ export const SAMPLE_HADITHS: SampleHadithPreset[] = [
     isnad_text: "Qutaybah -> Yahya ibn Hamza -> Thawran ibn Yazid -> Khalid ibn Ma'dan -> 'Abdullah ibn Busr -> His sister (Al-Samma')",
     defaultData: {
       app_name: 'Dragon Dawwa',
+      version: '2.5 Enterprise Engine',
+      platform_owner: 'Prime Dragon Technologies (Pvt) Ltd',
+      designed_and_created_by: 'Aegis Intelligence Pvt Ltd, Sri Lanka',
       query_hadith: 'Do not fast on Saturdays except for what has been made obligatory for you; and if one of you finds nothing but a grape skin or a twig of a tree, let him chew it.',
       agent_1_takhrij: {
         sources: [
@@ -226,7 +229,10 @@ Despite the formal connection of the chain, the narration suffers from two fatal
    - The authentic hadith of Juwayriyah in Sahih al-Bukhari, where the Prophet authorized her to fast Saturday if joined with Friday.
 
 #### 3. Verdict Reconciliation
-The consensus of the classical Hadith masters (Malik, Abu Dawud, Al-Nasa'i, Ibn Taymiyyah, and Ibn Hajar) holds that the hadith is either defective (Mu'all) or that its apparent generality is abrogated and not to be practiced in isolation.`,
+The consensus of the classical Hadith masters (Malik, Abu Dawud, Al-Nasa'i, Ibn Taymiyyah, and Ibn Hajar) holds that the hadith is either defective (Mu'all) or that its apparent generality is abrogated and not to be practiced in isolation.
+
+---
+*Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prime Dragon Technologies*`,
         podcast_script: `[AUDIO CUE: INTRO UP - POLISHED RADIO BEAT (4 SECONDS) THEN FADE UNDER]
 
 BROTHER FEROZ (HOST): Welcome to Dragon Dawwa Live, broadcasting from Prime Dragon Studios! I am Brother Feroz, your anchor. Today we unpack one of the most intriguing debates in Islamic jurisprudence: the disputed prohibition against fasting on Saturdays recorded in Sunan Abu Dawud. Before we open the manuscript vault, let us introduce our panel and how each table operates when a Hadith arrives for authentication.
@@ -342,6 +348,9 @@ BROTHER FEROZ (HOST): Masterful synthesis across all tables! The Dragon Dawwa En
     isnad_text: "Prophet Muhammad (PBUH) -> 'Umar ibn al-Khaṭṭāb -> 'Alqamah ibn Waqqāṣ al-Laythī -> Muḥammad ibn Ibrāhīm al-Taymī -> Yaḥyā ibn Sa'īd al-Anṣārī -> Mass Transmission (200+ Scholars)",
     defaultData: {
       app_name: "Dragon Dawwa",
+      version: "2.5 Enterprise Engine",
+      platform_owner: "Prime Dragon Technologies (Pvt) Ltd",
+      designed_and_created_by: "Aegis Intelligence Pvt Ltd, Sri Lanka",
       query_hadith: "Innamā al-a'mālu bi-n-niyyāt, wa innamā li-kulli imri'in mā nawā... (Actions are judged solely by intentions, and every person shall have only what they intended...)",
       agent_1_takhrij: {
         sources: [
@@ -533,7 +542,7 @@ BROTHER FEROZ (HOST): Masterful synthesis across all tables! The Dragon Dawwa En
         final_status: "Sahih Lizatihi (Authentic in and of itself)",
         purity_confidence_score: 100.0,
         consensus_and_disagreements: "100% Universal consensus among classical and contemporary scholars. Zero scholarly disagreement regarding its authenticity or legal authority.",
-        executive_report_markdown: "# Academic Deep Research Dossier\n\n## Agent 1: Takhrij & Source Analysis\n**Author:** Dr. Tariq al-Mansoor\nThe narration *'Innamā al-a'mālu bi-n-niyyāt'* represents one of the most meticulously documented texts in Islamic Hadith literature, serving as the opening tradition of Imam al-Bukhari’s *Sahih*.\n\n## Agent 2: Isnad & Chain Transmission Analysis\n**Author:** Dr. Layla al-Qasimi\nWhile the transmission fan expands into hundreds of chains in the 2nd and 3rd centuries, the foundational chain is strictly singular (*Gharib Mutlaq*) across the first four generations. Every link utilizes explicit direct-hearing terminology.\n\n## Agent 3: Rijal Critical Evaluation\n**Author:** Sheikh Imran al-Hasani\nEvery authority in this single path belongs to the highest tier of biographical reliability (*Thiqah Thiqah*).\n\n## Agent 4: Shawahid & Matn Defect Analysis\n**Author:** Dr. Zainab al-Mubarak\nZero hidden defects (*'Ilal*). Zero abnormality (*Shudhudh*). Aligns perfectly with Qur'anic principles.\n\n## Agent 5: Scholar Gradings & Consensus\n**Author:** Sheikh Yusuf al-Azhari\nUniversal consensus across centuries. Formulates one-third of all Islamic legal jurisprudence.",
+        executive_report_markdown: "# Academic Deep Research Dossier\n\n## Agent 1: Takhrij & Source Analysis\n**Author:** Dr. Tariq al-Mansoor\nThe narration *'Innamā al-a'mālu bi-n-niyyāt'* represents one of the most meticulously documented texts in Islamic Hadith literature, serving as the opening tradition of Imam al-Bukhari’s *Sahih*.\n\n## Agent 2: Isnad & Chain Transmission Analysis\n**Author:** Dr. Layla al-Qasimi\nWhile the transmission fan expands into hundreds of chains in the 2nd and 3rd centuries, the foundational chain is strictly singular (*Gharib Mutlaq*) across the first four generations. Every link utilizes explicit direct-hearing terminology.\n\n## Agent 3: Rijal Critical Evaluation\n**Author:** Sheikh Imran al-Hasani\nEvery authority in this single path belongs to the highest tier of biographical reliability (*Thiqah Thiqah*).\n\n## Agent 4: Shawahid & Matn Defect Analysis\n**Author:** Dr. Zainab al-Mubarak\nZero hidden defects (*'Ilal*). Zero abnormality (*Shudhudh*). Aligns perfectly with Qur'anic principles.\n\n## Agent 5: Scholar Gradings & Consensus\n**Author:** Sheikh Yusuf al-Azhari\nUniversal consensus across centuries. Formulates one-third of all Islamic legal jurisprudence.\n\n---\n*Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prime Dragon Technologies*",
         podcast_script: `[AUDIO CUE: INTRO UP - POLISHED RADIO BEAT (4 SECONDS) THEN FADE UNDER]
 
 BROTHER FEROZ (HOST): Welcome to Dragon Dawwa Live, broadcasting from Prime Dragon Studios! I am your host, Brother Feroz. Today we execute a complete multi-agent deep dive into one of the most famous Hadiths in history: Actions are judged solely by intentions. Before we examine the text, let us meet the world-class scholars on our panel and understand how a Hadith is processed at each table.
@@ -673,6 +682,9 @@ BROTHER FEROZ (HOST): MashaAllah! A flawless demonstration across all six tables
     isnad_text: 'Abu Atikah Tarif ibn Salman -> Anas ibn Malik -> The Prophet (ﷺ)',
     defaultData: {
       app_name: 'Dragon Dawwa',
+      version: '2.5 Enterprise Engine',
+      platform_owner: 'Prime Dragon Technologies (Pvt) Ltd',
+      designed_and_created_by: 'Aegis Intelligence Pvt Ltd, Sri Lanka',
       query_hadith: 'Seek knowledge even if it is in China, for the seeking of knowledge is an obligation upon every Muslim.',
       agent_1_takhrij: {
         sources: [
@@ -799,7 +811,10 @@ BROTHER FEROZ (HOST): MashaAllah! A flawless demonstration across all six tables
 The chain founders completely upon **Abu Atikah Tarif ibn Salman**. Bukhari labeled him *Munkar al-Hadith*, and Al-Sulaymani declared him an active fabricator of narrations attributed to Anas ibn Malik.
 
 #### 2. Synthesis of Shudhudh and Wad'
-While the sentence "Seeking knowledge is an obligation upon every Muslim" is substantiated by sound supporting chains (*Shawahid* in Sunan Ibn Majah), the clause *wa law bi al-Sin* was invented by later storytellers.`,
+While the sentence "Seeking knowledge is an obligation upon every Muslim" is substantiated by sound supporting chains (*Shawahid* in Sunan Ibn Majah), the clause *wa law bi al-Sin* was invented by later storytellers.
+
+---
+*Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prime Dragon Technologies*`,
         podcast_script: `[AUDIO CUE: INTRO UP - POLISHED RADIO BEAT (4 SECONDS) THEN FADE UNDER]
 
 BROTHER FEROZ (HOST): Welcome back to Dragon Dawwa Live, broadcasting from Prime Dragon Studios! I am Brother Feroz, your anchor. Today we investigate a phrase that virtually every Muslim has heard quoted in popular lectures and classroom walls: "Seek knowledge even unto China." Before we dissect the manuscripts, let us bring in our six-table scholarly panel and understand how each department audits a narration.

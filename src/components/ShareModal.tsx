@@ -79,6 +79,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     const chainStatus = analysis.agent_2_isnad.overall_chain_status;
 
     return `📜 DRAGON DAWWA HADITH AUTHENTICATION REPORT
+Version: ${analysis.version || '2.5 Enterprise Engine'}
+Engineered by: ${analysis.designed_and_created_by || 'Aegis Intelligence Pvt Ltd, Sri Lanka'}
 Authenticity: ${status}
 Purity Confidence Score: ${score}% (${purityMeta.title})
 
@@ -93,6 +95,7 @@ ${sources}${analysis.agent_1_takhrij.sources.length > 3 ? ` + ${analysis.agent_1
 ⚖️ Scholars Verdict:
 ${analysis.agent_6_synthesis.consensus_and_disagreements.slice(0, 140)}...
 
+Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prime Dragon Technologies
 Explore the full 6-agent deep research dossier & podcast roundtable:
 ${shareUrl}`;
   };

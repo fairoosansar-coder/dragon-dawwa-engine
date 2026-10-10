@@ -1,4 +1,4 @@
-import { DragonDawwaAnalysis } from './hadith';
+import type { DragonDawwaAnalysis } from './hadith.ts';
 
 export interface UserAccount {
   user_id: string;

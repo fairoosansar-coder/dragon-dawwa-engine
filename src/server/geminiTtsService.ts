@@ -11,7 +11,7 @@ import { GoogleGenAI } from "@google/genai";
  * for all six primary podcast studio personas based on the 'speaker' parameter.
  */
 
-export type PrebuiltVoiceName = 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Zephyr';
+export type PrebuiltVoiceName = 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Zephyr' | 'Aoede' | 'Orus';
 
 export interface SpeakerVoiceProfile {
   id: string;
@@ -72,9 +72,9 @@ export const PODCAST_PERSONA_PROFILES: Record<string, SpeakerVoiceProfile> = {
     id: 'imran',
     personaName: 'Sheikh Imran al-Hasani',
     role: 'Biographical Critic & Jarh wa Ta\'dil Master (Agent 3)',
-    voiceName: 'Charon',
+    voiceName: 'Orus',
     gender: 'M',
-    style: 'Deep, resonant, venerable classical male biographical scholar delivering solemn, heavyweight verdicts with traditional cadence and measured gravitas',
+    style: 'Articulate, dignified, warm classical male biographical scholar delivering measured, insightful verdicts on narrator veracity with poise and traditional scholarly authority',
     description: 'The Narrator Judge examining character integrity across classical biographical dictionaries'
   },
   zainab: {
@@ -225,7 +225,8 @@ export function getAllPodcastPersonas(): SpeakerVoiceProfile[] {
  */
 export async function synthesizeGeminiVoice(
   text: string,
-  speaker: string
+  speaker: string,
+  customVoice?: string
 ): Promise<TtsResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -245,7 +246,17 @@ export async function synthesizeGeminiVoice(
   }
 
   // Dynamically resolve voice profile based on speaker parameter
-  const profile = getGeminiVoiceForSpeaker(speaker);
+  const baseProfile = getGeminiVoiceForSpeaker(speaker);
+  const validVoices: PrebuiltVoiceName[] = ['Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr', 'Aoede', 'Orus'];
+  const effectiveVoice: PrebuiltVoiceName = (customVoice && validVoices.includes(customVoice as PrebuiltVoiceName))
+    ? (customVoice as PrebuiltVoiceName)
+    : baseProfile.voiceName;
+
+  const profile: SpeakerVoiceProfile = {
+    ...baseProfile,
+    voiceName: effectiveVoice,
+  };
+
   const cacheKey = `${profile.voiceName}:${profile.id}:${cleanText}`;
 
   if (audioCache.has(cacheKey)) {

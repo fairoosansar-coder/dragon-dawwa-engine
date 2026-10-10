@@ -17,12 +17,23 @@ import {
   UploadCloud,
   Mic,
   MicOff,
-  Loader2
+  Loader2,
+  History,
+  Clock,
+  ArrowUpRight
 } from 'lucide-react';
 import { BenchmarkCorpusItem, FuzzyNormalizationResult } from '../types/normalization';
 import { BENCHMARK_CORPUS, normalizeHadithQuery } from '../utils/fuzzyNormalizer';
 import { HadithMediaUploadModal } from './HadithMediaUploadModal';
 import { SupportedLanguage, TRANSLATIONS } from '../utils/localization';
+
+export interface RecentSearchItem {
+  id: string;
+  matn: string;
+  isnad?: string;
+  timestamp: number;
+  language?: SupportedLanguage;
+}
 
 interface HadithSearchFormProps {
   initialMatn?: string;
@@ -51,6 +62,9 @@ export function HadithSearchForm({
   const [activeBenchmark, setActiveBenchmark] = useState<string | null>("saturday_fast");
   const [normalizationData, setNormalizationData] = useState<FuzzyNormalizationResult | null>(null);
 
+  // Local Storage Recent Searches State
+  const [recentSearches, setRecentSearches] = useState<RecentSearchItem[]>([]);
+
   // Optical Media (Photo / Camera / Document) Modal State
   const [isMediaModalOpen, setIsMediaModalOpen] = useState<boolean>(false);
   const [mediaModalMode, setMediaModalMode] = useState<'camera' | 'upload_photo' | 'upload_file'>('upload_photo');
@@ -72,12 +86,225 @@ export function HadithSearchForm({
     setIsMediaModalOpen(true);
   };
 
+  const getLocalizedBenchmark = (item: BenchmarkCorpusItem, lang: SupportedLanguage) => {
+    if (lang === 'si') {
+      if (item.id === 'intentions') {
+        return {
+          ...item,
+          title: "ක්‍රියාවන් චේතනාවන් මත රඳා පවතී (මුත්තෆකුන් අලයිහි)",
+          tag: "මූලික සහීහ් (බුහාරි #1, මුස්ලිම් #1907)",
+          matn: "ක්‍රියාවන් සියල්ල චේතනාවන් මත රඳා පවතී. සෑම මිනිසෙකුටම ඔහු චේතනා කළ දේ පමණක් හිමි වේ. කෙනෙකුගේ හිජ්රතය අල්ලාහ් සහ ඔහුගේ රසූල්වරයා වෙනුවෙන් වී නම්..."
+        };
+      }
+      if (item.id === 'saturday_fast') {
+        return {
+          ...item,
+          title: "සෙනසුරාදා උපවාස තහනම (විවාදාත්මක / ෂාද්)",
+          tag: "ෆික්හ් සහ විවාදාත්මක දාම (අබූ දාවූද්, තිර්මිදි)",
+          matn: "ඔබට අනිවාර්ය කරන ලද උපවාස හැර සෙනසුරාදා දිනවල උපවාසයේ නොයෙදෙන්න; ඔබගෙන් කෙනෙකුට මිදි ලෙල්ලක් හෝ ගසක අත්තක් හැර අන් කිසිවක් හමු නොවන්නේ නම්, ඔහු එය හෝ හපනු ලැබේවා."
+        };
+      }
+      if (item.id === 'china_knowledge') {
+        return {
+          ...item,
+          title: "චීනයට ගොස් හෝ දැනුම සොයන්න (ව්‍යාජ / ගොතන ලද්දක්)",
+          tag: "ප්‍රසිද්ධ ගොතන ලද වාර්තාව (ඉබ්නුල් ජව්සී, දහබී)",
+          matn: "චීනයට ගොස් හෝ දැනුම සොයන්න, මන්ද දැනුම සෙවීම සෑම මුස්ලිම්වරයෙකුටම අනිවාර්ය වේ."
+        };
+      }
+    } else if (lang === 'ta') {
+      if (item.id === 'intentions') {
+        return {
+          ...item,
+          title: "செயல்கள் எண்ணங்களைப் பொறுத்தே (முத்தஃபகுன் அலைஹி)",
+          tag: "அடிப்படை ஆதாரபூர்வ ஹதீஸ் (புகாரி #1, முஸ்லிம் #1907)",
+          matn: "செயல்கள் அனைத்தும் எண்ணங்களைப் பொறுத்தே அமைகின்றன; ஒவ்வொரு மனிதனுக்கும் அவன் எண்ணியதே கிடைக்கிறது..."
+        };
+      }
+      if (item.id === 'saturday_fast') {
+        return {
+          ...item,
+          title: "சனிக்கிழமை நோன்பு தடை (விவாதத்திற்குரியது / ஷாத்)",
+          tag: "பிக்ஹ் மற்றும் முரண்பட்ட தொடர்கள் (அபூ தாவூத், திர்மிதி)",
+          matn: "கடமையாக்கப்பட்ட நோன்பைத் தவிர வேறு எதற்காகவும் சனிக்கிழமை நோன்பு நோற்காதீர்கள்; ஒரு திராட்சைத் தோல் அல்லது மரத்தின் கிளையைத் தவிர வேறெதுவும் கிடைக்காவிட்டாலும் அதனை மென்று விடவும்."
+        };
+      }
+      if (item.id === 'china_knowledge') {
+        return {
+          ...item,
+          title: "சீனா சென்றேனும் கல்வி கற்க (இட்டுக்கட்டப்பட்டது)",
+          tag: "பிரபலமான பலவீனமான செய்தி (இப்னுல் ஜவ்ஸி, தஹபி)",
+          matn: "சீனா சென்றேனும் கல்வி கற்க; ஏனெனில் கல்வி தேடுவது ஒவ்வொரு முஸ்லிமுக்கும் கடமையாகும்."
+        };
+      }
+    }
+    return item;
+  };
+
+  // Load recent searches from localStorage on mount
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const stored = localStorage.getItem('dragon_dawwa_recent_searches');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            setRecentSearches(parsed);
+          }
+        } else {
+          // Curated initial queries so the history section is immediately useful
+          const initialStarters: RecentSearchItem[] = [
+            {
+              id: 'starter_1',
+              matn: "Innamā al-a'mālu bi-n-niyyāt, wa innamā li-kulli imri'in mā nawā... (Actions are judged solely by intentions)",
+              isnad: "Prophet Muhammad (PBUH) -> 'Umar ibn al-Khaṭṭāb -> Mass Transmission",
+              timestamp: Date.now() - 1000 * 60 * 18,
+              language: 'en'
+            },
+            {
+              id: 'starter_2',
+              matn: "Do not fast on Saturdays except for what has been made obligatory for you...",
+              isnad: "Qutaybah -> Yahya ibn Hamza -> Thawran ibn Yazid -> Khalid ibn Ma'dan",
+              timestamp: Date.now() - 1000 * 60 * 85,
+              language: 'en'
+            }
+          ];
+          localStorage.setItem('dragon_dawwa_recent_searches', JSON.stringify(initialStarters));
+          setRecentSearches(initialStarters);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to access localStorage for recent searches:', e);
+    }
+  }, []);
+
+  const saveSearchToLocalStorage = (matnText: string, isnadText: string) => {
+    if (!matnText || !matnText.trim()) return;
+    try {
+      if (typeof window === 'undefined' || !window.localStorage) return;
+      const stored = localStorage.getItem('dragon_dawwa_recent_searches');
+      const list: RecentSearchItem[] = stored ? JSON.parse(stored) : [];
+      const cleanMatn = matnText.trim();
+      const cleanIsnad = (isnadText || '').trim();
+
+      // Deduplicate: remove existing entry if identical matn
+      const filtered = list.filter(item => item.matn.trim().toLowerCase() !== cleanMatn.toLowerCase());
+      const newItem: RecentSearchItem = {
+        id: `search_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        matn: cleanMatn,
+        isnad: cleanIsnad,
+        timestamp: Date.now(),
+        language: currentLanguage
+      };
+
+      const updated = [newItem, ...filtered].slice(0, 15);
+      localStorage.setItem('dragon_dawwa_recent_searches', JSON.stringify(updated));
+      setRecentSearches(updated);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('hadith_search_updated'));
+      }
+    } catch (e) {
+      console.warn('Failed to persist query to localStorage:', e);
+    }
+  };
+
+  const handleRemoveRecentSearch = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = recentSearches.filter(item => item.id !== id);
+    setRecentSearches(updated);
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem('dragon_dawwa_recent_searches', JSON.stringify(updated));
+        window.dispatchEvent(new Event('hadith_search_updated'));
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+  };
+
+  const handleClearAllRecentSearches = () => {
+    setRecentSearches([]);
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.removeItem('dragon_dawwa_recent_searches');
+        window.dispatchEvent(new Event('hadith_search_updated'));
+      }
+    } catch (err) {
+      console.warn(err);
+    }
+  };
+
+  const handleSelectRecentSearch = (item: RecentSearchItem) => {
+    setHadithMatn(item.matn);
+    setIsnad(item.isnad || '');
+    saveSearchToLocalStorage(item.matn, item.isnad || '');
+    onRunEngine(item.matn, item.isnad || '');
+  };
+
+  const formatTimeAgo = (timestamp: number): string => {
+    const diff = Math.max(0, Date.now() - timestamp);
+    const minutes = Math.floor(diff / (1000 * 60));
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  };
+
+  const recentSearchLabels = {
+    en: {
+      title: 'Recent Search Queries (Local Storage)',
+      savedCount: 'Saved',
+      subtitle: 'Quick access to your previously submitted and researched Hadith queries',
+      clearAll: 'Clear History',
+      emptyMessage: 'No recent search queries yet. Enter or dictate a Hadith above to save it locally.',
+      quickRun: 'Quick Run',
+      deleteItem: 'Remove from history',
+      isnadLabel: 'Chain:',
+      matnOnly: 'Matn Only'
+    },
+    ta: {
+      title: 'சமீபத்திய தேடல் வினவல்கள் (உள்ளக சேமிப்பகம்)',
+      savedCount: 'சேமிக்கப்பட்டது',
+      subtitle: 'நீங்கள் முன்னர் ஆய்வு செய்த ஹதீஸ் வினவல்களை விரைவாக அணுகவும்',
+      clearAll: 'வரலாற்றை அழிக்கவும்',
+      emptyMessage: 'சமீபத்திய தேடல்கள் எதுவும் இல்லை. மேலே உள்ள படிவத்தில் தேடலைத் தொடங்கவும்.',
+      quickRun: 'மீண்டும் இயக்கு',
+      deleteItem: 'வரலாற்றிலிருந்து நீக்கு',
+      isnadLabel: 'தொடர்:',
+      matnOnly: 'ஹதீஸ் பாடம் மட்டும்'
+    },
+    si: {
+      title: 'මෑත සෙවුම් විමසුම් (දේශීය මතකය / Local Storage)',
+      savedCount: 'සුරකින ලදී',
+      subtitle: 'පෙර සත්‍යාපනය කළ හදීස් විමසුම් ක්ෂණිකව ප්‍රවේශ කර ක්‍රියාත්මක කරන්න',
+      clearAll: 'ඉතිහාසය මකන්න',
+      emptyMessage: 'තවම මෑත සෙවුම් නොමැත. ඉහත පෝරමයෙන් හදීසයක් විමසා මෙහි සුරකින්න.',
+      quickRun: 'ක්ෂණිකව පූරණය',
+      deleteItem: 'ඉතිහාසයෙන් ඉවත් කරන්න',
+      isnadLabel: 'දාමය:',
+      matnOnly: 'පාඨය පමණි'
+    }
+  }[currentLanguage] || {
+    title: 'Recent Search Queries (Local Storage)',
+    savedCount: 'Saved',
+    subtitle: 'Quick access to your previously submitted and researched Hadith queries',
+    clearAll: 'Clear History',
+    emptyMessage: 'No recent search queries yet. Enter or dictate a Hadith above to save it locally.',
+    quickRun: 'Quick Run',
+    deleteItem: 'Remove from history',
+    isnadLabel: 'Chain:',
+    matnOnly: 'Matn Only'
+  };
+
   const handleApplyExtractedMedia = (matn: string, extractedIsnad: string, autoRun?: boolean) => {
     setHadithMatn(matn);
     if (extractedIsnad) {
       setIsnad(extractedIsnad);
     }
     if (autoRun) {
+      saveSearchToLocalStorage(matn, extractedIsnad || isnad);
       onRunEngine(matn, extractedIsnad || isnad);
     }
   };
@@ -324,9 +551,11 @@ export function HadithSearchForm({
 
   // Handler to load benchmark datasets
   const handleSelectBenchmark = (item: BenchmarkCorpusItem) => {
-    setHadithMatn(item.matn);
-    setIsnad(item.isnad);
+    const loc = getLocalizedBenchmark(item, currentLanguage);
+    setHadithMatn(loc.matn);
+    setIsnad(loc.isnad);
     setActiveBenchmark(item.id);
+    saveSearchToLocalStorage(loc.matn, loc.isnad);
     if (onSelectBenchmark) {
       onSelectBenchmark(item.id);
     }
@@ -345,6 +574,7 @@ export function HadithSearchForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!hadithMatn.trim()) return;
+    saveSearchToLocalStorage(hadithMatn, isnad);
     onRunEngine(hadithMatn, isnad);
   };
 
@@ -363,30 +593,33 @@ export function HadithSearchForm({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {BENCHMARK_CORPUS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => handleSelectBenchmark(item)}
-              className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
-                activeBenchmark === item.id
-                  ? "border-amber-500/80 bg-amber-500/15 shadow-md shadow-amber-950/40 ring-1 ring-amber-500/30"
-                  : "border-slate-800 bg-[#121824] hover:border-slate-700 hover:bg-[#161f30]"
-              }`}
-            >
-              <div className="flex justify-between items-start mb-1.5 gap-2">
-                <h4 className="text-xs font-bold text-slate-200 line-clamp-1">{item.title}</h4>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold shrink-0 ${
-                  item.scoreType === 'success' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                  item.scoreType === 'warning' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                  'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                }`}>
-                  {item.score}
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 truncate">{item.tag}</p>
-            </button>
-          ))}
+          {BENCHMARK_CORPUS.map((item) => {
+            const loc = getLocalizedBenchmark(item, currentLanguage);
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => handleSelectBenchmark(item)}
+                className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
+                  activeBenchmark === item.id
+                    ? "border-amber-500/80 bg-amber-500/15 shadow-md shadow-amber-950/40 ring-1 ring-amber-500/30"
+                    : "border-slate-800 bg-[#121824] hover:border-slate-700 hover:bg-[#161f30]"
+                }`}
+              >
+                <div className="flex justify-between items-start mb-1.5 gap-2">
+                  <h4 className="text-xs font-bold text-slate-200 line-clamp-1">{loc.title}</h4>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold shrink-0 ${
+                    item.scoreType === 'success' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                    item.scoreType === 'warning' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                    'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                  }`}>
+                    {item.score}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 truncate">{loc.tag}</p>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -725,6 +958,92 @@ export function HadithSearchForm({
             </div>
           </div>
         </form>
+      </div>
+
+      {/* =========================================================================
+          RECENT SEARCH QUERIES (LOCAL STORAGE PERSISTENCE & QUICK ACCESS)
+          ========================================================================= */}
+      <div className="bg-[#0b1018] border border-slate-800/90 rounded-2xl p-5 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-slate-800/70">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-400 shrink-0">
+              <History className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs sm:text-sm font-bold text-white tracking-wide flex items-center gap-1.5">
+                  <span>{recentSearchLabels.title}</span>
+                </h3>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-amber-300 border border-slate-700">
+                  {recentSearches.length} {recentSearchLabels.savedCount}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                {recentSearchLabels.subtitle}
+              </p>
+            </div>
+          </div>
+
+          {recentSearches.length > 0 && (
+            <button
+              type="button"
+              onClick={handleClearAllRecentSearches}
+              className="self-start sm:self-auto px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 border border-slate-800 hover:border-rose-900/40 transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
+              title={recentSearchLabels.clearAll}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>{recentSearchLabels.clearAll}</span>
+            </button>
+          )}
+        </div>
+
+        {/* List of Recent Searches */}
+        {recentSearches.length === 0 ? (
+          <div className="py-7 text-center text-xs text-slate-500 italic flex flex-col items-center justify-center gap-2">
+            <Clock className="w-6 h-6 text-slate-700" />
+            <span>{recentSearchLabels.emptyMessage}</span>
+          </div>
+        ) : (
+          <div className="mt-3.5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {recentSearches.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => handleSelectRecentSearch(item)}
+                className="group relative p-3.5 rounded-xl bg-[#101724]/90 hover:bg-[#141f32] border border-slate-800 hover:border-amber-500/50 transition-all cursor-pointer flex flex-col justify-between gap-2.5 shadow-sm hover:shadow-lg"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-slate-500" />
+                      {formatTimeAgo(item.timestamp)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => handleRemoveRecentSearch(item.id, e)}
+                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-950/40 rounded transition-all cursor-pointer"
+                      title={recentSearchLabels.deleteItem}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-200 font-medium line-clamp-2 leading-relaxed group-hover:text-amber-200 transition-colors">
+                    "{item.matn}"
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-800/70 text-[10px] text-slate-400">
+                  <span className="truncate max-w-[170px] text-slate-400 font-mono">
+                    {item.isnad ? `🔗 ${item.isnad}` : `🔍 ${recentSearchLabels.matnOnly}`}
+                  </span>
+                  <span className="text-amber-400 font-semibold flex items-center gap-1 group-hover:translate-x-0.5 transition-transform shrink-0">
+                    <span>{recentSearchLabels.quickRun}</span>
+                    <ArrowUpRight className="w-3 h-3" />
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Optical Hadith & Manuscript Scanner Modal (Live Camera / Photo Upload / Document OCR) */}

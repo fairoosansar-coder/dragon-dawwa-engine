@@ -26,7 +26,8 @@ import {
   FileSpreadsheet,
   Headphones,
   Award,
-  Share2
+  Share2,
+  Printer
 } from 'lucide-react';
 import { DragonDawwaAnalysis, SampleHadithPreset } from './types/hadith';
 import { SAMPLE_HADITHS } from './data/sampleHadiths';
@@ -41,6 +42,8 @@ import { AgentStatusTracker, AgentStep } from './components/AgentStatusTracker';
 import { ShareModal } from './components/ShareModal';
 import { HadithSearchForm } from './components/HadithSearchForm';
 import { PublicWallFeed } from './components/PublicWallFeed';
+import IslamicFooter from './components/IslamicFooter';
+import { PrintDossierReport } from './components/PrintDossierReport';
 import { WallPost, UserAccount } from './types/wall';
 import { INITIAL_WALL_POSTS, CURRENT_DEFAULT_USER } from './data/wallFeedData';
 import { SupportedLanguage, SUPPORTED_LANGUAGES, TRANSLATIONS } from './utils/localization';
@@ -50,6 +53,37 @@ export default function App() {
   // Trilingual system (English, Tamil, Sinhala)
   const [currentLanguage, setCurrentLanguage] = useState<SupportedLanguage>('en');
   const t = TRANSLATIONS[currentLanguage];
+
+  const handleLanguageChange = (newLang: SupportedLanguage) => {
+    setCurrentLanguage(newLang);
+    // Also adapt active Hadith Matn input if user is viewing or researching one of the benchmark Hadiths
+    const lower = (hadithInput || '').toLowerCase();
+    if (lower.includes('intention') || lower.includes('ක්‍රියා') || lower.includes('චේතනා') || lower.includes('செயல்') || lower.includes('எண்ணம்') || lower.includes("a'mal") || lower.includes('niyyat')) {
+      if (newLang === 'si') {
+        setHadithInput("ක්‍රියාවන් සියල්ල චේතනාවන් මත රඳා පවතී. සෑම මිනිසෙකුටම ඔහු චේතනා කළ දේ පමණක් හිමි වේ. කෙනෙකුගේ හිජ්රතය අල්ලාහ් සහ ඔහුගේ රසූල්වරයා වෙනුවෙන් වී නම්...");
+      } else if (newLang === 'ta') {
+        setHadithInput("செயல்கள் அனைத்தும் எண்ணங்களைப் பொறுத்தே அமைகின்றன; ஒவ்வொரு மனிதனுக்கும் அவன் எண்ணியதே கிடைக்கிறது...");
+      } else {
+        setHadithInput(SAMPLE_HADITHS[1].hadith_text);
+      }
+    } else if (lower.includes('saturday') || lower.includes('සෙනසුරාදා') || lower.includes('சனிக்கிழமை') || lower.includes('sabt') || lower.includes('fast')) {
+      if (newLang === 'si') {
+        setHadithInput("ඔබට අනිවාර්ය කරන ලද උපවාස හැර සෙනසුරාදා දිනවල උපවාසයේ නොයෙදෙන්න; ඔබගෙන් කෙනෙකුට මිදි ලෙල්ලක් හෝ ගසක අත්තක් හැර අන් කිසිවක් හමු නොවන්නේ නම්, ඔහු එය හෝ හපනු ලැබේවා.");
+      } else if (newLang === 'ta') {
+        setHadithInput("கடமையாக்கப்பட்ட நோன்பைத் தவிர வேறு எதற்காகவும் சனிக்கிழமை நோன்பு நோற்காதீர்கள்; ஒரு திராட்சைத் தோல் அல்லது மரத்தின் கிளையைத் தவிர வேறெதுவும் கிடைக்காவிட்டாலும் அதனை மென்று விடவும்.");
+      } else {
+        setHadithInput(SAMPLE_HADITHS[0].hadith_text);
+      }
+    } else if (lower.includes('china') || lower.includes('චීනය') || lower.includes('சீனா') || lower.includes('knowledge') || lower.includes('දැනුම') || lower.includes('கல்வி')) {
+      if (newLang === 'si') {
+        setHadithInput("චීනයට ගොස් හෝ දැනුම සොයන්න, මන්ද දැනුම සෙවීම සෑම මුස්ලිම්වරයෙකුටම අනිවාර්ය වේ.");
+      } else if (newLang === 'ta') {
+        setHadithInput("சீனா சென்றேனும் கல்வி கற்க; ஏனெனில் கல்வி தேடுவது ஒவ்வொரு முஸ்லிமுக்கும் கடமையாகும்.");
+      } else {
+        setHadithInput(SAMPLE_HADITHS[2].hadith_text);
+      }
+    }
+  };
 
   // User Authentication State
   const [currentUser, setCurrentUser] = useState<UserAccount>(CURRENT_DEFAULT_USER);
@@ -115,7 +149,32 @@ export default function App() {
 
   const handleSelectPreset = (preset: SampleHadithPreset) => {
     setSelectedPreset(preset);
-    setHadithInput(preset.hadith_text);
+    
+    // Adapt Hadith matn to active language
+    if (currentLanguage === 'si') {
+      if (preset.id === 'actions-by-intentions') {
+        setHadithInput("ක්‍රියාවන් සියල්ල චේතනාවන් මත රඳා පවතී. සෑම මිනිසෙකුටම ඔහු චේතනා කළ දේ පමණක් හිමි වේ. කෙනෙකුගේ හිජ්රතය අල්ලාහ් සහ ඔහුගේ රසූල්වරයා වෙනුවෙන් වී නම්...");
+      } else if (preset.id === 'saturday-fasting') {
+        setHadithInput("ඔබට අනිවාර්ය කරන ලද උපවාස හැර සෙනසුරාදා දිනවල උපවාසයේ නොයෙදෙන්න; ඔබගෙන් කෙනෙකුට මිදි ලෙල්ලක් හෝ ගසක අත්තක් හැර අන් කිසිවක් හමු නොවන්නේ නම්, ඔහු එය හෝ හපනු ලැබේවා.");
+      } else if (preset.id === 'seek-knowledge-china') {
+        setHadithInput("චීනයට ගොස් හෝ දැනුම සොයන්න, මන්ද දැනුම සෙවීම සෑම මුස්ලිම්වරයෙකුටම අනිවාර්ය වේ.");
+      } else {
+        setHadithInput(preset.hadith_text);
+      }
+    } else if (currentLanguage === 'ta') {
+      if (preset.id === 'actions-by-intentions') {
+        setHadithInput("செயல்கள் அனைத்தும் எண்ணங்களைப் பொறுத்தே அமைகின்றன; ஒவ்வொரு மனிதனுக்கும் அவன் எண்ணியதே கிடைக்கிறது...");
+      } else if (preset.id === 'saturday-fasting') {
+        setHadithInput("கடமையாக்கப்பட்ட நோன்பைத் தவிர வேறு எதற்காகவும் சனிக்கிழமை நோன்பு நோற்காதீர்கள்; ஒரு திராட்சைத் தோல் அல்லது மரத்தின் கிளையைத் தவிர வேறெதுவும் கிடைக்காவிட்டாலும் அதனை மென்று விடவும்.");
+      } else if (preset.id === 'seek-knowledge-china') {
+        setHadithInput("சீனா சென்றேனும் கல்வி கற்க; ஏனெனில் கல்வி தேடுவது ஒவ்வொரு முஸ்லிமுக்கும் கடமையாகும்.");
+      } else {
+        setHadithInput(preset.hadith_text);
+      }
+    } else {
+      setHadithInput(preset.hadith_text);
+    }
+
     setIsnadInput(preset.isnad_text || '');
     setCurrentAnalysis(preset.defaultData);
     setAnalysisError(null);
@@ -350,9 +409,12 @@ export default function App() {
   const handleSelectBenchmarkById = (benchmarkId: string) => {
     // Map benchmarkId to SAMPLE_HADITHS preset if exists
     const presetMap: Record<string, string> = {
-      saturday_fast: 'hadith_fast_saturday',
-      intentions: 'hadith_intentions',
-      china_knowledge: 'hadith_china_knowledge',
+      saturday_fast: 'saturday-fasting',
+      'saturday-fasting': 'saturday-fasting',
+      intentions: 'actions-by-intentions',
+      'actions-by-intentions': 'actions-by-intentions',
+      china_knowledge: 'seek-knowledge-china',
+      'seek-knowledge-china': 'seek-knowledge-china',
     };
     const mappedId = presetMap[benchmarkId] || benchmarkId;
     const foundPreset = SAMPLE_HADITHS.find(p => p.id === mappedId);
@@ -364,6 +426,9 @@ export default function App() {
   const handleCopyReport = () => {
     if (!currentAnalysis) return;
     const text = `# DRAGON DAWWA AUTHENTICATION REPORT
+Version: ${currentAnalysis.version || "2.5 Enterprise Engine"}
+Platform Owner: ${currentAnalysis.platform_owner || "Prime Dragon Technologies (Pvt) Ltd"}
+Engineered & Created by: ${currentAnalysis.designed_and_created_by || "Aegis Intelligence Pvt Ltd, Sri Lanka"}
 Status: ${currentAnalysis.agent_6_synthesis.final_status}
 Purity Confidence Score: ${currentAnalysis.agent_6_synthesis.purity_confidence_score}%
 
@@ -371,7 +436,10 @@ ${currentAnalysis.agent_6_synthesis.executive_report_markdown}
 
 ---
 PODCAST SCRIPT:
-${currentAnalysis.agent_6_synthesis.podcast_script}`;
+${currentAnalysis.agent_6_synthesis.podcast_script}
+
+---
+Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prime Dragon Technologies`;
 
     navigator.clipboard.writeText(text);
     setCopiedReport(true);
@@ -391,8 +459,19 @@ ${currentAnalysis.agent_6_synthesis.podcast_script}`;
     URL.revokeObjectURL(url);
   };
 
+  const handlePrintReport = () => {
+    window.print();
+  };
+
+  const printReportLabel = {
+    en: 'Print Report',
+    ta: 'அறிக்கையை அச்சிடுக',
+    si: 'වාර්තාව මුද්‍රණය'
+  }[currentLanguage] || 'Print Report';
+
   return (
-    <div className="min-h-screen bg-[#060a0f] text-slate-100 flex flex-col selection:bg-amber-500/30 selection:text-amber-200">
+    <>
+      <div className="screen-only print:hidden min-h-screen bg-[#060a0f] text-slate-100 flex flex-col selection:bg-amber-500/30 selection:text-amber-200">
       
       {/* Top Navigation Bar */}
       <header className="sticky top-0 z-40 bg-[#080d14]/90 border-b border-slate-800/80 backdrop-blur-xl">
@@ -429,7 +508,7 @@ ${currentAnalysis.agent_6_synthesis.podcast_script}`;
                 <button
                   key={lang.code}
                   type="button"
-                  onClick={() => setCurrentLanguage(lang.code)}
+                  onClick={() => handleLanguageChange(lang.code)}
                   className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
                     currentLanguage === lang.code
                       ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
@@ -470,6 +549,17 @@ ${currentAnalysis.agent_6_synthesis.podcast_script}`;
             >
               <Share2 className="w-3.5 h-3.5 text-amber-400" />
               <span className="hidden sm:inline">Share</span>
+            </button>
+
+            {/* Print Report / Save PDF Button */}
+            <button
+              type="button"
+              onClick={handlePrintReport}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 hover:text-amber-200 text-xs font-semibold border border-amber-500/40 hover:border-amber-400 transition-all cursor-pointer shadow-md"
+              title="Print or Save PDF of the complete Hadith Authentication Dossier"
+            >
+              <Printer className="w-3.5 h-3.5 text-amber-400" />
+              <span>{printReportLabel}</span>
             </button>
 
             <button
@@ -641,6 +731,7 @@ ${currentAnalysis.agent_6_synthesis.podcast_script}`;
               currentTab={currentDossierStep}
               onSelectTab={setCurrentDossierStep}
               isLoading={isAnalyzing}
+              currentLanguage={currentLanguage}
             />
 
             {/* Dossier Step View */}
@@ -650,6 +741,8 @@ ${currentAnalysis.agent_6_synthesis.podcast_script}`;
                   data={displayedAnalysis}
                   onSelectNarrator={() => setCurrentDossierStep('rijal')}
                   onShare={handleShareAction}
+                  currentLanguage={currentLanguage}
+                  onSelectSearchItem={(matn, isnad) => handleRunAnalysisWithInputs(matn, isnad)}
                 />
               )}
 
@@ -732,17 +825,8 @@ ${currentAnalysis.agent_6_synthesis.podcast_script}`;
 
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800/80 bg-[#070b10] py-8 text-center text-xs text-slate-500 space-y-2">
-        <div className="flex items-center justify-center gap-2">
-          <Flame className="w-4 h-4 text-amber-400" />
-          <span className="font-bold text-slate-400">Dragon Dawwa</span>
-          <span>• Developed under Prime Dragon Technologies</span>
-        </div>
-        <p className="max-w-xl mx-auto text-slate-600 px-4">
-          Rigorous Hadith deep search adheres to classical Jarh wa Ta'dil standards, verified against Tahdhib al-Kamal, Mizan al-I'tidal, and Kutub al-Sittah.
-        </p>
-      </footer>
+      {/* Unified Platform Footer & Aegis Intelligence Credits */}
+      <IslamicFooter />
 
       {/* Web Share API & Link Sharing Modal */}
       <ShareModal
@@ -753,5 +837,17 @@ ${currentAnalysis.agent_6_synthesis.podcast_script}`;
         presetTitle={selectedPreset?.title}
       />
     </div>
+
+    {/* =========================================================================
+        PDF-READY PRINTABLE DOSSIER REPORT (ONLY ACTIVE IN PRINT / PDF PREVIEW)
+        ========================================================================= */}
+    <div className="print-only hidden print:block">
+      <PrintDossierReport
+        analysis={displayedAnalysis}
+        currentUser={currentUser}
+        currentLanguage={currentLanguage}
+      />
+    </div>
+  </>
   );
 }
