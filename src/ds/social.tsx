@@ -4,6 +4,7 @@
 // 6-agent engine, and questions of fiqh wait for verified scholars.
 // Sample texts are well-known, correctly referenced narrations and ayat; people are fictional.
 import React from 'react';
+import { widgetText } from './widgetI18n';
 import { useCommunityWidgets } from './communityWidgets';
 import {
   HandHeart, Lightbulb, Bookmark, BookMarked, MessageCircle, Share2, Flag, Send, ShieldCheck,
@@ -504,6 +505,13 @@ const AdabNote: React.FC = () => (
 /* ---------- CommunityHome — the three-column social page ---------- */
 export interface CommunityHomeProps { language?: SupportedLanguage; initialTab?: CommunityTab; /** live verified-hadith feed from the app; replaces the sample feed */ verifiedFeed?: React.ReactNode; }
 export const CommunityHome: React.FC<CommunityHomeProps> = ({ language = 'en', initialTab = 'foryou', verifiedFeed }) => {
+  const [desktopPanels, setDesktopPanels] = React.useState(() => window.matchMedia('(min-width: 1024px)').matches);
+  React.useEffect(() => {
+    const query = window.matchMedia('(min-width: 1024px)');
+    const update = () => setDesktopPanels(query.matches);
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   const widgets = useCommunityWidgets(language, <CommunityAside />);
   const [tab, setTab] = React.useState<CommunityTab>(initialTab);
   const [topic, setTopic] = React.useState<string | null>(null);
@@ -517,10 +525,10 @@ export const CommunityHome: React.FC<CommunityHomeProps> = ({ language = 'en', i
   const tabs: Array<[CommunityTab, string]> = [['foryou', 'For you'], ['following', 'Following'], ['questions', 'Questions'], ['verified', 'Verified Hadith'], ['halaqat', 'Halaqat']];
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)_300px] gap-6 items-start">
-      <div className="hidden lg:block space-y-5"><CommunityNav tab={tab} onTab={setTab} topic={topic} onTopic={setTopic} />{widgets.panel('left')}</div>
+      <div className="hidden lg:block space-y-5"><CommunityNav tab={tab} onTab={setTab} topic={topic} onTopic={setTopic} />{desktopPanels && widgets.panel('left')}</div>
       <div className="space-y-4 md:space-y-5 min-w-0">
         {widgets.settings}
-        <details className="lg:hidden rounded-2xl border border-slate-700 p-3"><summary className="cursor-pointer text-sm font-semibold">Daily tools & widgets</summary><div className="mt-3 space-y-5">{widgets.panel('left')}{widgets.panel('right')}</div></details>
+        {!desktopPanels && <details className="lg:hidden rounded-2xl border border-slate-700 p-3"><summary className="cursor-pointer text-sm font-semibold">{widgetText(language, 'tools')}</summary><div className="mt-3 space-y-5">{widgets.panel('left')}{widgets.panel('right')}</div></details>}
         <div className="lg:hidden -mx-3 px-3 flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
           {TOPICS.map(t => (
             <button key={t} type="button" onClick={() => setTopic(topic === t ? null : t)}
@@ -555,7 +563,7 @@ export const CommunityHome: React.FC<CommunityHomeProps> = ({ language = 'en', i
           </PatternSurface>
         )}
       </div>
-      <div className="hidden lg:block">{widgets.panel('right')}</div>
+      <div className="hidden lg:block">{desktopPanels && widgets.panel('right')}</div>
     </div>
   );
 };

@@ -34,7 +34,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ language, onLanguage, user
   const [copied, setCopied] = React.useState(false);
   return (
     <header className="sticky top-0 z-40 bg-[var(--surface-header)]/90 border-b islamic-gold-border backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 md:h-[72px] flex items-center justify-between gap-3 md:gap-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 md:h-[72px] flex flex-wrap md:flex-nowrap items-center justify-between gap-3 md:gap-4 py-2 md:py-0">
         <BrandMark tagline="" version="" />
         <nav className="hidden md:flex items-center gap-1 bg-slate-900/70 border border-slate-700/80 rounded-2xl p-1">
           {NAV.map(([id, label, Icon]) => (
@@ -46,7 +46,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ language, onLanguage, user
             </button>
           ))}
         </nav>
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="ml-auto flex items-center gap-2 sm:gap-3">
           <ThemeToggle value={theme} onChange={setTheme} />
           <div className="hidden 2xl:block"><LanguageToggle value={language} onChange={onLanguage} /></div>
           <div className="2xl:hidden"><LanguageToggle compact value={language} onChange={onLanguage} /></div>
