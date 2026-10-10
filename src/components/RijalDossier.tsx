@@ -20,7 +20,7 @@ export const RijalDossier: React.FC<RijalDossierProps> = ({ rijal }) => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-[#0b1219] border border-slate-800 rounded-2xl p-6 shadow-xl">
+      <div className="bg-[var(--surface-panel)] border border-slate-800 rounded-2xl p-6 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
           <div>
             <div className="flex items-center gap-2">
@@ -66,7 +66,7 @@ export const RijalDossier: React.FC<RijalDossierProps> = ({ rijal }) => {
           return (
             <div
               key={idx}
-              className={`bg-[#0b1219]/90 border ${badge.pillBorder} rounded-2xl p-6 shadow-lg flex flex-col justify-between space-y-4`}
+              className={`bg-[var(--surface-panel)]/90 border ${badge.pillBorder} rounded-2xl p-6 shadow-lg flex flex-col justify-between space-y-4`}
             >
               <div className="space-y-4">
                 {/* Header: Name & Color-coded status badge */}

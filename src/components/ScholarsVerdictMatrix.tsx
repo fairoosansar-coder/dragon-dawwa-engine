@@ -42,7 +42,7 @@ export const ScholarsVerdictMatrix: React.FC<ScholarsVerdictMatrixProps> = ({ ve
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-[#0b1219] border border-slate-800 rounded-2xl p-6 shadow-xl">
+      <div className="bg-[var(--surface-panel)] border border-slate-800 rounded-2xl p-6 shadow-xl">
         <div className="flex items-center gap-2">
           <span className="text-xs uppercase tracking-widest font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40">
             Agent 5
@@ -58,7 +58,7 @@ export const ScholarsVerdictMatrix: React.FC<ScholarsVerdictMatrixProps> = ({ ve
       </div>
 
       {/* Comparative Table */}
-      <div className="bg-[#0b1219]/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+      <div className="bg-[var(--surface-panel)]/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>

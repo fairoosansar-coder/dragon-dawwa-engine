@@ -782,7 +782,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
     <div className="space-y-6">
       
       {/* Radio Studio Master Control Console */}
-      <div className="bg-[#0b1219] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden backdrop-blur-xl">
+      <div className="bg-[var(--surface-panel)] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden backdrop-blur-xl">
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-800/80 relative z-10">
@@ -936,12 +936,12 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
             </div>
 
             {/* Master Playback & Mixing Controls Bar */}
-            <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-[#0d141f] via-slate-900 to-[#0d141f] border border-slate-800/90 flex flex-wrap items-center justify-between gap-4 shadow-lg">
+            <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-[var(--surface-raised)] via-slate-900 to-[var(--surface-raised)] border border-slate-800/90 flex flex-wrap items-center justify-between gap-4 shadow-lg">
               <div className="flex flex-wrap items-center gap-2.5">
                 <button
                   type="button"
                   onClick={handleTogglePlay}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-extrabold text-xs flex items-center gap-2 shadow-xl shadow-amber-500/20 transition-all cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-[var(--on-gold)] font-extrabold text-xs flex items-center gap-2 shadow-xl shadow-amber-500/20 transition-all cursor-pointer"
                 >
                   {isPlaying ? (
                     <>
@@ -1141,7 +1141,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                   className={`my-3 p-3.5 rounded-2xl border text-center transition-all ${
                     isCurrent
                       ? 'bg-amber-950/70 border-amber-500/80 shadow-lg shadow-amber-950/60 scale-[1.01]'
-                      : 'bg-[#090e15]/70 border-dashed border-amber-500/25 hover:border-amber-500/40'
+                      : 'bg-[var(--surface-modal)]/70 border-dashed border-amber-500/25 hover:border-amber-500/40'
                   }`}
                 >
                   <div className="inline-flex items-center gap-2 text-xs font-mono font-bold text-amber-300 tracking-wider uppercase">
@@ -1152,7 +1152,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                       <button
                         type="button"
                         onClick={() => handlePlayFromLine(idx + 1)}
-                        className="ml-2.5 px-2.5 py-0.5 rounded-lg bg-amber-400 text-slate-950 font-bold text-[10px] hover:bg-amber-300 transition-all cursor-pointer shadow-md shadow-amber-400/20"
+                        className="ml-2.5 px-2.5 py-0.5 rounded-lg bg-amber-400 text-[var(--on-gold)] font-bold text-[10px] hover:bg-amber-300 transition-all cursor-pointer shadow-md shadow-amber-400/20"
                       >
                         Skip to Speech ⏭
                       </button>
@@ -1172,7 +1172,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                 className={`p-5 rounded-2xl border transition-all duration-300 ${
                   isCurrent
                     ? `${pMeta.bg} ${pMeta.border} shadow-2xl scale-[1.01] ring-2 ring-amber-400/50`
-                    : 'bg-[#0b1219]/90 border-slate-800/80 hover:border-slate-700'
+                    : 'bg-[var(--surface-panel)]/90 border-slate-800/80 hover:border-slate-700'
                 }`}
               >
                 <div className="flex items-start gap-4">
@@ -1231,7 +1231,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                           onClick={() => handlePlayFromLine(idx)}
                           className={`px-2 py-0.5 rounded-lg text-[10px] font-mono flex items-center gap-1 border transition-all cursor-pointer ${
                             isCurrent
-                              ? 'bg-amber-400 text-slate-950 border-amber-400 font-bold shadow-md shadow-amber-400/20'
+                              ? 'bg-amber-400 text-[var(--on-gold)] border-amber-400 font-bold shadow-md shadow-amber-400/20'
                               : 'bg-slate-900/90 text-slate-300 border-slate-700/80 hover:bg-amber-500/20 hover:text-amber-300 hover:border-amber-500/50'
                           }`}
                           title="Play speech from this line"
@@ -1253,7 +1253,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
         </div>
       ) : (
         /* Technical Dossier Render */
-        <div className="bg-[#0b1219] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
+        <div className="bg-[var(--surface-panel)] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
           <div className="border-b border-slate-800 pb-4 flex items-center justify-between">
             <h4 className="text-lg font-bold text-white flex items-center gap-2">
               <FileText className="w-5 h-5 text-emerald-400" />
