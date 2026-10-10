@@ -139,7 +139,7 @@ export const HistoricalVariationsChart: React.FC<HistoricalVariationsChartProps>
     if (active && payload && payload.length) {
       const point = payload[0].payload as HistoricalVariationPoint;
       return (
-        <div className="bg-[#0b1219]/95 border border-slate-700/90 rounded-xl p-3.5 shadow-2xl backdrop-blur-md max-w-xs text-xs space-y-2">
+        <div className="bg-[var(--surface-panel)]/95 border border-slate-700/90 rounded-xl p-3.5 shadow-2xl backdrop-blur-md max-w-xs text-xs space-y-2">
           <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
             <span className="font-bold text-white flex items-center gap-1.5">
               <BookOpen className="w-3.5 h-3.5 text-amber-400" />
@@ -189,7 +189,7 @@ export const HistoricalVariationsChart: React.FC<HistoricalVariationsChartProps>
   };
 
   return (
-    <div className="bg-[#0b1219]/90 border border-slate-800/90 rounded-2xl p-6 sm:p-7 shadow-2xl relative overflow-hidden backdrop-blur-md space-y-6">
+    <div className="bg-[var(--surface-panel)]/90 border border-slate-800/90 rounded-2xl p-6 sm:p-7 shadow-2xl relative overflow-hidden backdrop-blur-md space-y-6">
       <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
 
@@ -456,7 +456,7 @@ export const HistoricalVariationsChart: React.FC<HistoricalVariationsChartProps>
             <Legend
               verticalAlign="top"
               align="right"
-              wrapperStyle={{ paddingBottom: '10px', fontSize: '11px', color: '#94a3b8' }}
+              wrapperStyle={{ paddingBottom: '10px', fontSize: '11px', color: 'var(--chart-axis)' }}
             />
           </LineChart>
         </ResponsiveContainer>
@@ -464,7 +464,7 @@ export const HistoricalVariationsChart: React.FC<HistoricalVariationsChartProps>
 
       {/* Selected Historical Variation Deep Dive Card */}
       {activePoint && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-[#0e1622] border border-slate-700/80 shadow-xl space-y-3">
+        <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface-raised)] border border-slate-700/80 shadow-xl space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
             <div className="flex items-center gap-2.5">
               <span className="text-xs font-bold text-amber-300 bg-amber-950/60 px-2.5 py-1 rounded-lg border border-amber-500/40 flex items-center gap-1.5">

@@ -68,7 +68,7 @@ export const DashboardVisualization: React.FC<DashboardVisualizationProps> = ({
   return (
     <div className="space-y-8">
       {/* Top Banner: Status Header */}
-      <div className="bg-gradient-to-r from-slate-900/90 via-[#0d1520] to-slate-900/90 border border-slate-800 rounded-2xl p-6 relative overflow-hidden shadow-2xl backdrop-blur-xl">
+      <div className="bg-gradient-to-r from-slate-900/90 via-[var(--surface-raised)] to-slate-900/90 border border-slate-800 rounded-2xl p-6 relative overflow-hidden shadow-2xl backdrop-blur-xl">
         <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
 
@@ -132,7 +132,7 @@ export const DashboardVisualization: React.FC<DashboardVisualizationProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         {/* Left Column: Purity Confidence Score Circular Progress Gauge (5 cols) */}
-        <div className="lg:col-span-5 bg-[#0b1219]/90 border border-slate-800/90 rounded-2xl p-6 sm:p-8 flex flex-col justify-between shadow-xl relative overflow-hidden backdrop-blur-md">
+        <div className="lg:col-span-5 bg-[var(--surface-panel)]/90 border border-slate-800/90 rounded-2xl p-6 sm:p-8 flex flex-col justify-between shadow-xl relative overflow-hidden backdrop-blur-md">
           <div className="flex items-center justify-between pb-4 border-b border-slate-800/70">
             <div>
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -162,7 +162,7 @@ export const DashboardVisualization: React.FC<DashboardVisualizationProps> = ({
                   cx="100"
                   cy="100"
                   r={radius}
-                  stroke="#1e293b"
+                  style={{ stroke: 'var(--chart-grid)' }}
                   strokeWidth="14"
                   fill="transparent"
                   strokeDasharray="4 6"
@@ -173,7 +173,7 @@ export const DashboardVisualization: React.FC<DashboardVisualizationProps> = ({
                   cx="100"
                   cy="100"
                   r={radius - 12}
-                  stroke="#0f172a"
+                  style={{ stroke: 'var(--surface-raised)' }}
                   strokeWidth="2"
                   fill="transparent"
                 />
@@ -288,7 +288,7 @@ export const DashboardVisualization: React.FC<DashboardVisualizationProps> = ({
         </div>
 
         {/* Right Column: Narrator Reliability Status using Color-Coded Badges (7 cols) */}
-        <div className="lg:col-span-7 bg-[#0b1219]/90 border border-slate-800/90 rounded-2xl p-6 sm:p-8 flex flex-col justify-between shadow-xl backdrop-blur-md">
+        <div className="lg:col-span-7 bg-[var(--surface-panel)]/90 border border-slate-800/90 rounded-2xl p-6 sm:p-8 flex flex-col justify-between shadow-xl backdrop-blur-md">
           <div>
             {/* Header with Title and Filter Badges */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-800/70">
@@ -493,7 +493,7 @@ export const DashboardVisualization: React.FC<DashboardVisualizationProps> = ({
       {/* Narrator Quick Dossier Modal */}
       {selectedNarratorForModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[#0f1722] border border-slate-700 rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl relative">
+          <div className="bg-[var(--surface-raised)] border border-slate-700 rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl relative">
             <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-3">
               <div>
                 <span className="text-xs font-mono uppercase text-emerald-400">Jarh wa Ta'dil Biographical Record</span>
