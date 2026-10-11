@@ -1,3 +1,4 @@
+import { ummahQuranMiddleware } from './src/server/ummahQuran.ts';
 import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
@@ -9,6 +10,7 @@ import { transcribeAudioWithGemini } from './src/server/geminiAudioTranscribe.ts
 dotenv.config();
 
 const app = express();
+app.use(ummahQuranMiddleware);
 const PORT = process.env.PORT || 3000;
 
 // Increase payload limit for high-resolution photo/document uploads and audio clips

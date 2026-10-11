@@ -53,7 +53,6 @@ export const trCitationFor = (id: string, k: string) => {
 export interface ReciterOption { id: string; name: string; style: string; }
 export const QURAN_RECITERS: ReciterOption[] = [
   { id: 'alafasy', name: 'Mishary Rashid Alafasy', style: 'Murattal' },
-  { id: 'husary', name: 'Mahmoud Khalil Al-Husary', style: 'Murattal' },
   { id: 'abdulbasit', name: 'Abdul Basit Abdus Samad', style: 'Mujawwad' },
   { id: 'ghamdi', name: 'Saad Al-Ghamdi', style: 'Murattal' },
   { id: 'sudais', name: 'Abdul Rahman Al-Sudais', style: 'Murattal' },
@@ -82,7 +81,7 @@ export type SelMode = 'ayah' | 'word' | 'phrase';
 export interface ReaderSettings { nav: 'page' | 'ayah'; arrows: boolean; pin: boolean; selectFirst: boolean; wbw: boolean; selMode: SelMode }
 export interface WordSelection { k: string; from: number; to: number; pending?: boolean }
 export const DEFAULT_READER: ReaderSettings = { nav: 'page', arrows: true, pin: false, selectFirst: false, wbw: false, selMode: 'ayah' };
-type Audio = { ref: string | null; status: 'idle' | 'buffering' | 'playing' | 'paused'; speed: number; repeat: boolean };
+type Audio = { ref: string | null; status: 'idle' | 'buffering' | 'playing' | 'paused'; speed: number; repeat: boolean; error?: string };
 
 interface Ctx {
   t: QuranStrings; lang: SupportedLanguage;
@@ -188,33 +187,63 @@ export const QuranProvider: React.FC<QuranProviderProps> = ({
   const [pageMarks, setPageMarks] = React.useState<number[]>([1, 604]);
   const [sheet, setSheet] = React.useState<string | null>(initialSheet);
   const [share, setShare] = React.useState<string | null>(initialShare);
-  const timer = React.useRef<any>(null);
+  const media = React.useRef<HTMLAudioElement | null>(null);
+  const generation = React.useRef(0);
+  const abort = React.useRef<AbortController | null>(null);
+  const latest = React.useRef(audio); latest.current = audio;
+  const selectedReciter = React.useRef(reciter); selectedReciter.current = reciter;
   const len = (s: number) => SURAH_INDEX[s - 1]?.n ?? 0;
-
-  const play = (ref: string) => {
-    clearTimeout(timer.current);
-    setAudio(a => ({ ...a, ref, status: 'buffering' }));
-    timer.current = setTimeout(() => setAudio(a => ({ ...a, status: 'playing' })), 800);
+  const reciterIds: Record<string, number> = { alafasy: 1, sudais: 2, abdulbasit: 4, ghamdi: 6 };
+  const play = async (ref: string, voice = selectedReciter.current) => {
+    const run = ++generation.current;
+    abort.current?.abort(); media.current?.pause();
+    const controller = new AbortController(); abort.current = controller;
+    setAudio(a => ({ ...a, ref, status: 'buffering', error: undefined }));
+    try {
+      const [s, n] = ref.split(':').map(Number);
+      if (!Number.isInteger(n) || n < 1 || n > len(s)) throw new Error('reference');
+      const response = await fetch(`/api/quran-audio/${s}/${n}`, { signal: controller.signal });
+      if (!response.ok) throw new Error('unavailable');
+      const data = await response.json();
+      const recording = data.reciters?.find((r: any) => r.id === reciterIds[voice]);
+      if (!recording?.audio_url) throw new Error('recording');
+      if (run !== generation.current) return;
+      const el = media.current!;
+      if (el.src !== recording.audio_url) { el.src = recording.audio_url; el.load(); }
+      else if (el.ended) el.currentTime = 0;
+      el.playbackRate = latest.current.speed;
+      await el.play();
+      if (run === generation.current) setAudio(a => ({ ...a, status: 'playing' }));
+    } catch {
+      if (run === generation.current) setAudio(a => ({ ...a, status: 'paused', error: language === 'ta' ? 'ஒலியை இயக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.' : language === 'si' ? 'හඬ වාදනය කළ නොහැක. නැවත උත්සාහ කරන්න.' : 'Unable to play recitation. Press Play to retry.' }));
+    }
   };
-  const pause = () => { clearTimeout(timer.current); setAudio(a => ({ ...a, status: a.status === 'playing' ? 'paused' : a.status })); };
-  const next = (dir: 1 | -1) => setAudio(a => {
-    if (!a.ref) return a;
-    const [s, n] = a.ref.split(':').map(Number);
-    const m = Math.min(Math.max(1, n + dir), len(s));
-    return { ...a, ref: key(s, m) };
-  });
+  const pause = () => {
+    ++generation.current; abort.current?.abort(); media.current?.pause();
+    setAudio(a => ({ ...a, status: 'paused' }));
+  };
+  const next = (dir: 1 | -1) => {
+    const current = latest.current;
+    if (!current.ref) return;
+    const [s, n] = current.ref.split(':').map(Number);
+    const ref = key(s, Math.min(Math.max(1, n + dir), len(s)));
+    if (current.status === 'playing' || current.status === 'buffering') void play(ref);
+    else { pause(); setAudio(a => ({ ...a, ref, error: undefined })); }
+  };
   React.useEffect(() => {
-    if (audio.status !== 'playing' || !audio.ref) return;
-    const id = setTimeout(() => {
-      setAudio(a => {
-        if (!a.ref || a.status !== 'playing') return a;
-        if (a.repeat) return { ...a };
-        const [s, n] = a.ref.split(':').map(Number);
-        return n < len(s) ? { ...a, ref: key(s, n + 1) } : { ...a, status: 'idle' };
-      });
-    }, 4200 / audio.speed);
-    return () => clearTimeout(id);
-  }, [audio]);
+    const el = new window.Audio(); media.current = el;
+    el.onended = () => {
+      const current = latest.current;
+      if (!current.ref) return;
+      const [s, n] = current.ref.split(':').map(Number);
+      if (current.repeat) { el.currentTime = 0; void play(current.ref); }
+      else if (n < len(s)) void play(key(s, n + 1));
+      else setAudio(a => ({ ...a, status: 'idle' }));
+    };
+    el.onerror = () => setAudio(a => ({ ...a, status: 'paused', error: 'Audio unavailable. Retry playback.' }));
+    return () => { ++generation.current; abort.current?.abort(); el.onended = null; el.onerror = null; el.pause(); el.removeAttribute('src'); el.load(); };
+  }, []);
+  React.useEffect(() => { if (media.current) media.current.playbackRate = audio.speed; }, [audio.speed]);
 
   const value: Ctx = {
     t: QURAN_STRINGS[language], lang: language, view,
@@ -223,7 +252,7 @@ export const QuranProvider: React.FC<QuranProviderProps> = ({
       if (v === 'book' && s) { const m = meta[s]; const sp = SURAH_INDEX[s - 1].p; setPage(m ? m.pg[(a ?? 1) - 1] : sp); }
     },
     surah, ayah, surahs, status, load, translation, setTranslation,
-    reciter, setReciter: id => { setReciterRaw(id); if (audio.ref) play(audio.ref); },
+    reciter, setReciter: id => { pause(); setReciterRaw(id); setAudio(a => ({ ...a, error: undefined })); },
     showTr, setShowTr, size, setSize,
     bookmarks, toggleBookmark: k => setBookmarks(b => b.includes(k) ? b.filter(x => x !== k) : [...b, k]),
     notes, setNote: (k, v) => setNotes(n => { const c = { ...n }; if (v.trim()) c[k] = v; else delete c[k]; return c; }),
@@ -241,7 +270,7 @@ export const QuranProvider: React.FC<QuranProviderProps> = ({
     rs, setRs: p => setRsRaw(r => ({ ...r, ...p })), sel, setSel,
     seed, searchFor: text => { setSeed(text); setSel(null); setSheet(null); setView('search'); },
   };
-  return <QCtx.Provider value={value}>{children}</QCtx.Provider>;
+  return <QCtx.Provider value={value}>{children}{audio.error && <div role="alert" className="fixed bottom-36 inset-x-4 z-50 mx-auto max-w-lg rounded-xl border border-amber-500 bg-slate-900 p-3 text-sm text-white">{audio.error}</div>}</QCtx.Provider>;
 };
 
 /* ---------- shared bits ---------- */
