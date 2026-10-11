@@ -1,3 +1,4 @@
+import { ummahStudyMiddleware } from './src/server/ummahStudy.ts';
 import { ummahQuranMiddleware } from './src/server/ummahQuran.ts';
 import express from 'express';
 import path from 'path';
@@ -11,6 +12,7 @@ dotenv.config();
 
 const app = express();
 app.use(ummahQuranMiddleware);
+app.use(ummahStudyMiddleware);
 const PORT = process.env.PORT || 3000;
 
 // Increase payload limit for high-resolution photo/document uploads and audio clips

@@ -1,3 +1,4 @@
+import { ummahStudyMiddleware } from './src/server/ummahStudy.ts';
 import { ummahQuranMiddleware } from './src/server/ummahQuran.ts';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
@@ -14,6 +15,7 @@ function dragonDawwaApiPlugin(): Plugin {
     name: 'dragon-dawwa-api-plugin',
     configureServer(server) {
       server.middlewares.use(ummahQuranMiddleware);
+      server.middlewares.use(ummahStudyMiddleware);
       server.middlewares.use(async (req, res, next) => {
         if (req.url === '/api/analyze' && req.method === 'POST') {
           let body = '';

@@ -1,3 +1,4 @@
+import { LiveStudy } from './ummahStudy';
 // Word-level study, reader settings and Ayah Study — brought up to the Quran.ai reader standard.
 // Select an ayah, a word or a phrase; every word opens its meaning, root, dictionary form and parts.
 // Translations, tafsir and morphology are Quran.ai (quran.com) data — see quranGrounded.ts. Nothing here is written from memory.
@@ -170,7 +171,7 @@ export const WordSheet: React.FC = () => {
                 </button>
               ); })}
             </div>
-          ) : <QuranState kind="unavailable" compact t={q.t} title={b.wordLive} body="" sourceUrl={`https://quran.com/${s}/${a}`} />
+          ) : <LiveStudy verse={k} kind="words" from={from} to={to} />
         ) : d ? (
           <div className="grid grid-cols-2 gap-2">
             <Stat label={b.rootLetters}>
@@ -195,7 +196,7 @@ export const WordSheet: React.FC = () => {
             </Stat></div>
             <div className="col-span-2"><Stat label={b.grammar}><p className="text-[13px] leading-5 text-slate-300">{d[8]}</p></Stat></div>
           </div>
-        ) : <QuranState kind="unavailable" compact t={q.t} title={b.wordLive} body="" sourceUrl={`https://quran.com/${s}/${a}`} />}
+        ) : <LiveStudy verse={k} kind="words" from={from} to={to} />}
 
         {te && <div className="rounded-2xl border border-slate-800 p-3"><p className="text-[14px] leading-6 text-slate-300">{te}</p><div className="mt-1 text-[10px] font-mono text-slate-500">{q.tr.name} · {k}</div></div>}
 
@@ -211,7 +212,7 @@ export const WordSheet: React.FC = () => {
             </button>
           ))}
         </div>
-        <Grounding calls={[`fetch_word_morphology(${k})`]} href={`https://quran.com/${s}/${a}`} />
+        {d && <Grounding calls={[`Stored word reference · ${k}`]} href={`https://quran.com/${s}/${a}`} />}
       </aside>
     </div>
   );
@@ -300,42 +301,14 @@ export const TranslationCompare: React.FC<{ k: string; bundled?: string }> = ({ 
 
 /* ---------- Tafsir panel ---------- */
 export const TafsirPanel: React.FC<{ k: string; force?: 'loading' | 'unavailable' }> = ({ k, force }) => {
-  const q = useQ(); const b = useB();
-  const [ed, setEd] = React.useState(QURAN_AI_TAFSIR[0].id);
-  const [busy, setBusy] = React.useState(false);
-  React.useEffect(() => { setBusy(true); const id = setTimeout(() => setBusy(false), 600); return () => clearTimeout(id); }, [ed, k]);
-  const e = QURAN_AI_TAFSIR.find(x => x.id === ed)!;
-  const hit = force ? undefined : groundedTafsir(ed, k);
-  const url = e.qcId ? tafsirCitation(e.qcId, k) : `https://quran.com/${k}`;
-  return (
-    <Card className="p-5 md:p-6 space-y-4">
-      <SectionTitle icon={FileText}>{q.t.tafsir}</SectionTitle>
-      <div className="flex flex-wrap gap-2">
-        {QURAN_AI_TAFSIR.map(x => (
-          <button key={x.id} type="button" onClick={() => setEd(x.id)} aria-pressed={ed === x.id}
-            className={cx('px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer text-left', ed === x.id ? 'bg-amber-500 text-[var(--on-gold)] border-amber-500' : 'border-slate-700 text-slate-300')}>
-            <span className={x.lang === 'ar' ? 'font-islamic text-[15px]' : ''} dir={x.lang === 'ar' ? 'rtl' : undefined}>{x.name}</span>
-            <span className="block text-[10px] font-normal opacity-75">{x.by}</span>
-          </button>
-        ))}
-      </div>
-      {(force === 'loading' || busy) ? <QuranState kind="loading" compact t={q.t} lines={2} /> : hit ? (
-        <div className="space-y-2">
-          {(hit.from !== hit.to) && <div className="text-[11px] text-emerald-300">{b.covers} {hit.from}–{hit.to.split(':')[1]}</div>}
-          <div className={cx('rounded-2xl border border-slate-800 bg-[var(--surface-inset)] p-4', e.lang === 'ar' ? 'font-islamic text-[19px] leading-[2.1] text-slate-100 text-right' : 'text-[15px] leading-7 text-slate-200')} dir={e.lang === 'ar' ? 'rtl' : 'ltr'} lang={e.lang}>
-            {hit.text.split('\n\n').map((para, i) => <p key={i} className={i ? 'mt-3' : ''}>{para}</p>)}
-          </div>
-          <div className="flex items-center justify-between gap-2 text-[10px] font-mono text-slate-500">
-            <span>{e.name} · {e.by}</span>
-            <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-amber-300">{q.t.openOriginal}<ExternalLink className="w-3 h-3" /></a>
-          </div>
-        </div>
-      ) : (
-        <QuranState kind="unavailable" compact t={q.t} title={`${e.name} — ${b.liveTitle}`} body={b.liveBody}
-          onRetry={() => { setBusy(true); setTimeout(() => setBusy(false), 800); }} sourceUrl={url} />
-      )}
-    </Card>
-  );
+  const q = useQ();
+  const editions = [['muyassar', 'التفسير الميسر', 'Arabic'], ['ibn_kathir', 'Ibn Kathir (Abridged)', 'English'], ['maarif', "Ma’arif al-Qur’an", 'English'], ['ibn_kathir_ar', 'تفسير ابن كثير', 'Arabic']];
+  const [ed, setEd] = React.useState('muyassar');
+  return <Card className="p-5 md:p-6 space-y-4">
+    <SectionTitle icon={FileText}>{q.t.tafsir}</SectionTitle>
+    <div className="flex flex-wrap gap-2">{editions.map(([id, name, language]) => <button type="button" key={id} onClick={() => setEd(id)} aria-pressed={ed === id} className={cx('px-3 py-2 rounded-xl border text-sm', ed === id ? 'bg-amber-500 text-[var(--on-gold)]' : 'border-slate-700 text-slate-300')}>{name}<span className="block text-xs opacity-75">{language}</span></button>)}</div>
+    {force ? <QuranState kind={force} compact t={q.t} /> : <LiveStudy verse={k} kind={ed} />}
+  </Card>;
 };
 
 /* ---------- AyahStudy ---------- */
@@ -353,7 +326,6 @@ export const AyahStudy: React.FC<AyahStudyProps> = ({ tafsirState }) => {
   const subs = q.submissions.filter(s => s.ref === k || (q.surah === 1 && s.ref === '1:1–7'));
   const te = q.trText(k, verse?.[1]);
   const ws = GROUNDED_WORDS[k];
-  const calls = ['fetch_quran', ...(te ? ['fetch_translation'] : []), ...(ws ? ['fetch_word_morphology'] : []), ...(groundedTafsir('ar-muyassar', k) ? ['fetch_tafsir'] : [])].map(c => `${c}(${k})`);
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-5 md:gap-6 items-start">
       <div className="space-y-5 min-w-0">
@@ -399,12 +371,12 @@ export const AyahStudy: React.FC<AyahStudyProps> = ({ tafsirState }) => {
                 </button>
               ); })}
             </div>
-          ) : <QuranState kind="unavailable" compact t={q.t} title={b.wordLive} body="" sourceUrl={`https://quran.com/${q.surah}/${q.ayah}`} />}
+          ) : <LiveStudy verse={k} kind="words" />}
         </Card>
 
         <TafsirPanel k={k} force={tafsirState} />
         <TranslationCompare k={k} bundled={verse?.[1]} />
-        <Grounding calls={calls} href={`https://quran.com/${k}`} />
+        <a href={`https://quran.com/${k}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-slate-400">{q.t.sources} · Quran.com<ExternalLink className="w-3 h-3" /></a>
       </div>
 
       <div className="space-y-5">
