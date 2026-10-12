@@ -1,3 +1,4 @@
+import { NAV_LABELS } from "./CommunityWelcome";
 // Full-page compositions for the Islamic redesign: the app shell and its three modes.
 // Built from the app's real components (src/components) plus the design-system patterns
 // and ornaments. Structure follows src/App.tsx (header → search → mode tray → mode content → footer).
@@ -30,19 +31,19 @@ export interface AppHeaderProps { language: SupportedLanguage; onLanguage: (l: S
 export const AppHeader: React.FC<AppHeaderProps> = ({ language, onLanguage, user = samples.user, mode = 'wall', onMode, onMe, actions }) => {
   const [theme, setTheme] = useTheme();
   const t = TRANSLATIONS[language];
-  const NAV: Array<[AppMode, string, React.FC<any>]> = [['wall', 'Community', Users], ['quran', QURAN_STRINGS[language].quran, BookOpen], ['dossier', 'Verify a Hadith', ShieldCheck], ['studio', 'Live Studio', Radio]];
+  const NAV: Array<[AppMode, string, React.FC<any>]> = [['wall', NAV_LABELS[language].wall, Users], ['quran', NAV_LABELS[language].quran, BookOpen], ['dossier', NAV_LABELS[language].dossier, ShieldCheck], ['studio', NAV_LABELS[language].studio, Radio]];
   const [copied, setCopied] = React.useState(false);
   return (
-    <header className="sticky top-0 z-40 bg-[var(--surface-header)]/90 border-b islamic-gold-border backdrop-blur-xl">
+    <header className="dd-header sticky top-0 z-40 bg-[var(--surface-header)]/90 border-b islamic-gold-border backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 md:h-[72px] flex flex-wrap md:flex-nowrap items-center justify-between gap-3 md:gap-4 py-2 md:py-0">
         <BrandMark tagline="" version="" />
-        <nav className="hidden md:flex items-center gap-1 bg-slate-900/70 border border-slate-700/80 rounded-2xl p-1">
+        <nav className="hidden xl:flex items-center gap-1 bg-slate-900/70 border border-slate-700/80 rounded-2xl p-1">
           {NAV.map(([id, label, Icon]) => (
-            <button key={id} type="button" onClick={() => onMode?.(id)}
+            <button key={id} type="button" onClick={() => onMode?.(id)} aria-current={mode === id ? "page" : undefined}
               className={`inline-flex items-center gap-1.5 px-3 xl:px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap cursor-pointer transition-colors ${
                 mode === id ? 'bg-amber-500 text-[var(--on-gold)] shadow-md' : 'text-slate-300 hover:text-white'}`}>
               <Icon className="w-3.5 h-3.5" />{label}
-              {id === 'studio' && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
+
             </button>
           ))}
         </nav>
@@ -50,7 +51,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ language, onLanguage, user
           <ThemeToggle value={theme} onChange={setTheme} />
           <div className="hidden 2xl:block"><LanguageToggle value={language} onChange={onLanguage} /></div>
           <div className="2xl:hidden"><LanguageToggle compact value={language} onChange={onLanguage} /></div>
-          <button type="button" onClick={onMe} aria-label="My profile" className="md:hidden w-9 h-9 rounded-xl flex items-center justify-center border border-amber-500/40 cursor-pointer" style={{ background: 'var(--brand-green)' }}>
+          <button type="button" onClick={onMe} aria-label="My profile" className="w-9 h-9 rounded-xl flex items-center justify-center border border-amber-500/40 cursor-pointer" style={{ background: 'var(--brand-green)' }}>
             <UserRound className="w-4 h-4" style={{ color: '#eedb9b' }} />
           </button>
           <div className="hidden md:flex items-center gap-2 pl-3 border-l border-slate-800">
@@ -60,26 +61,13 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ language, onLanguage, user
               <span className="text-[9px] font-mono text-emerald-400">{user.badge}</span>
             </div>
           </div>
-          {mode === 'dossier' && <div className="hidden lg:flex items-center gap-2">
-          {actions?.onPrint && <Button variant="secondary" onClick={actions.onPrint}>{actions.printLabel ?? 'Print Report'}</Button>}
-          <Button variant="share" onClick={actions?.onShare} icon={<Share2 className="w-3.5 h-3.5 text-amber-400" />}>Share</Button>
-          <span className="2xl:hidden contents">
-            <button type="button" onClick={actions?.onCopy} aria-label="Copy report" title="Copy report" className="w-9 h-9 rounded-xl flex items-center justify-center border border-slate-700 bg-slate-900 text-slate-300 cursor-pointer">{actions?.copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}</button>
-            <button type="button" onClick={actions?.onExport} aria-label={actions?.exportLabel ?? 'Export'} title={actions?.exportLabel ?? 'Export'} className="w-9 h-9 rounded-xl flex items-center justify-center border border-slate-700 bg-slate-900 text-amber-400 cursor-pointer"><FileDown className="w-4 h-4" /></button>
-          </span>
-          <span className="hidden 2xl:contents">
-          <Button variant="secondary" onClick={() => { actions?.onCopy?.(); if (!actions) { setCopied(true); setTimeout(() => setCopied(false), 1500); } }}
-            icon={(actions?.copied ?? copied) ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}>
-            {(actions?.copied ?? copied) ? 'Copied' : 'Copy Report'}
-          </Button>
-          <Button variant="secondary" onClick={actions?.onExport} icon={<FileDown className="w-3.5 h-3.5 text-amber-400" />}>{actions?.exportLabel ?? 'PDF'}</Button>
-          </span>
-          </div>}
+
         </div>
       </div>
-      {mode === 'dossier' && actions && <div className="lg:hidden flex flex-wrap justify-end gap-2 px-3 pb-2">
+      {mode === 'dossier' && actions && <div className="flex flex-wrap justify-end gap-2 px-3 pb-2">
         {actions.onPrint && <Button variant="secondary" onClick={actions.onPrint}>{actions.printLabel ?? 'Print Report'}</Button>}
         <Button variant="share" onClick={actions.onShare}>Share</Button>
+        <Button variant="secondary" onClick={actions.onCopy}>{actions.copied ? "Copied" : "Copy report"}</Button>
         <Button variant="secondary" onClick={actions.onExport}>{actions.exportLabel ?? 'Export JSON'}</Button>
       </div>}
     </header>
@@ -104,12 +92,12 @@ export const ModeTray: React.FC<ModeTrayProps> = ({ mode, onMode, language }) =>
 
 /* ---------- MobileTabBar — the phone's bottom navigation (replaces the header menu below md) ---------- */
 export type MobileTab = AppMode | 'share' | 'me';
-export interface MobileTabBarProps { mode: AppMode; active?: MobileTab; onSelect: (t: MobileTab) => void; }
-export const MobileTabBar: React.FC<MobileTabBarProps> = ({ mode, active, onSelect }) => {
+export interface MobileTabBarProps { mode: AppMode; active?: MobileTab; language?: SupportedLanguage; onSelect: (t: MobileTab) => void; }
+export const MobileTabBar: React.FC<MobileTabBarProps> = ({ mode, active, language = "en", onSelect }) => {
   const cur = active ?? mode;
-  const items: Array<[MobileTab, string, React.FC<any>]> = [['wall', 'Community', Users], ['quran', 'Quran', BookOpen], ['share', 'Share', Plus], ['dossier', 'Verify', ShieldCheck], ['studio', 'Studio', Radio]];
+  const items: Array<[MobileTab, string, React.FC<any>]> = [['wall', NAV_LABELS[language].wall, Users], ['quran', NAV_LABELS[language].quran, BookOpen], ['dossier', NAV_LABELS[language].dossier, ShieldCheck], ['studio', NAV_LABELS[language].studio, Radio], ['me', NAV_LABELS[language].me, UserRound]];
   return (
-    <nav className="md:hidden fixed inset-x-0 bottom-0 z-50 border-t islamic-gold-border bg-[var(--surface-header)]/95 backdrop-blur-xl"
+    <nav className="dd-mobile-nav xl:hidden fixed inset-x-0 bottom-0 z-50 border-t islamic-gold-border bg-[var(--surface-header)]/95 backdrop-blur-xl"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="grid grid-cols-5 h-16 px-2">
         {items.map(([id, label, Icon]) => id === 'share' ? (
@@ -124,11 +112,11 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({ mode, active, onSele
           </div>
         ) : (
           <button key={id} type="button" onClick={() => onSelect(id)} aria-current={cur === id ? 'page' : undefined}
-            className={`relative flex flex-col items-center justify-center gap-1 text-[10px] font-semibold cursor-pointer ${cur === id ? 'text-amber-300' : 'text-slate-400'}`}>
+            className={`relative flex flex-col items-center justify-center gap-1 px-1 text-[10px] leading-tight font-semibold cursor-pointer ${cur === id ? 'text-amber-300' : 'text-slate-400'}`}>
             {cur === id && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-amber-400" />}
             <span className="relative">
               <Icon className="w-5 h-5" strokeWidth={cur === id ? 2.4 : 1.8} />
-              {id === 'studio' && <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
+
             </span>
             {label}
           </button>
@@ -140,7 +128,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({ mode, active, onSele
 
 /* ---------- AppFooter ---------- */
 export const AppFooter: React.FC = () => (
-  <footer className="mt-12 border-t islamic-gold-border bg-[var(--surface-sunken)]/90 pt-10 pb-28 md:pb-10 text-center space-y-4">
+  <footer className="mt-12 border-t islamic-gold-border bg-[var(--surface-sunken)]/90 pt-10 pb-28 xl:pb-10 text-center space-y-4">
     <div className="max-w-3xl mx-auto px-6 space-y-4">
       <StarDivider />
       <div className="font-arabic text-xl text-amber-300" dir="rtl" lang="ar">رَبِّ زِدْنِي عِلْمًا</div>
@@ -152,7 +140,7 @@ export const AppFooter: React.FC = () => (
       </div>
       <p className="text-xs text-slate-400">Operated by Prime Dragon Technologies (Pvt) Ltd</p>
       <p className="max-w-xl mx-auto text-xs leading-5 text-slate-500">
-        Rigorous Hadith deep search adheres to classical Jarh wa Ta'dil standards, verified against Tahdhib al-Kamal, Mizan al-I'tidal, and Kutub al-Sittah.
+        AI-assisted research is a study aid. Check cited sources and seek qualified human review before relying on a religious conclusion.
       </p>
     </div>
   </footer>
@@ -220,8 +208,8 @@ export const WallPage: React.FC<{ language?: SupportedLanguage }> = ({ language 
 
 /* ---------- DragonDawwaApp — the whole app, every mode, switchable ---------- */
 export const BANNERS: Record<AppMode, { title: string; arabic: string; subtitle: string }> = {
-  dossier: { title: 'Seek knowledge with certainty', arabic: 'طلب العلم فريضة', subtitle: 'Six scholarly agents trace every narration to its sources, its chain of narrators and the verdicts of the critics.' },
-  studio: { title: 'The Roundtable of Scholars', arabic: 'مجلس العلم', subtitle: 'Hear the verdict debated by the six specialist voices, from the chain to the final ruling.' },
+  dossier: { title: 'Explore a hadith, understand its sources', arabic: 'طلب العلم فريضة', subtitle: 'Search a narration and explore the research report. AI-assisted findings require source checking and human review.' },
+  studio: { title: 'Your listening space', arabic: 'مجلس العلم', subtitle: 'Listen to AI-generated research discussions with Gemini voices. Read the report alongside the conversation.' },
   quran: { title: 'The Noble Quran', arabic: 'القرآن الكريم', subtitle: '' },
   wall: { title: 'The Community of Seekers', arabic: 'منتدى الباحثين', subtitle: 'A gathering to share, ask and learn about the deen — every ayah and hadith cited, every hadith verified.' },
 };

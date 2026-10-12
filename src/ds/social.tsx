@@ -524,7 +524,7 @@ export const CommunityHome: React.FC<CommunityHomeProps> = ({ language = 'en', i
   if (topic) shown = shown.filter(p => p.topic === topic);
   const tabs: Array<[CommunityTab, string]> = [['foryou', 'For you'], ['following', 'Following'], ['questions', 'Questions'], ['verified', 'Verified Hadith'], ['halaqat', 'Halaqat']];
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)_300px] gap-6 items-start">
+    <div className="dd-community-grid grid grid-cols-1 gap-6 items-start">
       <div className="hidden lg:block space-y-5"><CommunityNav tab={tab} onTab={setTab} topic={topic} onTopic={setTopic} />{desktopPanels && widgets.panel('left')}</div>
       <div className="space-y-4 md:space-y-5 min-w-0">
         {widgets.settings}

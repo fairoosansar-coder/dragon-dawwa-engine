@@ -1,3 +1,4 @@
+import { CommunityWelcome } from "./ds/CommunityWelcome";
 /**
  * Dragon Dawwa - Enterprise-Grade AI Hadith Deep Search & Authentication Engine
  * Prime Dragon Technologies
@@ -477,7 +478,7 @@ Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prim
 
   return (
     <>
-    <div className="screen-only min-h-screen flex flex-col bg-[var(--surface-app)] text-slate-100 selection:bg-amber-500/30 selection:text-amber-200">
+    <div className="dd-shell screen-only min-h-screen flex flex-col bg-[var(--surface-app)] text-slate-100 selection:bg-amber-500/30 selection:text-amber-200">
       <AppHeader
         language={currentLanguage}
         onLanguage={handleLanguageChange}
@@ -489,7 +490,8 @@ Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prim
       />
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-3 sm:px-6 lg:px-8 py-4 md:py-8 space-y-5 md:space-y-8">
-        {mode === 'wall' && <div id="dd-profile" className="scroll-mt-20"><ProfileHeader name={currentUser.display_name} photo={currentUser.profile_pic} /></div>}
+        {mode === 'wall' && mobileTab !== 'me' && <CommunityWelcome language={currentLanguage} onMode={goMode} onShare={() => onMobileTab('share')} />}
+        {mode === 'wall' && mobileTab === 'me' && <div id="dd-profile" className="scroll-mt-20"><ProfileHeader name={currentUser.display_name} photo={currentUser.profile_pic} /></div>}
         {(mode === 'dossier' || mode === 'studio') && (
           <ArchBanner compact={mode === 'studio'} title={banner.title} arabic={banner.arabic} subtitle={banner.subtitle} />
         )}
@@ -560,7 +562,7 @@ Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prim
       </main>
 
       <AppFooter />
-      <MobileTabBar mode={mode} active={mobileTab ?? mode} onSelect={onMobileTab} />
+      <MobileTabBar language={currentLanguage} mode={mode} active={mobileTab ?? mode} onSelect={onMobileTab} />
 
       {/* Web Share API & Link Sharing Modal */}
       <ShareModal
