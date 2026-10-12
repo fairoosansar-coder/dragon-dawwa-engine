@@ -25,14 +25,14 @@ function dragonDawwaApiPlugin(): Plugin {
           req.on('end', async () => {
             try {
               const parsed = JSON.parse(body || '{}');
-              const { hadith_input, isnad_input } = parsed;
+              const { hadith_input, isnad_input, preferred_language } = parsed;
               if (!hadith_input || typeof hadith_input !== 'string') {
                 res.statusCode = 400;
                 res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify({ error: 'hadith_input is required' }));
                 return;
               }
-              const result = await executeDragonDawwaAnalysis(hadith_input, isnad_input);
+              const result = await executeDragonDawwaAnalysis(hadith_input, isnad_input, ['ta', 'si'].includes(preferred_language) ? preferred_language : 'en');
               res.statusCode = 200;
               res.setHeader('Content-Type', 'application/json');
               res.end(JSON.stringify(result));
@@ -54,14 +54,14 @@ function dragonDawwaApiPlugin(): Plugin {
           req.on('end', async () => {
             try {
               const parsed = JSON.parse(body || '{}');
-              const { text, speaker } = parsed;
+              const { text, speaker, voiceName } = parsed;
               if (!text || typeof text !== 'string') {
                 res.statusCode = 400;
                 res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify({ error: 'text is required' }));
                 return;
               }
-              const result = await synthesizeGeminiVoice(text, speaker || 'Host');
+              const result = await synthesizeGeminiVoice(text, speaker || 'Host', voiceName);
               res.statusCode = 200;
               res.setHeader('Content-Type', 'application/json');
               res.end(JSON.stringify(result));

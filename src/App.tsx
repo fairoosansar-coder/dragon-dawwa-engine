@@ -257,6 +257,7 @@ export default function App() {
     try {
       const response = await fetch('/api/analyze', {
         method: 'POST',
+        signal: AbortSignal.timeout(180000),
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           hadith_input: textToRun,
@@ -269,7 +270,7 @@ export default function App() {
         const errorData = await response.json().catch(() => ({}));
         const rawErr = typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData.error || '');
         if (rawErr.includes('503') || rawErr.includes('high demand') || rawErr.includes('UNAVAILABLE')) {
-          throw new Error('Notice: Gemini model is currently experiencing temporary high demand on Google servers. Auto-activated resilient failover and scholarly baseline.');
+          throw new Error('Gemini is temporarily unavailable. Please retry.');
         }
         throw new Error(rawErr || `Server responded with status ${response.status}`);
       }
@@ -306,20 +307,9 @@ export default function App() {
         setWallPosts(prev => [newPost, ...prev]);
       }
     } catch (err: any) {
-      console.warn('API query encountered an issue; falling back gracefully:', err);
-      const rawMsg = err.message || '';
-      if (rawMsg.includes('503') || rawMsg.includes('high demand') || rawMsg.includes('UNAVAILABLE')) {
-        setAnalysisError('Notice: Gemini model is experiencing temporary high demand on Google servers. Resilient failover engaged with complete 6-agent scholarly analysis.');
-      } else {
-        setAnalysisError(rawMsg || 'Error executing live deep search. Showing curated scholarly baseline.');
-      }
-      // Check if input matches any preset
-      const matchingPreset = SAMPLE_HADITHS.find((p) =>
-        p.hadith_text.toLowerCase().includes(textToRun.slice(0, 30).toLowerCase())
-      );
-      if (matchingPreset) {
-        setCurrentAnalysis(matchingPreset.defaultData);
-      }
+      setAnalysisError(err.name === 'TimeoutError'
+        ? 'Research timed out. Please retry.'
+        : err.message || 'Live research failed. Please retry.');
     } finally {
       setIsAnalyzing(false);
     }

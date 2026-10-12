@@ -1,6 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { DragonDawwaAnalysis } from "../types/hadith.ts";
-import { SAMPLE_HADITHS } from "../data/sampleHadiths.ts";
 import { getLocalizedAnalysis } from "../utils/localizedAnalysis.ts";
 
 export function getDragonDawwaSystemInstruction(targetLang: 'en' | 'ta' | 'si' = 'en'): string {
@@ -239,6 +238,7 @@ export async function executeDragonDawwaAnalysis(
   preferredLanguage: 'en' | 'ta' | 'si' = 'en'
 ): Promise<DragonDawwaAnalysis> {
   const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey?.trim()) throw new Error("GEMINI_API_KEY is missing in this server. Add it to this Codespace and restart Vite.");
 
   // Language instructions for descriptions while preserving sacred Arabic script
   const langPromptGuidance = preferredLanguage === 'ta'
@@ -247,21 +247,11 @@ export async function executeDragonDawwaAnalysis(
     ? "IMPORTANT TRANSLATION REQUIREMENT: Provide the explanatory commentary, executive report descriptions, and translations in Sinhala (සිංහල), while keeping all original Arabic Hadith text and Quranic verses in sacred Arabic script (عربي). UI headings remain standard."
     : "Provide descriptions and commentary in English, while keeping all original Arabic Hadith text and Quranic verses in sacred Arabic script (عربي).";
 
-  // Check if query closely matches one of our rich sample benchmarks
-  const lower = hadithInput.toLowerCase();
-  for (const preset of SAMPLE_HADITHS) {
-    if (
-      lower.includes(preset.hadith_text.toLowerCase().slice(0, 30)) ||
-      preset.hadith_text.toLowerCase().includes(lower.slice(0, 30))
-    ) {
-      // If we match exactly or closely, we can still attempt Gemini, but if Gemini is down we have an immediate match
-    }
-  }
-
   if (apiKey) {
     const ai = new GoogleGenAI({
       apiKey,
       httpOptions: {
+        timeout: 60000,
         headers: {
           "User-Agent": "aistudio-build",
         },
@@ -322,164 +312,8 @@ Isnad / Chain (if provided): ${isnadInput && isnadInput.trim().length > 0 ? isna
       }
     }
 
-    console.warn("All Gemini live models returned high demand / 503 or transient error. Generating scholarly fallback dossier.", lastError?.message);
+    throw new Error("Live research failed. Check Gemini model access, quota and server configuration, then retry. No sample result was substituted.");
   }
 
-  // Graceful Scholarly Fallback Generation:
-  // If the Gemini API is temporarily at capacity (503), construct a structured authentic 6-agent dossier
-  // based on the query rather than showing a broken 503 screen to the user!
-  return getLocalizedAnalysis(generateIntelligentFallback(hadithInput, isnadInput), preferredLanguage);
-}
-
-function generateIntelligentFallback(hadithText: string, isnadText?: string): DragonDawwaAnalysis {
-  // Check against known benchmarks first
-  const lower = hadithText.toLowerCase();
-
-  for (const preset of SAMPLE_HADITHS) {
-    if (
-      lower.includes("saturday") ||
-      lower.includes("سبت") ||
-      lower.includes("grape")
-    ) {
-      return SAMPLE_HADITHS[0].defaultData;
-    }
-    if (
-      lower.includes("intention") ||
-      lower.includes("نية") ||
-      lower.includes("actions") ||
-      lower.includes("a'mal")
-    ) {
-      return SAMPLE_HADITHS[1].defaultData;
-    }
-    if (
-      lower.includes("china") ||
-      lower.includes("صين") ||
-      lower.includes("seek knowledge")
-    ) {
-      return SAMPLE_HADITHS[2].defaultData;
-    }
-  }
-
-  // Generic parsed representation for any other custom Hadith
-  const inferredIsnad = isnadText && isnadText.trim().length > 0
-    ? isnadText.split("->").map(s => s.trim())
-    : ["The Prophet Muhammad (ﷺ)", "Abu Hurairah (Companion)", "Ibn Sirin (Tabi'i)", "Ayyub al-Sakhtiyani", "Hammad ibn Zayd"];
-
-  return {
-    app_name: "Dragon Dawwa",
-    version: "2.5 Enterprise Engine",
-    platform_owner: "Prime Dragon Technologies (Pvt) Ltd",
-    designed_and_created_by: "Aegis Intelligence Pvt Ltd, Sri Lanka",
-    query_hadith: hadithText,
-    agent_1_takhrij: {
-      sources: [
-        {
-          collection: "Sahih al-Bukhari / Sunan",
-          hadith_number: "Primary Reference",
-          exact_wording: hadithText,
-          wording_differences: "Standard primary compilation wording verified in Kutub al-Sittah."
-        },
-        {
-          collection: "Musnad Ahmad",
-          hadith_number: "Musnad Transmission",
-          exact_wording: hadithText,
-          wording_differences: "Parallel corroborating wording recorded via regional chains."
-        }
-      ],
-      variants_summary: "Narrations cataloged across foundational hadith compendiums with parallel wording variants recorded across Iraq and Hijaz."
-    },
-    agent_2_isnad: {
-      narrator_sequence: inferredIsnad,
-      chain_links: inferredIsnad.slice(0, -1).map((teacher, i) => ({
-        teacher,
-        student: inferredIsnad[i + 1] || "Transmitter",
-        transmission_mode: i === 0 ? "Sami'tu / Haddathana" : "Haddathana (Explicit Hearing)",
-        connection_status: "Connected (Muttasil)",
-        historical_reasoning: `Contemporaneity and direct transmission verified between ${teacher} and ${inferredIsnad[i + 1]}.`
-      })),
-      overall_chain_status: "Connected (Muttasil) through known transmitters."
-    },
-    agent_3_rijal: {
-      narrators: inferredIsnad.map((name, i) => ({
-        narrator_name: name,
-        critic_verdicts: [
-          i === 0
-            ? "Messenger of Allah (ﷺ)"
-            : i === 1
-            ? "Companion of the Prophet: Deemed upright by universal consensus ('Udool)."
-            : "Yahya ibn Ma'in & Ibn Hajar: Thiqah Thabt (Trustworthy and reliable)."
-        ],
-        status: i === 0 ? "Prophet (ﷺ)" : i === 1 ? "Thiqah (Sahabi)" : "Thiqah",
-        citations: ["Tahdhib al-Tahdhib", "Al-Isabah fi Tamyiz al-Sahabah"]
-      }))
-    },
-    agent_4_shawahid_matn: {
-      supporting_reports: [
-        "Corroborating reports recorded in Kutub al-Sunan supporting the core legal meaning.",
-        "Parallel transmissions from multiple Companions corroborating the text."
-      ],
-      hidden_defects_ilal: [
-        "No fatal hidden defects ('Ilal Qadihah) identified in primary transmission lines."
-      ],
-      contradictions: [
-        "Consistent with foundational Quranic precepts and authentic Sunnah principles."
-      ]
-    },
-    agent_5_scholars_verdict: {
-      gradings: [
-        {
-          scholar: "Imam al-Bukhari / Muslim",
-          grading: "Sahih / Sound",
-          reference: "Sahih Compilations"
-        },
-        {
-          scholar: "Al-Hafiz Ibn Hajar al-'Asqalani",
-          grading: "Sahih / Hasan",
-          reference: "Fath al-Bari"
-        },
-        {
-          scholar: "Shaykh al-Albani",
-          grading: "Sahih",
-          reference: "Silsilah al-Ahadith al-Sahihah"
-        }
-      ]
-    },
-    agent_6_synthesis: {
-      final_status: "Sahih / Hasan Maqbul (Authentic / Acceptable)",
-      purity_confidence_score: 92.4,
-      consensus_and_disagreements: "The narration is widely transmitted with sound underlying meaning across canonical reference works. Early and contemporary scholars accept its transmission without fatal defect.",
-      executive_report_markdown: `### Dragon Dawwa Technical Executive Authentication Report
-
-**Hadith Query:** ${hadithText}  
-**Assigned Purity Score:** 92.4% (Authentic / Verified)
-
-#### 1. Chain Continuity (Ittisal)
-The transmission line is connected through documented teacher-student meetings with explicit transmission terminology.
-
-#### 2. Narrator Evaluation (Jarh wa Ta'dil)
-Transmitters in the primary chain are graded as trustworthy (*Thiqat*) by classical critics including Yahya ibn Ma'in and Ibn Hajar al-'Asqalani.
-
-#### 3. Synthesis & Verdict
-Free from crippling textual irregularities (*Shudhudh*) and hidden defects (*'Ilal*).`,
-      podcast_script: `[AUDIO CUE: INTRO UP - POLISHED RADIO BEAT (4 SECONDS) THEN FADE UNDER]
-
-BROTHER FEROZ (HOST): Welcome to Dragon Dawwa Live, broadcasting from Prime Dragon Studios! I'm Brother Feroz, your anchor, and today we are executing an exhaustive 6-agent authentication of this prophetic narration: "${hadithText.slice(0, 60)}..." Dr. Tariq, bring us into the primary collections.
-
-DR. TARIQ: Thank you, Brother Feroz! Our Takhrij engine cross-referenced the Kutub al-Sittah and primary Musnads. The textual transmission demonstrates high consistency across the core canonical compendiums.
-
-[AUDIO CUE: SOFT PENCIL TAP / DESK PAPERS]
-
-BROTHER FEROZ (HOST): Dr. Layla, what does the Isnad transmission network look like?
-
-DR. LAYLA: Brother Feroz, the chain demonstrates verified continuity with documented teacher-student contemporaneous meetings and explicit hearing formulas.
-
-BROTHER FEROZ (HOST): Sheikh Imran, give us the verdict on the transmitters.
-
-SHEIKH IMRAN: Brother Feroz, classical biographical authorities in Tahdhib al-Kamal and Al-Jarh wa al-Ta'dil confirm the uprightness and precision of these narrators.
-
-BROTHER FEROZ (HOST): Excellent! Reconciling all six agent evaluations, Dragon Dawwa confirms a solid Purity Confidence Score above 90%. I'm Brother Feroz, signing off from Dragon Dawwa Live!
-
-[AUDIO CUE: OUTRO THEME RISES AND FADES OUT]`
-    }
-  };
+  throw new Error("Live research is unavailable. Please retry.");
 }
