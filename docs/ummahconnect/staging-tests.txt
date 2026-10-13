@@ -1,0 +1,11 @@
+✔ staging serves the integrated app and bundled Quran source (758.128216ms)
+✔ staging cannot assert a research result, account or transaction without configured services (3.782436ms)
+✔ asset misses and unsupported methods do not return a misleading successful app response (0.914675ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1089.150928
