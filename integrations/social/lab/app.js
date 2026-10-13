@@ -52,6 +52,8 @@ async function loadPosts(space, page = 1) {
 }
 async function loadSpaces(page = 1) {
   const request = ++generation; selected = null; spacesPage = page;
+  $('feed-title').textContent = 'Community reflections';
+  $('feed-description').textContent = 'Choose a connected community to read its posts.';
   $('spaces').replaceChildren(); $('posts').replaceChildren(element('p', 'Choose a community to read its posts.', 'muted')); resetPages();
   try {
     const data = await api(`/api/spaces?page=${page}`);
