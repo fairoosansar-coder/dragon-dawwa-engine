@@ -1,6 +1,7 @@
 import { ummahStudyMiddleware } from './src/server/ummahStudy.ts';
 import { ummahQuranMiddleware } from './src/server/ummahQuran.ts';
 import express from 'express';
+import { socialMiddleware } from './src/server/socialGateway.ts';
 import path from 'path';
 import dotenv from 'dotenv';
 import { executeDragonDawwaAnalysis } from './src/server/hadithEngine.ts';
@@ -11,6 +12,7 @@ import { transcribeAudioWithGemini } from './src/server/geminiAudioTranscribe.ts
 dotenv.config();
 
 const app = express();
+app.use(socialMiddleware);
 app.use(ummahQuranMiddleware);
 app.use(ummahStudyMiddleware);
 const PORT = process.env.PORT || 3000;

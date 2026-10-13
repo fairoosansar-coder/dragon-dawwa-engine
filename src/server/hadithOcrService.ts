@@ -68,9 +68,9 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export async function extractHadithFromMedia(
   base64Data: string,
   mimeType: string,
-  userNotes?: string
+  userNotes?: string,
+  apiKey: string | undefined = process.env.GEMINI_API_KEY
 ): Promise<HadithMediaExtractionResult> {
-  const apiKey = process.env.GEMINI_API_KEY;
 
   // Clean base64 data if it contains data URI header
   const cleanBase64 = base64Data.includes("base64,")

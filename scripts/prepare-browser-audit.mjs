@@ -1,0 +1,15 @@
+import {readFile,writeFile,readdir} from 'node:fs/promises';
+import {gzipSync} from 'node:zlib';
+const files=await readdir('dist/assets');
+const js=await readFile('dist/assets/'+files.find(f=>/^index-.*\.js$/.test(f)),'utf8');
+let css=await readFile('dist/assets/'+files.find(f=>/^index-.*\.css$/.test(f)),'utf8');
+const art=(await readFile('public/assets/ummah-mosque-art.webp')).toString('base64');
+css=css.replaceAll('/assets/ummah-mosque-art.webp','data:image/webp;base64,'+art);
+let html=await readFile('dist/index.html','utf8');
+html=html.replace(/<script[^>]+src="[^"]+"[^>]*><\/script>/g,'').replace(/<link[^>]+href="\/assets\/[^>]+>/g,'');
+const audit=(await readFile('scripts/browser-audit.js','utf8')).replace('(async()=>{','setTimeout(async()=>{').replace('})();','},1500);');
+html=html.replace('</head>','<style>'+css+'</style></head>').replace('</body>','<script type="module">'+js.replaceAll('</script','<\\/script')+'</script><script>'+audit+'</script></body>');
+const b64=gzipSync(html).toString('base64');
+await writeFile('/tmp/ummah-audit.html',html);
+await writeFile('/tmp/ummah-audit-bootstrap.html','<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><script>(async()=>{const bytes=Uint8Array.from(atob("'+b64+'"),c=>c.charCodeAt(0));const html=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).text();document.open();document.write(html);document.close();})()</script>');
+console.log('Prepared actual production frontend bundle for remote browser audit; no API mocks.');

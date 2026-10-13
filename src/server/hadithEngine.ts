@@ -235,9 +235,9 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export async function executeDragonDawwaAnalysis(
   hadithInput: string,
   isnadInput?: string,
-  preferredLanguage: 'en' | 'ta' | 'si' = 'en'
+  preferredLanguage: 'en' | 'ta' | 'si' = 'en',
+  apiKey: string | undefined = process.env.GEMINI_API_KEY
 ): Promise<DragonDawwaAnalysis> {
-  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey?.trim()) throw new Error("GEMINI_API_KEY is missing in this server. Add it to this Codespace and restart Vite.");
 
   // Language instructions for descriptions while preserving sacred Arabic script

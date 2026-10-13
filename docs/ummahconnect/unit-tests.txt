@@ -1,0 +1,36 @@
+✔ uses the space content container and returns only approved fields (24.148992ms)
+✔ identity mismatch stops reads before touching private content (3.269677ms)
+✔ denied space does not trigger post request or disclose provider error (1.345613ms)
+✔ invalid target, token, pagination and IDs are rejected (0.760955ms)
+✔ HTML, invalid JSON and oversized responses fail closed (25.486473ms)
+✔ upstream outages and rate limits are safe errors (1.076068ms)
+✔ real HTTP lab serves assets and honest unconfigured state (64.642025ms)
+✔ real HTTP lab rejects writes and cross-origin access (26.684489ms)
+✔ real HTTP route returns projected posts without bearer credentials (17.020613ms)
+✔ missing Gemini configuration fails visibly without a sample dossier (1.842271ms)
+✔ TTS uses documented interactions payload and preserves selected voice (1.076138ms)
+✔ TTS access failure returns a safe error rather than generated fallback audio (0.345299ms)
+✔ explicit date, coordinates, method and school survive URL construction (4.062409ms)
+✔ invalid and absent coordinates are rejected (0.392771ms)
+✔ zero coordinates remain valid (2.794182ms)
+✔ only supported method and Asr selections are accepted (0.267803ms)
+✔ provider data is reduced to five times and its time zone (0.516808ms)
+✔ wrong-date responses are not displayed (0.185399ms)
+✔ invalid or missing times and failed provider responses are rejected (0.262575ms)
+✔ all approved screens and five project tabs are unique routable main-app views (1.757683ms)
+✔ social gateway never accepts a browser identity as a linked session (0.582546ms)
+✔ unconfigured linked social instance is explicit and writes stay disabled (0.645841ms)
+✔ rejects invalid references without an upstream call (1.103068ms)
+✔ keeps only HTTPS recordings from approved delivery host (3.45808ms)
+✔ upstream failure returns an error without exposing credentials (1.439365ms)
+✔ study source validation and cache (3.634064ms)
+✔ rejects wrong verse and wrong tafsir edition (1.727758ms)
+✔ upstream outage fails closed and redacts details (0.567463ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 657.155122
