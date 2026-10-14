@@ -9,9 +9,9 @@ export interface TranscribeAudioResult {
 
 export async function transcribeAudioWithGemini(
   audioBase64: string,
-  mimeType: string = 'audio/webm'
+  mimeType: string = 'audio/webm',
+  apiKey: string | undefined = process.env.GEMINI_API_KEY
 ): Promise<TranscribeAudioResult> {
-  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not configured on the server.');
   }

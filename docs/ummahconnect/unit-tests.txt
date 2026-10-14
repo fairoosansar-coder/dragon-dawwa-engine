@@ -1,0 +1,36 @@
+✔ uses the space content container and returns only approved fields (15.343284ms)
+✔ identity mismatch stops reads before touching private content (1.529269ms)
+✔ denied space does not trigger post request or disclose provider error (2.631837ms)
+✔ invalid target, token, pagination and IDs are rejected (1.041756ms)
+✔ HTML, invalid JSON and oversized responses fail closed (8.61352ms)
+✔ upstream outages and rate limits are safe errors (0.79091ms)
+✔ real HTTP lab serves assets and honest unconfigured state (61.950716ms)
+✔ real HTTP lab rejects writes and cross-origin access (20.924324ms)
+✔ real HTTP route returns projected posts without bearer credentials (12.581942ms)
+✔ missing Gemini configuration fails visibly without a sample dossier (1.309238ms)
+✔ TTS uses documented interactions payload and preserves selected voice (0.956018ms)
+✔ TTS access failure returns a safe error rather than generated fallback audio (0.442756ms)
+✔ explicit date, coordinates, method and school survive URL construction (1.773666ms)
+✔ invalid and absent coordinates are rejected (0.587433ms)
+✔ zero coordinates remain valid (1.524863ms)
+✔ only supported method and Asr selections are accepted (0.23237ms)
+✔ provider data is reduced to five times and its time zone (1.999987ms)
+✔ wrong-date responses are not displayed (0.149205ms)
+✔ invalid or missing times and failed provider responses are rejected (0.343146ms)
+✔ all approved screens and five project tabs are unique routable main-app views (2.096962ms)
+✔ social gateway never accepts a browser identity as a linked session (0.656337ms)
+✔ unconfigured linked social instance is explicit and writes stay disabled (0.936513ms)
+✔ rejects invalid references without an upstream call (1.562509ms)
+✔ keeps only HTTPS recordings from approved delivery host (0.868987ms)
+✔ upstream failure returns an error without exposing credentials (0.59207ms)
+✔ study source validation and cache (5.525016ms)
+✔ rejects wrong verse and wrong tafsir edition (1.221457ms)
+✔ upstream outage fails closed and redacts details (0.642846ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 764.244675

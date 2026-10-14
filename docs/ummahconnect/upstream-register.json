@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "checked_at": "2026-10-13",
+  "purpose": "source discovery, not a deployment lockfile",
+  "repositories": [
+    {
+      "repository": "humhub/humhub",
+      "source": "https://github.com/humhub/humhub",
+      "observed_release": "v1.19.0",
+      "release_url": "https://github.com/humhub/humhub/releases/tag/v1.19.0",
+      "published_at": "2026-10-12T12:16:57Z",
+      "installed": false,
+      "qualified": false,
+      "commit_sha": null
+    },
+    {
+      "repository": "humhub/rest",
+      "source": "https://github.com/humhub/rest",
+      "observed_release": "v0.11.7",
+      "release_url": "https://github.com/humhub/rest/releases/tag/v0.11.7",
+      "published_at": "2026-10-09T11:16:08Z",
+      "installed": false,
+      "qualified": false,
+      "commit_sha": null
+    },
+    {
+      "repository": "qdrant/qdrant",
+      "source": "https://github.com/qdrant/qdrant",
+      "observed_release": "v1.19.2",
+      "release_url": "https://github.com/qdrant/qdrant/releases/tag/v1.19.2",
+      "published_at": "2026-10-05T14:16:50Z",
+      "installed": false,
+      "qualified": false,
+      "commit_sha": null
+    },
+    {
+      "repository": "docling-project/docling",
+      "source": "https://github.com/docling-project/docling",
+      "observed_release": "v2.138.0",
+      "release_url": "https://github.com/docling-project/docling/releases/tag/v2.138.0",
+      "published_at": "2026-10-12T06:14:54Z",
+      "installed": false,
+      "qualified": false,
+      "commit_sha": null
+    },
+    {
+      "repository": "Chocobozzz/PeerTube",
+      "source": "https://github.com/Chocobozzz/PeerTube",
+      "observed_release": "v8.3.1",
+      "release_url": "https://github.com/Chocobozzz/PeerTube/releases/tag/v8.3.1",
+      "published_at": "2026-09-28T11:42:42Z",
+      "installed": false,
+      "qualified": false,
+      "commit_sha": null
+    }
+  ],
+  "models": [
+    {
+      "id": "BAAI/bge-m3",
+      "source": "https://huggingface.co/BAAI/bge-m3",
+      "role": "embedding",
+      "revision": null,
+      "installed": false,
+      "qualified": false
+    },
+    {
+      "id": "BAAI/bge-reranker-v2-m3",
+      "source": "https://huggingface.co/BAAI/bge-reranker-v2-m3",
+      "role": "reranking",
+      "revision": null,
+      "installed": false,
+      "qualified": false
+    }
+  ],
+  "humhub_compatibility": {
+    "candidate_core": "1.19.0",
+    "candidate_rest": "0.12.4",
+    "evidence": "https://marketplace.humhub.com/module/rest/downloads",
+    "verified_install": false,
+    "artifact_hash": null
+  },
+  "runtime": {
+    "php_available": false,
+    "docker_available": false,
+    "production_changed": false
+  }
+}

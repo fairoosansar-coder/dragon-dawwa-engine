@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 const cache = new Map<string, { expires: number; data: unknown }>();
-export async function ummahQuranMiddleware(req: IncomingMessage, res: ServerResponse, next: () => void) {
+export async function ummahQuranMiddleware(req: IncomingMessage, res: ServerResponse, next: () => void, apiKey: string | undefined = process.env.UMMAH_API_KEY) {
   const path = (req.url || '').split('?')[0];
   if (!path.startsWith('/api/quran-audio/')) return next();
   res.setHeader('Content-Type', 'application/json');
@@ -13,7 +13,7 @@ export async function ummahQuranMiddleware(req: IncomingMessage, res: ServerResp
     let hit = cache.get(path);
     if (!hit || hit.expires < Date.now()) {
       const url = new URL(`https://ummahapi.com/api/quran/audio/${+match[1]}/${+match[2]}`);
-      if (process.env.UMMAH_API_KEY) url.searchParams.set('apikey', process.env.UMMAH_API_KEY);
+      if (apiKey) url.searchParams.set('apikey', apiKey);
       const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
       if (!response.ok) throw new Error('upstream');
       const body = await response.json();

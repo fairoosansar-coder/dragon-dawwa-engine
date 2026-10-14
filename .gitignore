@@ -1,4 +1,4 @@
-node_modules/
+node_modules
 build/
 dist/
 coverage/
@@ -9,3 +9,5 @@ coverage/
 
 __pycache__/
 *.pyc
+
+/staging/assets.generated.js

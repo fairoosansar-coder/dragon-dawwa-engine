@@ -225,9 +225,9 @@ export function getAllPodcastPersonas(): SpeakerVoiceProfile[] {
 export async function synthesizeGeminiVoice(
   text: string,
   speaker: string,
-  customVoice?: string
+  customVoice?: string,
+  apiKey: string | undefined = process.env.GEMINI_API_KEY
 ): Promise<TtsResult> {
-  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY is not configured on the server.");
   }

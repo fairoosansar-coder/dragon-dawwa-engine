@@ -1,0 +1,744 @@
+{
+  "viewport": {
+    "width": 414,
+    "height": 896
+  },
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+  "screens": [
+    {
+      "id": "screen-1",
+      "title": "Splash & Welcome",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-2",
+      "title": "Sign Up / Login",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-3",
+      "title": "Onboarding & Preferences",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-4",
+      "title": "Home Feed",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-5",
+      "title": "Create Post",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-6",
+      "title": "Post Detail & Comments",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-7",
+      "title": "Explore & Search",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-8",
+      "title": "User Profile",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-9",
+      "title": "Messages & Chat",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-10",
+      "title": "Notifications",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-11",
+      "title": "Community Directory",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-12",
+      "title": "Community Detail",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-13",
+      "title": "Knowledge Hub",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-14",
+      "title": "Quran Reader",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-15",
+      "title": "Hadith Library",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-16",
+      "title": "Prayer & Spiritual",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-17",
+      "title": "Scholars & Questions",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-18",
+      "title": "Charity Hub",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-19",
+      "title": "Charity Campaign Detail",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-20",
+      "title": "Donation Checkout",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-21",
+      "title": "My Donations",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-22",
+      "title": "Build a Mosque Directory",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-23",
+      "title": "Mosque Project Detail",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-24",
+      "title": "Mosque Construction Updates",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-25",
+      "title": "Create Mosque Project",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-26",
+      "title": "Mosque Project Management",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-27",
+      "title": "Events & Registration",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-28",
+      "title": "Mosque Directory",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-29",
+      "title": "Volunteer Opportunities",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-30",
+      "title": "Halal Marketplace",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-31",
+      "title": "More & Settings",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-32",
+      "title": "Organization Dashboard",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "screen-33",
+      "title": "Admin & Moderation",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "mosque-current-site",
+      "title": "Mosque \u00b7 Current Site",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "mosque-proposed-design",
+      "title": "Mosque \u00b7 Proposed Design",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "mosque-construction",
+      "title": "Mosque \u00b7 Construction",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "mosque-finances",
+      "title": "Mosque \u00b7 Finances",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "mosque-donations",
+      "title": "Mosque \u00b7 Donations",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    },
+    {
+      "id": "podcasts",
+      "title": "Podcasts & Voice Studio",
+      "nonempty": true,
+      "overflow": false,
+      "scrollWidth": 414
+    }
+  ],
+  "controls": [
+    {
+      "id": "screen-8",
+      "label": "Posts",
+      "responded": true
+    },
+    {
+      "id": "screen-8",
+      "label": "Photos",
+      "responded": true
+    },
+    {
+      "id": "screen-8",
+      "label": "Groups",
+      "responded": true
+    },
+    {
+      "id": "screen-8",
+      "label": "Donations",
+      "responded": true
+    },
+    {
+      "id": "screen-8",
+      "label": "Edit profile",
+      "responded": true
+    },
+    {
+      "id": "screen-8",
+      "label": "\ud83d\udcd7Recent reflectionWhat gratitude means in everyday life\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-13",
+      "label": "Articles",
+      "responded": true
+    },
+    {
+      "id": "screen-13",
+      "label": "Videos",
+      "responded": true
+    },
+    {
+      "id": "screen-13",
+      "label": "Courses",
+      "responded": true
+    },
+    {
+      "id": "screen-13",
+      "label": "Scholars",
+      "responded": true
+    },
+    {
+      "id": "screen-13",
+      "label": "\ud83d\udcdaMeaning of TaqwaArticle \u00b7 Source referenced\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-13",
+      "label": "\ud83c\udf19Stories of the ProphetsSeries \u00b7 Episodes\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-13",
+      "label": "\ud83c\udf3fParenting and mercyPractical education\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-13",
+      "label": "\ud83c\udf99Scholarly discussionsReviewed Q&A and lectures\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-18",
+      "label": "All",
+      "responded": true
+    },
+    {
+      "id": "screen-18",
+      "label": "Zakat",
+      "responded": true
+    },
+    {
+      "id": "screen-18",
+      "label": "Sadaqah",
+      "responded": true
+    },
+    {
+      "id": "screen-18",
+      "label": "Education",
+      "responded": true
+    },
+    {
+      "id": "screen-18",
+      "label": "Water",
+      "responded": true
+    },
+    {
+      "id": "screen-19",
+      "label": "\u2714Organizer & identityApproval evidence required\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-19",
+      "label": "\ud83d\udccbBudget & expenditureDetailed cost plan\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-19",
+      "label": "\ud83d\udcf7Beneficiary updatesEvidence and impact reporting\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-20",
+      "label": "LKR 1,000",
+      "responded": true
+    },
+    {
+      "id": "screen-20",
+      "label": "LKR 2,500",
+      "responded": true
+    },
+    {
+      "id": "screen-20",
+      "label": "LKR 5,000",
+      "responded": true
+    },
+    {
+      "id": "screen-20",
+      "label": "Custom",
+      "responded": true
+    },
+    {
+      "id": "screen-20",
+      "label": "Confirm \u2014 demo only",
+      "responded": true
+    },
+    {
+      "id": "screen-22",
+      "label": "All",
+      "responded": true
+    },
+    {
+      "id": "screen-22",
+      "label": "Proposed",
+      "responded": true
+    },
+    {
+      "id": "screen-22",
+      "label": "Fundraising",
+      "responded": true
+    },
+    {
+      "id": "screen-22",
+      "label": "Building",
+      "responded": true
+    },
+    {
+      "id": "screen-22",
+      "label": "Complete",
+      "responded": true
+    },
+    {
+      "id": "screen-23",
+      "label": "Follow",
+      "responded": true
+    },
+    {
+      "id": "screen-23",
+      "label": "\ud83d\udccdSite locationAnuradhapura, Sri Lanka \u2014 orientation to be verified\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-23",
+      "label": "\ud83d\udcd0Survey & floor planAwaiting verified measurements\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-23",
+      "label": "\ud83d\udcc1Legal documentsAccessible after authorization and redaction\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-24",
+      "label": "\ud83d\udcf7Photo galleryBefore / during / after images, date-stamped\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-24",
+      "label": "\ud83d\udcd1Inspection evidenceEngineer notes and approvals\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-25",
+      "label": "Save draft",
+      "responded": true
+    },
+    {
+      "id": "screen-25",
+      "label": "Submit review",
+      "responded": true
+    },
+    {
+      "id": "screen-26",
+      "label": "\ud83e\uddfeFinance ledgerRestricted donation and expense entries\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-26",
+      "label": "\ud83d\udcd0Plans & milestonesVersioned evidence and approvals\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-26",
+      "label": "\ud83d\udc77ContractorsIdentity, contracts and changes\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-26",
+      "label": "\ud83d\udd75Audit trailPermissions and reviewer actions\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-27",
+      "label": "Upcoming",
+      "responded": true
+    },
+    {
+      "id": "screen-27",
+      "label": "Online",
+      "responded": true
+    },
+    {
+      "id": "screen-27",
+      "label": "Past",
+      "responded": true
+    },
+    {
+      "id": "screen-27",
+      "label": "\ud83d\udcd6Quran Tafsir CircleDemo date \u00b7 Organizer must confirm\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-27",
+      "label": "\ud83d\udc65Youth HalaqahDiscussion, learning and support\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-27",
+      "label": "\ud83c\udf3fCommunity Clean-UpVolunteer signup\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-27",
+      "label": "\u262aCharity Awareness SessionCommunity learning event\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-27",
+      "label": "Create event preview",
+      "responded": true
+    },
+    {
+      "id": "screen-28",
+      "label": "\ud83d\udd4cJamia Kadheeja Jummah MosqueAnuradhapura \u00b7 Official information pending\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-28",
+      "label": "\u2316Prayer facilitiesAccessibility, parking and contacts\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-28",
+      "label": "\ud83d\uddfaMap viewOpen verified location when connected\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-29",
+      "label": "\ud83e\udd1dCommunity cleanupLocal coordinator and registration\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-29",
+      "label": "\ud83d\udcdaEducation supportTutoring and learning support\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-29",
+      "label": "\ud83c\udf72Food distributionEligibility and safety guidance\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-29",
+      "label": "\ud83d\udd4cMosque project assistanceRole-specific volunteer tasks\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-29",
+      "label": "Apply to volunteer",
+      "responded": true
+    },
+    {
+      "id": "screen-30",
+      "label": "All",
+      "responded": true
+    },
+    {
+      "id": "screen-30",
+      "label": "Books",
+      "responded": true
+    },
+    {
+      "id": "screen-30",
+      "label": "Food",
+      "responded": true
+    },
+    {
+      "id": "screen-30",
+      "label": "Clothing",
+      "responded": true
+    },
+    {
+      "id": "screen-30",
+      "label": "Services",
+      "responded": true
+    },
+    {
+      "id": "screen-30",
+      "label": "\ud83d\udcd7Islamic BooksExample vendor listing\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-30",
+      "label": "\ud83d\udecdCommunity BusinessesVerified profiles and reviews\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-30",
+      "label": "\ud83c\udfeaLocal ServicesMerchant contact and certification evidence\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-32",
+      "label": "\u2661Fundraising campaignsApplications, evidence, reports\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-32",
+      "label": "\ud83e\uddd1\u200d\ud83e\udd1d\u200d\ud83e\uddd1Staff & permissionsRoles and authorized reviewers\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-32",
+      "label": "\ud83d\udcc6Community activitiesEvents and registered volunteers\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-32",
+      "label": "\ud83d\udccaReportsReceipts, reconciliation and exports\u203a",
+      "responded": true
+    },
+    {
+      "id": "screen-33",
+      "label": "\ud83d\udcc4Islamic editorial reviewQuran citations, Hadith attribution\u203a",
+      "responded": true
+    },
+    {
+      "id": "mosque-current-site",
+      "label": "Follow",
+      "responded": true
+    },
+    {
+      "id": "mosque-current-site",
+      "label": "\ud83d\udccdSite locationAnuradhapura, Sri Lanka \u2014 orientation to be verified\u203a",
+      "responded": true
+    },
+    {
+      "id": "mosque-current-site",
+      "label": "\ud83d\udcd0Survey & floor planAwaiting verified measurements\u203a",
+      "responded": true
+    },
+    {
+      "id": "mosque-current-site",
+      "label": "\ud83d\udcc1Legal documentsAccessible after authorization and redaction\u203a",
+      "responded": true
+    },
+    {
+      "id": "mosque-proposed-design",
+      "label": "Follow",
+      "responded": true
+    },
+    {
+      "id": "mosque-proposed-design",
+      "label": "\u25a33D renderingsFront elevation, street view, aerial view\u203a",
+      "responded": true
+    },
+    {
+      "id": "mosque-proposed-design",
+      "label": "\ud83d\udccfPlans & accessibilityFloor levels, prayer spaces and access\u203a",
+      "responded": true
+    },
+    {
+      "id": "mosque-proposed-design",
+      "label": "\u2705Design reviewArchitect and committee approval pending\u203a",
+      "responded": true
+    },
+    {
+      "id": "mosque-construction",
+      "label": "Follow",
+      "responded": true
+    },
+    {
+      "id": "mosque-finances",
+      "label": "Follow",
+      "responded": true
+    },
+    {
+      "id": "mosque-finances",
+      "label": "\ud83e\uddfeItemized budgetSite works, civil construction, MEP, finishes\u203a",
+      "responded": true
+    },
+    {
+      "id": "mosque-finances",
+      "label": "\ud83d\udd0eExpenditure ledgerPaid invoices, approvals, reconciliation\u203a",
+      "responded": true
+    },
+    {
+      "id": "mosque-finances",
+      "label": "\ud83d\udce4Audit reportsPublication after independent review\u203a",
+      "responded": true
+    },
+    {
+      "id": "mosque-donations",
+      "label": "Follow",
+      "responded": true
+    }
+  ],
+  "errors": [],
+  "mosqueTabs": [
+    {
+      "route": "#/mosque-current-site",
+      "passed": true
+    },
+    {
+      "route": "#/mosque-proposed-design",
+      "passed": true
+    },
+    {
+      "route": "#/mosque-construction",
+      "passed": true
+    },
+    {
+      "route": "#/mosque-finances",
+      "passed": true
+    },
+    {
+      "route": "#/mosque-donations",
+      "passed": true
+    }
+  ],
+  "searchMatches": 6,
+  "menuExpanded": true
+}

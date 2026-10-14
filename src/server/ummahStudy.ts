@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 const cache = new Map<string, { expires: number; data: unknown }>();
-export async function ummahStudyMiddleware(req: IncomingMessage, res: ServerResponse, next: () => void) {
+export async function ummahStudyMiddleware(req: IncomingMessage, res: ServerResponse, next: () => void, apiKey: string | undefined = process.env.UMMAH_API_KEY) {
   const path = (req.url || '').split('?')[0];
   if (!path.startsWith('/api/quran-study/')) return next();
   res.setHeader('Content-Type', 'application/json');
@@ -13,7 +13,7 @@ export async function ummahStudyMiddleware(req: IncomingMessage, res: ServerResp
     let hit = cache.get(path);
     if (!hit || hit.expires < Date.now()) {
       const url = new URL(kind === 'words' ? `https://ummahapi.com/api/quran/words/${+s}/${+a}` : `https://ummahapi.com/api/tafsir/${kind}/surah/${+s}/ayah/${+a}`);
-      if (process.env.UMMAH_API_KEY) url.searchParams.set('apikey', process.env.UMMAH_API_KEY);
+      if (apiKey) url.searchParams.set('apikey', apiKey);
       const response = await fetch(url, { signal: AbortSignal.timeout(20000) });
       if (!response.ok) throw new Error('upstream');
       const body = await response.json(); const data = body.data;

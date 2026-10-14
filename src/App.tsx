@@ -56,7 +56,7 @@ import { ArchBanner, StarDivider } from './ds/ornaments';
 import { ProfileHeader, CommunityHome } from './ds/social';
 import { QuranApp } from './ds/quranApp';
 
-export default function App() {
+export default function App({ embedded = false, externalMode, language }: { embedded?: boolean; externalMode?: AppMode; language?: SupportedLanguage } = {}) {
   // Trilingual system (English, Tamil, Sinhala)
   const [currentLanguage, setCurrentLanguage] = useState<SupportedLanguage>('en');
   const t = TRANSLATIONS[currentLanguage];
@@ -114,7 +114,9 @@ export default function App() {
   }, [currentAnalysis, currentLanguage]);
   
   // App mode: Community (home) · Quran · Verify a Hadith · Live Studio
-  const [mode, setMode] = useState<AppMode>('wall');
+  const [mode, setMode] = useState<AppMode>(externalMode || 'wall');
+  useEffect(() => { if (externalMode) setMode(externalMode); }, [externalMode]);
+  useEffect(() => { if (language) setCurrentLanguage(language); }, [language]);
   const [mobileTab, setMobileTab] = useState<MobileTab | undefined>(undefined);
   // re-opens Community on the verified-hadith tab after publishing a search
   const [wallView, setWallView] = useState<{ key: number; tab: 'foryou' | 'verified' }>({ key: 0, tab: 'foryou' });
@@ -479,7 +481,7 @@ Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prim
   return (
     <>
     <div className="dd-shell screen-only min-h-screen flex flex-col bg-[var(--surface-app)] text-slate-100 selection:bg-amber-500/30 selection:text-amber-200">
-      <AppHeader
+      {!embedded && <AppHeader
         language={currentLanguage}
         onLanguage={handleLanguageChange}
         user={currentUser}
@@ -487,7 +489,7 @@ Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prim
         onMode={goMode}
         onMe={() => onMobileTab('me')}
         actions={{ onShare: handleShareAction, onCopy: handleCopyReport, copied: copiedReport, onExport: handleExportJSON, exportLabel: 'Export JSON', onPrint: handlePrintReport, printLabel: printReportLabel }}
-      />
+      />}
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-3 sm:px-6 lg:px-8 py-4 md:py-8 space-y-5 md:space-y-8">
         {mode === 'wall' && mobileTab !== 'me' && <CommunityWelcome language={currentLanguage} onMode={goMode} onShare={() => onMobileTab('share')} />}
@@ -561,8 +563,8 @@ Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prim
         {mode === 'quran' && <QuranApp language={currentLanguage} dataUrl="/data/quran-en.json" />}
       </main>
 
-      <AppFooter />
-      <MobileTabBar language={currentLanguage} mode={mode} active={mobileTab ?? mode} onSelect={onMobileTab} />
+      {!embedded && <AppFooter />}
+      {!embedded && <MobileTabBar language={currentLanguage} mode={mode} active={mobileTab ?? mode} onSelect={onMobileTab} />}
 
       {/* Web Share API & Link Sharing Modal */}
       <ShareModal
