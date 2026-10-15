@@ -1,0 +1,70 @@
+{
+    "kind": "actual-humhub-native-model-guards",
+    "transport": "native Yii models with real MariaDB",
+    "results": [
+        {
+            "name": "Native create without reviewed-submit context is denied without orphan Post",
+            "status": "pass"
+        },
+        {
+            "name": "Guarded submission first Content INSERT is draft, never briefly published",
+            "status": "pass"
+        },
+        {
+            "name": "Unreviewed native state-service publishing blocked",
+            "status": "pass"
+        },
+        {
+            "name": "Unreviewed scheduled publication blocked",
+            "status": "pass"
+        },
+        {
+            "name": "Approved message cannot mutate through native Post::save",
+            "status": "pass"
+        },
+        {
+            "name": "Rejected post cannot publish through native state service",
+            "status": "pass"
+        },
+        {
+            "name": "Native force move cannot transfer an approved post or its review binding",
+            "status": "pass"
+        },
+        {
+            "name": "Raw native updateAttributes cannot make approved content public",
+            "status": "pass"
+        },
+        {
+            "name": "Pending and rejected detail denied even to owner or native content manager",
+            "status": "pass"
+        },
+        {
+            "name": "Native readable search\/feed query excludes pending and rejected posts",
+            "status": "pass"
+        },
+        {
+            "name": "Native approved detail denies excluded community user",
+            "status": "pass"
+        },
+        {
+            "name": "Unlinked native file remains writable and owner-readable",
+            "status": "pass"
+        },
+        {
+            "name": "Native File save and raw assignment cannot attach to a reviewed post",
+            "status": "pass"
+        },
+        {
+            "name": "Unexpected public attachment denies file view, replacement and deletion before side effects",
+            "status": "pass"
+        },
+        {
+            "name": "Real cached search rechecks membership and excludes pending\/rejected content",
+            "status": "pass"
+        }
+    ],
+    "passed": 15,
+    "failed": 0,
+    "humanParticipation": false,
+    "physicalIPhoneSafariTested": false
+}

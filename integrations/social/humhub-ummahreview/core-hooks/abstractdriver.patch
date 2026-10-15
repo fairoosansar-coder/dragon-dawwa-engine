@@ -1,0 +1,57 @@
+--- protected/humhub/modules/content/search/driver/AbstractDriver.php
++++ protected/humhub/modules/content/search/driver/AbstractDriver.php
+@@ -3,6 +3,7 @@
+ namespace humhub\modules\content\search\driver;
+ 
+ use humhub\modules\content\models\Content;
++use humhub\modules\content\events\ContentGuardEvent;
+ use humhub\modules\content\search\ResultSet;
+ use humhub\modules\content\search\SearchRequest;
+ use humhub\modules\content\services\ContentSearchService;
+@@ -12,6 +13,9 @@
+ 
+ abstract class AbstractDriver extends Component
+ {
++    /** @event ContentGuardEvent triggered after cached/native UI search results are loaded. */
++    public const EVENT_FILTER_RESULTS = 'filterResults';
++
+     abstract public function purge(): void;
+ 
+     abstract public function update(Content $content): void;
+@@ -41,7 +45,7 @@
+     {
+         if ($cachePageNumber < 1) {
+             // Search results without caching
+-            return $this->search($request);
++            return $this->filterResults($request, $this->search($request));
+         }
+ 
+         // Store original pagination
+@@ -71,6 +75,27 @@
+         $resultSet->pagination->setPage($origPage);
+         $resultSet->pagination->setPageSize($origPageSize);
+ 
++        return $this->filterResults($request, $resultSet);
++    }
++
++    /**
++     * Lets optional extensions remove results after any driver has completed
++     * retrieval, without binding a driver to an application module.
++     */
++    protected function filterResults(SearchRequest $request, ResultSet $resultSet): ResultSet
++    {
++        $event = new ContentGuardEvent([
++            'target' => $resultSet,
++            'attributes' => ['request' => $request],
++            'user' => $request->user,
++            'operation' => 'content.search.cached',
++        ]);
++        $this->trigger(self::EVENT_FILTER_RESULTS, $event);
++        if (!$event->isValid) {
++            $resultSet->results = [];
++            $resultSet->pagination->totalCount = 0;
++        }
++
+         return $resultSet;
+     }
+ 

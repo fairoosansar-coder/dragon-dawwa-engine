@@ -1,0 +1,90 @@
+--- protected/humhub/modules/file/models/File.php
++++ protected/humhub/modules/file/models/File.php
+@@ -16,6 +16,7 @@
+ use humhub\libs\UUIDValidator;
+ use humhub\modules\content\components\ContentActiveRecord;
+ use humhub\modules\content\components\ContentAddonActiveRecord;
++use humhub\modules\content\events\ContentGuardEvent;
+ use humhub\modules\file\components\StorageManager;
+ use humhub\modules\file\components\StorageManagerInterface;
+ use humhub\modules\file\libs\Metadata;
+@@ -98,6 +99,12 @@
+      */
+     public const EVENT_AFTER_NEW_STORED_FILE = 'afterNewStoredFile';
+ 
++    /** @event ContentGuardEvent triggered before raw File::updateAttributes() persistence. */
++    public const EVENT_BEFORE_UPDATE_ATTRIBUTES = 'beforeUpdateAttributes';
++
++    /** @event ContentGuardEvent triggered before native File::canView() evaluation. */
++    public const EVENT_BEFORE_CAN_VIEW = 'beforeCanView';
++
+     /**
+      * The numeric value of the published state is not yet finalized. Use with caution and expect a change of value in later versions.
+      *
+@@ -190,6 +197,24 @@
+     }
+ 
+     /**
++     * Gives extensions a cancellable guard around the raw persistence API, which
++     * otherwise bypasses model save events. Returning zero matches Yii's no-row
++     * update contract when a policy rejects the mutation.
++     */
++    public function updateAttributes($attributes)
++    {
++        $event = new ContentGuardEvent([
++            'target' => $this,
++            'attributes' => is_array($attributes) ? $attributes : [],
++            'user' => Yii::$app->user->identity,
++            'operation' => 'file.updateAttributes',
++        ]);
++        $this->trigger(self::EVENT_BEFORE_UPDATE_ATTRIBUTES, $event);
++
++        return $event->isValid ? parent::updateAttributes($attributes) : 0;
++    }
++
++    /**
+      * @inheritdoc
+      */
+     public function beforeSave($insert)
+@@ -220,10 +245,15 @@
+      */
+     public function beforeDelete()
+     {
++        // Trigger the native cancellable delete event before deleting stored data.
++        if (!parent::beforeDelete()) {
++            return false;
++        }
++
+         $this->getStore()->delete();
+         FileHistory::deleteAll(['file_id' => $this->id]);
+ 
+-        return parent::beforeDelete();
++        return true;
+     }
+ 
+     /**
+@@ -281,13 +311,23 @@
+      */
+     public function canView($user = null): bool
+     {
++        $user = UserHelper::getUserByParam($user);
++        $event = new ContentGuardEvent([
++            'target' => $this,
++            'user' => $user,
++            'operation' => 'file.canView',
++        ]);
++        $this->trigger(self::EVENT_BEFORE_CAN_VIEW, $event);
++        if (!$event->isValid) {
++            return false;
++        }
++
+         if ($this->public) {
+             return true;
+         }
+ 
+         // File is not attached to any record: only viewable by its creator
+         if (empty($this->object_model)) {
+-            $user = UserHelper::getUserByParam($user);
+             return $user !== null && $this->created_by == $user->id;
+         }
+ 

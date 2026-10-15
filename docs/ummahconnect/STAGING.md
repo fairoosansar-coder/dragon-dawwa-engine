@@ -37,3 +37,13 @@ A separate **private, empty** Railway project was created in the authenticated *
 No service, database, volume, source deployment or application domain was activated; paid infrastructure activation awaits an explicit budget decision. Complete isolated build, configuration, database/schema, OIDC provenance and acceptance instructions are in `deployment/staging/README.md`, `railway-plan.json`, `.env.staging.example` and `upstream-lock.json`. Prepared Docker definitions have not yet been build-qualified.
 
 Actual native HumHub tests ran in a separate task sandbox using real PHP/MariaDB and native REST member tokens. They are not a durable HTTPS deployment, real existing-account Google flow or physical-device acceptance. Source branch: `development/ummahconnect-live-staging-20261015`, descended from preserved commit `9fa7f7a8dbc2687250e75f4514ebc1641994e519`. Original 13-file recovery remains separate and has not been discarded or overwritten.
+
+## 2026-10-16 current hosting boundary
+
+New live branch: `development/ummahconnect-native-hardening-20261016`, descended from preserved `226e388` and `9fa7f7a`. The separate Railway project/environment above remains the proposed target, not a running application. **No new HTTPS staging application URL is claimed.**
+
+Read-only policy checks excluded `MEGATON DX` (protected Aishu adapter/control plane; retirement permits only separately approved offline RUNFORGE preparation) and `aegistube-upstream` (exclusively AegisOS/Invidious metadata service). No UmmahConnect source, packages, service or database was added to either. Cloud Computer 2 and Aishu-labelled hosts remain excluded.
+
+Native Docker startup now applies exact core hooks, uses `UMMAH_INITIALIZE_HUMHUB=yes` only for a new empty database and `no` on subsequent starts, applies module migrations and supervises Apache/queue/cron. Standard Linux CI checks the actual pinned MySQL/HumHub containers and persistent restart. Test containers are private/ephemeral and cannot stand in for durable hosting.
+
+Live activation still needs: (1) approval of the four isolated Railway services/two database volumes and metered resource envelope, without shared-workspace production stop limits; (2) a separate protected Google staging Web-client configuration and exact callback after hostname assignment; (3) three designated real author/reviewer/excluded accounts, private community grants and protected subject mapping; (4) hosted end-to-end and physical iPhone Safari evidence. Original 13-file recovery is separate.

@@ -1,0 +1,87 @@
+--- protected/humhub/modules/content/models/Content.php
++++ protected/humhub/modules/content/models/Content.php
+@@ -23,6 +23,7 @@
+ use humhub\modules\content\components\ContentContainerActiveRecord;
+ use humhub\modules\content\components\ContentContainerModule;
+ use humhub\modules\content\events\ContentEvent;
++use humhub\modules\content\events\ContentGuardEvent;
+ use humhub\modules\content\events\ContentStateEvent;
+ use humhub\modules\content\interfaces\ContentOwner;
+ use humhub\modules\content\interfaces\ContentProvider;
+@@ -148,6 +149,15 @@
+      */
+     public const EVENT_STATE_CHANGED = 'changedState';
+ 
++    /** @event ContentGuardEvent triggered before a native Content move. */
++    public const EVENT_BEFORE_MOVE = 'beforeMove';
++
++    /** @event ContentGuardEvent triggered before raw updateAttributes() persistence. */
++    public const EVENT_BEFORE_UPDATE_ATTRIBUTES = 'beforeUpdateAttributes';
++
++    /** @event ContentGuardEvent triggered before native canView() evaluation. */
++    public const EVENT_BEFORE_CAN_VIEW = 'beforeCanView';
++
+     /**
+      * @event ContentEvent triggered right before a Content record is hard deleted.
+      *
+@@ -231,6 +241,25 @@
+     }
+ 
+     /**
++     * Gives extensions a cancellable guard around the raw persistence API, which
++     * otherwise bypasses model save events. Returning zero matches Yii's no-row
++     * update contract when a policy rejects the mutation.
++     */
++    public function updateAttributes($attributes)
++    {
++        $event = new ContentGuardEvent([
++            'content' => $this,
++            'target' => $this,
++            'attributes' => is_array($attributes) ? $attributes : [],
++            'user' => Yii::$app->user->identity,
++            'operation' => 'content.updateAttributes',
++        ]);
++        $this->trigger(self::EVENT_BEFORE_UPDATE_ATTRIBUTES, $event);
++
++        return $event->isValid ? parent::updateAttributes($attributes) : 0;
++    }
++
++    /**
+      * @inheritdoc
+      */
+     public function beforeSave($insert)
+@@ -671,6 +700,17 @@
+      */
+     public function move(?ContentContainerActiveRecord $container = null, $force = false)
+     {
++        $event = new ContentGuardEvent([
++            'content' => $this,
++            'target' => $container,
++            'user' => Yii::$app->user->identity,
++            'operation' => 'content.move',
++        ]);
++        $this->trigger(self::EVENT_BEFORE_MOVE, $event);
++        if (!$event->isValid) {
++            return false;
++        }
++
+         $move = ($force) ? true : $this->canMove($container);
+ 
+         if ($move === true) {
+@@ -1022,6 +1062,16 @@
+     public function canView($user = null): bool
+     {
+         $user = UserHelper::getUserByParam($user);
++        $event = new ContentGuardEvent([
++            'content' => $this,
++            'target' => $this,
++            'user' => $user,
++            'operation' => 'content.canView',
++        ]);
++        $this->trigger(self::EVENT_BEFORE_CAN_VIEW, $event);
++        if (!$event->isValid) {
++            return false;
++        }
+ 
+         // Check Guest Visibility
+         if ($user === null) {

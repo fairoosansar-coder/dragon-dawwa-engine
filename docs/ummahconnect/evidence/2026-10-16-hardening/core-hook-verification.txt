@@ -1,0 +1,1 @@
+ummahreview hook installer: already applied; hashes and PHP syntax verified

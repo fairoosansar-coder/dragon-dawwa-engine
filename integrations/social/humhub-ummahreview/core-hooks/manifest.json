@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "humhub": "1.19.0",
+  "patchedFiles": {
+    "humhub/modules/content/models/Content.php": "ad281a6ca468554ab5b9fb314f2710b7c66587a8cf474bfebc79e514270df3cd",
+    "humhub/modules/content/components/ActiveQueryContent.php": "97e3e77d4a812e81f57e6e6dc4d8af1d98eedf025ec9e57fc380210e9689381f",
+    "humhub/modules/file/components/FileManager.php": "8ba3cc7d632713d7454bbb01dad5eece1dc253ebf58ae4b2fdeb01495b90f988",
+    "humhub/modules/file/models/File.php": "d52d7d2d879aa9b637957d09d69fadbdd6d0eacaf43229768dcb8fd11f5f81f5",
+    "humhub/modules/content/search/ContentSearchProvider.php": "1631d86394abafbbb9e9c819abfd4035daf149ef58532fd0940d993bdf8ea480",
+    "humhub/modules/content/search/driver/AbstractDriver.php": "aefc7ed86a3e34ec5ee1ac221512a993106a1e8e5553f9bff8cebc5b26fd3590",
+    "humhub/modules/content/events/ContentGuardEvent.php": "b84c920916bea4e17beb7ea907da878ebd42c2b5f3eef6d934f8f6a801375545"
+  }
+}

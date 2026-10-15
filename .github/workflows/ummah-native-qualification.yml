@@ -1,0 +1,29 @@
+name: Ummah native container qualification
+
+on:
+  push:
+    branches:
+      - development/ummahconnect-native-hardening-20261016
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify-native-container:
+    name: Pinned MySQL 8.4 and HumHub native qualification
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Check out the qualifying branch
+        uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 1
+      - name: Install the host-side Node runtime for HTTP qualification
+        uses: actions/setup-node@v4.4.0
+        with:
+          node-version: 24.21.0
+          check-latest: false
+      - name: Build and qualify isolated native containers
+        shell: bash
+        run: bash scripts/qualify-native-container.sh

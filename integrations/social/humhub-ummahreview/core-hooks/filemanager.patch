@@ -1,0 +1,38 @@
+--- protected/humhub/modules/file/components/FileManager.php
++++ protected/humhub/modules/file/components/FileManager.php
+@@ -13,6 +13,7 @@
+ use humhub\modules\comment\models\Comment;
+ use humhub\modules\content\components\ContentActiveRecord;
+ use humhub\modules\content\services\ContentSearchService;
++use humhub\modules\content\events\ContentGuardEvent;
+ use humhub\modules\file\models\File;
+ use Yii;
+ use yii\base\Component;
+@@ -28,6 +29,9 @@
+  */
+ class FileManager extends Component
+ {
++    /** @event ContentGuardEvent triggered before a FileManager record mutation. */
++    public const EVENT_BEFORE_MUTATE = 'beforeMutate';
++
+     /**
+      * @var ActiveRecord
+      */
+@@ -46,6 +50,17 @@
+             return;
+         }
+ 
++        $event = new ContentGuardEvent([
++            'target' => $this->record,
++            'attributes' => ['files' => $files, 'steal' => $steal],
++            'user' => Yii::$app->user->identity,
++            'operation' => 'file.attach',
++        ]);
++        $this->trigger(self::EVENT_BEFORE_MUTATE, $event);
++        if (!$event->isValid) {
++            return false;
++        }
++
+         if (is_string($files)) {
+             $files = array_map('trim', explode(',', $files));
+         } elseif ($files instanceof File) {

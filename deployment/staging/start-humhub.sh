@@ -2,10 +2,11 @@
 set -eu
 php /usr/local/bin/configure-humhub.php
 cd /var/www/html/protected
-if [ "${UMMAH_STAGING_INITIALIZE:-false}" = true ]; then
+if [ "${UMMAH_INITIALIZE_HUMHUB:-no}" = yes ]; then
   php yii installer/install-db
   php yii installer/write-site-config 'UmmahConnect isolated staging' 'no-mail@example.invalid'
   php yii module/enable rest
   php yii module/enable ummahreview
 fi
-exec apache2-foreground
+php yii migrate/up --includeModuleMigrations=1 --interactive=0
+exec /usr/bin/supervisord -c /etc/supervisor/ummah-humhub.conf

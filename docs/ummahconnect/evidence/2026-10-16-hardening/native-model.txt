@@ -1,0 +1,16 @@
+PASS Native create without reviewed-submit context is denied without orphan Post
+PASS Guarded submission first Content INSERT is draft, never briefly published
+PASS Unreviewed native state-service publishing blocked
+PASS Unreviewed scheduled publication blocked
+PASS Approved message cannot mutate through native Post::save
+PASS Rejected post cannot publish through native state service
+PASS Native force move cannot transfer an approved post or its review binding
+PASS Raw native updateAttributes cannot make approved content public
+PASS Pending and rejected detail denied even to owner or native content manager
+PASS Native readable search/feed query excludes pending and rejected posts
+PASS Native approved detail denies excluded community user
+PASS Unlinked native file remains writable and owner-readable
+PASS Native File save and raw assignment cannot attach to a reviewed post
+PASS Unexpected public attachment denies file view, replacement and deletion before side effects
+PASS Real cached search rechecks membership and excludes pending/rejected content
+{"passed":15,"failed":0}

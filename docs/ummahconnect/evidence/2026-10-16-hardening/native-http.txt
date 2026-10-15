@@ -1,0 +1,33 @@
+PASS Three actual HumHub bearer identities authenticate
+PASS Actual community directory excludes nonmembers
+PASS Anonymous review route rejected
+PASS Author submits real provider draft, state=10
+PASS Draft hidden from approved feed for author and reviewer
+PASS Draft detail unavailable in approved endpoint
+PASS Reviewer sees actual pending queue
+PASS Author without review grant denied queue
+PASS Excluded user denied feed, queue and submission
+PASS Cross-community submission denied
+PASS Independent reviewer approves real provider post
+PASS Approved visible only to permitted members
+PASS Real adapter consumes approved provider post and citations
+PASS Real approved-feed adapter preserves publication state and citations
+PASS Reviewer with review grant still denied self-approval
+PASS Rejected provider post remains draft
+PASS Rejected and self-review-denied posts invisible to approved feed
+PASS Reject-then-approve conflict cannot publish
+PASS Unapproved query-token authentication denied
+PASS Wrong/missing member token denied
+PASS Native raw post detail denies pending author and reviewer
+PASS Simultaneous identical submissions create exactly one native post
+PASS Same request key with changed version conflicts
+PASS Concurrent opposing decisions commit once and leave coherent records
+PASS Identical decision retries preserve one decision with correlated audit attempts
+PASS Publication storage failure rolls back state and leaves durable failed attempt
+PASS Changed stored content cannot inherit approval
+PASS Soft-deleted submission retry returns conflict, not stale pending success
+PASS Revoked current community review grant denies decision
+PASS Pending and rejected content produce no native content notifications
+PASS Native audit mutation is denied by actual database trigger
+PASS Native multipart attachment upload is denied for pending and approved posts
+{"passed":32,"failed":0}

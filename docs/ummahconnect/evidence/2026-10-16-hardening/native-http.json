@@ -1,0 +1,143 @@
+{
+  "kind": "actual-humhub-native-runtime",
+  "transport": "loopback-http",
+  "database": "MariaDB 10.11.14, MySQL-compatible; not hosted MySQL qualification",
+  "humhub": "1.19.0",
+  "rest": "0.12.4",
+  "humanParticipation": false,
+  "existingGoogleLoginTested": false,
+  "physicalIPhoneSafariTested": false,
+  "fixtureAccounts": "Synthetic native users, not production identities",
+  "results": [
+    {
+      "name": "Three actual HumHub bearer identities authenticate",
+      "status": "pass"
+    },
+    {
+      "name": "Actual community directory excludes nonmembers",
+      "status": "pass"
+    },
+    {
+      "name": "Anonymous review route rejected",
+      "status": "pass"
+    },
+    {
+      "name": "Author submits real provider draft, state=10",
+      "status": "pass"
+    },
+    {
+      "name": "Draft hidden from approved feed for author and reviewer",
+      "status": "pass"
+    },
+    {
+      "name": "Draft detail unavailable in approved endpoint",
+      "status": "pass"
+    },
+    {
+      "name": "Reviewer sees actual pending queue",
+      "status": "pass"
+    },
+    {
+      "name": "Author without review grant denied queue",
+      "status": "pass"
+    },
+    {
+      "name": "Excluded user denied feed, queue and submission",
+      "status": "pass"
+    },
+    {
+      "name": "Cross-community submission denied",
+      "status": "pass"
+    },
+    {
+      "name": "Independent reviewer approves real provider post",
+      "status": "pass"
+    },
+    {
+      "name": "Approved visible only to permitted members",
+      "status": "pass"
+    },
+    {
+      "name": "Real adapter consumes approved provider post and citations",
+      "status": "pass"
+    },
+    {
+      "name": "Real approved-feed adapter preserves publication state and citations",
+      "status": "pass"
+    },
+    {
+      "name": "Reviewer with review grant still denied self-approval",
+      "status": "pass"
+    },
+    {
+      "name": "Rejected provider post remains draft",
+      "status": "pass"
+    },
+    {
+      "name": "Rejected and self-review-denied posts invisible to approved feed",
+      "status": "pass"
+    },
+    {
+      "name": "Reject-then-approve conflict cannot publish",
+      "status": "pass"
+    },
+    {
+      "name": "Unapproved query-token authentication denied",
+      "status": "pass"
+    },
+    {
+      "name": "Wrong/missing member token denied",
+      "status": "pass"
+    },
+    {
+      "name": "Native raw post detail denies pending author and reviewer",
+      "status": "pass"
+    },
+    {
+      "name": "Simultaneous identical submissions create exactly one native post",
+      "status": "pass"
+    },
+    {
+      "name": "Same request key with changed version conflicts",
+      "status": "pass"
+    },
+    {
+      "name": "Concurrent opposing decisions commit once and leave coherent records",
+      "status": "pass"
+    },
+    {
+      "name": "Identical decision retries preserve one decision with correlated audit attempts",
+      "status": "pass"
+    },
+    {
+      "name": "Publication storage failure rolls back state and leaves durable failed attempt",
+      "status": "pass"
+    },
+    {
+      "name": "Changed stored content cannot inherit approval",
+      "status": "pass"
+    },
+    {
+      "name": "Soft-deleted submission retry returns conflict, not stale pending success",
+      "status": "pass"
+    },
+    {
+      "name": "Revoked current community review grant denies decision",
+      "status": "pass"
+    },
+    {
+      "name": "Pending and rejected content produce no native content notifications",
+      "status": "pass"
+    },
+    {
+      "name": "Native audit mutation is denied by actual database trigger",
+      "status": "pass"
+    },
+    {
+      "name": "Native multipart attachment upload is denied for pending and approved posts",
+      "status": "pass"
+    }
+  ],
+  "passed": 32,
+  "failed": 0
+}

@@ -1,6 +1,6 @@
 # 33-screen completion matrix
 
-Updated 2026-10-15 after actual native HumHub qualification. Route labels below identify the existing main app, not a working hosted URL. The earlier Mac-mini localhost preview is historical. No social screen is promoted to live Working: HTTPS Google/human/device acceptance is still blocked. Working describes previously verified local interactions, not hosted acceptance.
+Updated 2026-10-16 after native permission/concurrency hardening. Route labels below identify the existing main app, not a working hosted URL. The earlier Mac-mini localhost preview is historical. No social screen is promoted to live Working: HTTPS Google/human/device acceptance is still blocked. Working describes previously verified local interactions, not hosted acceptance.
 
 | # | Screen | Status | Implemented scope / missing capability |
 |---|---|---|---|
@@ -36,7 +36,7 @@ Updated 2026-10-15 after actual native HumHub qualification. Route labels below 
 | 30 | Halal Marketplace (`#/screen-30`) | UI Only | Marketplace categories/search UI; merchant/listing/order services pending. |
 | 31 | More & Settings (`#/screen-31`) | Working | Browser-local language preference and navigation; account privacy controls pending. |
 | 32 | Organization Dashboard (`#/screen-32`) | UI Only | Organization interface; verified organization/roles/reports pending. |
-| 33 | Admin & Moderation (`#/screen-33`) | UI Only | Actual native review queue, reviewer-with-grant self-review denial, independent reviewer-role decision and rejection pass. Automated fixtures are not a human scholarly approval. Hosted human review, robust concurrency and device gates remain. |
+| 33 | Admin & Moderation (`#/screen-33`) | UI Only | Actual native review queue, reviewer-with-grant self-review denial, independent reviewer-role decision and rejection pass. Automated fixtures are not a human scholarly approval. Actual native concurrency/rollback and cache/file/model guards pass; hosted human review and physical-device gates remain. |
 
 Counts: 6 Working, 20 UI Only, 7 Blocked.
 
@@ -51,3 +51,9 @@ The source capability has advanced, but no pending social screen is promoted to 
 ## Native runtime milestone boundary
 
 Actual provider: 20/20 HTTP cases and 5/5 native-model guards pass in isolated PHP 8.3.6/HumHub 1.19.0/REST 0.12.4/MariaDB 10.11.14. Source: 44/44 app cases and 19/19 staging identity cases. New Railway staging project is private and empty; no HTTPS app URL exists. Hosted Google login plus another human’s decision, target MySQL/container qualification and physical iPhone Safari are not complete. The 33-screen design source is unchanged from 9fa7f7a. Original 13-file recovery remains a separate preserved workstream. See LIVE-STAGING-READINESS-20261015.md.
+
+## 2026-10-16 native hardening — current boundary
+
+Current source: 44/44 app tests and 19/19 identity tests; TypeScript/Vite pass. Actual HumHub/REST/PHP/MariaDB: **32/32 HTTP** and **15/15 native-model/file/cached-search** tests pass. Approvals in these tests are synthetic actor operations, not human scholarship or Google login. Audited core hooks, exact content-version authorization and append-only attempts are installed/verified only in the isolated test runtime. No social screen is promoted to live Working.
+
+Docker qualification is separately tracked; local execution hit a sandbox kernel iptables-raw restriction before native MySQL could start. CI is a container test, not hosted acceptance. Railway HTTPS/OIDC/human approval and physical iPhone Safari are still uncompleted. All 33 main UI source files remain unchanged; earlier screenshots are historical Chrome evidence. Qdrant/BGE → Docling → PeerTube → charity/mosque remain pending.

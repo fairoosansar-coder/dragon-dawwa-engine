@@ -1,0 +1,10 @@
+{
+  "result": "BLOCKED",
+  "phase": "build-pinned-images",
+  "docker": "29.1.3",
+  "reason": "Sandbox kernel lacks iptables raw table required by Docker bridge direct-access filtering. Base image pulls succeeded; first RUN networking failed.",
+  "mysqlContainerTested": false,
+  "hostedDeploymentTested": false,
+  "securityWorkaroundApplied": false,
+  "next": "Standard public GitHub Linux runner qualification; no protected host reused."
+}

@@ -33,11 +33,11 @@ The browser can save preferences and drafts locally. Those are not server record
 
 ## 2026-10-15 source correction and remaining live gates
 
-The table above records the original handoff gaps. Draft submission, approved-only detail/feed, a human-review queue, same-origin write checks, per-member trusted mapping and transactional native HumHub decisions are now implemented in source. They are **not installed or live-qualified**. Comments, reactions, messaging, memberships/profile writes, scholarly qualification, charity/mosque records and all later service work remain pending.
+The table above records the original handoff gaps. Draft submission, approved-only detail/feed, a human-review queue, same-origin write checks, per-member trusted mapping and transactional native HumHub decisions are now implemented in source. They are now installed/qualified in the isolated native test runtime, **not hosted-live qualified**. Comments, reactions, messaging, memberships/profile writes, scholarly qualification, charity/mosque records and all later service work remain pending.
 
 | Requirement | Exact missing item / current limit |
 |---|---|
-| HTTPS staging host | Authorized isolated application host and deployment route; only loopback `127.0.0.1:3307` is currently running |
+| HTTPS staging host | Authorized isolated application host and deployment route; the earlier loopback preview is historical; no current hosted flow is claimed |
 | Identity authority | `UMMAH_IDENTITY_ORIGIN`, separately reviewed staging auth/DB configuration, staging Google OIDC client and exact callback registration, separate session secrets/store and copied-or-approved test role identities; do not reuse production secrets |
 | App isolation config | `UMMAH_SOCIAL_ENVIRONMENT=isolated-staging`, `UMMAH_PUBLIC_ORIGIN`, `UMMAH_IDENTITY_ENVIRONMENT=isolated-staging` |
 | HumHub runtime | Real isolated PHP/MySQL/storage instance, `HUMHUB_ORIGIN`, HumHub 1.19 + checksum-verified REST 0.12.4 and installed enabled `ummahreview` module |
@@ -64,3 +64,9 @@ Earlier statements that the native module was never installed/executed are super
 7. **Separate recovery:** compare the original 13 Mac-M5 files when original workspace access returns. Preserve their files, stashes and reflogs. They are not a prerequisite to staging work from the preserved pushed source.
 
 Qdrant/BGE retrieval → Docling ingestion → PeerTube → charity/mosque workflows remain pending in that documented order. No selected model/service is promoted to installed or qualified merely by being registered. No simulated transaction, donation, scholarship or construction progress is presented as genuine.
+
+## 2026-10-16 current correction
+
+The earlier 20/5 native results are expanded to **32 actual HTTP + 15 actual model/file/cache cases**. Robust retries, concurrency, rollback, exact-version/tombstone conflicts, append-only audit and pending notification exclusions now pass locally against actual HumHub/PHP/MariaDB. They must still be repeated through hosted HTTPS identities. Container/MySQL qualification is an independent CI gate; local Docker hit a kernel restriction and is not reported as passing.
+
+Two newly connected candidates were read-only inspected and excluded: MEGATON DX protects the Aishu adapter/control plane, and aegistube-upstream is exclusively an AegisOS/Invidious host—not a PeerTube installation. No source/runtime/firewall change was made. The empty isolated Railway project is the identified activation path. Account login, live human/device acceptance, later services and exact original-file recovery remain blocked as above. Post attachments are deliberately unsupported and denied, not quietly accepted without review.

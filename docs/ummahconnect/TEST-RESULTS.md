@@ -87,3 +87,22 @@ Final evidence is in `evidence/2026-10-15/`: clean-install, resolved dependencie
 Actual runtime testing uncovered and corrected two failures missed by syntax/source tests: REST class-constant resolution during module discovery, and a null sender on the REST class-level route event. The installed module now resolves these using the pinned event name and real REST module instance.
 
 Evidence: `evidence/2026-10-15-native/native-provider-tests.json`, `native-model-guards.json` and source logs in the same directory. Test fixture passwords/tokens, database files and raw Yii environment logs are private and are not committed or delivered. The current UI source is unchanged from preserved commit 9fa7f7a; old Chrome screenshots remain historical UI evidence only. No newly hosted workflow screenshots or real human scholarly approvals are claimed.
+
+## 2026-10-16 native hardening — current results
+
+| Category | Result | Exact boundary |
+|---|---|---|
+| App source suite | 44/44 PASS | Gateway/provider contracts include simulations; native PHP invariants were updated for guarded draft saving and audited transactions. |
+| Identity source suite | 19/19 PASS | Controlled authority/session/database tests, not Google login. |
+| TypeScript / main Vite build | PASS | Main 33-screen design unchanged; existing bundle-size warning remains. |
+| Actual native HTTP | 32/32 PASS | Real HumHub 1.19.0 / REST 0.12.4 / PHP 8.3.6 / MariaDB 10.11.14, three synthetic identities, four PHP workers. |
+| Actual native models/cache/files | 15/15 PASS | First-insert draft; tracked creation; raw publish/schedule/move/visibility/message denial; excluded/pending/rejected reads; File linkage/public-view/delete/replace denials; actual cached-search reauthorization after membership removal. |
+| Local pinned Docker qualification | BLOCKED | Real base-image pulls succeeded; first RUN hit missing sandbox kernel iptables raw table. No insecure workaround applied; MySQL was not tested by this local run. |
+| Standard Linux CI container qualification | Pending separately recorded run | Exact app/HumHub builds, MySQL 8.4, required workers and persistent restart. A CI pass is not hosted acceptance. |
+| Hosted HTTPS Google + another human | BLOCKED | Activation decision, separate OIDC client, hostname and owner-designated subjects/grants missing. |
+| Physical iPhone Safari | NOT RUN | No hardware session. Existing Chrome screenshots/emulation remain historical only. |
+| Production / Aishu | UNCHANGED | Connected non-Aishu host governance was read only; no workload, firewall, data, DNS or credentials changed there. |
+
+Native HTTP covers actual concurrent duplicate submission, same-key payload conflict, exact decision replay, deleted/content-version conflict, two competing decisions, forced publication rollback, durable failure audit, audit mutation denial, member/token revocation, multipart/attachment denial and no pending/rejected content notifications. The 32/15 results are real runtime operations with explicitly synthetic fixture identities: no generated scholarship, money or construction records.
+
+Evidence: `evidence/2026-10-16-hardening/`. Source/core patches and migrations are checked in; passwords, tokens, raw error pages, private Docker command logs and native database files are excluded. The owned native test services were cleanly stopped after preserving their data.

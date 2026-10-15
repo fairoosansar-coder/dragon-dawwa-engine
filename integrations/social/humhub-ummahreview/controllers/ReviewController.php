@@ -5,8 +5,11 @@ use humhub\modules\content\models\Content;
 use humhub\modules\post\models\Post;
 use humhub\modules\rest\components\BaseController;
 use humhub\modules\space\models\Space;
+use humhub\modules\space\models\Membership;
+use humhub\modules\user\models\User;
 use humhub\modules\ummahreview\Events;
 use humhub\modules\ummahreview\Module;
+use humhub\modules\ummahreview\ReviewAudit;
 use Yii;
 use yii\db\Query;
 use yii\filters\auth\HttpBearerAuth;
@@ -15,6 +18,13 @@ use yii\web\HttpException;
 class ReviewController extends BaseController
 {
     public static $moduleId = 'ummahreview';
+
+    public function beforeAction($action)
+    {
+        Yii::$app->response->headers->set('Cache-Control', 'private, no-store');
+        Yii::$app->response->headers->set('Pragma', 'no-cache');
+        return parent::beforeAction($action);
+    }
 
     public function behaviors()
     {
@@ -29,7 +39,7 @@ class ReviewController extends BaseController
             throw new HttpException(403, 'Access denied.');
         }
         $space = Space::findOne((int)$id);
-        if (!$space || !Module::moderated($space) || !$space->isMember(Yii::$app->user->id)) {
+        if (!$space || (int)$space->status !== Space::STATUS_ENABLED || !Module::moderated($space) || !$space->isMember(Yii::$app->user->id)) {
             throw new HttpException(403, 'Access denied.');
         }
         return $space;
@@ -43,6 +53,26 @@ class ReviewController extends BaseController
         if (!$row || empty($row[$field])) {
             throw new HttpException(403, 'Access denied.');
         }
+    }
+
+    private function lockScope(Space $space, string $field): void
+    {
+        $db = Yii::$app->db;
+        $params = [':user' => Yii::$app->user->id, ':space' => $space->id];
+        $membership = $db->createCommand('SELECT [[status]] FROM {{%space_membership}} WHERE [[user_id]]=:user AND [[space_id]]=:space FOR UPDATE', $params)->queryOne();
+        $user = $db->createCommand('SELECT [[status]] FROM {{%user}} WHERE [[id]]=:user FOR UPDATE', [':user' => Yii::$app->user->id])->queryOne();
+        $grant = $db->createCommand('SELECT * FROM {{%ummah_review_grant}} WHERE [[user_id]]=:user AND [[space_id]]=:space FOR UPDATE', $params)->queryOne();
+        if (!$membership || (int)$membership['status'] !== Membership::STATUS_MEMBER || !$user
+            || (int)$user['status'] !== User::STATUS_ENABLED || !$grant || empty($grant[$field])) {
+            throw new HttpException(403, 'Access denied.');
+        }
+    }
+
+    private function consistent(array $row, ?Post $post): bool
+    {
+        $expected = $row['status'] === 'approved' ? Content::STATE_PUBLISHED : Content::STATE_DRAFT;
+        return $post && in_array($row['status'], ['pending', 'approved', 'rejected'], true)
+            && (int)$post->content->state === $expected && Events::reviewMatches($post->content, $row);
     }
 
     private function input(): array
@@ -94,18 +124,19 @@ class ReviewController extends BaseController
         }
         $sources = $this->sources($body['sources'] ?? []);
         $requestHash = hash('sha256', json_encode([(int)$space->id, $message, $sources], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-        return Yii::$app->db->transaction(function ($db) use ($space, $message, $key, $sources, $requestHash) {
+        $operationKey = hash('sha256', 'submit:' . Yii::$app->user->id . ':' . $key);
+        return ReviewAudit::run('submit', $operationKey, null, function () use ($space, $message, $key, $sources, $requestHash) {
+            $db = Yii::$app->db;
             // Serialize retries by actual authenticated provider user, not a browser userId.
-            $db->createCommand('SELECT [[id]] FROM {{%user}} WHERE [[id]]=:id FOR UPDATE', [':id' => Yii::$app->user->id])->queryOne();
-            $this->grant($space, 'can_submit');
+            $this->lockScope($space, 'can_submit');
             $prior = (new Query())->from('{{%ummah_review}}')->where(['author_id' => Yii::$app->user->id, 'request_key' => $key])->one();
             if ($prior) {
                 if (!hash_equals($prior['request_hash'], $requestHash)) {
                     throw new HttpException(409, 'Idempotency conflict.');
                 }
                 $post = Post::findOne($prior['post_id']);
-                if (!$post) { throw new HttpException(409, 'Submission unavailable.'); }
-                return $this->projection($prior, $post);
+                if (!$this->consistent($prior, $post)) { throw new HttpException(409, 'Submission version unavailable.'); }
+                return $this->projection($prior, $post) + ['__audit_replay' => true];
             }
             $post = new Post($space, ['message' => $message, 'title' => 'Community reflection']);
             if (!$post->content->canEdit()) {
@@ -116,7 +147,7 @@ class ReviewController extends BaseController
             $post->content->visibility = Content::VISIBILITY_PRIVATE;
             $post->content->scheduled_at = null;
             $post->autoFollow = false;
-            if (!$post->save() || (int)$post->content->state !== Content::STATE_DRAFT) {
+            if (!Events::saveSubmittedDraft($post) || (int)$post->content->state !== Content::STATE_DRAFT) {
                 throw new HttpException(409, 'Draft could not be saved.');
             }
             $row = ['post_id' => $post->id, 'content_id' => $post->content->id,
@@ -155,7 +186,7 @@ class ReviewController extends BaseController
         $results = [];
         foreach ($posts as $post) {
             $row = (new Query())->from('{{%ummah_review}}')->where(['post_id' => $post->id])->one();
-            if ($row && hash_equals($row['message_hash'], hash('sha256', $post->message))) {
+            if ($row && $this->consistent($row, $post)) {
                 $results[] = $this->projection($row, $post);
             }
         }
@@ -171,8 +202,7 @@ class ReviewController extends BaseController
         if (!$row) { throw new HttpException(404, 'Post unavailable.'); }
         $this->memberSpace($row['space_id']);
         $post = Post::findOne($row['post_id']);
-        if (!$post || (int)$post->content->state !== Content::STATE_PUBLISHED || !$post->content->canView()
-            || !hash_equals($row['message_hash'], hash('sha256', $post->message))) {
+        if (!$this->consistent($row, $post) || !$post->content->canView()) {
             throw new HttpException(404, 'Post unavailable.');
         }
         return $this->projection($row, $post);
@@ -186,11 +216,13 @@ class ReviewController extends BaseController
         if (!in_array($decision, ['approved', 'rejected'], true) || !is_string($note) || trim($note) === '' || strlen($note) > 4000) {
             throw new HttpException(400, 'Human review decision and note required.');
         }
-        return Yii::$app->db->transaction(function ($db) use ($id, $decision, $note) {
+        $operationKey = hash('sha256', json_encode(['decide', (int)$id, (int)Yii::$app->user->id, $decision, $note]));
+        return ReviewAudit::run('decide', $operationKey, (int)$id, function () use ($id, $decision, $note) {
+            $db = Yii::$app->db;
             $row = $db->createCommand('SELECT * FROM {{%ummah_review}} WHERE [[id]]=:id FOR UPDATE', [':id' => (int)$id])->queryOne();
             if (!$row) { throw new HttpException(404, 'Review unavailable.'); }
             $space = $this->memberSpace($row['space_id']);
-            $this->grant($space, 'can_review');
+            $this->lockScope($space, 'can_review');
             if ((int)$row['author_id'] === (int)Yii::$app->user->id) {
                 throw new HttpException(403, 'Independent human reviewer required.');
             }
@@ -199,12 +231,12 @@ class ReviewController extends BaseController
                     throw new HttpException(409, 'Review already decided.');
                 }
                 $post = Post::findOne($row['post_id']);
-                if (!$post) { throw new HttpException(409, 'Post unavailable.'); }
-                return $this->projection($row, $post);
+                if (!$this->consistent($row, $post)) { throw new HttpException(409, 'Post version unavailable.'); }
+                return $this->projection($row, $post) + ['__audit_replay' => true];
             }
             $db->createCommand('SELECT [[id]] FROM {{%content}} WHERE [[id]]=:id FOR UPDATE', [':id' => $row['content_id']])->queryOne();
             $post = Post::findOne($row['post_id']);
-            if (!$post || (int)$post->content->state !== Content::STATE_DRAFT || !hash_equals($row['message_hash'], hash('sha256', $post->message))) {
+            if (!$this->consistent($row, $post)) {
                 throw new HttpException(409, 'Review content changed or unavailable.');
             }
             $changes = ['status' => $decision, 'reviewer_id' => Yii::$app->user->id, 'review_note' => $note, 'reviewed_at' => gmdate('Y-m-d H:i:s')];

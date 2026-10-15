@@ -1,0 +1,49 @@
+--- protected/humhub/modules/content/search/ContentSearchProvider.php
++++ /home/ubuntu/jobs/job_BtYb0wuh/search-patch/patched/protected/humhub/modules/content/search/ContentSearchProvider.php	2026-10-15 22:03:10.318031150 +0000
+@@ -10,8 +10,10 @@
+ 
+ use humhub\interfaces\MetaSearchProviderInterface;
+ use humhub\modules\content\Module;
++use humhub\modules\content\events\ContentGuardEvent;
+ use humhub\services\MetaSearchService;
+ use Yii;
++use yii\base\Event;
+ 
+ /**
+  * Content Meta Search Provider
+@@ -21,6 +23,9 @@
+  */
+ class ContentSearchProvider implements MetaSearchProviderInterface
+ {
++    /** @event ContentGuardEvent triggered after native direct search results are loaded. */
++    public const EVENT_FILTER_RESULTS = 'filterResults';
++
+     private ?MetaSearchService $service = null;
+     public ?string $keyword = null;
+     public string|array|null $route = '/content/search';
+@@ -75,11 +80,23 @@
+         /* @var Module $module */
+         $module = Yii::$app->getModule('content');
+ 
+-        $resultSet = $module->getSearchDriver()->search(new SearchRequest([
++        $request = new SearchRequest([
+             'keyword' => $this->getKeyword(),
+             'pageSize' => $maxResults,
+             'orderBy' => $module->searchOrderBy,
+-        ]));
++        ]);
++        $resultSet = $module->getSearchDriver()->search($request);
++        $event = new ContentGuardEvent([
++            'target' => $resultSet,
++            'attributes' => ['request' => $request],
++            'user' => $request->user,
++            'operation' => 'content.search.direct',
++        ]);
++        Event::trigger($this, self::EVENT_FILTER_RESULTS, $event);
++        if (!$event->isValid) {
++            $resultSet->results = [];
++            $resultSet->pagination->totalCount = 0;
++        }
+ 
+         $results = [];
+         foreach ($resultSet->results as $content) {

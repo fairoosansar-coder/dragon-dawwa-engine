@@ -132,9 +132,13 @@ test('native PHP source guard contracts: draft BEFORE first save; locked decisio
   const root = new URL('../integrations/social/humhub-ummahreview/',import.meta.url);
   const controller = await readFile(new URL('controllers/ReviewController.php',root),'utf8');
   const draft = controller.indexOf('$post->content->state = Content::STATE_DRAFT');
-  assert.ok(draft > 0 && draft < controller.indexOf('$post->save()'));
+  assert.ok(draft > 0 && draft < controller.indexOf('Events::saveSubmittedDraft($post)'));
   assert.match(controller,/FOR UPDATE/); assert.match(controller,/hash_equals/); assert.match(controller,/Independent human reviewer required/);
   const events = await readFile(new URL('Events.php',root),'utf8'); assert.match(events,/\$event->isValid = false/); assert.match(events,/publishingContentId/);
   assert.match(events,/visibility = Content::VISIBILITY_PRIVATE/);
+  assert.match(events,/self::\$submittedDraft !== \$post/);
+  assert.match(controller,/ReviewAudit::run/);
+  const audit = await readFile(new URL('ReviewAudit.php',root),'utf8');
+  assert.match(audit,/\$db->transaction/); assert.match(audit,/transaction_failed/);
   const config = await readFile(new URL('config.php',root),'utf8'); assert.match(config,/EVENT_BEFORE_INSERT/); assert.match(config,/EVENT_BEFORE_UPDATE/);
 });
