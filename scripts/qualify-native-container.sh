@@ -111,7 +111,7 @@ fi
 wait_for_mysql() {
     local deadline=$((SECONDS + TIMEOUT_SECONDS))
     while (( SECONDS < deadline )); do
-        if docker exec -e "MYSQL_PWD=$MYSQL_ROOT_PASSWORD" "$MYSQL_CONTAINER" mysqladmin ping -uroot --silent >/dev/null 2>>"$COMMAND_LOG"; then
+        if docker exec -e "MYSQL_PWD=$MYSQL_ROOT_PASSWORD" "$MYSQL_CONTAINER" mysql --protocol=TCP --host=127.0.0.1 -uroot --batch --skip-column-names --database="$DATABASE_NAME" -e 'SELECT 1' >/dev/null 2>>"$COMMAND_LOG"; then
             return 0
         fi
         sleep 2
