@@ -338,11 +338,13 @@ NODE
 import {readFileSync} from 'node:fs';
 const fixture=JSON.parse(readFileSync(process.env.FIXTURE_REPORT_PATH,'utf8'));
 const secrets=Object.values(fixture.accounts).flatMap(a=>[a.token,a.password]);
-const lines=readFileSync(process.env.ERROR_HEADER_PATH,'utf8').split('\n').filter(l=>/^20\d\d-/.test(l)&&l.includes('[error]')).slice(-6);
+const lines=readFileSync(process.env.ERROR_HEADER_PATH,'utf8').split('\n').filter(l=>/^20\d\d-/.test(l)&&l.includes('[error]')&&!/HttpException:40[139]|HttpException:503/.test(l)).slice(-6);
 const headers=lines.map(l=>secrets.reduce((v,k)=>v.replaceAll(k,'[redacted]'),l).replace(/[A-Za-z0-9_+\/=\-]{32,}/g,'[redacted]').slice(0,650));
 console.log(JSON.stringify({kind:'native-redacted-exception-headers',headers}));
 NODE
     fi
+    docker exec --user www-data "$HUMHUB_CONTAINER" php -r 'foreach(["/var/lib/ummah-humhub","/var/lib/ummah-humhub/uploads","/var/www/html/uploads"] as $p){clearstatcache(true,$p);echo json_encode(["kind"=>"native-storage-diagnostic","path"=>$p,"uid"=>posix_geteuid(),"gid"=>posix_getegid(),"exists"=>file_exists($p),"directory"=>is_dir($p),"readable"=>is_readable($p),"writable"=>is_writable($p),"symlink"=>is_link($p),"realpath"=>realpath($p)]),PHP_EOL;}' || true
+    docker exec "$HUMHUB_CONTAINER" stat -c 'Native storage mode: %a %u %g %n' /var/lib/ummah-humhub /var/lib/ummah-humhub/uploads /var/www/html/uploads || true
     fail
 fi
 chmod 600 "$HTTP_REPORT" "$HTTP_LOG"
