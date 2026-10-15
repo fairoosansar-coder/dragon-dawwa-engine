@@ -1,19 +1,23 @@
 {
-  "run": "https://github.com/fairoosansar-coder/dragon-dawwa-engine/actions/runs/38821840199",
-  "source": "5bb6139aa9897ee3467839e77db98e4e7c00e274",
-  "result": "failed",
-  "passedPhases": [
-    "app and HumHub image builds",
-    "pinned MySQL start",
-    "scoped role",
-    "HumHub install and module migrations",
-    "Apache/queue/cron readiness",
-    "private path denial",
-    "synthetic bearer fixture provisioning"
-  ],
-  "failurePhase": "native-http-qualification",
-  "nativeHttpAndModelSuitePassed": false,
-  "next": "Safe case diagnostics added; do not claim target MySQL acceptance yet.",
-  "hostedAcceptance": false,
-  "physicalIPhoneSafari": false
+  "run": {
+    "conclusion": "success",
+    "headSha": "558cf5c53775d2412ef3d9f8e1fddcdf9e298d22",
+    "status": "completed",
+    "url": "https://github.com/fairoosansar-coder/dragon-dawwa-engine/actions/runs/38825959081"
+  },
+  "summary": {
+    "kind": "actual-native-container-summary",
+    "mysql": "8.4",
+    "httpPassed": 32,
+    "modelPassed": 15,
+    "failed": 0,
+    "appImageBuilt": true,
+    "humhubImageBuilt": true,
+    "queueCronWorkers": "pass",
+    "persistentRestart": "pass",
+    "humanParticipation": false,
+    "realGoogleLoginTested": false,
+    "physicalIPhoneSafariTested": false,
+    "hostedEnvironmentTested": false
+  }
 }

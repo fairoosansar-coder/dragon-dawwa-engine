@@ -108,3 +108,11 @@ Native HTTP covers actual concurrent duplicate submission, same-key payload conf
 Evidence: `evidence/2026-10-16-hardening/`. Source/core patches and migrations are checked in; passwords, tokens, raw error pages, private Docker command logs and native database files are excluded. The owned native test services were cleanly stopped after preserving their data.
 
 Current 2026-10-16 UI audit: 154.0.8037.57 desktop Chromium, 390×844 mobile/touch emulation; 33/33 routes, zero page errors/overflow and six actual screenshots of the credential-free main app. Native APIs were not mocked; missing identity/services remained blocked. These are **not hosted flow or physical Safari screenshots**. Evidence: `evidence/2026-10-16-hardening/screenshots/`.
+
+## Final native container gate — PASS (16 October 2026)
+
+Qualified runtime source: `558cf5c53775d2412ef3d9f8e1fddcdf9e298d22`. [Actual standard Linux CI run](https://github.com/fairoosansar-coder/dragon-dawwa-engine/actions/runs/38825959081). The pinned app/HumHub images build, MySQL 8.4 initializes with schema-local role/trigger grants, and **32/32 actual native HTTP + 15/15 native model/file/cache tests pass**. Apache/native queue/cron are running; private configuration/runtime/upload URL checks pass; stop/recreate preserves users, reviews, append-only events and the protected fixture on the same named volumes.
+
+Corrections verified: actual authenticated final-server MySQL readiness; GD codecs needed by native avatars; private supervisor Unix control socket; writable native runtime/asset ownership; base-image sticky-webroot/protected-symlink traversal; resolved-path and URL-level private storage denial. Linux symlink protections and host firewall safeguards were not disabled. Local Docker kernel restriction remains a local limitation, superseded by actual standard-runner container qualification.
+
+**Hosted HTTPS Google login / independent human review / physical iPhone Safari are NOT tested.** CI actors are synthetic; no scholarly review, financial or construction facts are certified. Separate Railway activation/OIDC/account choices and hardware acceptance remain blockers; no app staging URL is claimed. All other selected services remain pending in the documented order.
