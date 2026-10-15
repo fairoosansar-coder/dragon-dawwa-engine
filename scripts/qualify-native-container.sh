@@ -180,7 +180,7 @@ assert_protected_paths() {
         status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 5 --path-as-is "http://127.0.0.1:${HUMHUB_PORT}${path}" 2>>"$COMMAND_LOG")" || return 1
         case "$status" in
             403|404) ;;
-            *) return 1 ;;
+            *) printf 'Native protected path failure: %s status=%s\n' "$path" "$status"; return 1 ;;
         esac
     done
 }
@@ -271,7 +271,7 @@ printf 'Native container phase: %s\n' "$phase"
 wait_for_http || fail
 wait_for_workers || fail
 assert_protected_paths || fail
-quiet docker exec --user www-data "$HUMHUB_CONTAINER" php -r 'clearstatcache(); if(!is_dir("/var/www/html/uploads")||!is_writable("/var/www/html/uploads")) exit(1);' || fail
+docker exec --user www-data "$HUMHUB_CONTAINER" php -r 'clearstatcache(); $ok=is_dir("/var/www/html/uploads")&&is_writable("/var/www/html/uploads"); echo json_encode(["kind"=>"native-storage-readiness","traversableWritable"=>$ok]),PHP_EOL; if(!$ok) exit(1);' || fail
 
 phase='prepare-private-native-fixture'
 printf 'Native container phase: %s\n' "$phase"
