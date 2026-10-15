@@ -9,4 +9,5 @@ if [ "${UMMAH_INITIALIZE_HUMHUB:-no}" = yes ]; then
   php yii module/enable ummahreview
 fi
 php yii migrate/up --includeModuleMigrations=1 --interactive=0
+chown -R www-data:www-data /var/lib/ummah-humhub/runtime /var/lib/ummah-humhub/uploads /var/www/html/assets
 exec /usr/bin/supervisord -c /etc/supervisor/ummah-humhub.conf

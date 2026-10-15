@@ -297,6 +297,7 @@ quiet docker exec "$HUMHUB_CONTAINER" sh -c "test -f '${FIXTURE_PATH}' && test \
 quiet docker cp "${HUMHUB_CONTAINER}:${FIXTURE_PATH}" "$FIXTURE_COPY" || fail
 chmod 600 "$FIXTURE_COPY"
 [[ ! -O "$FIXTURE_COPY" || -r "$FIXTURE_COPY" ]] || fail
+quiet docker exec "$HUMHUB_CONTAINER" chown -R www-data:www-data /var/lib/ummah-humhub/runtime /var/lib/ummah-humhub/uploads /var/www/html/assets || fail
 
 DB_PROBE_COMMAND_JSON="$(DB_PROBE_CONTAINER="$HUMHUB_CONTAINER" DB_PROBE_FIXTURE_PATH="$FIXTURE_PATH" node --input-type=module - <<'NODE'
 const command = [
@@ -332,6 +333,16 @@ if(existsSync(process.env.HTTP_REPORT_PATH)){
  console.log(JSON.stringify({kind:'native-container-failure-summary',passed:report.passed,failed:report.failed,failures:report.results.filter(r=>r.status==='fail').map(r=>({name:r.name,error:redact(r.error)}))}));
 } else console.log('Native report unavailable; no raw runtime log disclosed.');
 NODE
+    if docker cp "${HUMHUB_CONTAINER}:/var/lib/ummah-humhub/runtime/logs/app.log" "${RUNNER_PRIVATE_ROOT}/native-private-error.log" >/dev/null 2>&1; then
+      ERROR_HEADER_PATH="${RUNNER_PRIVATE_ROOT}/native-private-error.log" FIXTURE_REPORT_PATH="$FIXTURE_COPY" node --input-type=module - <<'NODE'
+import {readFileSync} from 'node:fs';
+const fixture=JSON.parse(readFileSync(process.env.FIXTURE_REPORT_PATH,'utf8'));
+const secrets=Object.values(fixture.accounts).flatMap(a=>[a.token,a.password]);
+const lines=readFileSync(process.env.ERROR_HEADER_PATH,'utf8').split('\n').filter(l=>/^20\d\d-/.test(l)&&l.includes('[error]')).slice(-6);
+const headers=lines.map(l=>secrets.reduce((v,k)=>v.replaceAll(k,'[redacted]'),l).replace(/[A-Za-z0-9_+\/=\-]{32,}/g,'[redacted]').slice(0,650));
+console.log(JSON.stringify({kind:'native-redacted-exception-headers',headers}));
+NODE
+    fi
     fail
 fi
 chmod 600 "$HTTP_REPORT" "$HTTP_LOG"
