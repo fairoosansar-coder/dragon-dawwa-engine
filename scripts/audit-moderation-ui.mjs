@@ -1,13 +1,16 @@
 import { createRequire } from 'node:module';
 import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 const require = createRequire(import.meta.url);
-const { chromium } = require('../../verification-tools/node_modules/playwright');
-const origin = 'http://127.0.0.1:3307';
-const out = new URL('../docs/ummahconnect/evidence/2026-10-15/', import.meta.url);
+const { chromium } = require(process.env.UMMAH_PLAYWRIGHT_MODULE || '../../verification-tools/node_modules/playwright');
+const origin = process.env.UMMAH_AUDIT_ORIGIN || 'http://127.0.0.1:3307';
+assert.ok(['127.0.0.1','localhost'].includes(new URL(origin).hostname),'This audit is a disconnected local UI check, not hosted acceptance.');
+const out = process.env.UMMAH_AUDIT_OUTPUT ? pathToFileURL(resolve(process.env.UMMAH_AUDIT_OUTPUT)+'/') : new URL('../docs/ummahconnect/evidence/2026-10-15/',import.meta.url);
 await fs.mkdir(out,{recursive:true});
-const browser = await chromium.launch({executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});
-const results = {browser:await browser.version(),method:'Desktop Chrome with viewport emulation; NOT real iPhone Safari',mockedAPIs:false,routes:[],screenshots:[],api:{}};
+const browser = await chromium.launch({executablePath:process.env.UMMAH_CHROMIUM_EXECUTABLE || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true,args:process.env.UMMAH_AUDIT_NO_SANDBOX==='local-test-only'?['--no-sandbox']:[]});
+const results = {browser:await browser.version(),method:'Desktop Chromium with viewport emulation; NOT real iPhone Safari',mockedAPIs:false,hostedAcceptance:false,routes:[],screenshots:[],api:{}};
 try {
   const context = await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
   const page = await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));

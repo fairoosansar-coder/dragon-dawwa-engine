@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ummah-native-qualification-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   qualify-native-container:
     name: Pinned MySQL 8.4 and HumHub native qualification
