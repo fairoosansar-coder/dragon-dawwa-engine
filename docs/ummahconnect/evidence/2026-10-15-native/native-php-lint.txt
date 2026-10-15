@@ -1,0 +1,10 @@
+No syntax errors detected in integrations/social/humhub-ummahreview/Events.php
+No syntax errors detected in integrations/social/humhub-ummahreview/Module.php
+No syntax errors detected in integrations/social/humhub-ummahreview/config.php
+No syntax errors detected in integrations/social/humhub-ummahreview/controllers/ReviewController.php
+No syntax errors detected in integrations/social/humhub-ummahreview/migrations/m261015_000001_review.php
+No syntax errors detected in deployment/staging/download-rest.php
+No syntax errors detected in deployment/staging/configure-humhub.php
+No syntax errors detected in scripts/seed-native-humhub.php
+No syntax errors detected in scripts/humhub-native-router.php
+No syntax errors detected in scripts/test-native-model-guards.php

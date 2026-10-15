@@ -1,0 +1,30 @@
+{
+    "kind": "actual-humhub-native-model-guards",
+    "transport": "native Yii models with real MariaDB",
+    "results": [
+        {
+            "name": "Native Post::save first Content INSERT is draft, never briefly published",
+            "status": "pass"
+        },
+        {
+            "name": "Unreviewed native state-service publishing blocked",
+            "status": "pass"
+        },
+        {
+            "name": "Unreviewed scheduled publication blocked",
+            "status": "pass"
+        },
+        {
+            "name": "Approved message cannot mutate through native Post::save",
+            "status": "pass"
+        },
+        {
+            "name": "Rejected post cannot publish through native state service",
+            "status": "pass"
+        }
+    ],
+    "passed": 5,
+    "failed": 0,
+    "humanParticipation": false,
+    "physicalIPhoneSafariTested": false
+}

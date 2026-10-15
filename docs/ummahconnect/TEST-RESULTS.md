@@ -70,3 +70,20 @@ A real local HTTP gateway is exercised with **controlled** author/reviewer ident
 `npm ci && npm run lint`; `node --import tsx --test tests/*.test.ts integrations/social/social.test.mjs`; `npm run build`. Worker: `node scripts/build-staging.mjs && node --test scripts/test-staging.mjs`; then rerun `npm run build` to restore frontend assets for Express. UI: `node scripts/audit-moderation-ui.mjs` with task-local Playwright and installed Chrome. PHP syntax: `node scripts/check-native-review-syntax.mjs` with task-local php-parser. Live: `node scripts/test-live-social.mjs` with protected real staging configuration.
 
 Final evidence is in `evidence/2026-10-15/`: clean-install, resolved dependencies, typecheck, build, 44-test output, Worker build/tests, PHP grammar checks, browser route audit/screenshots and `live-staging.json` with explicit blocked prerequisites. Earlier failures exposed an outdated provider fixture, required local-network permissions, test/listener TypeScript types and a missing hosting manifest; the final outputs above supersede those failed attempts. The 33-screen completion matrix deliberately does not promote pending social screens to live Working.
+
+## 2026-10-15 native-runtime continuation — supersedes earlier native NOT RUN status
+
+| Test category | Result | Actual boundary |
+|---|---|---|
+| Existing app source suite | 44/44 PASS | Clean npm ci, TypeScript and Vite production build pass. These are source/controlled tests, not Google login evidence. |
+| Isolated identity source suite | 19/19 PASS | New project/environment/schema/role/origin guards, preserved vendor hashes, current role lookup, revocation, audience and duplicate-cookie denial. Database fixtures are controlled in this suite. |
+| Actual HumHub HTTP provider | 20/20 PASS | Real HumHub 1.19.0 + checksum-verified REST 0.12.4 + installed review module on PHP 8.3.6 and socket-only MariaDB 10.11.14. Three synthetic native accounts; no simulated provider. Real bearer auth, private-community directory, draft submission, approved-feed/detail, independent reviewer role, rejection, self-review, excluded users and query-token denial exercised. |
+| Actual native HumHub model guards | 5/5 PASS | Observed the first persisted Content insert as draft; native publishing/scheduling bypasses fail; approved message edit fails; rejected content cannot publish. Actual Yii models and database, not syntax-only tests. |
+| Container/hosted MySQL 8.4 qualification | NOT RUN | Immutable Docker/container definitions prepared, not built/deployed. Native MariaDB qualification does not establish hosted MySQL 8.4 readiness. |
+| Hosted HTTPS existing-account Google login + human decision | BLOCKED | New private Railway project is empty. Activation budget, separate Google client, assigned hostnames and owner-designated staging identities/grants are missing. Automated fixture decisions are not human scholarly approval. |
+| Physical iPhone Safari | NOT RUN | No actual iPhone session tested. Neither desktop browser nor viewport emulation is a substitute. |
+| Production / Aishu | UNCHANGED | Production deployment read-only; no production settings, roles, database, credentials, DNS or Aishu runtime changed. |
+
+Actual runtime testing uncovered and corrected two failures missed by syntax/source tests: REST class-constant resolution during module discovery, and a null sender on the REST class-level route event. The installed module now resolves these using the pinned event name and real REST module instance.
+
+Evidence: `evidence/2026-10-15-native/native-provider-tests.json`, `native-model-guards.json` and source logs in the same directory. Test fixture passwords/tokens, database files and raw Yii environment logs are private and are not committed or delivered. The current UI source is unchanged from preserved commit 9fa7f7a; old Chrome screenshots remain historical UI evidence only. No newly hosted workflow screenshots or real human scholarly approvals are claimed.

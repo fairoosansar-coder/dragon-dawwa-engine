@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "checked_at": "2026-10-13",
-  "purpose": "source discovery, not a deployment lockfile",
+  "checked_at": "2026-10-15",
+  "purpose": "Source discovery plus explicitly scoped native qualification; not proof of hosted acceptance.",
   "repositories": [
     {
       "repository": "humhub/humhub",
@@ -9,9 +9,13 @@
       "observed_release": "v1.19.0",
       "release_url": "https://github.com/humhub/humhub/releases/tag/v1.19.0",
       "published_at": "2026-10-12T12:16:57Z",
-      "installed": false,
+      "installed": true,
       "qualified": false,
-      "commit_sha": null
+      "commit_sha": "8f22a72361841404b3b442306126650fc0f8153b",
+      "installed_scope": "isolated task sandbox native runtime only",
+      "qualification_status": "Native-provider tests pass; hosted HTTPS/Google/MySQL/device acceptance pending.",
+      "installed_version": "1.19.0",
+      "artifact_sha256": "7bd1806389e080c0f1b963fb8d70aae1c5664bcea19a22fc562499b6db14f973"
     },
     {
       "repository": "humhub/rest",
@@ -19,9 +23,13 @@
       "observed_release": "v0.11.7",
       "release_url": "https://github.com/humhub/rest/releases/tag/v0.11.7",
       "published_at": "2026-10-09T11:16:08Z",
-      "installed": false,
+      "installed": true,
       "qualified": false,
-      "commit_sha": null
+      "commit_sha": null,
+      "installed_scope": "isolated task sandbox native runtime only",
+      "qualification_status": "Native-provider tests pass; hosted HTTPS/Google/MySQL/device acceptance pending.",
+      "installed_version": "0.12.4",
+      "artifact_sha256": "6180260e042bdc336584eff07271d6af1981d64ef8ed5d00dc4c445f29e3417d"
     },
     {
       "repository": "qdrant/qdrant",
@@ -76,12 +84,18 @@
     "candidate_core": "1.19.0",
     "candidate_rest": "0.12.4",
     "evidence": "https://marketplace.humhub.com/module/rest/downloads",
-    "verified_install": false,
-    "artifact_hash": null
+    "verified_install": true,
+    "artifact_hash": "6180260e042bdc336584eff07271d6af1981d64ef8ed5d00dc4c445f29e3417d",
+    "verified_install_scope": "isolated task sandbox native PHP/MariaDB; not Railway"
   },
   "runtime": {
-    "php_available": false,
+    "php_available": true,
     "docker_available": false,
-    "production_changed": false
+    "production_changed": false,
+    "php_version": "8.3.6",
+    "database": "MariaDB 10.11.14 socket-only isolated sandbox",
+    "aishu_changed": false,
+    "hosted_https_flow_verified": false,
+    "physical_iphone_safari_verified": false
   }
 }

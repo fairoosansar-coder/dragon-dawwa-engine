@@ -12,6 +12,8 @@ return [
         [Post::class, Post::EVENT_BEFORE_UPDATE, [Events::class, 'beforePostUpdate']],
         [Content::class, Content::EVENT_BEFORE_INSERT, [Events::class, 'beforeContentSave']],
         [Content::class, Content::EVENT_BEFORE_UPDATE, [Events::class, 'beforeContentSave']],
-        [RestModule::class, RestModule::EVENT_REST_API_ADD_RULES, [Events::class, 'restRules']],
+        // External module namespaces are registered after discovery. A class
+        // constant would force REST autoload too early; use its pinned event name.
+        [RestModule::class, 'restApiAddRules', [Events::class, 'restRules']],
     ],
 ];

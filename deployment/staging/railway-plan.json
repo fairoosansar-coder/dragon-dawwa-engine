@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "workspaceId": "35d451e8-8abf-417a-8bdf-61c03102ce61",
+  "projectId": "48d7a4cf-07dc-489b-8a3d-d6d10142b14e",
+  "environmentId": "1f7d98bf-1d49-4d9f-a5cc-13b57abcc095",
+  "environmentName": "staging",
+  "actualState": "empty-private-project-no-deployments",
+  "activationApproved": false,
+  "applicationHttpsUrl": null,
+  "identityDesign": "existing Google OIDC subject/session implementation, isolated secrets/database, private same-container loopback listener",
+  "plannedServices": [
+    {"name":"ummah-app","dockerfile":"deployment/staging/app.Dockerfile","publicPort":3000},
+    {"name":"ummah-humhub","dockerfile":"deployment/staging/humhub.Dockerfile","publicPort":80,"volumeMount":"/var/lib/ummah-humhub"},
+    {"name":"ummah-humhub-mysql","imageLock":"upstream-lock.json:mysql","schema":"ummah_humhub_staging","user":"ummah_humhub_app","publicNetworking":false},
+    {"name":"ummah-identity-mysql","imageLock":"upstream-lock.json:mysql","schema":"ummah_identity_staging","user":"ummah_identity_app","initSql":"identity/schema.sql","publicNetworking":false}
+  ],
+  "blockers": ["infrastructure activation budget", "separate staging Google OIDC client", "designated author/reviewer/excluded identities and scoped grants", "hosted Docker/MySQL qualification", "physical iPhone Safari test"],
+  "productionModified": false,
+  "aishuModified": false
+}

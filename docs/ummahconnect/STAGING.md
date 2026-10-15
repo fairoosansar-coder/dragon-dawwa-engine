@@ -23,3 +23,17 @@ Current built application preview: http://127.0.0.1:3307/#/screen-4, running on 
 Branch: `development/ummahconnect-moderation-20261015`. Reproduce with Node 24.21.0: `npm ci`, `npm run lint`, `npm run build`, then `PORT=3307 UMMAH_LOCAL_STAGING=true node --import tsx server.ts`. Real staging requires the exact variables, isolated services and account grant contract in `integrations/social/humhub-ummahreview/README.md`. Run `node scripts/test-live-social.mjs` only with protected staging test configuration; it records BLOCKED when prerequisites are missing. Do not supply cookies/tokens in Git or chat.
 
 The Worker can be bundled and regression-tested locally without the absent `.openai/hosting.json`. The script explicitly labels such a bundle test-only and does not generate a replacement hosting manifest. Its write-disabled defaults are unchanged. A separately configured HTTPS host, identity authority and qualified HumHub install are needed before there is a working live-flow URL. Physical iPhone Safari remains untested.
+
+## 2026-10-15 live-staging preparation — current status
+
+The earlier Mac-mini localhost preview is historical and is not treated as running or live. No new HTTPS app URL is currently available.
+
+A separate **private, empty** Railway project was created in the authenticated **Dragon Dawwa Private** workspace:
+
+- Project: **UmmahConnect - Isolated Staging**, `48d7a4cf-07dc-489b-8a3d-d6d10142b14e`.
+- Environment: **staging**, `1f7d98bf-1d49-4d9f-a5cc-13b57abcc095`.
+- [Management console — not an application URL](https://railway.com/project/48d7a4cf-07dc-489b-8a3d-d6d10142b14e?environmentId=1f7d98bf-1d49-4d9f-a5cc-13b57abcc095).
+
+No service, database, volume, source deployment or application domain was activated; paid infrastructure activation awaits an explicit budget decision. Complete isolated build, configuration, database/schema, OIDC provenance and acceptance instructions are in `deployment/staging/README.md`, `railway-plan.json`, `.env.staging.example` and `upstream-lock.json`. Prepared Docker definitions have not yet been build-qualified.
+
+Actual native HumHub tests ran in a separate task sandbox using real PHP/MariaDB and native REST member tokens. They are not a durable HTTPS deployment, real existing-account Google flow or physical-device acceptance. Source branch: `development/ummahconnect-live-staging-20261015`, descended from preserved commit `9fa7f7a8dbc2687250e75f4514ebc1641994e519`. Original 13-file recovery remains separate and has not been discarded or overwritten.

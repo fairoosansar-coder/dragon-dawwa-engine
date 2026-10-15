@@ -55,3 +55,19 @@ Design regeneration: python scripts/import-ummah-prototype.py design/UmmahConnec
 - Running Railway service SHA, environment bindings, DB readiness and deployment settings remain unverified in an authenticated dashboard. No production deployment, database operation, account permission change or Aishu runtime operation was made.
 
 New source mounts the same approved main UmmahConnect interface and introduces an opt-in staging-only auth transport + trusted social resolver. Production domains are rejected. The Worker remains fail-closed and is not a proxy to production. HumHub is the sole social engine; it owns the native post, draft state and human-review audit. Later Qdrant/BGE → Docling → PeerTube → charity/mosque tasks remain uninstalled/unqualified and retain the documented order.
+
+## Authenticated deployment reconciliation and isolated staging — 2026-10-15
+
+The earlier dashboard-access and running-revision uncertainty is superseded. Read-only authenticated Railway inspection found:
+
+- Production workspace **Dragon Dawwa Private**, project `786918bd-4ce1-4075-b763-93c7c6f729a1`, environment `91d899e3-0a5e-4a7f-9bcb-c840f7a22f66`.
+- Active app service `f4e05a23-0190-40c8-bc23-b6cabce6663b`, deployment `0e8b6bfc-aa6f-40c4-ac23-3c6cc10cf8c8`, production domain `dragondawwa.org`.
+- Its GitHub metadata links [Railway source commit 5fe2b37ed7e7ca49fe97db8375addd59b4292a89](https://github.com/fairoosansar-coder/dragon-dawwa-railway-deploy/commit/5fe2b37ed7e7ca49fe97db8375addd59b4292a89), branch `main`, message `docs: add phase two execution runbook`.
+- Actual builder **Dockerfile**, path `/deploy/railway/Dockerfile.https`; region `asia-southeast1-eqsg3a`; one replica; healthcheck `/healthz`; on-failure restart policy with 10 retries. This confirms the separate `server/index.mjs` HTTPS deployment is the runtime authority, not the retained Next/vinext tree.
+- Production MySQL and backup services are present and online/last-run-succeeded in the dashboard. No secret values, production database records or new production permissions were read/copied/changed.
+
+Existing-account identity authority remains the pinned Google subject/issuer mapping plus signature/expiry/DB revocation/current role checks documented above. Production's dedicated schema and role configuration remain authoritative to production, and are **not** reused by staging.
+
+A new separate private empty staging project was prepared: `48d7a4cf-07dc-489b-8a3d-d6d10142b14e`, environment `1f7d98bf-1d49-4d9f-a5cc-13b57abcc095`. Its identity package preserves `auth.mjs` and `session.mjs` byte-for-byte, and changes only the three deployment-scope constants in copied `google-auth.mjs`. Provenance hashes and isolation tests are included. Additional startup gates require the new project/environment, audience, private host, non-root identity role, separate schema and database instance marker. The private authority uses same-container loopback; it does not proxy to production.
+
+Staging's new identity schema is `ummah_identity_staging`, role `ummah_identity_app`; HumHub uses `ummah_humhub_staging`, role `ummah_humhub_app`, on a different new MySQL service. App account linkage remains server-only and per-member. No staging credentials, source deployment, volumes or data copying were activated. No production redeploy or Aishu operation occurred.

@@ -1,0 +1,11 @@
+.git
+**/node_modules
+dist
+.manus
+**/.env*
+**/*fixture*.json
+**/*.log
+**/*.bundle
+**/runtime
+**/mysql
+docs/ummahconnect/evidence

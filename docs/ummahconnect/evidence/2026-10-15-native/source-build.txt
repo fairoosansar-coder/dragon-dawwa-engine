@@ -1,0 +1,23 @@
+
+> react-example@0.0.0 build
+> vite build
+
+◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - `__dirname` (vite.config.ts:106:27). Use `import.meta.dirname` instead
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+vite v8.3.4 building client environment for production...
+transforming...
+[32m✓[0m 2634 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[0m[32mindex.html                 [0m[1;2m    1.70 kB[0m[2m │ gzip:   0.75 kB[0m
+[2mdist/[0m[2massets/[0m[35mindex-P9OnH7n8.css  [0m[1;2m  180.80 kB[0m[2m │ gzip:  27.97 kB[0m
+[2mdist/[0m[2massets/[0m[36mindex-CL0NDmbR.js   [0m[33;1m1,401.35 kB[0m[2m │ gzip: 375.19 kB[0m
+
+✓ built in 848ms
+[plugin builtin:vite-reporter] [33;1m
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[0m

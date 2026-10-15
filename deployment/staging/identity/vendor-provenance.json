@@ -1,0 +1,10 @@
+{
+  "repository": "fairoosansar-coder/dragon-dawwa-railway-deploy",
+  "commit": "5fe2b37ed7e7ca49fe97db8375addd59b4292a89",
+  "sha256BeforeAdaptation": {
+    "auth.mjs": "3f6ad06b526ef66bb61f1268f5d37d40072604182ec38a07a3f0bf65e6aac33d",
+    "google-auth.mjs": "f0fb7f56bcfa09fae973d2ebe0060a8a5b9f51ceabb8501906beaabd7f1297c0",
+    "session.mjs": "f6afd7dcfc4a24f16d8bf986de419848c0c49971dcc8df9d7e296f8c7d055dee"
+  },
+  "adaptations": "Only PROJECT, ENVIRONMENT and OWNER_APEX constants in google-auth.mjs changed for the new isolated project. Other OIDC and session behavior unchanged."
+}

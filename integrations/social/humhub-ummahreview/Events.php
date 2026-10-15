@@ -80,9 +80,14 @@ class Events
 
     public static function restRules($event): void
     {
-        $event->sender->addRules([
+        // REST 0.12.4 triggers a class-level event with no sender instance.
+        $rest = Yii::$app->getModule('rest');
+        if (!$rest instanceof \humhub\modules\rest\Module) {
+            throw new \yii\base\InvalidConfigException('Pinned HumHub REST module is required.');
+        }
+        $rest->addRules([
             ['pattern' => 'ummahreview/posts', 'route' => 'ummahreview/review/posts', 'verb' => 'GET'],
-            ['pattern' => 'ummahreview/post/<id:\\d+>', 'route' => 'ummahreview/review/view', 'verb' => 'GET'],
+            ['pattern' => 'ummahreview/post/<id:\d+>', 'route' => 'ummahreview/review/view', 'verb' => 'GET'],
             ['pattern' => 'ummahreview/submissions', 'route' => 'ummahreview/review/submit', 'verb' => 'POST'],
             ['pattern' => 'ummahreview/reviews', 'route' => 'ummahreview/review/queue', 'verb' => 'GET'],
             ['pattern' => 'ummahreview/reviews/<id:\\d+>', 'route' => 'ummahreview/review/decide', 'verb' => 'POST'],

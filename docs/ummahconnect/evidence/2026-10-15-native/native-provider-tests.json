@@ -1,0 +1,95 @@
+{
+  "kind": "actual-humhub-native-runtime",
+  "transport": "loopback-http",
+  "database": "MariaDB 10.11.14, MySQL-compatible; not hosted MySQL qualification",
+  "humhub": "1.19.0",
+  "rest": "0.12.4",
+  "humanParticipation": false,
+  "existingGoogleLoginTested": false,
+  "physicalIPhoneSafariTested": false,
+  "fixtureAccounts": "Synthetic native users, not production identities",
+  "results": [
+    {
+      "name": "Three actual HumHub bearer identities authenticate",
+      "status": "pass"
+    },
+    {
+      "name": "Actual community directory excludes nonmembers",
+      "status": "pass"
+    },
+    {
+      "name": "Anonymous review route rejected",
+      "status": "pass"
+    },
+    {
+      "name": "Author submits real provider draft, state=10",
+      "status": "pass"
+    },
+    {
+      "name": "Draft hidden from approved feed for author and reviewer",
+      "status": "pass"
+    },
+    {
+      "name": "Draft detail unavailable in approved endpoint",
+      "status": "pass"
+    },
+    {
+      "name": "Reviewer sees actual pending queue",
+      "status": "pass"
+    },
+    {
+      "name": "Author without review grant denied queue",
+      "status": "pass"
+    },
+    {
+      "name": "Excluded user denied feed, queue and submission",
+      "status": "pass"
+    },
+    {
+      "name": "Cross-community submission denied",
+      "status": "pass"
+    },
+    {
+      "name": "Independent reviewer approves real provider post",
+      "status": "pass"
+    },
+    {
+      "name": "Approved visible only to permitted members",
+      "status": "pass"
+    },
+    {
+      "name": "Real adapter consumes approved provider post and citations",
+      "status": "pass"
+    },
+    {
+      "name": "Real approved-feed adapter preserves publication state and citations",
+      "status": "pass"
+    },
+    {
+      "name": "Reviewer with review grant still denied self-approval",
+      "status": "pass"
+    },
+    {
+      "name": "Rejected provider post remains draft",
+      "status": "pass"
+    },
+    {
+      "name": "Rejected and self-review-denied posts invisible to approved feed",
+      "status": "pass"
+    },
+    {
+      "name": "Reject-then-approve conflict cannot publish",
+      "status": "pass"
+    },
+    {
+      "name": "Unapproved query-token authentication denied",
+      "status": "pass"
+    },
+    {
+      "name": "Wrong/missing member token denied",
+      "status": "pass"
+    }
+  ],
+  "passed": 20,
+  "failed": 0
+}

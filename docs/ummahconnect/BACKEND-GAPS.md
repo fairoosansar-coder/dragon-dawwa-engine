@@ -50,3 +50,17 @@ The table above records the original handoff gaps. Draft submission, approved-on
 | Exact interrupted recovery | Original Mac-M5 workspace remains unavailable; this is new source from preserved handoff, not the unrecovered 13 files |
 
 The configured staging path opts into writes only after its isolation guards pass. The unconfigured Worker and ordinary app path still deny writes. Test data and AI-assisted content are not genuine scholarly credentials, financial transactions, donations or construction progress. Production and Aishu remain unchanged.
+
+## Current live-staging blockers after native qualification
+
+Earlier statements that the native module was never installed/executed are superseded: actual HumHub/REST migrations and 20 HTTP + 5 native-model tests now pass in the isolated task sandbox. The hosted milestone is still **not complete**.
+
+1. **Hosting activation:** approve the separate new Railway project's metered infrastructure activation and maximum additional monthly budget. No paid services were activated. Production and Aishu are excluded; the sole connected Hetzner server is Aishu-labelled and network-blocked, and Cloud Computer 2's governance reserves it for a different workload.
+2. **Live build/deployment:** build and qualify the prepared app/HumHub Docker definitions, create the separate MySQL 8.4 services/volumes and assign HTTPS domains. Current native tests use MariaDB, not the target hosted MySQL image. No working app URL is assigned.
+3. **Existing-account login:** provision a separate staging Google OIDC client using protected settings, register `<new-app-origin>/auth/callback`, and designate the author, independent reviewer and excluded test identities. Stage session secrets, role table, revocation store and subject mappings are separate. Do not copy production credentials or auto-invite by email.
+4. **Membership and scoped review permissions:** link the designated real account subject references to separate native HumHub users, individual expiring bearer tokens, actual moderated private spaces and `ummah_review_grant` rows. Existing-account login → UI submission → another human's approval is not established by automated fixture roles.
+5. **Hosted native negative/robustness acceptance:** repeat rejection, self-review and excluded-user tests through real HTTPS login; additionally verify session/token revocation, native route bypass, edits/moves, transaction rollback/concurrency and no pending-post notifications on the hosted runtime. Current loopback tests cover draft-first insert, publish/schedule/edit denial and permission boundaries, not all concurrency or notification behavior.
+6. **Physical iPhone Safari:** use real hardware and record model/iOS/Safari/browser identity, callback/cookie behavior, keyboard/safe areas, author/reviewer/excluded accounts and logout. Not yet performed.
+7. **Separate recovery:** compare the original 13 Mac-M5 files when original workspace access returns. Preserve their files, stashes and reflogs. They are not a prerequisite to staging work from the preserved pushed source.
+
+Qdrant/BGE retrieval → Docling ingestion → PeerTube → charity/mosque workflows remain pending in that documented order. No selected model/service is promoted to installed or qualified merely by being registered. No simulated transaction, donation, scholarship or construction progress is presented as genuine.
