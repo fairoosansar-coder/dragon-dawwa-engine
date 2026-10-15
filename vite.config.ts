@@ -2,7 +2,8 @@ import { ummahStudyMiddleware } from './src/server/ummahStudy.ts';
 import { ummahQuranMiddleware } from './src/server/ummahQuran.ts';
 import tailwindcss from '@tailwindcss/vite';
 import { mediaMiddleware } from './src/server/mediaMiddleware.ts';
-import { socialMiddleware } from './src/server/socialGateway.ts';
+import { configuredStagingSocialMiddleware } from './src/server/socialIdentity.ts';
+import { configuredStagingAuthMiddleware } from './src/server/stagingAuth.ts';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig, Plugin } from 'vite';
@@ -16,7 +17,8 @@ function dragonDawwaApiPlugin(): Plugin {
   return {
     name: 'dragon-dawwa-api-plugin',
     configureServer(server) {
-      server.middlewares.use(socialMiddleware);
+      server.middlewares.use(configuredStagingAuthMiddleware());
+      server.middlewares.use(configuredStagingSocialMiddleware());
       server.middlewares.use(mediaMiddleware);
       server.middlewares.use(ummahQuranMiddleware);
       server.middlewares.use(ummahStudyMiddleware);
@@ -113,4 +115,3 @@ export default defineConfig(() => {
     },
   };
 });
-

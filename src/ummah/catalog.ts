@@ -14,8 +14,8 @@ export function routeFromHash(hash: string) { const key = hash.replace(/^#\/?/, 
 export const backend: Record<number, string> = {
   2: 'Account linking to the existing authentication service is pending. No account is created here.',
   4: 'HumHub feed requires a linked account and an isolated social instance.',
-  5: 'Drafts can be saved on this device. Human review and public publishing are not connected.',
-  6: 'Persistent post detail, comments and reactions require HumHub.',
+  5: 'Draft submission and independent human-review controls are implemented. Live use requires qualified staging identity and HumHub services.',
+  6: 'Approved-only post detail is implemented in source. Live HumHub connection, comments and reactions remain pending.',
   8: 'Persistent profiles and relationships require account linking and HumHub.',
   9: 'Private messaging, delivery and abuse controls are not connected.',
   10: 'Notifications require authenticated social events.',
@@ -38,7 +38,7 @@ export const backend: Record<number, string> = {
   29: 'Volunteer examples only. Opportunities, matching and registration are pending.',
   30: 'Marketplace examples only. Sellers, listings, orders and payments are pending.',
   32: 'Organization verification and permissioned dashboards are not connected.',
-  33: 'No real administration data is exposed. Existing editorial permissions must be integrated server-side.',
+  33: 'Independent human-review queue and guarded decisions are implemented in source. Live role grants, HumHub installation and scholarly qualification remain pending.',
 };
 export function screenNumber(route: string) { return route.startsWith('mosque-') ? 23 : Number(route.replace('screen-', '')); }
 export function screenStatus(route: string) {

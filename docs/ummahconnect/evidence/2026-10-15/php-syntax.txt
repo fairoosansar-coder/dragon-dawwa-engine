@@ -1,0 +1,6 @@
+PHP syntax parsed: integrations/social/humhub-ummahreview/Events.php
+PHP syntax parsed: integrations/social/humhub-ummahreview/Module.php
+PHP syntax parsed: integrations/social/humhub-ummahreview/config.php
+PHP syntax parsed: integrations/social/humhub-ummahreview/controllers/ReviewController.php
+PHP syntax parsed: integrations/social/humhub-ummahreview/migrations/m261015_000001_review.php
+Parsed files: 5 — syntax only; NOT php -l, real PHP execution or HumHub/MySQL qualification.

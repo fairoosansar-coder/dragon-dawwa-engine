@@ -42,3 +42,16 @@ Use Node 24 and npm ci. Run npm run dev for the integrated app. Set server-only 
 Checks: node node_modules/typescript/bin/tsc --noEmit; node --import tsx --test tests/*.test.ts integrations/social/social.test.mjs; npm run build.
 
 Design regeneration: python scripts/import-ummah-prototype.py design/UmmahConnect_33_Screen_Offline_Fixed.html (requires installed Node dependencies). Generated templates are static trusted source; inline scripts and event attributes are removed. Rich CSS is scoped to the UmmahConnect template area.
+
+## 2026-10-15 continuation reconciliation
+
+- Baseline preserved and bundle-verified: `b09becb513c2701113f28c1bbc5a9151e45ebeff` on `integration/ummahconnect-33`.
+- New isolated branch: `development/ummahconnect-moderation-20261015`. This is a fresh continuation, **not recovery of the original 13 Mac-M5 edits**. The original workspace was unavailable and was not altered.
+- Railway source inspected at `5fe2b37ed7e7ca49fe97db8375addd59b4292a89`. The retained Next/vinext tree is not by itself the live runtime authority. The declared HTTPS deployment Dockerfile is `deploy/railway/Dockerfile.https`, whose server entrypoint is `server/index.mjs`.
+- Account authority: `server/google-auth.mjs` checks Google OIDC issuer and verified subject, derives the stable account reference, requires an enabled current `review_roles` row and issues `webdev_app_session`. `server/auth.mjs` + `server/session.mjs` verify signature, expiry, persistent active session and revocation. No email-created account, browser-supplied role or HumHub token can replace those checks.
+- DB authority: `server/db.mjs` enforces `REVIEW_DB_TRANSPORT=railway-internal-wireguard`, the exact project/environment, private host, role-specific credentials and schema `dragon_dawwa_private_railway`. The identity, roles, review records and revocations remain there; HumHub content and new social review rows belong only to the separate HumHub DB.
+- Guarded source constants: project `786918bd-4ce1-4075-b763-93c7c6f729a1`, environment `91d899e3-0a5e-4a7f-9bcb-c840f7a22f66`, roles `dd_app`/`dd_migrator`/`dd_backup`. These constants are **observed source configuration**, not proof of the running release or current secrets.
+- The staging identity service needs a separately reviewed isolation contract. Simply copying Railway code into a new environment will fail its hard-coded guards; disabling those guards is not an acceptable integration strategy. No Railway auth or DB source was edited here.
+- Running Railway service SHA, environment bindings, DB readiness and deployment settings remain unverified in an authenticated dashboard. No production deployment, database operation, account permission change or Aishu runtime operation was made.
+
+New source mounts the same approved main UmmahConnect interface and introduces an opt-in staging-only auth transport + trusted social resolver. Production domains are rejected. The Worker remains fail-closed and is not a proxy to production. HumHub is the sole social engine; it owns the native post, draft state and human-review audit. Later Qdrant/BGE → Docling → PeerTube → charity/mosque tasks remain uninstalled/unqualified and retain the documented order.

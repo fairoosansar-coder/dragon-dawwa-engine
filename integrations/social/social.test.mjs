@@ -17,12 +17,12 @@ function provider({ denied = false, mismatch = false } = {}) {
     if (path.endsWith('/auth/current')) return Response.json({ id: mismatch ? 8 : 7, display_name: 'Test member', account: { email: 'private@example.test' } });
     if (path.endsWith('/space')) return Response.json(list([{ id: 3, name: 'Learning circle', description: '', owner: { email: 'private@example.test' } }]));
     if (path.endsWith('/space/3')) return denied ? Response.json({ message: 'internal trace private-test-token' }, { status: 403 }) : Response.json({ id: 3, name: 'Learning circle', description: '', contentcontainer_id: 91 });
-    if (path.endsWith('/post/container/91')) return Response.json(list([{ id: 42, message: '<script>alert(1)</script>', content: { private: 'discarded' } }]));
+    if (path.endsWith('/post/container/91')) return Response.json(list([{ id: 42, message: '<script>alert(1)</script>', content: { metadata: { state: 1 }, private: 'discarded' } }]));
     assert.fail('Unexpected upstream path ' + path);
   };
   return { fetcher, calls };
 }
-test('uses the space content container and returns only approved fields', async () => {
+test('uses the space content container and returns only projected published fields', async () => {
   const upstream = provider(); const client = createHumHubClient({ ...config, fetcher: upstream.fetcher });
   assert.deepEqual(await client.me(), { id: 7, name: 'Test member' });
   const spaces = await client.spaces(); assert.equal(spaces.items[0].id, 3);

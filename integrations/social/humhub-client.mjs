@@ -43,15 +43,16 @@ function collection(data, project) {
 export function createHumHubClient({ origin, token, expectedUserId, fetcher = fetch, timeoutMs = 10000 }) {
   const base = validateOrigin(origin);
   if (typeof token !== 'string' || !token.trim() || /[\r\n]/.test(token) || !Number.isSafeInteger(expectedUserId) || expectedUserId < 1) fail('social_identity_not_linked', 401);
-  async function get(path) {
+  async function get(path, body) {
     try {
       const response = await fetcher(`${base}/api/v1/${path}`, {
-        method: 'GET', redirect: 'error', signal: AbortSignal.timeout(timeoutMs),
-        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+        method: body ? 'POST' : 'GET', redirect: 'error', signal: AbortSignal.timeout(timeoutMs),
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}) },
+        ...(body ? { body: JSON.stringify(body) } : {}),
       });
       if (response.status !== 200) {
         await response.body?.cancel();
-        const codes = { 401: 'social_session_expired', 403: 'social_access_denied', 404: 'social_not_found', 429: 'social_rate_limited' };
+        const codes = { 400: 'invalid_social_request', 401: 'social_session_expired', 403: 'social_access_denied', 404: 'social_not_found', 409: 'social_review_conflict', 413: 'social_request_too_large', 429: 'social_rate_limited' };
         fail(codes[response.status] || 'social_provider_unavailable', codes[response.status] ? response.status : 502);
       }
       return await boundedJson(response);
@@ -66,6 +67,19 @@ export function createHumHubClient({ origin, token, expectedUserId, fetcher = fe
     return { id: user.id, name: text(user.display_name, 250) };
   }
   const space = value => ({ id: id(value?.id), name: text(value.name, 250), description: text(value.description ?? '', 20000) });
+  function reviewed(value, expectedStatus) {
+    if (!['pending', 'approved', 'rejected'].includes(value?.status) || ![1, 10].includes(value.state) ||
+        (value.status === 'approved' ? value.state !== 1 : value.state !== 10) ||
+        (expectedStatus && value.status !== expectedStatus)) fail('invalid_review_state');
+    if (!Array.isArray(value.sources) || value.sources.length > 8) fail();
+    const sources = value.sources.map(source => {
+      text(source, 2000); let url; try { url = new URL(source); } catch { fail(); }
+      if (url.protocol !== 'https:' || url.username || url.password) fail();
+      return source;
+    });
+    return { id: id(value.id), reviewId: id(value.reviewId), message: text(value.message, 12000),
+      status: value.status, state: value.state, sources };
+  }
   return Object.freeze({
     me,
     async spaces(page = 1) {
@@ -79,10 +93,35 @@ export function createHumHubClient({ origin, token, expectedUserId, fetcher = fe
       const current = await get(`space/${spaceId}`);
       if (id(current?.id) !== spaceId) fail();
       const container = id(current.contentcontainer_id);
-      const posts = collection(await get(`post/container/${container}?page=${page}&limit=20`), value => ({
+      const raw = await get(`post/container/${container}?page=${page}&limit=20`);
+      const posts = collection(raw, value => ({
         id: id(value?.id), message: text(value.message, 100000),
+        published: value.content?.metadata?.state === 1,
       }));
+      posts.items = posts.items.filter(value => value.published).map(({ id, message }) => ({ id, message }));
       return { space: space(current), ...posts };
+    },
+    async approvedPosts(spaceId, page = 1) {
+      id(spaceId); pageNumber(page); await me();
+      return collection(await get(`ummahreview/posts?space=${spaceId}&page=${page}`), value => reviewed(value, 'approved'));
+    },
+    async approvedPost(postId) {
+      id(postId); await me(); return reviewed(await get(`ummahreview/post/${postId}`), 'approved');
+    },
+    async submit({ spaceId, message, sources = [], requestKey }) {
+      id(spaceId); text(message, 12000);
+      if (!message.trim() || !/^[A-Za-z0-9_-]{16,100}$/.test(requestKey) || !Array.isArray(sources) || sources.length > 8) fail('invalid_submission', 400);
+      await me();
+      return reviewed(await get('ummahreview/submissions', { spaceId, message, sources, requestKey }));
+    },
+    async reviewQueue(spaceId, page = 1) {
+      id(spaceId); pageNumber(page); await me();
+      return collection(await get(`ummahreview/reviews?space=${spaceId}&page=${page}`), value => reviewed(value, 'pending'));
+    },
+    async decide(reviewId, decision, note) {
+      id(reviewId); text(note, 4000);
+      if (!['approved', 'rejected'].includes(decision) || !note.trim()) fail('invalid_review_decision', 400);
+      await me(); return reviewed(await get(`ummahreview/reviews/${reviewId}`, { decision, note }), decision);
     },
   });
 }

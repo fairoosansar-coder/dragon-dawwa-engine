@@ -1,0 +1,7 @@
+{
+  "id": "ummahreview",
+  "name": "UmmahConnect human review",
+  "description": "Staging-only draft-first review inside HumHub, the sole social system of record.",
+  "version": "0.1.0",
+  "humhub": { "minVersion": "1.19", "maxVersion": "1.19" }
+}

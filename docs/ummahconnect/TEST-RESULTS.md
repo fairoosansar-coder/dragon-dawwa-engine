@@ -42,3 +42,31 @@ A passing control check means a route, selected tab, amount input focus, or expl
 4. Implement the documented missing project, charity and other business capabilities; verify signed payment callbacks in a sandbox.
 5. Run real iPhone Safari checks, including touch navigation, session redirects, audio unlock, microphone/camera/location permissions, Arabic rendering, native sharing and safe-area keyboard behavior.
 6. Obtain production approval only after these gates pass. No production cutover is included in this change.
+
+## 2026-10-15 moderation continuation — final verified results
+
+| Check | Result | Exact scope |
+|---|---|---|
+| Clean `npm ci` | PASS | Corrected esbuild `^0.28.2`; lockfile resolves Vite 8.3.4 + esbuild 0.28.2; no force/legacy-peer-deps bypass |
+| `npm run lint` | PASS | Full TypeScript including the new resolver, auth transport, UI panels and test fixtures |
+| Main Vite build | PASS | Same main UmmahConnect app; existing large-bundle and native-config-loader warnings remain |
+| Node service/integration suite | 44/44 PASS | Existing regressions plus controlled two-identity moderation, draft exclusion, rejection, access denial, revocation, retries, CSRF/source/body checks and staging auth transport |
+| Worker staging regressions | 3/3 PASS | Actual bundled same-app Worker serves app/corpus and refuses unconfigured auth, writes, AI, payments and invalid routes; test-only bundle because hosting manifest is absent |
+| Native PHP syntax parser | 5/5 PASS | PHP 8.3 grammar parsing only; **not** PHP execution, migration or HumHub/MySQL compatibility qualification |
+| Actual built browser audit | 33/33 routes PASS | Chrome 155.0.8059.41, 390×844 mobile/touch emulation, zero uncaught page errors and no horizontal overflow; six real screenshots; no mocked API successes |
+| Local preview HTTP | PASS | `http://127.0.0.1:3307`: app/health 200, config reports `reviewEnabled=false`, social reads 401 and submissions 405 with no linked services |
+| Live staging runner | BLOCKED / exit 2 | Missing live URL, actual author/reviewer sessions, permitted community ID and forbidden community ID; no real post was submitted or approved |
+| Real existing-account OIDC callback | NOT RUN | Separate staging authority and callback registration not connected |
+| Real HumHub/MySQL human-review flow | NOT RUN | No installed runtime, live member tokens/map or scoped grants; native bypass/concurrency/rollback remain release gates |
+| Physical iPhone Safari | NOT RUN | Desktop Chrome mobile emulation is not Safari hardware acceptance |
+| Production and Aishu | UNCHANGED | No production deploy, data migration, role change, credential copy or runtime operation |
+
+### What the controlled two-account test actually proves
+
+A real local HTTP gateway is exercised with **controlled** author/reviewer identity callbacks and a simulated HumHub REST provider. It verifies linked identity → community list → draft submission → absence from both approved feeds/direct app detail → author review denial → independent reviewer approval → permitted feed/detail, plus rejection and revocation. It is useful source-contract coverage but **does not prove real OIDC login, HumHub draft-event execution, MySQL transactions or genuine scholarly review**.
+
+### Reproduction and evidence
+
+`npm ci && npm run lint`; `node --import tsx --test tests/*.test.ts integrations/social/social.test.mjs`; `npm run build`. Worker: `node scripts/build-staging.mjs && node --test scripts/test-staging.mjs`; then rerun `npm run build` to restore frontend assets for Express. UI: `node scripts/audit-moderation-ui.mjs` with task-local Playwright and installed Chrome. PHP syntax: `node scripts/check-native-review-syntax.mjs` with task-local php-parser. Live: `node scripts/test-live-social.mjs` with protected real staging configuration.
+
+Final evidence is in `evidence/2026-10-15/`: clean-install, resolved dependencies, typecheck, build, 44-test output, Worker build/tests, PHP grammar checks, browser route audit/screenshots and `live-staging.json` with explicit blocked prerequisites. Earlier failures exposed an outdated provider fixture, required local-network permissions, test/listener TypeScript types and a missing hosting manifest; the final outputs above supersede those failed attempts. The 33-screen completion matrix deliberately does not promote pending social screens to live Working.

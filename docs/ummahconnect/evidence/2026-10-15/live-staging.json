@@ -1,0 +1,13 @@
+{
+  "status": "BLOCKED",
+  "missing": [
+    "UMMAH_LIVE_STAGING_URL",
+    "UMMAH_TEST_AUTHOR_COOKIE",
+    "UMMAH_TEST_REVIEWER_COOKIE",
+    "UMMAH_TEST_SPACE_ID",
+    "UMMAH_TEST_FORBIDDEN_SPACE_ID"
+  ],
+  "realOIDCCallbackVerified": false,
+  "realHumHubFlowVerified": false,
+  "realIPhoneSafariVerified": false
+}

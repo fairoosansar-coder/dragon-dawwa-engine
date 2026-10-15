@@ -30,3 +30,23 @@ These are actual dependencies for the integrated screens, not features claimed a
 | Device acceptance | Real iPhone Safari hardware/session, login redirects, microphone, audio unlock, downloads/share, camera and location permissions | Release gate |
 
 The browser can save preferences and drafts locally. Those are not server records, submitted applications, donations, messages or verified content. Default social routes fail closed with 401 until a trusted session resolver is connected; a configured actor with no isolated instance receives 503. Writes are not enabled. AI requests on staging return a clear 503 when no staging key exists.
+
+## 2026-10-15 source correction and remaining live gates
+
+The table above records the original handoff gaps. Draft submission, approved-only detail/feed, a human-review queue, same-origin write checks, per-member trusted mapping and transactional native HumHub decisions are now implemented in source. They are **not installed or live-qualified**. Comments, reactions, messaging, memberships/profile writes, scholarly qualification, charity/mosque records and all later service work remain pending.
+
+| Requirement | Exact missing item / current limit |
+|---|---|
+| HTTPS staging host | Authorized isolated application host and deployment route; only loopback `127.0.0.1:3307` is currently running |
+| Identity authority | `UMMAH_IDENTITY_ORIGIN`, separately reviewed staging auth/DB configuration, staging Google OIDC client and exact callback registration, separate session secrets/store and copied-or-approved test role identities; do not reuse production secrets |
+| App isolation config | `UMMAH_SOCIAL_ENVIRONMENT=isolated-staging`, `UMMAH_PUBLIC_ORIGIN`, `UMMAH_IDENTITY_ENVIRONMENT=isolated-staging` |
+| HumHub runtime | Real isolated PHP/MySQL/storage instance, `HUMHUB_ORIGIN`, HumHub 1.19 + checksum-verified REST 0.12.4 and installed enabled `ummahreview` module |
+| Provider isolation config | `UMMAH_REVIEW_ENVIRONMENT=isolated-staging`, actual `UMMAH_REVIEW_SPACE_IDS` |
+| Trusted account mapping | `UMMAH_ACCOUNT_MAP_FILE` containing actual verified app references → separate HumHub IDs/per-member tokens, mode 0600; immediate disable/revocation must be tested |
+| Two different permissions | Actual staging author and reviewer accounts, community memberships and scoped HumHub grants; second excluded community; never a shared admin token |
+| Live runner | `UMMAH_LIVE_STAGING_URL`, `UMMAH_TEST_AUTHOR_COOKIE`, `UMMAH_TEST_REVIEWER_COOKIE`, `UMMAH_TEST_SPACE_ID`, `UMMAH_TEST_FORBIDDEN_SPACE_ID`; all absent at this milestone, runner exit 2 / BLOCKED |
+| Native runtime qualification | PHP source syntax was parsed, not executed. Real migration, content-event behavior, native-route publish/schedule/edit/move bypass, transactional rollback/concurrency and exact REST response compatibility need real HumHub/MySQL testing |
+| Device gate | Physical iPhone Safari account login/redirects, keyboard/safe area, touch controls and permissions; current screenshots use Chrome viewport emulation only |
+| Exact interrupted recovery | Original Mac-M5 workspace remains unavailable; this is new source from preserved handoff, not the unrecovered 13 files |
+
+The configured staging path opts into writes only after its isolation guards pass. The unconfigured Worker and ordinary app path still deny writes. Test data and AI-assisted content are not genuine scholarly credentials, financial transactions, donations or construction progress. Production and Aishu remain unchanged.

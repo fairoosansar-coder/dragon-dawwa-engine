@@ -1,0 +1,21 @@
+◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - `__dirname` (vite.config.ts:106:27). Use `import.meta.dirname` instead
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+vite v8.3.4 building client environment for production...
+transforming...
+✓ 2634 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     1.70 kB │ gzip:   0.75 kB
+dist/assets/index-P9OnH7n8.css    180.80 kB │ gzip:  27.97 kB
+dist/assets/index-CL0NDmbR.js   1,401.35 kB │ gzip: 375.19 kB
+
+✓ built in 315ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+Hosting manifest unavailable: this bundle is for local regression tests only, not a configured deployment.
+Built isolated staging Worker from the main app and existing service implementations.

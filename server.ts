@@ -1,7 +1,8 @@
 import { ummahStudyMiddleware } from './src/server/ummahStudy.ts';
 import { ummahQuranMiddleware } from './src/server/ummahQuran.ts';
 import express from 'express';
-import { socialMiddleware } from './src/server/socialGateway.ts';
+import { configuredStagingSocialMiddleware } from './src/server/socialIdentity.ts';
+import { configuredStagingAuthMiddleware } from './src/server/stagingAuth.ts';
 import path from 'path';
 import dotenv from 'dotenv';
 import { executeDragonDawwaAnalysis } from './src/server/hadithEngine.ts';
@@ -12,7 +13,8 @@ import { transcribeAudioWithGemini } from './src/server/geminiAudioTranscribe.ts
 dotenv.config();
 
 const app = express();
-app.use(socialMiddleware);
+app.use(configuredStagingAuthMiddleware());
+app.use(configuredStagingSocialMiddleware());
 app.use(ummahQuranMiddleware);
 app.use(ummahStudyMiddleware);
 const PORT = process.env.PORT || 3000;
@@ -114,6 +116,8 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
-app.listen(PORT, () => {
+const ready = () => {
   console.log(`Dragon Dawwa Server running on port ${PORT}`);
-});
+};
+if (process.env.UMMAH_LOCAL_STAGING === 'true') app.listen(Number(PORT), '127.0.0.1', ready);
+else app.listen(PORT, ready);

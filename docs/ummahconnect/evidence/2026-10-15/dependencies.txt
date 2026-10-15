@@ -1,0 +1,11 @@
+react-example@0.0.0 /Users/dragonx/Downloads/ummahconnect-recovery-20261015/engine
+├─┬ @tailwindcss/vite@4.3.3
+│ └── vite@8.3.4 deduped
+├─┬ @vitejs/plugin-react@6.1.2
+│ └── vite@8.3.4 deduped
+├── esbuild@0.28.2
+├─┬ tsx@4.23.15
+│ └── esbuild@0.28.2 deduped
+└─┬ vite@8.3.4
+  └── esbuild@0.28.2 deduped
+
