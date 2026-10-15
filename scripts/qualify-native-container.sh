@@ -322,6 +322,16 @@ if ! env \
     UMMAH_NATIVE_DB_DESCRIPTION='MySQL 8.4 in an ephemeral isolated Docker container; not hosted MySQL qualification' \
     UMMAH_NATIVE_REPORT_FILE="$HTTP_REPORT" \
     node scripts/test-native-humhub.mjs >"$HTTP_LOG" 2>&1; then
+    HTTP_REPORT_PATH="$HTTP_REPORT" FIXTURE_REPORT_PATH="$FIXTURE_COPY" node --input-type=module - <<'NODE'
+import {readFileSync,existsSync} from 'node:fs';
+if(existsSync(process.env.HTTP_REPORT_PATH)){
+ const report=JSON.parse(readFileSync(process.env.HTTP_REPORT_PATH,'utf8'));
+ const fixture=JSON.parse(readFileSync(process.env.FIXTURE_REPORT_PATH,'utf8'));
+ const secrets=Object.values(fixture.accounts).flatMap(a=>[a.token,a.password]);
+ const redact=s=>secrets.reduce((v,k)=>v.replaceAll(k,'[redacted]'),String(s||'')).replace(/[A-Za-z0-9_+\/=\-]{32,}/g,'[redacted]').slice(0,350);
+ console.log(JSON.stringify({kind:'native-container-failure-summary',passed:report.passed,failed:report.failed,failures:report.results.filter(r=>r.status==='fail').map(r=>({name:r.name,error:redact(r.error)}))}));
+} else console.log('Native report unavailable; no raw runtime log disclosed.');
+NODE
     fail
 fi
 chmod 600 "$HTTP_REPORT" "$HTTP_LOG"
