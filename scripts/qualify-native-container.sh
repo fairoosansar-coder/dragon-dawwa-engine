@@ -271,6 +271,7 @@ printf 'Native container phase: %s\n' "$phase"
 wait_for_http || fail
 wait_for_workers || fail
 assert_protected_paths || fail
+quiet docker exec --user www-data "$HUMHUB_CONTAINER" php -r 'clearstatcache(); if(!is_dir("/var/www/html/uploads")||!is_writable("/var/www/html/uploads")) exit(1);' || fail
 
 phase='prepare-private-native-fixture'
 printf 'Native container phase: %s\n' "$phase"

@@ -16,6 +16,6 @@ COPY deployment/staging/configure-humhub.php /usr/local/bin/configure-humhub.php
 COPY deployment/staging/start-humhub.sh /usr/local/bin/start-humhub
 COPY deployment/staging/humhub-cron.sh /usr/local/bin/ummah-humhub-cron
 COPY deployment/staging/humhub-supervisor.conf /etc/supervisor/ummah-humhub.conf
-RUN chmod 755 /usr/local/bin/start-humhub /usr/local/bin/ummah-humhub-cron && mkdir -p /var/lib/ummah-humhub && chown -R www-data:www-data /var/www/html /var/lib/ummah-humhub
+RUN chmod 755 /usr/local/bin/start-humhub /usr/local/bin/ummah-humhub-cron && mkdir -p /var/lib/ummah-humhub && chown -R www-data:www-data /var/www/html /var/lib/ummah-humhub && chmod 755 /var/www/html
 EXPOSE 80
 CMD ["/usr/local/bin/start-humhub"]
