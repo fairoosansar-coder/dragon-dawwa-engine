@@ -4,17 +4,66 @@
   "projectId": "48d7a4cf-07dc-489b-8a3d-d6d10142b14e",
   "environmentId": "1f7d98bf-1d49-4d9f-a5cc-13b57abcc095",
   "environmentName": "staging",
-  "actualState": "empty-private-project-no-deployments",
-  "activationApproved": false,
+  "actualState": "ummah-app-empty-service-created-capped-no-source-no-deployment",
+  "activationApproved": true,
   "applicationHttpsUrl": null,
   "identityDesign": "existing Google OIDC subject/session implementation, isolated secrets/database, private same-container loopback listener",
   "plannedServices": [
-    {"name":"ummah-app","dockerfile":"deployment/staging/app.Dockerfile","publicPort":3000},
-    {"name":"ummah-humhub","dockerfile":"deployment/staging/humhub.Dockerfile","publicPort":80,"volumeMount":"/var/lib/ummah-humhub"},
-    {"name":"ummah-humhub-mysql","imageLock":"upstream-lock.json:mysql","schema":"ummah_humhub_staging","user":"ummah_humhub_app","publicNetworking":false},
-    {"name":"ummah-identity-mysql","imageLock":"upstream-lock.json:mysql","schema":"ummah_identity_staging","user":"ummah_identity_app","initSql":"identity/schema.sql","publicNetworking":false}
+    {
+      "name": "ummah-app",
+      "dockerfile": "deployment/staging/app.Dockerfile",
+      "publicPort": 3000
+    },
+    {
+      "name": "ummah-humhub",
+      "dockerfile": "deployment/staging/humhub.Dockerfile",
+      "publicPort": 80,
+      "volumeMount": "/var/lib/ummah-humhub"
+    },
+    {
+      "name": "ummah-humhub-mysql",
+      "imageLock": "upstream-lock.json:mysql",
+      "schema": "ummah_humhub_staging",
+      "user": "ummah_humhub_app",
+      "publicNetworking": false
+    },
+    {
+      "name": "ummah-identity-mysql",
+      "imageLock": "upstream-lock.json:mysql",
+      "schema": "ummah_identity_staging",
+      "user": "ummah_identity_app",
+      "initSql": "identity/schema.sql",
+      "publicNetworking": false
+    }
   ],
-  "blockers": ["infrastructure activation budget", "separate staging Google OIDC client", "designated author/reviewer/excluded identities and scoped grants", "hosted Docker/MySQL qualification", "physical iPhone Safari test"],
+  "blockers": [
+    "Railway repository picker cannot find fairoosansar-coder/dragon-dawwa-engine; correct GitHub installation access must be inspected/authorized without removing existing grants",
+    "separate staging Google OIDC client and project choice",
+    "designated author/reviewer/excluded identities and scoped grants",
+    "remaining private services/volumes and hosted acceptance",
+    "physical iPhone Safari test"
+  ],
   "productionModified": false,
-  "aishuModified": false
+  "aishuModified": false,
+  "approvalRecordedAt": "2026-10-16T12:07:14Z",
+  "approvedResourceEnvelope": {
+    "serviceCount": 4,
+    "replicasPerService": 1,
+    "maxVcpuPerService": 1,
+    "maxMemoryGbPerService": 1,
+    "aggregateVolumeGbTarget": 5,
+    "monthlyTargetUsd": 125,
+    "absoluteSpendCap": false,
+    "paymentHandledByOwner": true
+  },
+  "observedServices": [
+    {
+      "name": "ummah-app",
+      "serviceId": "f3756510-4e87-445b-9cfb-9dad042d6758",
+      "maxVcpu": 1,
+      "maxMemoryGb": 1,
+      "sourceConnected": false,
+      "runningDeployment": false
+    }
+  ]
 }
