@@ -1,0 +1,18 @@
+{
+  "initialCommit": "28450299e5170a9e9fa8731e0cc264d778611279",
+  "initialRun": 39032673867,
+  "initialConclusion": "failure",
+  "failedPhase": "native-member-enrollment-qualification",
+  "safeOutput": {
+    "code": "fixture_rollback_failed",
+    "provisionFailureCode": null,
+    "hookReached": false
+  },
+  "verifiedLocalApiDefect": "openssl_free_key(OpenSSLAsymmetricKey) raises E_DEPRECATED under E_ALL; replaced with normal PHP8 object release",
+  "additionalSourceVerifiedHarnessDefect": "Docker exec sees original empty UMMAH_REVIEW_SPACE_IDS after bootstrap restart; operator CLI qualification now receives resolved private space 1 explicitly",
+  "currentOperatorCommit": "82c9331de605cfb1b4388995009e084ec9d939df",
+  "currentNativeQualification": "pending",
+  "hostedNativeMemberCreated": false,
+  "hostedAuthorRoleActivated": false,
+  "productionOrAishuChanged": false
+}

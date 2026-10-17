@@ -1,5 +1,7 @@
 # Source reconciliation and integration plan — 2026-10-13
 
+**Current state (17 October 2026, Author activation):** the first Author supplied a reference from actual Google verification and is now linked to native HumHub user 1 in private UmmahConnect Staging Review (space 1). The qualified operator source 56b797a2be2f24ea54587dad1c6e611c79b88e18 passed CI 39033827738: 36 native HTTP / 16 model cases plus seven member/encrypted-transfer/actual-identity-SQL checks. Hosted enrollment created no password, administrator or review permission. The protected one-entry map is mode 0600, UID 1000; guarded activation passed actual native identity/private-space/approved-feed/own-pending reads and review-queue 403. App source remains afb3e234b4b1e13f7516d879c15957e0b18dcc7f; native remains 44ee3bb5f39b275de84832e15fa02ae82c7b14f7. Actual anonymous health 200, /api/review/session 401 and /auth/login 302 are verified. Fresh invited Author login is pending because the task Google chooser shows Signed out. The different-human Reviewer email is designated, but its verified reference is not supplied; third excluded tester, actual submission/human approval/rejection and physical iPhone Safari remain gates. All 33 statuses remain 6 locally Working / 20 UI Only / 7 Blocked. Production, Aishu, resource envelope and original-file recovery remain unchanged. See REAL-MEMBER-ENROLLMENT.md and evidence/2026-10-17-real-member-enrollment/.
+
 ## Reconciled inputs
 
 | Source | Observed revision / evidence | Decision |

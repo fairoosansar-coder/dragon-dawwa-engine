@@ -1,0 +1,24 @@
+{
+  "checks": [
+    {
+      "path": "/api/health",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8"
+    },
+    {
+      "path": "/api/review/session",
+      "status": 401,
+      "contentType": "application/json"
+    },
+    {
+      "path": "/auth/login",
+      "status": 302,
+      "contentType": "text/plain"
+    }
+  ],
+  "correctSessionPath": "/api/review/session",
+  "previousMistypedPath": "/api/identity/session",
+  "mistypedPathReturnedHtmlNotAuthenticatedSession": true,
+  "transientLogin503DuringRestartObserved": true,
+  "humanLoginNotProvenByAnonymousChecks": true
+}

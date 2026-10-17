@@ -1,0 +1,47 @@
+{
+  "recordedAtUtc": "2026-10-17T13:06:15.636759+00:00",
+  "operatorSourceCommit": "56b797a2be2f24ea54587dad1c6e611c79b88e18",
+  "nativeAuthorCreated": true,
+  "humhubUserId": 1,
+  "nativeScope": {
+    "community": "UmmahConnect Staging Review",
+    "spaceId": 1,
+    "memberships": 1,
+    "canSubmit": true,
+    "canReview": false,
+    "administrator": false,
+    "passwordCreated": false
+  },
+  "identityRole": "author",
+  "identityRoleStagedDisabled": false,
+  "protectedMapSingleChangeVerifiedPrivately": true,
+  "appMappingDeploymentRequested": true,
+  "activeAppInvitation": true,
+  "humanReviewTested": false,
+  "physicalIPhoneSafariTested": false,
+  "reviewerVerifiedReferenceReceived": false,
+  "guardedActivation": {
+    "role": "author",
+    "activated": true,
+    "nativeChecksPassed": true
+  },
+  "actualNativeReadChecks": {
+    "bearerCurrentIdentity200": true,
+    "privateSpace200": true,
+    "approvedOnlyFeed200": true,
+    "ownPendingSubmissions200": true,
+    "reviewQueue403": true
+  },
+  "observedConsoleDeploymentId": "e2e65153-f98d-415a-acce-90da1c8a1492",
+  "observedAppSourceCommit": "afb3e234b4b1e13f7516d879c15957e0b18dcc7f",
+  "actualMapFile": {
+    "schemaVersion": 1,
+    "entries": 1,
+    "mode": "600",
+    "uid": 1000,
+    "authorMemberPresent": true
+  },
+  "freshInvitedGoogleLogin": "pending: current task Google chooser explicitly Signed out",
+  "providerViewObservedDeploymentId": "a23d2272-162f-4e22-8206-b6dd2ee6f386",
+  "mapRestartUniqueDeploymentCorrelation": "not independently resolved; source and loaded map proved separately"
+}

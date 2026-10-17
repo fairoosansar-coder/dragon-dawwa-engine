@@ -1,0 +1,20 @@
+{
+  "sourceCommit": "56b797a2be2f24ea54587dad1c6e611c79b88e18",
+  "failedRun": 39033183878,
+  "failedPhase": "identity-disabled-role-staging-with-actual-scoped-MySQL",
+  "nativeHelperProgressedToIdentitySQL": true,
+  "actualIsolatedMySQLReadOnlyProof": {
+    "unquotedAlias": {
+      "parsed": false,
+      "sqlState": "42000",
+      "numericCode": 1064
+    },
+    "quotedAlias": {
+      "parsed": true
+    },
+    "dataMutation": false
+  },
+  "correction": "quote the current_user reserved alias; retain all principal/instance/role gates",
+  "correctedFullNativeQualification": "pending",
+  "realAuthorNativeOrRoleCreated": false
+}

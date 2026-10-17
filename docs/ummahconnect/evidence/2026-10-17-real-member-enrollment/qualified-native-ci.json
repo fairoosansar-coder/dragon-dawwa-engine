@@ -1,0 +1,47 @@
+{
+  "commit": "56b797a2be2f24ea54587dad1c6e611c79b88e18",
+  "runId": 39033827738,
+  "conclusion": "success",
+  "summaries": [
+    {
+      "kind": "native-real-member-helper-qualification",
+      "checks": [
+        "author-narrow-native-role-encrypted-envelope-and-duplicate-refusal",
+        "reviewer-narrow-native-role-encrypted-envelope-and-duplicate-refusal",
+        "enrolled-author-native-submit-draft-first",
+        "owner-role-refused-without-mutation",
+        "real-user-membership-transaction-rollback",
+        "author-actual-scoped-identity-mysql-stage-and-activate",
+        "reviewer-actual-scoped-identity-mysql-stage-and-activate"
+      ],
+      "encryptedEnvelopes": true,
+      "noPasswords": true,
+      "syntheticDraftOnly": true,
+      "noHumanReviewsCreated": true,
+      "realGoogleLoginTested": false,
+      "humanParticipation": false,
+      "hostedEnvironmentContacted": false
+    },
+    {
+      "kind": "actual-native-container-summary",
+      "mysql": "8.4",
+      "httpPassed": 36,
+      "modelPassed": 16,
+      "failed": 0,
+      "appImageBuilt": true,
+      "humhubImageBuilt": true,
+      "queueCronWorkers": "pass",
+      "persistentRestart": "pass",
+      "accountFreePrivateBootstrap": "pass",
+      "apacheDuplicateMpmRecovery": "pass",
+      "ordinaryGuestPrivateSpaceDenied": "pass",
+      "firstBootOverExistingAccountsDenied": "pass",
+      "privateMarkerRestartWithAccounts": "pass",
+      "humanParticipation": false,
+      "realGoogleLoginTested": false,
+      "physicalIPhoneSafariTested": false,
+      "hostedEnvironmentTested": false
+    }
+  ],
+  "hostedOrHumanAcceptance": false
+}

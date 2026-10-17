@@ -1,0 +1,33 @@
+{
+  "recordedAt": "2026-10-17T12:30:44.409315+00:00",
+  "operatorSourceCommit": "28450299e5170a9e9fa8731e0cc264d778611279",
+  "sourceTests": {
+    "applicationPassed": 63,
+    "identityPassed": 19,
+    "lint": "pass",
+    "build": "pass",
+    "syntax": "pass",
+    "databaseFreeEncryptedEnvelopeRoundTrip": "pass"
+  },
+  "hostedNativePreflight": {
+    "spaceId": 1,
+    "privateOwnerlessCommunity": true,
+    "initializationOff": true,
+    "sqlOnly": true,
+    "counts": {
+      "user": 0,
+      "user_password": 0,
+      "post": 0,
+      "space_membership": 0,
+      "ummah_review_grant": 0,
+      "rest_user_bearer_tokens": 0
+    }
+  },
+  "nativeMemberQualification": "pending-exact-CI",
+  "realNativeAuthorCreated": false,
+  "authorIdentityRoleActivated": false,
+  "independentReviewerReferenceReceived": false,
+  "humanReviewAccepted": false,
+  "physicalIPhoneSafariTested": false,
+  "productionOrAishuChanged": false
+}
