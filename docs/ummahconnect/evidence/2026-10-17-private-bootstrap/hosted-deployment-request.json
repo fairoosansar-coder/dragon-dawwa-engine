@@ -1,0 +1,24 @@
+{
+  "kind": "hosted-account-free-deployment-request",
+  "projectId": "48d7a4cf-07dc-489b-8a3d-d6d10142b14e",
+  "environmentId": "1f7d98bf-1d49-4d9f-a5cc-13b57abcc095",
+  "serviceId": "e6498121-1725-4d5a-a66f-e0f1091d6d35",
+  "deploymentId": "864c29ea-f4b8-4a10-8d79-61bab638c384",
+  "sourceCommit": "3435c8356fa2b208c840393f8f5b89ccddc22420",
+  "sourceBranch": "development/ummahconnect-native-hardening-private-bootstrap-20261017",
+  "reviewedChanges": {
+    "branch": "qualified development source",
+    "checkSuites": true,
+    "UMMAH_BOOTSTRAP_PRIVATE_EMPTY": "yes",
+    "UMMAH_INITIALIZE_HUMHUB": "yes"
+  },
+  "providerStatusObserved": "Building; build logs waiting to start",
+  "appRemainsOffline": true,
+  "newVolumes": 0,
+  "accountsEnrolled": 0,
+  "membershipsGranted": 0,
+  "humanApprovals": 0,
+  "productionModified": false,
+  "aishuModified": false,
+  "hostedBootstrapVerified": false
+}

@@ -1,5 +1,12 @@
 #!/bin/sh
 set -eu
+# Normalize at boot as well as build: hosted image materialization was observed
+# with both event and prefork enabled. PHP mod_php requires exactly prefork.
+a2dismod mpm_event mpm_worker >/dev/null
+a2enmod mpm_prefork >/dev/null
+set -- /etc/apache2/mods-enabled/mpm_*.load
+[ "$#" -eq 1 ] && [ "$1" = /etc/apache2/mods-enabled/mpm_prefork.load ]
+apache2ctl -t
 php /usr/local/bin/configure-humhub.php
 cd /var/www/html/protected
 private_bootstrap="${UMMAH_BOOTSTRAP_PRIVATE_EMPTY:-no}"

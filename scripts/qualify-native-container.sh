@@ -202,6 +202,7 @@ start_humhub() {
     quiet docker run -d \
         --name "$HUMHUB_CONTAINER" \
         --network "$NETWORK" \
+        --entrypoint /bin/sh \
         -p "127.0.0.1:${HUMHUB_PORT}:80" \
         -v "${HUMHUB_VOLUME}:/var/lib/ummah-humhub" \
         -v "${FIXTURE_VOLUME}:/run/ummah-fixture" \
@@ -218,7 +219,7 @@ start_humhub() {
         --env "UMMAH_BOOTSTRAP_PRIVATE_EMPTY=${private_bootstrap}" \
         --env "SPACE_IDS=${REVIEW_SPACE_IDS}" \
         --env "UMMAH_INITIALIZE_HUMHUB=${initialize}" \
-        "$HUMHUB_IMAGE" || return 1
+        "$HUMHUB_IMAGE" -c 'if [ "$UMMAH_INITIALIZE_HUMHUB" = yes ] && [ "$UMMAH_BOOTSTRAP_PRIVATE_EMPTY" = yes ]; then ln -sf ../mods-available/mpm_event.load /etc/apache2/mods-enabled/mpm_event.load; ln -sf ../mods-available/mpm_event.conf /etc/apache2/mods-enabled/mpm_event.conf; fi; exec /usr/local/bin/start-humhub' || return 1
     humhub_started=1
 }
 
@@ -275,6 +276,7 @@ start_humhub 'yes' 'yes' || fail
 wait_for_http || fail
 wait_for_schema || fail
 wait_for_workers || fail
+quiet docker exec "$HUMHUB_CONTAINER" sh -c 'set -- /etc/apache2/mods-enabled/mpm_*.load; [ "$#" -eq 1 ] && [ "$1" = /etc/apache2/mods-enabled/mpm_prefork.load ] && apache2ctl -t' || fail
 [[ "$(mysql_scalar 'SELECT COUNT(*) FROM user')" == '0' ]] || fail
 [[ "$(mysql_scalar 'SELECT COUNT(*) FROM post')" == '0' ]] || fail
 [[ "$(mysql_scalar 'SELECT COUNT(*) FROM space_membership')" == '0' ]] || fail
@@ -465,6 +467,6 @@ import {readFileSync} from 'node:fs';
 const http=JSON.parse(readFileSync(process.env.HTTP_REPORT_PATH,'utf8'));
 const model=JSON.parse(readFileSync(process.env.MODEL_LOG_PATH,'utf8').trim().split('\n').at(-1));
 if(http.failed || model.failed || http.passed<32 || model.passed<16)process.exit(1);
-console.log(JSON.stringify({kind:'actual-native-container-summary',mysql:'8.4',httpPassed:http.passed,modelPassed:model.passed,failed:0,appImageBuilt:true,humhubImageBuilt:true,queueCronWorkers:'pass',persistentRestart:'pass',accountFreePrivateBootstrap:'pass',ordinaryGuestPrivateSpaceDenied:'pass',firstBootOverExistingAccountsDenied:'pass',privateMarkerRestartWithAccounts:'pass',humanParticipation:false,realGoogleLoginTested:false,physicalIPhoneSafariTested:false,hostedEnvironmentTested:false}));
+console.log(JSON.stringify({kind:'actual-native-container-summary',mysql:'8.4',httpPassed:http.passed,modelPassed:model.passed,failed:0,appImageBuilt:true,humhubImageBuilt:true,queueCronWorkers:'pass',persistentRestart:'pass',accountFreePrivateBootstrap:'pass',apacheDuplicateMpmRecovery:'pass',ordinaryGuestPrivateSpaceDenied:'pass',firstBootOverExistingAccountsDenied:'pass',privateMarkerRestartWithAccounts:'pass',humanParticipation:false,realGoogleLoginTested:false,physicalIPhoneSafariTested:false,hostedEnvironmentTested:false}));
 NODE
 printf 'Native container qualification passed: MySQL 8.4 ran in an ephemeral isolated container; HumHub was loopback-only; synthetic fixtures only.\n'

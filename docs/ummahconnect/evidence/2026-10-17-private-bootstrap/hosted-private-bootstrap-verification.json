@@ -1,0 +1,41 @@
+{
+  "kind": "hosted-private-bootstrap-verification",
+  "checkedAtUtc": "2026-10-17T04:34:28Z",
+  "projectId": "48d7a4cf-07dc-489b-8a3d-d6d10142b14e",
+  "environmentId": "1f7d98bf-1d49-4d9f-a5cc-13b57abcc095",
+  "serviceId": "e6498121-1725-4d5a-a66f-e0f1091d6d35",
+  "deploymentId": "864c29ea-f4b8-4a10-8d79-61bab638c384",
+  "deployedSource": "3435c8356fa2b208c840393f8f5b89ccddc22420",
+  "actualNativeHelper": {
+    "communityName": "UmmahConnect Staging Review",
+    "spaceId": 1,
+    "contentContainerId": 1,
+    "users": 0,
+    "memberships": 0,
+    "posts": 0,
+    "grants": 0,
+    "reviews": 0,
+    "guestAccess": false,
+    "registration": false,
+    "autoJoin": false,
+    "basicJwtQueryAuth": false,
+    "bearerOnly": true
+  },
+  "privateMarkerPresent": true,
+  "sourceOfEvidence": "Authenticated console on exactly the staging native service; scoped native helper --space-id and --verify; no fixture seeding",
+  "apache": {
+    "status": "FATAL",
+    "configurationError": "AH00534: apache2: Configuration error: More than one MPM loaded.",
+    "enabledMpmModules": ["mpm_event", "mpm_prefork"],
+    "architecture": "x86_64"
+  },
+  "queue": "RUNNING",
+  "cron": "RUNNING",
+  "httpsReadiness": "FAILED: bounded watcher ended at HTTP 502 after 605 seconds",
+  "applicationReady": false,
+  "googleLoginTested": false,
+  "humanParticipation": false,
+  "physicalIPhoneSafariTested": false,
+  "productionModified": false,
+  "aishuModified": false
+}

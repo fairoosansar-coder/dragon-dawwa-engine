@@ -1,0 +1,24 @@
+{
+  "kind": "source-validation",
+  "results": {
+    "app": {
+      "tests": 47,
+      "pass": 47,
+      "fail": 0
+    },
+    "identity": {
+      "tests": 19,
+      "pass": 19,
+      "fail": 0
+    }
+  },
+  "typescript": "pass",
+  "viteBuild": "pass",
+  "phpLint": "pass",
+  "shellSyntax": "pass",
+  "diffCheck": "pass",
+  "pinnedYiiCallableAndCollectionProbe": "pass, no database mutation",
+  "nativeBootstrapQualification": "PASS at 3435c8356fa2b208c840393f8f5b89ccddc22420, CI 39001338720",
+  "googleLoginTested": false,
+  "physicalIPhoneSafariTested": false
+}

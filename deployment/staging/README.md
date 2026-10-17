@@ -1,48 +1,51 @@
-# Isolated Railway staging — prepared, not activated
+# Isolated Railway staging
 
-## Exact connected destination
+## Current boundary — 17 October 2026 UTC
+
+Native runtime source **`3435c8356fa2b208c840393f8f5b89ccddc22420`** passed [non-deploying MySQL/container CI 39001338720](https://github.com/fairoosansar-coder/dragon-dawwa-engine/actions/runs/39001338720): **36 HTTP + 16 native model tests**, both pinned images, queue/cron, persistent restart, account-free private bootstrap and refusal to initialize over existing accounts. These are actual native runtime tests with synthetic fixture identities, **not hosted Google/human/Safari acceptance**.
+
+The approved four service slots and three 50 GB volumes already exist. Both separate private MySQL services are online; identity has four tables and **zero enrolled roles**. Native deployment **`864c29ea-f4b8-4a10-8d79-61bab638c384`** at the exact source above completed the actual account-free private bootstrap: the scoped native helper verified **space ID 1 / container ID 1; zero users, memberships, posts, grants and reviews**, private/no-guest/no-registration/bearer-only settings and persistent marker. Queue and cron are running. However, **Apache is FATAL / HTTPS 502**: the hosted image has both event and prefork MPMs enabled. Provider Online is not readiness. A minimal build/startup single-prefork correction and an exact CI fault-injection regression are pending qualification.
+
+After hosted marker verification, `UMMAH_INITIALIZE_HUMHUB=no` and actual `UMMAH_REVIEW_SPACE_IDS=1` were saved. The attempted Alt-click on the modal's Deploy Changes action also started an old-source redeployment; do not describe that modal action as apply-only. Do not reset or initialize again. `ummah-app` remains offline; no account or human approval has been invented. An unintended, **unapplied** function draft from a mistargeted generic terminal input was reviewed/discarded; exactly the four approved services and no extra staged resource remain.
+
+See `PRIVATE-BOOTSTRAP.md`, `docs/ummahconnect/STAGING.md` and `TEST-RESULTS.md` for later verified updates. A reserved hostname or provider build is not a working application flow.
+
+## Exact destination and exclusions
 
 - Workspace: **Dragon Dawwa Private**, `35d451e8-8abf-417a-8bdf-61c03102ce61`.
-- New private project: **UmmahConnect - Isolated Staging**, `48d7a4cf-07dc-489b-8a3d-d6d10142b14e`.
-- Its newly renamed empty environment: **staging**, `1f7d98bf-1d49-4d9f-a5cc-13b57abcc095`.
-- [Project console](https://railway.com/project/48d7a4cf-07dc-489b-8a3d-d6d10142b14e?environmentId=1f7d98bf-1d49-4d9f-a5cc-13b57abcc095).
+- Project: **UmmahConnect - Isolated Staging**, `48d7a4cf-07dc-489b-8a3d-d6d10142b14e`.
+- Environment: **staging**, `1f7d98bf-1d49-4d9f-a5cc-13b57abcc095`.
+- [Management console — not an application URL](https://railway.com/project/48d7a4cf-07dc-489b-8a3d-d6d10142b14e?environmentId=1f7d98bf-1d49-4d9f-a5cc-13b57abcc095).
+- **Exclude production project `786918bd-4ce1-4075-b763-93c7c6f729a1`, production/main source and all Aishu runtimes, credentials, volumes and accounts.** Original 13-file recovery remains separate.
 
-The console URL is **not an application staging URL**. No services, volumes, source attachments, deployments or public application domains were activated. The user's infrastructure spending decision and identity configuration are pending. Do not deploy merely because this configuration exists.
-
-## Four isolated services after activation approval
-
-| Service | Build / image | Database, persistent data and network |
+| Service | Qualified image/build | Isolation |
 |---|---|---|
-| `ummah-app` | Root context; `deployment/staging/app.Dockerfile` | Main existing 33-screen UI. Public HTTPS domain and port 3000. A second process runs the preserved identity implementation only on `127.0.0.1:3001`; that port must never be public. |
-| `ummah-humhub` | Root context; `deployment/staging/humhub.Dockerfile` | HumHub 1.19.0, REST 0.12.4 and native review module. Own volume at `/var/lib/ummah-humhub`. Separate HTTPS domain, target port 80. No public database port. |
-| `ummah-humhub-mysql` | Immutable `mysql` image in `upstream-lock.json` | New database `ummah_humhub_staging`; user `ummah_humhub_app`; new root/app secrets and database volume. Private host `ummah-humhub-mysql.railway.internal`. |
-| `ummah-identity-mysql` | Same immutable MySQL image | New database `ummah_identity_staging`; user `ummah_identity_app`; different root/app secrets and volume. Private host `ummah-identity-mysql.railway.internal`. Apply `identity/schema.sql` only on this new database's first boot. |
+| `ummah-app` | Root context; `deployment/staging/app.Dockerfile` | Main existing 33-screen UI on port 3000. Preserved identity implementation only on `127.0.0.1:3001`; never expose that port. App remains unready pending Google/client/accounts. |
+| `ummah-humhub` | Root context; `deployment/staging/humhub.Dockerfile` | Pinned HumHub 1.19-era core, REST 0.12.4, native review module; port 80; own `/var/lib/ummah-humhub` volume. HumHub is the sole social engine. |
+| `ummah-humhub-mysql` | Immutable MySQL digest in `upstream-lock.json` | `ummah_humhub_staging`, non-root `ummah_humhub_app`; private `ummah-humhub-mysql.railway.internal`; own `/var/lib/mysql` volume. |
+| `ummah-identity-mysql` | Same pinned MySQL image | `ummah_identity_staging`, non-root `ummah_identity_app`; different credentials; private host and volume. Identity/session tables only, not a second social engine. |
 
-The schema's instance marker and identity startup checks must match the **new** project/environment. The staging source refuses the production project ID, production environment ID, root DB role, wrong schema and production public origin. Do not reuse the production `mysql` service, volume, credentials or session secrets. No production account data is cloned.
+All services retain one replica and **1 vCPU / 1 GB** caps. No additional volume approval or infrastructure substitution is required. Do not alter production storage or workspace-wide spending/access controls.
 
-Container definitions are pinned and PHP/JS syntax-checked, but **the Docker builds and hosted MySQL 8.4 runtime have not been executed**. Qualify them before recording hosted acceptance. Native testing so far uses actual HumHub on PHP 8.3.6/MariaDB 10.11.14 in the isolated task sandbox.
+## Safe bootstrap and identity order
 
-## Build and credential setup
+1. Qualify the exact intended runtime commit with `scripts/qualify-native-container.sh` only in disposable CI/local containers. Never run fixture seeders or synthetic approvals on hosted staging.
+2. Use protected service variables; never secrets in build arguments, Git, evidence or browser-trusted identity. The HumHub database service uses its approved start command with `--skip-log-bin`; the application role has only schema-local privileges. No global/SUPER privilege or PITR guarantee is implied.
+3. For the **new account-free first boot only**, use `UMMAH_BOOTSTRAP_PRIVATE_EMPTY=yes`, `UMMAH_INITIALIZE_HUMHUB=yes`, and absent/empty `UMMAH_REVIEW_SPACE_IDS`. The helper asserts emptiness, runs native migrations, creates **only UmmahConnect Staging Review**, resolves the actual ID to a protected persistent marker, then verifies private settings. No fake administrator or unchecked native save is used.
+4. Confirm hosted private space/marker and **zero users, posts, memberships, bearer tokens and grants** through protected native console and read-only SQL. Then permanently set `UMMAH_INITIALIZE_HUMHUB=no` and the **actual resolved** `UMMAH_REVIEW_SPACE_IDS`. Keep private-mode marker verification for normal restart. Verify persistence again. Never reset a nonempty dataset.
+5. In a **separate owner-authorized Google staging project**, create an External/Testing Web OAuth client with `openid email profile`; exact redirect **`https://ummah-app-staging.up.railway.app/auth/callback`**. Store client ID/secret directly in protected `ummah-app` settings. Owner sign-in and three actual participant emails are still required; bracketed placeholders are not identities.
+6. Deploy the app only after its Google configuration is complete and native HTTPS/identity dependencies are verified. The unchanged authority first shows an uninvited but Google-verified account a non-secret subject-derived `google:` reference with **403 and no app session**. Observe the genuine callback/reference through a private channel before explicitly enrolling the owner's designated staging role. Never auto-invite by email, mint test sessions or trust a browser user ID.
+7. Create/link only the designated verified native accounts and protected per-member bearer mapping. **Author:** private member, `can_submit=1`, `can_review=0`. **Independent human reviewer:** a different person, private member, `can_submit=0`, `can_review=1`. **Excluded tester:** identity-login permitted, native link but no community membership or grant. No public/guest access, self-join, automatic membership or open invitation.
+8. Store `UMMAH_ACCOUNT_MAP_JSON` only in protected app settings (`schemaVersion:1`); its runner writes a mode-0600 server-only file. No global admin token; never send native bearer values to browsers or Git. REST is bearer-only; Basic/JWT/query authentication stays disabled. Revocations must affect current identity, token, membership and grants.
 
-1. Obtain explicit activation approval and maximum additional monthly infrastructure budget. Establish resource/spend controls before deploying; service-count preparation is not a spending cap.
-2. Build the two Dockerfiles without credentials in build arguments. Every upstream artifact/image is pinned. HumHub downloads are checksum verified. Do not attach automatic production deployments.
-3. Create the new databases and volumes. MySQL user credentials belong only to the corresponding service and its client. The identity application's credentials must not be MySQL root credentials.
-4. Assign the **new app** and **new HumHub** HTTPS hostnames. These are not yet allocated. Set `.env.staging.example` fields through protected Railway settings; it contains placeholders, not secrets.
-5. Register a **separate Google Web OAuth/OIDC client**. Its exact callback is `<assigned-app-HTTPS-origin>/auth/callback`. The authorized JavaScript origin is the same app HTTPS origin. Do not edit the existing production client. The reused implementation verifies issuer/signature, PKCE/state/nonce, verified email, existing subject-derived invitation and current revocation/role state. Email addresses never act as identity keys.
-6. Generate independent staging session, cookie and ancillary secrets (at least 32 random bytes). Set app ID `ummahconnect-isolated-staging`; never reuse a production JWT/session key. No AI-provider secret is included in the staging runner.
-7. Initialize the **new HumHub schema** with `UMMAH_INITIALIZE_HUMHUB=yes` once, then set it false before normal restart. `UMMAH_REVIEW_SPACE_IDS` must contain the actual new moderated space IDs. The existing installation-state metadata is preserved in the staging volume.
-8. Create or identify the explicitly designated native HumHub test accounts and private community. Give the author membership plus `can_submit`; give the independent reviewer membership plus `can_submit` and `can_review`; ensure the excluded account lacks community membership. These scoped grants exist only in `ummah_review_grant` in HumHub's own database.
-9. After Google has verified each chosen existing account, use its non-secret `google:` subject hash to create only its designated **staging** `review_roles` row. Never auto-invite by email or accept browser user IDs. Allowlist changes require the owner's exact account/role choice.
-10. Store `UMMAH_ACCOUNT_MAP_JSON` in protected app settings with `schemaVersion:1` and the designated subject hashes linked to their individual HumHub user ID/token. The startup runner writes a mode-0600, server-only file. Never use a global admin token; never send these bearer tokens to the browser or Git. Remove/disable mappings and revoke native tokens when accounts are excluded.
-11. Enable HumHub REST bearer auth only, disable Basic/JWT/query-token auth and activate the `ummahreview` API module. Configure per-member tokens with expiry. Human review endpoints additionally reject Basic, query-token and impersonation auth.
+The authority is copied from `dragon-dawwa-railway-deploy` commit `5fe2b37ed7e7ca49fe97db8375addd59b4292a89`. `identity/vendor-provenance.json` verifies the original algorithms with only three isolated deployment constants changed. Preserve stable verified Google subject mapping, role/revocation/session enforcement and canonical-host forwarding to the loopback authority.
 
-The reused identity code is copied from Railway commit `5fe2b37ed7e7ca49fe97db8375addd59b4292a89`. `identity/vendor-provenance.json` records original hashes. Only three Google-mode deployment constants are changed for this new project; the authentication/session algorithms remain byte-identical. The main app's existing staging proxy forwards its canonical Host to the private loopback authority, not to another public Railway hostname.
+## Acceptance and evidence
 
-## Acceptance and evidence boundaries
+- **Source:** root tests, `npm run lint`, `npm run build`, `npm test --prefix deployment/staging/identity`; PHP/shell/diff checks. Current source totals **47 + 19**, not Google login evidence.
+- **Native:** pinned container/MySQL tests with explicitly synthetic independent identities; **36 HTTP + 16 model tests** at the exact qualified commit above. Bootstrap initially records **one private space / zero actors and content**; fixture identities are introduced only afterward inside disposable CI.
+- **Hosted human:** genuine author Google login → private community → actual draft-first submission and own pending list → another human's reviewer login/action → approved-only member visibility. Repeat actual rejection, author review/queue denial, excluded access, revocation, direct routes and logout. Automated fixture decisions cannot count as human or scholarly review.
+- **Self-review distinction:** native CI separately exercises a synthetic reviewer with submit permission and denies their own decision. Do not broaden the real review-only participant's grants just to duplicate that fixture.
+- **Physical iPhone Safari:** record real model/iOS/Safari, exact URL/commit, login/callback, pending reload, different human's decision, approved/excluded views and logout. Desktop viewport emulation is separate and **NOT Safari hardware evidence**.
 
-- Source: `npm ci`, `npm run lint`, root tests, build, and `npm test --prefix deployment/staging/identity`.
-- Actual native provider: `scripts/test-native-humhub.mjs` and `scripts/test-native-model-guards.php`, with a mode-0600 sandbox fixture file. The seeder is **sandbox-only synthetic qualification**, not existing-account enrollment or genuine scholarly review.
-- Hosted: real Google login in the main 33-screen app → permitted community → actual submission → another human logs into the reviewer account → decision → approved-only member visibility. Repeat rejection, self-review by a reviewer who authored their own post, excluded users, revocation, direct native-route bypass, logout and cookie/CSRF checks. Do not replace real login with a minted test session.
-- Physical iPhone Safari: record actual iPhone model/iOS/Safari version, HTTPS URL, login/callback/cookie persistence, submission, reviewer decision, excluded account and logout. Chrome/WebKit desktop emulation is a separate result, never physical-device evidence.
-
-Only after the hosted and physical tests actually pass can this milestone be marked complete. Maintain source citations, separate human scholarly review, and explicit fixture/example labels. HumHub remains the sole social engine.
+Do not mark the milestone or whole application complete before actual hosted/human/device acceptance. Preserve emerald/ivory/gold/turquoise, source citations and human scholarly review; no generated example becomes a genuine donation, transaction, ruling or construction record. Qdrant/BGE → Docling → PeerTube → charity/mosque follow the documented social milestone order.

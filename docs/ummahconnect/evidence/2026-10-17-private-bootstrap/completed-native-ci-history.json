@@ -1,0 +1,49 @@
+{
+  "kind": "completed-native-ci-history",
+  "runs": [
+    {
+      "runId": "38999348434",
+      "conclusion": "failure",
+      "headSha": "2434c004eac551c542d24e51b71bfcef29632e38",
+      "status": "completed",
+      "url": "https://github.com/fairoosansar-coder/dragon-dawwa-engine/actions/runs/38999348434"
+    },
+    {
+      "runId": "38999928604",
+      "conclusion": "failure",
+      "headSha": "ecc3b4baac6de1bf28994b48a6febc54a4eba620",
+      "status": "completed",
+      "url": "https://github.com/fairoosansar-coder/dragon-dawwa-engine/actions/runs/38999928604"
+    },
+    {
+      "runId": "39000700349",
+      "conclusion": "failure",
+      "headSha": "4ab17396e1a5c754622edf44eeabf694da68baca",
+      "status": "completed",
+      "url": "https://github.com/fairoosansar-coder/dragon-dawwa-engine/actions/runs/39000700349"
+    },
+    {
+      "runId": "39000875915",
+      "conclusion": "cancelled",
+      "headSha": "f0b7b75bf0f9548f2b9e2c3299b001bc443a3871",
+      "status": "completed",
+      "url": "https://github.com/fairoosansar-coder/dragon-dawwa-engine/actions/runs/39000875915"
+    },
+    {
+      "runId": "39001041915",
+      "conclusion": "failure",
+      "headSha": "1cb15f1a4b872cfcb4c58fcb86d11e28ce2eee45",
+      "status": "completed",
+      "url": "https://github.com/fairoosansar-coder/dragon-dawwa-engine/actions/runs/39001041915"
+    },
+    {
+      "runId": "39001338720",
+      "conclusion": "success",
+      "headSha": "3435c8356fa2b208c840393f8f5b89ccddc22420",
+      "status": "completed",
+      "url": "https://github.com/fairoosansar-coder/dragon-dawwa-engine/actions/runs/39001338720"
+    }
+  ],
+  "hostedQualification": false,
+  "humanAcceptance": false
+}

@@ -47,6 +47,8 @@ After successful hosted initialization, set `UMMAH_INITIALIZE_HUMHUB=no` and rec
 
 Bind only verified Google subjects to native HumHub users using the protected server-side mapping; browser-supplied user IDs, display names or roles are never authoritative.
 
+The unchanged authority intentionally returns **403 / Invitation required** after an uninvited account successfully verifies with Google. It shows a non-secret `google:` subject-derived reference and creates no application session. Obtain that reference from each designated person's genuine staging Google callback through a private channel, associate it with the owner's explicit account designation, then add only the intended staging role and native mapping. A second login can then receive a session. This is not automatic email enrollment or a bypass of the existing role gate. Never request passwords, client secrets, bearer tokens or cookies from participants.
+
 - **Author:** current community member; native `can_submit=1`, `can_review=0`; view approved content and their own pending/rejected submissions; no review queue or approval rights.
 - **Independent reviewer:** a different real person's verified account; current community member; `can_review=1`; view the queue and approve/reject another person's unchanged submission. No self-review. Do not grant submitter or administrator rights unless explicitly needed and authorized.
 - **Excluded tester:** allowed by the staging identity authority; native account linked but **no membership or community grant**. Sign-in permission does not imply social access.
@@ -56,3 +58,15 @@ The new author-owned submissions endpoint derives the author from authenticated 
 ## Acceptance boundaries
 
 Source/build checks and synthetic Docker/MySQL qualification are not human acceptance. Only the hosted native runtime with the designated verified accounts, an independent human action, negative access tests and a physical iPhone Safari run can complete the live milestone. The short physical-device sequence must be executed after the app is actually ready; planned steps do not count as results.
+
+## Hosted observation — 17 October 2026, 04:34 UTC
+
+The exact private-bootstrap source `3435c8356fa2b208c840393f8f5b89ccddc22420` passed [actual non-deploying CI 39001338720](https://github.com/fairoosansar-coder/dragon-dawwa-engine/actions/runs/39001338720), including **36 native HTTP + 16 model tests**, account-free creation/restart and refusal to initialize over fixture accounts. The corresponding separate Railway HumHub deployment `864c29ea-f4b8-4a10-8d79-61bab638c384` completed native installation/migrations and the protected marker. Its actual scoped helper verified **space 1 / content container 1; users 0, memberships 0, posts 0, grants 0, reviews 0; no guests/registration/auto-join; bearer-only**. No fixture script was used on hosted staging.
+
+HTTP readiness is nevertheless **failed**: Apache reports `AH00534: More than one MPM loaded`, with both `mpm_event` and `mpm_prefork` enabled in the hosted image. Queue/cron run but Apache is FATAL; the bounded HTTPS watcher ended at **502 after 605 seconds**. A new minimal image/boot correction forces exactly PHP-compatible prefork, validates Apache configuration, and injects the observed duplication only into disposable CI to prove recovery. Do not claim this replacement qualified before its exact new run passes.
+
+The verified actual space ID `1` and **initialization=no** were then saved in protected HumHub settings, with no extra volume/account grant. The provider also started an old-source redeployment when the modal's Deploy Changes button received Alt-click: **that modal operation is not established as apply-only**. Preserve the native volume/space and never reset it. New-source activation must remain successful-CI gated and staging only.
+
+A generic text-entry attempt initially missed the terminal and produced an unintended **unapplied** function draft. It was individually reviewed and discarded before any deploy; exactly the four approved services and no extra pending resource remain. Subsequent checks used the console's actual editable xterm textarea with normal paste/Enter events, not page keyboard shortcuts.
+
+Google sign-in, three actual distinct account emails, verified subject enrollment, hosted independent-human flow and physical iPhone Safari remain pending. The app is offline, so its reserved hostname is not a working flow URL.
