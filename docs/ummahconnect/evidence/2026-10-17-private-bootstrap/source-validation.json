@@ -18,7 +18,10 @@
   "shellSyntax": "pass",
   "diffCheck": "pass",
   "pinnedYiiCallableAndCollectionProbe": "pass, no database mutation",
-  "nativeBootstrapQualification": "PASS at 3435c8356fa2b208c840393f8f5b89ccddc22420, CI 39001338720",
+  "nativeBootstrapQualification": "PASS at 66a1adb0052b56a0c094eb43ce0b1259bfc37a4f, CI 39003367427",
   "googleLoginTested": false,
-  "physicalIPhoneSafariTested": false
+  "physicalIPhoneSafariTested": false,
+  "validatedAtUtc": "2026-10-17T04:38:07Z",
+  "apacheDuplicateMpmRecovery": "PASS in exact native CI and actual hosted runtime",
+  "hostedHumanAcceptance": false
 }

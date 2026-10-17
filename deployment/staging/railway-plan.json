@@ -4,27 +4,27 @@
   "projectId": "48d7a4cf-07dc-489b-8a3d-d6d10142b14e",
   "environmentId": "1f7d98bf-1d49-4d9f-a5cc-13b57abcc095",
   "environmentName": "staging",
-  "actualState": "three-persistent-volumes-applied-two-private-mysql-services-online-identity-schema-initialized-app-humhub-offline",
+  "actualState": "qualified-native-humhub-https-active-private-account-free-app-offline-google-human-device-pending",
   "activationApproved": true,
   "applicationHttpsUrl": null,
   "reservedApplicationHttpsUrl": "https://ummah-app-staging.up.railway.app",
   "reservedHumhubHttpsUrl": "https://ummah-humhub-staging.up.railway.app",
   "reservedGoogleCallback": "https://ummah-app-staging.up.railway.app/auth/callback",
   "hostnameReadiness": {
-    "checkedAtUtc": "2026-10-17T02:25:58.196062+00:00",
+    "checkedAtUtc": "2026-10-17T04:53:51Z",
     "httpStatus": 404,
     "tlsVerifyResult": 0,
     "liveApplicationReady": false
   },
   "humhubHostnameReadiness": {
-    "checkedAtUtc": "2026-10-17T02:25:58.196062+00:00",
-    "httpStatus": 404,
+    "checkedAtUtc": "2026-10-17T04:49:40Z",
+    "httpStatus": 401,
     "tlsVerifyResult": 0,
-    "liveHumhubReady": false
+    "liveHumhubReady": true,
+    "scope": "Native anonymous API/private storage only; no Google/member/human acceptance"
   },
   "identityDesign": "existing Google OIDC subject/session implementation, isolated secrets/database, private same-container loopback listener",
-  "qualifiedRuntimeCommit": "558cf5c53775d2412ef3d9f8e1fddcdf9e298d22",
-  "qualifiedEvidenceCommit": "b0d3de57e19e7a5831675540959f209fd09008a3",
+  "qualifiedRuntimeCommit": "66a1adb0052b56a0c094eb43ce0b1259bfc37a4f",
   "sourceSnapshotAtPreparation": "fbb08173611800a20e1bc9e81a645656f8c6ef15",
   "preparedSourceBranch": "development/ummahconnect-railway-activation-20261017",
   "plannedServices": [
@@ -135,7 +135,9 @@
       "pendingChangeCount": 0,
       "generatedProtectedSecretCount": 3,
       "runningDeployment": false,
-      "providerStatus": "Service is offline"
+      "providerStatus": "Service is offline",
+      "sourceBranch": "development/ummahconnect-railway-activation-20261017",
+      "accountMapping": "empty; no real subjects enrolled"
     },
     {
       "name": "ummah-humhub",
@@ -145,11 +147,19 @@
       "replicas": 1,
       "sourcePrepared": true,
       "sourceApplied": true,
-      "preparedVariableCount": 8,
+      "preparedVariableCount": 10,
       "pendingChangeCount": 0,
       "generatedProtectedSecretCount": 1,
-      "runningDeployment": false,
-      "providerStatus": "Service is offline"
+      "runningDeployment": true,
+      "providerStatus": "Online",
+      "deploymentId": "5aed714c-4f36-4651-9eb3-6b9e58f647d1",
+      "deployedCommit": "66a1adb0052b56a0c094eb43ce0b1259bfc37a4f",
+      "sourceBranch": "development/ummahconnect-native-hardening-private-bootstrap-20261017",
+      "initialization": "no",
+      "actualModeratedSpaceIds": [
+        1
+      ],
+      "successfulCiGate": true
     },
     {
       "name": "ummah-humhub-mysql",
@@ -164,9 +174,10 @@
       "generatedProtectedSecretCount": 2,
       "runningDeployment": true,
       "providerStatus": "Online",
-      "deploymentId": "3ff26047-c006-4846-8586-ff57b6e09cdb",
       "sqlProbePassed": true,
-      "mysqlVersion": "8.4.11"
+      "mysqlVersion": "8.4.11",
+      "historicalActivationDeploymentId": "3ff26047-c006-4846-8586-ff57b6e09cdb",
+      "binaryLogging": false
     },
     {
       "name": "ummah-identity-mysql",
@@ -192,28 +203,40 @@
   "oauthConfigured": false,
   "realAccountsEnrolled": false,
   "humhubInitializationEnabled": false,
-  "moderatedCommunityIdsConfigured": false,
+  "moderatedCommunityIdsConfigured": true,
   "blockers": [
-    "Separate staging Google Cloud project/Web client and protected OIDC settings with canonical callback",
-    "Designated author, different human reviewer and login-permitted/community-excluded account; private community and intended rights",
-    "Actual HumHub first boot/REST/native migrations, real private community IDs, scoped grants, per-member tokens and verified subject mappings",
-    "Deploy app/HumHub after identity and native policy guards are satisfied",
-    "Hosted HTTPS human-flow/negative/operational acceptance",
-    "Physical iPhone Safari acceptance"
+    "Owner Google sign-in for already-authorized separate staging project/Web OAuth client",
+    "Three actual distinct author/different-human reviewer/excluded account emails and genuine verified-subject enrollment",
+    "Protected native account linking/scoped permissions/per-member bearer map and qualified app deployment",
+    "Hosted real Google independent-human/negative/member/excluded acceptance",
+    "Physical iPhone Safari acceptance",
+    "Separate original 13-file recovery remains unrecovered"
   ],
   "productionModified": false,
   "aishuModified": false,
   "paymentActionPerformed": false,
   "approvalRecordedAt": "2026-10-16T12:07:14Z",
-  "observedAtUtc": "2026-10-17T02:31:22Z",
+  "observedAtUtc": "2026-10-17T04:53:18Z",
   "hostedDatabaseActivation": {
     "status": "two private MySQL services deployed; both non-root SQL probes passed",
     "identitySchemaInitialized": true,
     "identityRoleCount": 0,
-    "humhubNativeSchemaInitialized": false
+    "humhubNativeSchemaInitialized": true,
+    "nativeTableCount": 50
   },
-  "status": "private databases active; identity schema initialized; app and HumHub source applied but offline",
+  "status": "native HTTPS/bootstrap/private boundaries verified; app offline pending real Google/human/device gates",
   "lastAppliedChangeCount": 55,
-  "configurationAppliedWithoutSourceDeployment": true,
-  "activationRecordBranch": "development/ummahconnect-volume-activation-20261017"
+  "configurationAppliedWithoutSourceDeployment": false,
+  "activationRecordBranch": "development/ummahconnect-volume-activation-20261017",
+  "qualifiedNativeCiRun": "39003367427",
+  "humhubBackendHttpsUrl": "https://ummah-humhub-staging.up.railway.app",
+  "moderatedCommunityIds": [
+    1
+  ],
+  "humhubNativeSchemaInitialized": true,
+  "previousQualifiedEvidenceCommit": "b0d3de57e19e7a5831675540959f209fd09008a3",
+  "nativeSourceBranch": "development/ummahconnect-native-hardening-private-bootstrap-20261017",
+  "hostedGoogleHumanAcceptancePassed": false,
+  "physicalIPhoneSafariTested": false,
+  "nativeRuntimeEvidence": "docs/ummahconnect/evidence/2026-10-17-private-bootstrap/hosted-corrected-runtime-verification.json"
 }

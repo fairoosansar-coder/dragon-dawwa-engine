@@ -1,0 +1,101 @@
+{
+  "kind": "hosted-native-anonymous-boundary-audit",
+  "checkedAtUtc": "2026-10-17T04:49:40.379546+00:00",
+  "results": [
+    {
+      "name": "anonymous approved feed denied",
+      "url": "https://ummah-humhub-staging.up.railway.app/api/v1/ummahreview/posts?spaceId=1",
+      "httpStatus": 401,
+      "expected": [
+        401,
+        403
+      ],
+      "result": "pass",
+      "cacheControl": "private, no-store",
+      "tlsVerified": true
+    },
+    {
+      "name": "anonymous own submissions denied",
+      "url": "https://ummah-humhub-staging.up.railway.app/api/v1/ummahreview/submissions?spaceId=1",
+      "httpStatus": 401,
+      "expected": [
+        401,
+        403
+      ],
+      "result": "pass",
+      "cacheControl": "private, no-store",
+      "tlsVerified": true
+    },
+    {
+      "name": "anonymous review queue denied",
+      "url": "https://ummah-humhub-staging.up.railway.app/api/v1/ummahreview/reviews?spaceId=1",
+      "httpStatus": 401,
+      "expected": [
+        401,
+        403
+      ],
+      "result": "pass",
+      "cacheControl": "private, no-store",
+      "tlsVerified": true
+    },
+    {
+      "name": "anonymous current identity denied",
+      "url": "https://ummah-humhub-staging.up.railway.app/api/v1/auth/current",
+      "httpStatus": 401,
+      "expected": [
+        401,
+        403
+      ],
+      "result": "pass",
+      "cacheControl": "no-store, no-cache, must-revalidate",
+      "tlsVerified": true
+    },
+    {
+      "name": "anonymous private configuration denied",
+      "url": "https://ummah-humhub-staging.up.railway.app/protected/config/dynamic.php",
+      "httpStatus": 403,
+      "expected": [
+        403,
+        404
+      ],
+      "result": "pass",
+      "cacheControl": null,
+      "tlsVerified": true
+    },
+    {
+      "name": "anonymous runtime directory denied",
+      "url": "https://ummah-humhub-staging.up.railway.app/protected/runtime/",
+      "httpStatus": 403,
+      "expected": [
+        403,
+        404
+      ],
+      "result": "pass",
+      "cacheControl": null,
+      "tlsVerified": true
+    },
+    {
+      "name": "anonymous private upload directory denied",
+      "url": "https://ummah-humhub-staging.up.railway.app/uploads/file/",
+      "httpStatus": 403,
+      "expected": [
+        403,
+        404
+      ],
+      "result": "pass",
+      "cacheControl": null,
+      "tlsVerified": true
+    }
+  ],
+  "passed": 7,
+  "failed": 0,
+  "credentialsUsed": false,
+  "accountsCreated": 0,
+  "contentCreated": 0,
+  "googleLoginTested": false,
+  "independentHumanReviewTested": false,
+  "memberOrExcludedAccountTested": false,
+  "physicalIPhoneSafariTested": false,
+  "scope": "Anonymous HTTPS denial and URL-level private storage only; no member/human acceptance.",
+  "queueRouteAuthority": "Events.php maps GET ummahreview/reviews to review/queue; prior /queue audit URL was invalid."
+}

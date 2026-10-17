@@ -1,0 +1,27 @@
+{
+  "conclusion": "success",
+  "headSha": "66a1adb0052b56a0c094eb43ce0b1259bfc37a4f",
+  "status": "completed",
+  "url": "https://github.com/fairoosansar-coder/dragon-dawwa-engine/actions/runs/39003367427",
+  "runId": "39003367427",
+  "nativeSummary": {
+    "kind": "actual-native-container-summary",
+    "mysql": "8.4",
+    "httpPassed": 36,
+    "modelPassed": 16,
+    "failed": 0,
+    "appImageBuilt": true,
+    "humhubImageBuilt": true,
+    "queueCronWorkers": "pass",
+    "persistentRestart": "pass",
+    "accountFreePrivateBootstrap": "pass",
+    "apacheDuplicateMpmRecovery": "pass",
+    "ordinaryGuestPrivateSpaceDenied": "pass",
+    "firstBootOverExistingAccountsDenied": "pass",
+    "privateMarkerRestartWithAccounts": "pass",
+    "humanParticipation": false,
+    "realGoogleLoginTested": false,
+    "physicalIPhoneSafariTested": false,
+    "hostedEnvironmentTested": false
+  }
+}

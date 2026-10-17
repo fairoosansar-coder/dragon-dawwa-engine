@@ -1,0 +1,13 @@
+{
+  "kind": "hosted-anonymous-readiness",
+  "checkedAtUtc": "2026-10-17T04:48:00.287862+00:00",
+  "url": "https://ummah-humhub-staging.up.railway.app/api/v1/ummahreview/posts?spaceId=1",
+  "httpStatus": 401,
+  "tlsVerified": true,
+  "cacheControl": "private, no-store",
+  "elapsedSeconds": 163,
+  "googleLoginTested": false,
+  "humanParticipation": false,
+  "physicalIPhoneSafariTested": false,
+  "privateDatabaseVerified": false
+}
