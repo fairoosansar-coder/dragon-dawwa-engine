@@ -1,0 +1,12 @@
+{
+  "checkedAtUtc": "2026-10-17T07:37:55.901529+00:00",
+  "nativeOrigin": "https://ummah-humhub-staging.up.railway.app",
+  "loginHttpStatus": 403,
+  "intentionalDenialMessage": true,
+  "loginNoStore": true,
+  "anonymousBearerHttpStatus": 401,
+  "tlsVerified": true,
+  "workingMainAppLoginClaimed": false,
+  "humanReviewTested": false,
+  "physicalSafariTested": false
+}

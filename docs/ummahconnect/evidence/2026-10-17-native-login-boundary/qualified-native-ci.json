@@ -1,0 +1,89 @@
+{
+  "runId": "39013729511",
+  "result": {
+    "conclusion": "success",
+    "headSha": "44ee3bb5f39b275de84832e15fa02ae82c7b14f7",
+    "status": "completed",
+    "url": "https://github.com/fairoosansar-coder/dragon-dawwa-engine/actions/runs/39013729511"
+  },
+  "summaries": [
+    {
+      "ok": true,
+      "mode": "standard",
+      "checkCount": 11,
+      "checks": {
+        "isolation_guards": true,
+        "effective_uid": true,
+        "bootstrap_initialization": true,
+        "runtime_path": true,
+        "cache_path": true,
+        "cache_sentinel_write": true,
+        "cache_sentinel_read": true,
+        "cache_sentinel_delete": true,
+        "bootstrap5_i18n_source": true,
+        "bootstrap5_translation": true,
+        "bootstrap5_alert_render": true
+      }
+    },
+    {
+      "ok": true,
+      "mode": "standard",
+      "checkCount": 11,
+      "checks": {
+        "isolation_guards": true,
+        "effective_uid": true,
+        "bootstrap_initialization": true,
+        "runtime_path": true,
+        "cache_path": true,
+        "cache_sentinel_write": true,
+        "cache_sentinel_read": true,
+        "cache_sentinel_delete": true,
+        "bootstrap5_i18n_source": true,
+        "bootstrap5_translation": true,
+        "bootstrap5_alert_render": true
+      }
+    },
+    {
+      "ok": true,
+      "mode": "standard",
+      "checkCount": 11,
+      "checks": {
+        "isolation_guards": true,
+        "effective_uid": true,
+        "bootstrap_initialization": true,
+        "runtime_path": true,
+        "cache_path": true,
+        "cache_sentinel_write": true,
+        "cache_sentinel_read": true,
+        "cache_sentinel_delete": true,
+        "bootstrap5_i18n_source": true,
+        "bootstrap5_translation": true,
+        "bootstrap5_alert_render": true
+      }
+    },
+    {
+      "kind": "actual-native-container-summary",
+      "mysql": "8.4",
+      "httpPassed": 36,
+      "modelPassed": 16,
+      "failed": 0,
+      "appImageBuilt": true,
+      "humhubImageBuilt": true,
+      "queueCronWorkers": "pass",
+      "persistentRestart": "pass",
+      "accountFreePrivateBootstrap": "pass",
+      "apacheDuplicateMpmRecovery": "pass",
+      "ordinaryGuestPrivateSpaceDenied": "pass",
+      "firstBootOverExistingAccountsDenied": "pass",
+      "privateMarkerRestartWithAccounts": "pass",
+      "humanParticipation": false,
+      "realGoogleLoginTested": false,
+      "physicalIPhoneSafariTested": false,
+      "hostedEnvironmentTested": false
+    }
+  ],
+  "nativeBrowserBoundaryChecks": "passed before fixtures and after restart by harness",
+  "forcedDocrootRuntimeMaterialization": "passed in disposable container",
+  "hostedEnvironmentTested": false,
+  "humanParticipation": false
+}

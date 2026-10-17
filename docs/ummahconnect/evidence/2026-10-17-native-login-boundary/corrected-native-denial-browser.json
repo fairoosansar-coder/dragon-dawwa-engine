@@ -1,0 +1,20 @@
+{
+  "checkedAtUtc": "2026-10-17T07:47:02.977Z",
+  "url": "https://ummah-humhub-staging.up.railway.app/user/auth/login",
+  "httpStatus": 403,
+  "browser": "154.0.8037.57",
+  "viewport": {
+    "width": 1280,
+    "height": 900
+  },
+  "title": "Error - UmmahConnect isolated staging",
+  "intentionalMessageVisible": true,
+  "pageErrorClasses": [],
+  "tlsVerified": true,
+  "credentialFree": true,
+  "apiSuccessMocked": false,
+  "mainGoogleLoginTested": false,
+  "independentHumanReviewTested": false,
+  "physicalIPhoneSafariTested": false,
+  "taskBrowserCaptureIssue": "Task browser reset to about:blank after capture; this separate fresh desktop Chromium captured the actual hosted response."
+}

@@ -1,0 +1,149 @@
+{
+  "checkedAtUtc": "2026-10-17T07:39:05.110534+00:00",
+  "origin": "https://ummah-humhub-staging.up.railway.app",
+  "tlsVerified": true,
+  "passed": 17,
+  "failed": 0,
+  "results": [
+    {
+      "method": "GET",
+      "path": "/user/auth/login",
+      "httpStatus": 403,
+      "pass": true,
+      "noStore": true,
+      "intentionalMessage": true
+    },
+    {
+      "method": "GET",
+      "path": "/user/auth/password",
+      "httpStatus": 403,
+      "pass": true,
+      "noStore": true,
+      "intentionalMessage": true
+    },
+    {
+      "method": "GET",
+      "path": "/user/auth/register",
+      "httpStatus": 403,
+      "pass": true,
+      "noStore": true,
+      "intentionalMessage": true
+    },
+    {
+      "method": "GET",
+      "path": "/user/auth/external",
+      "httpStatus": 403,
+      "pass": true,
+      "noStore": true,
+      "intentionalMessage": true
+    },
+    {
+      "method": "GET",
+      "path": "/index.php/user/auth/login",
+      "httpStatus": 403,
+      "pass": true,
+      "noStore": true,
+      "intentionalMessage": true
+    },
+    {
+      "method": "GET",
+      "path": "/?r=user%2Fauth%2Flogin",
+      "httpStatus": 403,
+      "pass": true,
+      "noStore": true,
+      "intentionalMessage": true
+    },
+    {
+      "method": "GET",
+      "path": "/index.php?r=user%2Fauth%2Flogin",
+      "httpStatus": 403,
+      "pass": true,
+      "noStore": true,
+      "intentionalMessage": true
+    },
+    {
+      "method": "POST",
+      "path": "/user/auth/password",
+      "httpStatus": 403,
+      "pass": true,
+      "noStore": true,
+      "intentionalMessage": true
+    },
+    {
+      "method": "GET",
+      "path": "/?r%5B%5D=user%2Fauth%2Flogin",
+      "httpStatus": 400,
+      "pass": true,
+      "noStore": true,
+      "intentionalMessage": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/auth/current",
+      "httpStatus": 401,
+      "pass": true,
+      "noStore": true,
+      "intentionalMessage": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ummahreview/posts",
+      "httpStatus": 401,
+      "pass": true,
+      "noStore": true,
+      "intentionalMessage": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ummahreview/post/1",
+      "httpStatus": 401,
+      "pass": true,
+      "noStore": true,
+      "intentionalMessage": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ummahreview/submissions",
+      "httpStatus": 401,
+      "pass": true,
+      "noStore": true,
+      "intentionalMessage": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ummahreview/reviews",
+      "httpStatus": 401,
+      "pass": true,
+      "noStore": true,
+      "intentionalMessage": null
+    },
+    {
+      "method": "GET",
+      "path": "/protected/config/dynamic.php",
+      "httpStatus": 403,
+      "pass": true,
+      "noStore": false,
+      "intentionalMessage": null
+    },
+    {
+      "method": "GET",
+      "path": "/protected/runtime/",
+      "httpStatus": 403,
+      "pass": true,
+      "noStore": false,
+      "intentionalMessage": null
+    },
+    {
+      "method": "GET",
+      "path": "/uploads/file/",
+      "httpStatus": 403,
+      "pass": true,
+      "noStore": false,
+      "intentionalMessage": null
+    }
+  ],
+  "accountOrContentMutation": false,
+  "independentHumanReviewTested": false,
+  "physicalIPhoneSafariTested": false,
+  "mainGoogleLoginTested": false
+}

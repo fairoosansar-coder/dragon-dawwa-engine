@@ -11,20 +11,21 @@
   "reservedHumhubHttpsUrl": "https://ummah-humhub-staging.up.railway.app",
   "reservedGoogleCallback": "https://ummah-app-staging.up.railway.app/auth/callback",
   "hostnameReadiness": {
-    "checkedAtUtc": "2026-10-17T06:21:44.790386+00:00",
+    "checkedAtUtc": "2026-10-17T07:45:27.157145+00:00",
     "httpStatus": 404,
     "tlsVerifyResult": 0,
     "liveApplicationReady": false
   },
   "humhubHostnameReadiness": {
-    "checkedAtUtc": "2026-10-17T04:49:40Z",
+    "checkedAtUtc": "2026-10-17T07:39:05.110534+00:00",
     "httpStatus": 401,
     "tlsVerifyResult": 0,
     "liveHumhubReady": true,
-    "scope": "Native anonymous API/private storage only; no Google/member/human acceptance"
+    "nativeBrowserLoginHttpStatus": 403,
+    "scope": "17 anonymous/native auth/API/private-path checks; no real member/human/Google acceptance"
   },
   "identityDesign": "existing Google OIDC subject/session implementation, isolated secrets/database, private same-container loopback listener",
-  "qualifiedRuntimeCommit": "66a1adb0052b56a0c094eb43ce0b1259bfc37a4f",
+  "qualifiedRuntimeCommit": "44ee3bb5f39b275de84832e15fa02ae82c7b14f7",
   "sourceSnapshotAtPreparation": "fbb08173611800a20e1bc9e81a645656f8c6ef15",
   "preparedSourceBranch": "development/ummahconnect-railway-activation-20261017",
   "plannedServices": [
@@ -153,9 +154,9 @@
       "generatedProtectedSecretCount": 1,
       "runningDeployment": true,
       "providerStatus": "Online",
-      "deploymentId": "5aed714c-4f36-4651-9eb3-6b9e58f647d1",
-      "deployedCommit": "66a1adb0052b56a0c094eb43ce0b1259bfc37a4f",
-      "sourceBranch": "development/ummahconnect-native-hardening-private-bootstrap-20261017",
+      "deploymentId": "934b51d6-7c64-4d51-94a4-cbc4504ff0f7",
+      "deployedCommit": "44ee3bb5f39b275de84832e15fa02ae82c7b14f7",
+      "sourceBranch": "development/ummahconnect-native-login-boundary-20261017",
       "initialization": "no",
       "actualModeratedSpaceIds": [
         1
@@ -238,7 +239,7 @@
   "aishuModified": false,
   "paymentActionPerformed": false,
   "approvalRecordedAt": "2026-10-16T12:07:14Z",
-  "observedAtUtc": "2026-10-17T06:23:42Z",
+  "observedAtUtc": "2026-10-17T07:44:29Z",
   "hostedDatabaseActivation": {
     "status": "two private MySQL services deployed; both non-root SQL probes passed",
     "identitySchemaInitialized": true,
@@ -246,22 +247,24 @@
     "humhubNativeSchemaInitialized": true,
     "nativeTableCount": 50
   },
-  "status": "native HTTPS and staging OAuth configuration verified; app offline pending actual participant subjects, independent human review and physical Safari",
+  "status": "native login/runtime repair and private HTTPS/API state verified; Google OAuth configured; app offline pending actual subjects, independent human review and physical Safari",
   "lastAppliedChangeCount": 55,
   "configurationAppliedWithoutSourceDeployment": false,
   "activationRecordBranch": "development/ummahconnect-volume-activation-20261017",
-  "qualifiedNativeCiRun": "39003367427",
+  "qualifiedNativeCiRun": "39013729511",
   "humhubBackendHttpsUrl": "https://ummah-humhub-staging.up.railway.app",
   "moderatedCommunityIds": [
     1
   ],
   "humhubNativeSchemaInitialized": true,
   "previousQualifiedEvidenceCommit": "b0d3de57e19e7a5831675540959f209fd09008a3",
-  "nativeSourceBranch": "development/ummahconnect-native-hardening-private-bootstrap-20261017",
+  "nativeSourceBranch": "development/ummahconnect-native-login-boundary-20261017",
   "hostedGoogleHumanAcceptancePassed": false,
   "physicalIPhoneSafariTested": false,
-  "nativeRuntimeEvidence": "docs/ummahconnect/evidence/2026-10-17-private-bootstrap/hosted-corrected-runtime-verification.json",
+  "nativeRuntimeEvidence": "docs/ummahconnect/evidence/2026-10-17-native-login-boundary/hosted-runtime-verification.json",
   "oauthLiveLoginVerified": false,
   "lastOAuthAppliedChangeCount": 2,
-  "oauthConfigurationAppliedWithoutSourceDeployment": true
+  "oauthConfigurationAppliedWithoutSourceDeployment": true,
+  "nativeLoginRepairVerified": true,
+  "nativeRepairAppliedChangeCount": 1
 }

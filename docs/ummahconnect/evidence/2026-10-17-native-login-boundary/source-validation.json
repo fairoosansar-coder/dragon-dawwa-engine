@@ -19,8 +19,9 @@
   "typescriptLint": "pass",
   "build": "pass",
   "nativeProbeIsolationRefusal": "pass",
-  "nativeCiStatus": "pending",
-  "hostedRepairDeployed": false,
+  "nativeCiStatus": "pass:39013729511",
+  "hostedRepairDeployed": true,
   "physicalSafariTested": false,
-  "humanReviewTested": false
+  "humanReviewTested": false,
+  "qualifiedDeployedCommit": "44ee3bb5f39b275de84832e15fa02ae82c7b14f7"
 }
