@@ -1,7 +1,8 @@
 import {createServer} from 'node:http';
 import {pathToFileURL} from 'node:url';
 import {createPool} from 'mysql2/promise';
-import {googleAuthResponse,googleModeConfig,canonicalGoogleHost} from './vendor/google-auth.mjs';
+import {googleModeConfig,canonicalGoogleHost} from './vendor/google-auth.mjs';
+import {diagnosedGoogleAuthResponse} from './signinDiagnostics.mjs';
 import {authResponse,verifiedRequestUser,logoutFormToken} from './vendor/auth.mjs';
 const roles=new Set(['owner','reader','author','reviewer','publisher']);
 const PROJECT='48d7a4cf-07dc-489b-8a3d-d6d10142b14e';
@@ -16,7 +17,7 @@ export function database(pool){return{prepare(sql){return{bind(...args){return{a
 export function identityHandler(env,db){return async request=>{
  const settings=validateIdentityConfig(env);const url=new URL(request.url);
  if(url.origin!==settings.origin||!canonicalGoogleHost(request.headers.get('host'),settings.origin))return new Response('Canonical staging host required.',{status:403});
- if(['/auth/login','/auth/callback'].includes(url.pathname))return googleAuthResponse(request,env,{db});
+ if(['/auth/login','/auth/callback'].includes(url.pathname))return diagnosedGoogleAuthResponse(request,env,{db});
  if(['/auth/logout','/auth/logout-all'].includes(url.pathname))return authResponse(request,env,{db});
  if(url.pathname==='/api/review/session'&&request.method==='GET'){
   const user=await verifiedRequestUser(request,env,db);

@@ -206,3 +206,33 @@ test('staging social session resolution uses the corrected private hop with a pr
   assert.equal(identityCookie, 'webdev_app_session=synthetic-signed-session');
   assert.equal(providerAuthorization, 'Bearer synthetic-provider-token');
 });
+
+for (const transportReset of [false, true]) test(`actual private hop ${transportReset ? 'maps socket reset to transport outage' : 'preserves correlated Google authority failure'}`, async t => {
+  const reference = 'uc-auth-0123456789abcdef';
+  const authorityBody = `Sign-in is temporarily unavailable.\nReference: ${reference}`;
+  await privateServer(t, (req, res) => {
+    if (transportReset) { req.socket.destroy(); return; }
+    res.writeHead(503, {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'Set-Cookie': '__Host-dd_oidc_flow=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0',
+    });
+    res.end(authorityBody);
+  });
+  const env = { UMMAH_SOCIAL_ENVIRONMENT: 'isolated-staging', UMMAH_PUBLIC_ORIGIN: 'https://stage.test', UMMAH_IDENTITY_ORIGIN: loopback, UMMAH_IDENTITY_ENVIRONMENT: 'isolated-staging' } as any;
+  let status = 200, body = '';
+  const headers: Record<string, unknown> = {};
+  await configuredStagingAuthMiddleware(env)({ url: '/auth/callback?code=synthetic&state=synthetic', method: 'GET', headers: { host: canonicalHost } } as any, {
+    setHeader(name: string, value: unknown) { headers[name] = value; },
+    set statusCode(value: number) { status = value; },
+    end(value?: Buffer | string) { body = value?.toString() || ''; },
+  } as any, () => assert.fail('auth path must be handled'));
+  assert.equal(status, 503);
+  assert.equal(headers['Cache-Control'], 'no-store');
+  assert.equal(body, transportReset ? 'Staging identity authority unavailable.' : authorityBody);
+  assert.doesNotMatch(body, /code=|state=|synthetic|private-secret/i);
+  if (!transportReset) {
+    assert.deepEqual(headers['Set-Cookie'], ['__Host-dd_oidc_flow=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0']);
+    assert.doesNotMatch((headers['Set-Cookie'] as string[]).join(';'), /webdev_app_session=/);
+  }
+});

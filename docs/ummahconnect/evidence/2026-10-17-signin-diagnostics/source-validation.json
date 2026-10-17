@@ -1,0 +1,18 @@
+{
+  "localNode": "22.13.0",
+  "applicationTests": {"passed": 65, "failed": 0},
+  "identityTests": {"passed": 35, "failed": 0, "includesOriginalAuthorityProvenance": true, "diagnosticCallbackPrivacyCases": 16},
+  "actualLoopbackTransportSubset": {"passed": 14, "failed": 0},
+  "lint": "passed",
+  "build": "passed; existing chunk-size warnings only",
+  "diffCheck": "passed",
+  "googleVendorSha256": "2bbc7681aa589707d4266c71604711fbf6d2001a88e02800aca14906a8448b3a",
+  "vendorFilesChanged": false,
+  "nativeRuntimeSourceChanged": false,
+  "uiSourceChanged": false,
+  "pinnedNode24NativeCi": "pending exact source revision",
+  "originalFailureCause": "unconfirmed",
+  "humanGoogleReviewerLoginAccepted": false,
+  "humanReviewAccepted": false,
+  "physicalIPhoneSafariTested": false
+}

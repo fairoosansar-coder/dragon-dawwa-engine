@@ -8,6 +8,7 @@ on:
       - development/ummahconnect-native-login-boundary-20261017
       - development/ummahconnect-app-identity-host-20261017
       - development/ummahconnect-real-member-provisioning-20261017
+      - development/ummahconnect-signin-diagnostics-20261017
   workflow_dispatch:
 
 permissions:
@@ -38,7 +39,7 @@ jobs:
           npm ci --no-audit --no-fund
           npm ci --prefix deployment/staging/identity --no-audit --no-fund
           node --import tsx --test tests/*.test.ts integrations/social/social.test.mjs
-          node --test deployment/staging/identity/test.mjs
+          npm test --prefix deployment/staging/identity
       - name: Build and qualify isolated native containers
         shell: bash
         run: bash scripts/qualify-native-container.sh
