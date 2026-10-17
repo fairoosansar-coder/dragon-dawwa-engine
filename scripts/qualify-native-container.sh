@@ -411,6 +411,7 @@ printf 'Native container phase: %s\n' "$phase"
 review_count_before="$(mysql_scalar 'SELECT COUNT(*) FROM ummah_review')" || fail
 event_count_before="$(mysql_scalar 'SELECT COUNT(*) FROM ummah_review_event')" || fail
 fixture_count_before="$(mysql_scalar "SELECT COUNT(*) FROM user WHERE username IN ('ummah-author','ummah-reviewer','ummah-excluded')")" || fail
+[[ "$(mysql_scalar "SELECT COUNT(*) FROM ummah_review WHERE space_id<>${private_space_before}")" == '0' ]] || fail
 
 phase='reject-first-boot-over-existing-accounts'
 printf 'Native container phase: %s\n' "$phase"
@@ -437,6 +438,7 @@ printf 'Native container phase: %s\n' "$phase"
 [[ "$(mysql_scalar 'SELECT COUNT(*) FROM ummah_review')" == "$review_count_before" ]] || fail
 [[ "$(mysql_scalar 'SELECT COUNT(*) FROM ummah_review_event')" == "$event_count_before" ]] || fail
 [[ "$(mysql_scalar "SELECT COUNT(*) FROM user WHERE username IN ('ummah-author','ummah-reviewer','ummah-excluded')")" == "$fixture_count_before" ]] || fail
+[[ "$(mysql_scalar "SELECT COUNT(*) FROM ummah_review WHERE space_id<>${private_space_before}")" == '0' ]] || fail
 quiet docker exec "$HUMHUB_CONTAINER" sh -c "test -f '${FIXTURE_PATH}' && test \$(stat -c '%a' '${FIXTURE_PATH}') = 600" || fail
 
 phase='write-runner-local-report'

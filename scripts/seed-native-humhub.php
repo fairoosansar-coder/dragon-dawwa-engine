@@ -40,9 +40,14 @@ foreach (['author','reviewer','excluded'] as $role) {
     $fixture['accounts'][$role] = ['id'=>(int)$user->id,'username'=>$user->username,'password'=>$password,'token'=>$bearer->newToken];
 }
 $app->user->switchIdentity(User::findOne($fixture['accounts']['author']['id']));
-$space = new Space(['name'=>'Native fixture permitted community','description'=>'Sandbox qualification only; not verified scholarship.','visibility'=>Space::VISIBILITY_NONE]);
+$space = Space::findOne(['name'=>'UmmahConnect Staging Review']);
+if ($space && ((int)$space->visibility !== Space::VISIBILITY_NONE || (int)$space->join_policy !== Space::JOIN_POLICY_NONE
+    || (int)$space->auto_add_new_members !== 0 || (int)Membership::find()->where(['space_id'=>$space->id])->count() !== 0)) {
+    throw new RuntimeException('Refuse to reuse a nonempty or nonprivate bootstrap fixture space.');
+}
+$space ??= new Space(['name'=>'Native fixture permitted community','description'=>'Sandbox qualification only; not verified scholarship.','visibility'=>Space::VISIBILITY_NONE]);
 // Operator-side fixture creation, not an assertion that members can create spaces.
-if (!$space->save(false)) { throw new RuntimeException('Fixture space failed.'); }
+if ($space->isNewRecord && !$space->save(false)) { throw new RuntimeException('Fixture space failed.'); }
 $fixture['spaceId']=(int)$space->id;
 foreach (['author','reviewer'] as $role) {
     $uid=$fixture['accounts'][$role]['id'];
