@@ -34,9 +34,7 @@ function provisionTestPublicKey(): string
     provisionTestRequire($key !== false, 'key_generation');
     $details = openssl_pkey_get_details($key);
     provisionTestRequire(is_array($details) && is_string($details['key'] ?? null), 'key_generation');
-    if (is_resource($key) || $key instanceof OpenSSLAsymmetricKey) {
-        openssl_free_key($key);
-    }
+    unset($key); // PHP 8 OpenSSLAsymmetricKey objects release automatically.
     return $details['key'];
 }
 
@@ -98,7 +96,7 @@ function provisionTestMain(): int
     } catch (Throwable $error) {
         // Do not expose generated email, reference, token, paths, exception
         // text, SQL diagnostics, or traces from this qualification helper.
-        echo json_encode(['ok' => false, 'code' => 'fixture_rollback_failed', 'provisionFailureCode' => $provisionFailureCode ?? null, 'hookReached' => $hookReached ?? false], JSON_UNESCAPED_SLASHES), PHP_EOL;
+        echo json_encode(['ok' => false, 'code' => 'fixture_rollback_failed', 'provisionFailureCode' => $provisionFailureCode ?? null, 'hookReached' => $hookReached ?? false, 'errorClass' => get_class($error), 'errorFile' => basename($error->getFile()), 'errorLine' => $error->getLine()], JSON_UNESCAPED_SLASHES), PHP_EOL;
         return 1;
     }
 }

@@ -148,9 +148,7 @@ function enrollmentValidateInput(array $input): array
     $key = @openssl_pkey_get_public($publicKeyPem);
     enrollmentRequire($key !== false, 'public_key');
     $details = openssl_pkey_get_details($key);
-    if (is_resource($key) || $key instanceof OpenSSLAsymmetricKey) {
-        openssl_free_key($key);
-    }
+    unset($key); // PHP 8 OpenSSLAsymmetricKey objects release automatically.
     enrollmentRequire(is_array($details)
         && ($details['type'] ?? null) === OPENSSL_KEYTYPE_RSA
         && is_int($details['bits'] ?? null)
