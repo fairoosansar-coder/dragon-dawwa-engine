@@ -260,7 +260,8 @@
     "Real main-interface submission, independent human approve/reject and permitted/excluded access",
     "Original login-start failure cause unconfirmed; trace uc-auth reference if symptom recurs",
     "Physical iPhone Safari acceptance",
-    "Original interrupted 13-file recovery remains separate and unrecovered"
+    "Original interrupted 13-file recovery remains separate and unrecovered",
+    "Anonymous login copy still contains generic pre-linking wording; reconcile during main-interface acceptance."
   ],
   "productionModified": false,
   "aishuModified": false,

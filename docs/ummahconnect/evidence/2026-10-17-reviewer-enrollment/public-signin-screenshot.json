@@ -10,5 +10,6 @@
   "pageErrors": [],
   "horizontalOverflow": false,
   "scope": "Actual hosted anonymous main-interface rendering; desktop Chromium with mobile viewport. No mocked API, Reviewer session, post or human decision.",
-  "physicalIPhoneSafari": false
+  "physicalIPhoneSafari": false,
+  "copyLimitation": "Anonymous page retains generic pre-linking/authority-pending wording even though backend invitations are active; this is not an authenticated Reviewer screenshot."
 }
