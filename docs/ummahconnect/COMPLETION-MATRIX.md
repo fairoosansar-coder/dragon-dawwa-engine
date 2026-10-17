@@ -1,11 +1,11 @@
 # 33-screen completion matrix
 
-Updated 2026-10-17 07:47 UTC: qualified/deployed native repair `44ee3bb5f39b275de84832e15fa02ae82c7b14f7`; reported native login 500 -> intentional 403, 17 hosted anonymous boundary checks and private runtime/cache/state verified. Google OAuth configured; main app offline, actual subject/human/physical Safari gates pending. **No social screen is promoted.** Working describes prior local interaction, not hosted acceptance.
+Updated 2026-10-17 11:36 UTC: app-only source `afb3e234b4b1e13f7516d879c15957e0b18dcc7f` qualified by pinned CI 39028559641 and deployed; actual health 200/session 401/Google-login start 302. Author and different-human Reviewer designated, but Google Author is Signed out; no verified subjects/grants/human/device acceptance. Native and all 33 screen statuses/design remain unchanged. Working describes earlier local interaction, not hosted acceptance.
 
 | # | Screen | Status | Implemented scope / missing capability |
 |---|---|---|---|
 | 1 | Splash & Welcome (`#/screen-1`) | Working | Welcome links and main-app navigation. |
-| 2 | Sign Up / Login (`#/screen-2`) | Blocked | Separate staging identity MySQL/schema active, exact instance marker verified, zero real roles; 19 source tests pass. Staging Google External/Testing Web client and protected credentials are configured; designated accounts, verified subjects and protected native mappings remain pending. Reserved HTTPS host is not a working login. |
+| 2 | Sign Up / Login (`#/screen-2`) | Blocked | Actual app login start 302 to Google, anonymous session 401, secure host-only flow cookie, deployed qualified app Host correction. Author/Reviewer designated; Author currently signed out in task browser. Genuine callback/subject verification and scoped linking remain pending. |
 | 3 | Onboarding & Preferences (`#/screen-3`) | Working | Interest selection and browser-local persistence. |
 | 4 | Home Feed (`#/screen-4`) | UI Only | Approved-only feed passes actual isolated HumHub/MySQL CI; no linked hosted Google sessions or human acceptance yet. |
 | 5 | Create Post (`#/screen-5`) | UI Only | Native draft-first/first-INSERT state=10 and authenticated own pending/rejected list pass controlled/native tests; main UI refresh/reload retained. Hosted actual-account submission/human acceptance pending. |

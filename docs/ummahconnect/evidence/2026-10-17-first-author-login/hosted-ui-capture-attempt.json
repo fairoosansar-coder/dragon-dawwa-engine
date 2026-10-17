@@ -1,0 +1,10 @@
+{
+  "checkedAtUtc": "2026-10-17T11:38:05Z",
+  "method": "Fresh credential-free desktop Chromium, mobile viewport emulation",
+  "requestedRoute": "/#/screen-2",
+  "result": "navigation timeout after 30 seconds; no hosted main UI screenshot obtained",
+  "mockedAPIs": false,
+  "authenticatedMainUiClaimed": false,
+  "physicalIPhoneSafariTested": false,
+  "backendHealthAndLoginPreflightPassedSeparately": true
+}

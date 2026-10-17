@@ -1,51 +1,47 @@
 # Separate Google staging OAuth setup
 
-**Current state: 17 October 2026, 06:23 UTC.** The separate Google project, owner-approved OAuth consent app and Web client are created. The final credentials are saved only in the isolated Railway `ummah-app` protected variables. Apply-only completed with **zero pending changes**; the application is still **offline**. This is OAuth configuration, not successful application login or human review. Production and Aishu are unchanged.
+**Current state (17 October 2026, 11:36 UTC):** the designated Author and confirmed different-human, review-only Reviewer are listed in Google Testing. App-only canonical Host correction `afb3e234b4b1e13f7516d879c15957e0b18dcc7f` passed pinned Node-24 source/container CI **39028559641** and is deployed only to ummah-app (**a23d2272-162f-4e22-8206-b6dd2ee6f386**). Actual HTTPS health is 200, anonymous identity session is 401, and /auth/login returns 302 to Google with a secure host-only flow cookie. Exact deployed source hashes and the regular 0600 empty protected map are verified. The real Google chooser currently shows the designated Author **Signed out**: no genuine callback/subject has been obtained and no app role/native account/membership/grant was created. Native remains at qualified 44ee3bb / deployment 934b51d6-7c64-4d51-94a4-cbc4504ff0f7 with earlier private-state/17 anonymous-boundary proof. Third community-excluded tester, verified subject linking, independent human review and physical iPhone Safari remain gates. All 33 statuses stay 6 locally Working / 20 UI Only / 7 Blocked. Production/Aishu/original-file recovery are unchanged. This is a working login-start URL, not a completed login-to-reviewed-post flow. See GOOGLE-STAGING.md and evidence/2026-10-17-first-author-login/.
 
 ## Configured staging project and client
 
-- Project: **UmmahConnect Staging**, **`ummahconnect-staging-261017`**, number `677673398182`, no organization.
-- Consent name: **UmmahConnect Staging**; audience **External**, publishing status **Testing**. It was not published to production.
-- The owner approved Google's explicit User Data Policy agreement at **2026-10-17 05:46:26 UTC**; the agreed consent form was then submitted.
-- Owner support/notification contact: `ferozansarlk@gmail.com`. This contact is **not a participant designation**.
-- Single OAuth client: **UmmahConnect Staging Web**, type **Web application**.
-- Exactly one redirect: **`https://ummah-app-staging.up.railway.app/auth/callback`**.
-- JavaScript origins remain empty. The optional AI-agent client designation is not selected.
-- Basic identity scopes only: `openid`, `userinfo.email`, `userinfo.profile`; the existing server requests the equivalent **`openid email profile`**. No sensitive/restricted Google API scopes were added.
-- No billing account, purchase, extra project, test user, native user, membership or review grant was added in this setup.
+Project **UmmahConnect Staging**, ID **`ummahconnect-staging-261017`**, number `677673398182`, no organization. The owner approved Google's explicit User Data Policy agreement at 2026-10-17 05:46:26 UTC. Consent audience is **External**, publishing status **Testing**; it was not published to production.
 
-[Project console](https://console.cloud.google.com/home/dashboard?project=ummahconnect-staging-261017). No existing project/client was edited; in particular the pre-existing Aishu project remains excluded.
+The single **UmmahConnect Staging Web** client is a Web application. Its only redirect is **`https://ummah-app-staging.up.railway.app/auth/callback`**. JavaScript origins and optional AI-agent designation remain unset. Basic identity scopes only: `openid`, `userinfo.email`, `userinfo.profile`, equivalent to the existing server's `openid email profile`. No sensitive/restricted Google API scope, billing account or additional project was added.
+
+Owner support/notification contact was configured separately from participant roles. It did not create a role. Later explicit owner author/reviewer designations are preserved in a protected operator record rather than a browser-trusted email map. Both designated accounts are confirmed in Google's Testing list; the excluded tester is still undesignated.
+
+[Project console](https://console.cloud.google.com/home/dashboard?project=ummahconnect-staging-261017). Existing projects/clients, particularly Aishu, are excluded.
 
 ## Protected destination and credential handling
 
-Only project `48d7a4cf-07dc-489b-8a3d-d6d10142b14e`, environment `1f7d98bf-1d49-4d9f-a5cc-13b57abcc095`, service **ummah-app** (`f3756510-4e87-445b-9cfb-9dad042d6758`) received `GOOGLE_OIDC_CLIENT_ID` and `GOOGLE_OIDC_CLIENT_SECRET`. Final staged values were privately compared with the new client inside the browser; only booleans were returned. The provider's apply-only action saved both settings without starting an app deployment. Its masked variable list now contains **26 service variables**, no pending change set, and **Service is offline**.
+Only project `48d7a4cf-07dc-489b-8a3d-d6d10142b14e`, environment `1f7d98bf-1d49-4d9f-a5cc-13b57abcc095`, **ummah-app** service `f3756510-4e87-445b-9cfb-9dad042d6758` received `GOOGLE_OIDC_CLIENT_ID` and `GOOGLE_OIDC_CLIENT_SECRET`. Both were privately compared and persisted with apply-only before app deployment. No value is in this handoff or Git. The 26 protected service settings were privately validated before first app activation, including the valid empty account map and exact private DB reference.
 
-**Security handling:** two unused temporary setup secrets appeared in diagnostic output—first in a Google clipboard attribute and then in a Railway diff button. Both were disabled and deleted **before application use or deployment**. The final fresh replacement was not returned in output and is the sole remaining enabled client secret. No production or pre-existing account credential was altered. The two owned diagnostic files were sanitized; historical private task results cannot be claimed erased. Final temporary browser memory was cleared and the clipboard overwritten with a non-secret marker. Google warns that configuration changes can require propagation time; this record does not claim immediate global revocation timing.
+**Historical security handling:** two unused temporary setup secrets appeared in diagnostic output. Both were disabled and deleted before application use or deployment. The final fresh replacement was not returned in output and is the sole enabled client secret. No production/pre-existing credential was altered. Owned diagnostic files were sanitized; historical private task results cannot be claimed erased. Temporary browser memory was cleared and clipboard overwritten with a non-secret marker. This record does not claim immediate global revocation timing.
 
-No client ID or secret is included in this handoff, Git or exported evidence. Screenshots show masked provider values. Do not open a raw/diff value screenshot or log unredacted clipboard attributes/button text.
+Never capture an unredacted raw/diff settings screen, clipboard attribute, cookie or bearer. Configuration checks return only booleans. Google provider screenshots in earlier evidence show masked values.
 
 ## Testing mode is not community authorization
 
-Google documents a **basic-identity exception**: requests limited to name/email/profile or Sign in with Google do not require users to be on the trusted testing list. Therefore External/Testing and a zero test-user count **must not be used as an access-control boundary**. [1]
+Google documents a **basic-identity exception**: requests limited to name/email/profile or Sign in with Google need not be on the Testing list. Neither Testing status nor list membership is an access-control boundary. [1]
 
-The existing authority already requires a cryptographically verified Google identity, stable issuer/`sub` reference and an enabled current `review_roles` row before creating an application session. It also retains current role/session/revocation checks. Google itself says to use `sub`, not email, as the stable account key and to verify token signature, issuer, audience and expiry. [2] HumHub membership and scoped native grants separately protect the private social community.
+The existing authority verifies Google authorization code, state, nonce, PKCE and ID-token signature/issuer/audience/expiry/verified email; it derives a stable issuer/`sub` reference. It requires an enabled current `review_roles` row before issuing an app session, with role/session/revocation checks retained. An uninvited verified callback returns **403 / Invitation required**, no session, and only a non-secret subject reference. Email does not substitute for that reference. Google specifies `sub`, not email, as the stable key. [2]
 
-Source inspection: `deployment/staging/identity/vendor/google-auth.mjs` requests basic scopes with state/nonce/PKCE, rejects unverified identities, queries current roles by the derived subject reference and returns **403 / Invitation required**, without an app session, for uninvited accounts. This source check and fresh **47 app + 19 identity** passing tests are not live Google acceptance.
+HumHub remains the sole social authority. Enabled native user, current private membership, scoped grant and protected individual bearer mapping are separately required. The app-only Host correction uses bounded `node:http.request` exclusively to `http://127.0.0.1:3001` with the configured public Host; it does not weaken canonical validation, change OIDC authority or alter normal HumHub fetch.
 
 ## Remaining execution gates
 
-1. Obtain three **actual, distinct Google email designations**: author; reviewer belonging to a **different human**; login-permitted but community-excluded tester. Do not infer them from the owner support contact or placeholders.
-2. Add only those designated Google test users where appropriate. Basic-login exceptions still require application-side authorization; never rely on test-user membership alone.
-3. Bind **ummah-app only** to qualified development runtime ancestry, not `main` or the documentation branch, and verify its isolated database/origin/session settings. The application is not yet deployed. Its invitation-required, no-session callback can then establish genuine subject references without granting access automatically.
-4. Explicitly enroll the designated verified references in the separate identity authority. Link native HumHub users and protected per-member credentials only as needed. Author: approved content plus submit/own pending, **no review**. Reviewer: independent approve/reject, **review only**. Excluded tester: application login allowed, **no community membership or grant**. No public/guest access.
-5. Exercise real HTTPS author submission and own pending reload, the different human's approval and rejection, member approved visibility, self-review denial, excluded direct-path/queue denial and revocation. Automated fixtures cannot provide human acceptance.
-6. Run the actual physical iPhone Safari sequence and record hardware/iOS/browser evidence separately from existing desktop Chromium emulation.
+1. Completed: exact app-only correction `afb3e234b4b1e13f7516d879c15957e0b18dcc7f`, CI 39028559641, deployed only to ummah-app a23d2272-162f-4e22-8206-b6dd2ee6f386. Native/main/evidence branches were not deployed.
+2. Anonymous preflight passed: health 200, session 401, login 302 with secure host-only flow cookie. The Google chooser shows Author Signed out; owner must sign in in the task browser and complete a genuine callback. Each designated participant needs a verified issuer/subject reference. No grant is inferred from Testing-list membership or support email.
+3. Keep each identity role absent/disabled until its native identity/member/grant and protected individual bearer map are safely prepared. Author: view approved, submit, own pending; `can_submit=1`, `can_review=0`. Different-human Reviewer: queue/approve/reject; `can_submit=0`, `can_review=1`, no native or app administrator privilege.
+4. Obtain an actual third login-permitted but community-excluded tester. That identity may receive an app login role but **no native community membership/grant**. No public or guest community access.
+5. Exercise real author submission/own-pending reload and a different human's approval/rejection. Verify self-review denial, rejected draft preservation, permitted approved visibility, excluded direct-path/queue denial and revocation. Automated fixtures cannot provide human acceptance or scholarly validation.
+6. Run physical iPhone Safari and record hardware/iOS/browser evidence separately from Chromium emulation.
 
-The native backend remains deployed at **`66a1adb0052b56a0c094eb43ce0b1259bfc37a4f`**, private space/container **1/1**, initialization off; its last protected SQL verification had zero users/posts/grants. No accounts/content were added in this OAuth setup. Fresh anonymous checks still return native **401** and main-app health **404**, with verified TLS. There is no working main-app Google workflow URL yet.
+The native backend remains at **`44ee3bb5f39b275de84832e15fa02ae82c7b14f7`**, private space/container **1/1**, initialization off. Prior protected verification had zero users/passwords/posts/memberships/reviews/grants/events. Native browser sign-in deliberately returns 403; it is not the app Google login endpoint. No account/content was added during this first-app activation.
 
-All 33 screen statuses remain **6 locally Working / 20 UI Only / 7 Blocked**. Preserve the vivid emerald/ivory/gold/turquoise interface, source citations and genuine human scholarly review. Original 13-file recovery remains separate; Qdrant/BGE → Docling → PeerTube → charity/mosque remain later work, not completed services.
+All 33 screen statuses remain **6 locally Working / 20 UI Only / 7 Blocked**. Preserve vivid emerald/ivory/gold/turquoise, source citations and genuine human scholarly review. Original 13-file recovery remains separate. Qdrant/BGE → Docling → PeerTube → charity/mosque remain later work, not completed services.
 
-Evidence: `evidence/2026-10-17-google-staging/setup-state.json`, `https-readiness-after-oauth.json`, `google-testing-boundary-source.json`, `web-client-final-redacted.webp` and `protected-oauth-settings.webp`. The earlier project-only record is retained as history.
+Current evidence is in `evidence/2026-10-17-first-author-login/`; original Google setup/credential configuration evidence remains in `evidence/2026-10-17-google-staging/` as dated history.
 
 ## References
 

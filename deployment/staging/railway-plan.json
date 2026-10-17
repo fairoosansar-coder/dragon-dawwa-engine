@@ -4,17 +4,21 @@
   "projectId": "48d7a4cf-07dc-489b-8a3d-d6d10142b14e",
   "environmentId": "1f7d98bf-1d49-4d9f-a5cc-13b57abcc095",
   "environmentName": "staging",
-  "actualState": "native-private-https-google-oauth-configured-app-offline-real-participants-human-device-pending",
+  "actualState": "app-google-login-start-verified-author-signed-out-subject-linking-human-device-pending",
   "activationApproved": true,
-  "applicationHttpsUrl": null,
+  "applicationHttpsUrl": "https://ummah-app-staging.up.railway.app",
   "reservedApplicationHttpsUrl": "https://ummah-app-staging.up.railway.app",
   "reservedHumhubHttpsUrl": "https://ummah-humhub-staging.up.railway.app",
   "reservedGoogleCallback": "https://ummah-app-staging.up.railway.app/auth/callback",
   "hostnameReadiness": {
-    "checkedAtUtc": "2026-10-17T07:45:27.157145+00:00",
-    "httpStatus": 404,
+    "checkedAtUtc": "2026-10-17T11:32:03Z",
+    "httpStatus": 200,
     "tlsVerifyResult": 0,
-    "liveApplicationReady": false
+    "liveApplicationReady": true,
+    "googleLoginStartHttpStatus": 302,
+    "identitySessionHttpStatus": 401,
+    "secureHostOnlyFlowCookie": true,
+    "scope": "Anonymous app auth preflight only; no genuine Google callback/member/human acceptance"
   },
   "humhubHostnameReadiness": {
     "checkedAtUtc": "2026-10-17T07:39:05.110534+00:00",
@@ -135,11 +139,14 @@
       "preparedVariableCount": 26,
       "pendingChangeCount": 0,
       "generatedProtectedSecretCount": 3,
-      "runningDeployment": false,
-      "providerStatus": "Service is offline",
-      "sourceBranch": "development/ummahconnect-railway-activation-20261017",
-      "accountMapping": "empty; no real subjects enrolled",
-      "oauthProtectedVariableCount": 2
+      "runningDeployment": true,
+      "providerStatus": "Active",
+      "sourceBranch": "development/ummahconnect-app-identity-host-20261017",
+      "accountMapping": "valid empty protected map; no verified subjects enrolled",
+      "oauthProtectedVariableCount": 2,
+      "deploymentId": "a23d2272-162f-4e22-8206-b6dd2ee6f386",
+      "deployedCommit": "afb3e234b4b1e13f7516d879c15957e0b18dcc7f",
+      "successfulCiGate": true
     },
     {
       "name": "ummah-humhub",
@@ -204,8 +211,8 @@
   "databaseRuntimeActive": true,
   "oauthConfigured": true,
   "googleStaging": {
-    "checkedAtUtc": "2026-10-17T06:23:42Z",
-    "ownerSignedIn": true,
+    "checkedAtUtc": "2026-10-17T11:36:17Z",
+    "ownerSignedIn": false,
     "projectCreated": true,
     "projectId": "ummahconnect-staging-261017",
     "projectNumber": "677673398182",
@@ -215,7 +222,7 @@
     "requiredUserDataPolicyAgreementApproved": true,
     "webClientCreated": true,
     "clientCredentialsConfigured": true,
-    "testUsersAdded": 0,
+    "testUsersAdded": 2,
     "evidence": "docs/ummahconnect/evidence/2026-10-17-google-staging/setup-state.json",
     "publishingStatus": "Testing",
     "audience": "External",
@@ -223,15 +230,21 @@
     "testingListIsAuthorizationBoundary": false,
     "activeClientSecretCount": 1,
     "temporarySetupSecretsDeleted": 2,
-    "realGoogleLoginTested": false
+    "realGoogleLoginTested": false,
+    "authorDesignated": true,
+    "reviewerDesignatedDifferentHuman": true,
+    "reviewerAdministratorRights": false,
+    "excludedTesterDesignated": false,
+    "ownerSignedInScope": "Current Google OAuth account chooser shows designated Author Signed out"
   },
   "realAccountsEnrolled": false,
   "humhubInitializationEnabled": false,
   "moderatedCommunityIdsConfigured": true,
   "blockers": [
-    "Three actual distinct author/different-human reviewer/excluded account emails and genuine verified-subject enrollment",
-    "Protected native account linking/scoped permissions/per-member bearer map and qualified app deployment",
-    "Hosted real Google independent-human/negative/member/excluded acceptance",
+    "Owner Google sign-in and genuine Author callback/subject verification in the task browser",
+    "Genuine independent Reviewer subject verification and protected author/reviewer identity/native scoped linking",
+    "Actual third community-excluded tester designation and verified-subject app-only enrollment",
+    "Hosted independent-human submission/approval/rejection/negative/member/excluded acceptance",
     "Physical iPhone Safari acceptance",
     "Separate original 13-file recovery remains unrecovered"
   ],
@@ -239,7 +252,7 @@
   "aishuModified": false,
   "paymentActionPerformed": false,
   "approvalRecordedAt": "2026-10-16T12:07:14Z",
-  "observedAtUtc": "2026-10-17T07:44:29Z",
+  "observedAtUtc": "2026-10-17T11:36:17Z",
   "hostedDatabaseActivation": {
     "status": "two private MySQL services deployed; both non-root SQL probes passed",
     "identitySchemaInitialized": true,
@@ -247,7 +260,7 @@
     "humhubNativeSchemaInitialized": true,
     "nativeTableCount": 50
   },
-  "status": "native login/runtime repair and private HTTPS/API state verified; Google OAuth configured; app offline pending actual subjects, independent human review and physical Safari",
+  "status": "App-only Host correction qualified/deployed, anonymous auth preflight passes; owner Google sign-in and verified subject/native linking remain pending.",
   "lastAppliedChangeCount": 55,
   "configurationAppliedWithoutSourceDeployment": false,
   "activationRecordBranch": "development/ummahconnect-volume-activation-20261017",
@@ -266,5 +279,8 @@
   "lastOAuthAppliedChangeCount": 2,
   "oauthConfigurationAppliedWithoutSourceDeployment": true,
   "nativeLoginRepairVerified": true,
-  "nativeRepairAppliedChangeCount": 1
+  "nativeRepairAppliedChangeCount": 1,
+  "applicationHttpReachableUrl": "https://ummah-app-staging.up.railway.app",
+  "qualifiedAppRuntimeCommit": "afb3e234b4b1e13f7516d879c15957e0b18dcc7f",
+  "qualifiedAppCiRun": "39028559641"
 }

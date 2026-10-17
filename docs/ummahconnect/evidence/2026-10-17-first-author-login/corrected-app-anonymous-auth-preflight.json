@@ -1,0 +1,16 @@
+{
+  "checkedAtUtc": "2026-10-17T11:32:02.971886+00:00",
+  "origin": "https://ummah-app-staging.up.railway.app",
+  "healthHttpStatus": 200,
+  "anonymousSessionHttpStatus": 401,
+  "googleLoginStartHttpStatus": 302,
+  "googleRedirectOriginVerified": true,
+  "secureHostOnlyFlowCookiePresent": true,
+  "cookieValuesRecorded": false,
+  "oauthParametersRecorded": false,
+  "tlsVerified": true,
+  "realGoogleCallbackTested": false,
+  "accountsEnrolled": false,
+  "humanReviewTested": false,
+  "physicalIPhoneSafariTested": false
+}

@@ -1,0 +1,24 @@
+{
+  "checkedAtUtc": "2026-10-17T11:34:03Z",
+  "serviceId": "f3756510-4e87-445b-9cfb-9dad042d6758",
+  "deploymentId": "a23d2272-162f-4e22-8206-b6dd2ee6f386",
+  "deployedCommit": "afb3e234b4b1e13f7516d879c15957e0b18dcc7f",
+  "nodeVersion": "24.21.0",
+  "actualSourceHashes": {
+    "src/server/privateIdentityTransport.ts": "de3244a9d1909bd83d174e5c4780625747f1bec5eb5d394f08a82295ab7c24c4",
+    "src/server/stagingAuth.ts": "87dcbbcc1862290f6d02cd27105aa8c15c87d704579406f26c3b4ca264dd9a73",
+    "src/server/socialIdentity.ts": "e9e24cd44967ecd275e5d8b049b1b45eb3d99b2b0f5231ecbbead73189bea3f9"
+  },
+  "expectedSourceHashesMatched": true,
+  "protectedMapRegularFile": true,
+  "protectedMapMode": "0600",
+  "protectedMapSchemaVersion": 1,
+  "protectedMapAccountCount": 0,
+  "consoleReadOnlyProbeUid": 0,
+  "applicationProcessUidClaimed": false,
+  "accountRolesOrGrantsModified": false,
+  "realGoogleCallbackVerified": false,
+  "nativeServiceChanged": false,
+  "productionChanged": false,
+  "aishuChanged": false
+}

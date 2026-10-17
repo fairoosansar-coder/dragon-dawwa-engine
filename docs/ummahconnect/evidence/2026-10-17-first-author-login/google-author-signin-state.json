@@ -1,0 +1,15 @@
+{
+  "checkedAtUtc": "2026-10-17T11:36:17Z",
+  "googleProjectId": "ummahconnect-staging-261017",
+  "appOrigin": "https://ummah-app-staging.up.railway.app",
+  "googleOAuthChooserReached": true,
+  "designatedAuthorVisible": true,
+  "designatedAuthorSignedOut": true,
+  "realCallbackVerified": false,
+  "subjectObtained": false,
+  "authorAndIndependentReviewerDesignated": true,
+  "applicationRolesGranted": false,
+  "nativeAccountsOrGrantsCreated": false,
+  "oauthParametersOrCodesRecorded": false,
+  "ownerTakeoverRequired": true
+}
