@@ -62,6 +62,18 @@ async function harness(t: any, { mismatch = false, corrupt = false } = {}) {
 }
 const submission = {spaceId:3,message:'Controlled test reflection — not scholarship or a real transaction.',sources:['https://example.test/original'],requestKey:'synthetic-request-0001'};
 
+test('review-only reviewer cannot submit or access own drafts; capabilities do not imply administrator access',async t => {
+  const h = await harness(t);
+  const author = await (await h.request('me','author')).json();
+  const reviewer = await (await h.request('me','reviewer')).json();
+  assert.equal(author.canSubmit,true); assert.equal(author.canReview,false);
+  assert.equal(reviewer.canSubmit,false); assert.equal(reviewer.canReview,true);
+  const before = h.calls.length;
+  assert.equal((await h.request('submissions','reviewer',submission)).status,403);
+  assert.equal((await h.request('submissions?space=3','reviewer')).status,403);
+  assert.equal(h.calls.length,before); assert.equal(h.rows.length,0);
+});
+
 test('controlled two-identity HTTP flow: account → community → draft → human review → approved feed/detail', async t => {
   const h = await harness(t);
   assert.equal((await h.request('me')).status,200);

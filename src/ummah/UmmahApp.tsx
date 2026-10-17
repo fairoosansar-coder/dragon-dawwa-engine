@@ -4,6 +4,7 @@ import LegacyApp from '../App';
 import { PrayerWidget } from '../ds/PrayerWidget';
 import { SupportedLanguage } from '../utils/localization';
 import { backend, groups, mosqueTabs, routeFromHash, screens, screenNumber, screenStatus } from './catalog';
+import { routeFromLocation } from './loginState';
 import { SocialLogin, SocialSubmit, SocialPostDetail, SocialReview } from './SocialPanels';
 import './prototype.css';
 import './ummah.css';
@@ -26,15 +27,15 @@ function SocialView({ route }: {route:string}) {
     try { const url=target?`/api/social/posts?space=${target}&page=${p}`:`/api/social/spaces?page=${p}`;
       const response=await fetch(url,{credentials:'same-origin',headers:{Accept:'application/json'}});
       const body=await response.json();
-      if(!response.ok) throw new Error(response.status===401?'Sign-in and HumHub account linking are not connected in this environment.':response.status===503?'The isolated HumHub service is not configured yet.':body.error||'Community data is unavailable.');
+      if(!response.ok) throw new Error(response.status===401?'Sign-in or community access is unavailable for this session.':response.status===403?'This session is not permitted to view that community.':response.status===503?'Community service is temporarily unavailable.':body.error||'Community data is unavailable.');
       if(seq===serial.current)setData(body);
     }catch(e){if(seq===serial.current)setError(e instanceof Error?e.message:'Community unavailable.');}finally{if(seq===serial.current)setBusy(false);}
   }
   useEffect(()=>{setSpace(null);setPage(1);load(null,1);return()=>{serial.current++;};},[route]);
-  return <section className="uc-card"><div className="uc-section-title"><h2>{space?'Community posts':'Your communities'}</h2><Users/></div><p>Real HumHub data, using the connected member’s permissions.</p>
+  return <section className="uc-card"><div className="uc-section-title"><h2>{space?'Community posts':'Your communities'}</h2><Users/></div><p>Community data is displayed only when the server permits it for the current session.</p>
     {space&&<button onClick={()=>{setSpace(null);setPage(1);load(null,1);}}>Back to communities</button>}
     {busy&&<p role="status">Loading community…</p>}
-    {error&&<div className="uc-empty" role="status"><Users/><h3>Community connection pending</h3><p>{error}</p><button onClick={()=>load()}>Retry connection</button><button className="uc-alt" onClick={()=>nav('screen-2')}>Account setup</button></div>}
+    {error&&<div className="uc-empty" role="status"><Users/><h3>Community unavailable</h3><p>{error}</p><button onClick={()=>load()}>Retry connection</button><button className="uc-alt" onClick={()=>nav('screen-2')}>Check sign-in</button></div>}
     {data?.items?.length===0&&<p>No content is visible to this account.</p>}
     {data?.items?.map((item:any)=>space?<article className="uc-social-post" key={item.id}><small>Community post #{item.id}</small><p>{item.message}</p><button onClick={()=>{try{sessionStorage.setItem('uc.selectedPost',String(item.id));nav('screen-6');}catch{setError('Browser storage unavailable; post selection could not be saved.');}}}>Open approved post</button></article>:<button className="uc-community-row" key={item.id} onClick={()=>{setSpace(item.id);setPage(1);load(item.id,1);}}><strong>{item.name}</strong><span>{item.description}</span><ChevronRight/></button>)}
     {data&&<div className="uc-pager"><button disabled={page<=1} onClick={()=>{setPage(page-1);load(space,page-1);}}>Previous</button><span>{page} / {data.pages||1}</span><button disabled={page>=data.pages} onClick={()=>{setPage(page+1);load(space,page+1);}}>Next</button></div>}
@@ -45,10 +46,10 @@ function LocalDraft({kind,notify}:{kind:string;notify:(s:string)=>void}) {
   return <div className="uc-card"><h2>{kind==='question'?'Ask a scholar':kind==='message'?'Write a message':'Share something beneficial'}</h2><p>{kind==='question'?'Prepare your question for a qualified scholar.':'Your draft stays on this browser until a publishing service is connected.'}</p><textarea aria-label="Draft text" value={text} onChange={e=>setText(e.target.value)} placeholder="Write your thoughts…" rows={6}/><div className="uc-actions"><button onClick={()=>notify(saveLocal('draft.'+kind,text)?'Draft saved on this device only. It has not been sent or published.':'Browser storage is unavailable. Copy your draft before leaving.')}>Save draft on this device</button><button className="uc-alt" onClick={()=>notify('Sending and publication are not connected. Your text has not been submitted for review.')}>{kind==='question'?'Submit question':kind==='message'?'Send message':'Submit for human review'}</button></div><div className="uc-actions"><button className="uc-text-button" onClick={()=>nav('screen-14')}>Find an Ayah</button><button className="uc-text-button" onClick={()=>nav('screen-15')}>Research a Hadith</button></div></div>;
 }
 function SettingsPanel({language,setLanguage,notify}:{language:SupportedLanguage;setLanguage:(l:SupportedLanguage)=>void;notify:(s:string)=>void}) {
- return <div className="uc-card"><h2>Your preferences</h2><label>Knowledge-service language<select value={language} onChange={e=>{setLanguage(e.target.value as SupportedLanguage);saveLocal('language',e.target.value);}}><option value="en">English</option><option value="ta">தமிழ் · Tamil</option><option value="si">සිංහල · Sinhala</option></select></label><p>The existing Quran and research tools support these interface choices. The new 33-screen shell is currently English.</p><button onClick={()=>notify('Your drafts and preferences are stored only in this browser. Account privacy, export and deletion controls need the existing authentication service to be linked.')}>Privacy & local data</button></div>;
+ return <div className="uc-card"><h2>Your preferences</h2><label>Knowledge-service language<select value={language} onChange={e=>{setLanguage(e.target.value as SupportedLanguage);saveLocal('language',e.target.value);}}><option value="en">English</option><option value="ta">தமிழ் · Tamil</option><option value="si">සිංහල · Sinhala</option></select></label><p>The existing Quran and research tools support these interface choices. The new 33-screen shell is currently English.</p><button onClick={()=>notify('Your drafts and preferences are stored only in this browser. Account privacy, export and deletion controls are not available in this interface.')}>Privacy & local data</button></div>;
 }
 export default function UmmahApp() {
- const [route,setRoute]=useState(()=>routeFromHash(location.hash));
+ const [route,setRoute]=useState(()=>routeFromLocation(location.pathname,location.hash,routeFromHash));
  const [menu,setMenu]=useState(false),[query,setQuery]=useState(''),[message,setMessage]=useState(''),[tab,setTab]=useState('');
  const [language,setLanguage]=useState<SupportedLanguage>(()=>{const v=readLocal('language','en');return ['en','ta','si'].includes(v)?v as SupportedLanguage:'en';});
  const [serviceVisited,setServiceVisited]=useState(false);
@@ -61,7 +62,7 @@ export default function UmmahApp() {
  const title=screen?.title||titles[route]||'UmmahConnect';
  const getStatus=(id:string)=>(id==='screen-15'||id==='podcasts')&&aiReady!==true?'Blocked · AI connection pending':screenStatus(id);
  const status=getStatus(route);
- useEffect(()=>{const changed=()=>setRoute(routeFromHash(location.hash));window.addEventListener('hashchange',changed);return()=>window.removeEventListener('hashchange',changed);},[]);
+ useEffect(()=>{const changed=()=>setRoute(routeFromLocation(location.pathname,location.hash,routeFromHash));window.addEventListener('hashchange',changed);return()=>window.removeEventListener('hashchange',changed);},[]);
  useEffect(()=>{setMenu(false);setQuery('');setTab('');setMessage('');document.title=title+' · UmmahConnect';window.scrollTo(0,0);heading.current?.focus();if(service)setServiceVisited(true);},[route]);
  useEffect(()=>{if(message&&!dialog.current?.open)dialog.current?.showModal();if(!message&&dialog.current?.open)dialog.current.close();},[message]);
  const notify=(s:string)=>setMessage(s);
@@ -79,7 +80,7 @@ export default function UmmahApp() {
    }
    if(/Quran reference/i.test(label)){nav('screen-14');return;}
    if(/Hadith citation|editorial review/i.test(label)){nav('screen-15');return;}
-   if(/Edit profile/i.test(label)){notify('Persistent profile editing requires your existing account to be connected. No profile was changed.');return;}
+   if(/Edit profile/i.test(label)){notify('Persistent profile editing is not available in this interface. No profile was changed.');return;}
    const detail=backend[index]||'This action needs a connected service. No data was sent or changed.';
    notify(label.replace(/preview|demo only/gi,'').trim()+': '+detail);
  }
@@ -89,7 +90,7 @@ export default function UmmahApp() {
  return <div className="uc-root">
   <header className="uc-header"><a href="#/screen-4" className="uc-brand"><span aria-hidden="true">☪</span><span>Ummah<span className="uc-gold">Connect</span><small>FAITH · PEOPLE · PURPOSE</small></span></a><nav className="uc-top-nav" aria-label="Primary"><a href="#/screen-4">Community</a><a href="#/screen-13">Knowledge</a><a href="#/screen-18">Charity</a><a href="#/screen-22">Build a Mosque</a></nav><div className="uc-header-actions"><button aria-label="Explore and search" onClick={()=>nav('screen-7')}><Search/></button><button aria-label="Notifications" onClick={()=>nav('screen-10')}><Bell/></button><button aria-label="Open all screens" aria-expanded={menu} onClick={()=>setMenu(!menu)}>{menu?<X/>:<Menu/>}</button></div></header>
   <div className="uc-layout"><aside className={'uc-sidebar '+(menu?'uc-sidebar-open':'')} aria-label="All screens"><a className="uc-directory-link" href="#/directory"><Compass/> All 33 screens</a>{groups.map(group=><section key={group.name}><h2>{group.name}</h2>{screens.filter(s=>{const n=screenNumber(s.id);return s.id.startsWith('screen-')&&n>=group.from&&n<=group.to;}).map(s=><a href={'#/'+s.id} key={s.id} aria-current={route===s.id?'page':undefined}><span>{s.id.replace('screen-','').padStart(2,'0')}</span>{s.title}</a>)}</section>)}<a href="#/podcasts"><Headphones/> Podcasts & Voice</a></aside>
-  <main className="uc-main" id="main-content"><div className="uc-breadcrumb"><a href="#/directory">UmmahConnect</a><span>/</span><span>{title}</span></div><div className="uc-page-heading"><div><div className="uc-eyebrow">{index>=18&&index<=26?'GIVE · BUILD · BELONG':index>=13&&index<=17||route==='podcasts'?'LEARN · REFLECT · GROW':'A COMMUNITY WITH PURPOSE'}</div><h1 ref={heading} tabIndex={-1}>{title}</h1></div><span className={'uc-status '+(status.startsWith('Working')?'working':'')}>{status}</span></div>
+  <main className="uc-main" id="main-content"><div className="uc-breadcrumb"><a href="#/directory">UmmahConnect</a><span>/</span><span>{title}</span></div><div className="uc-page-heading"><div><div className="uc-eyebrow">{index>=18&&index<=26?'GIVE · BUILD · BELONG':index>=13&&index<=17||route==='podcasts'?'LEARN · REFLECT · GROW':'A COMMUNITY WITH PURPOSE'}</div><h1 ref={heading} tabIndex={-1}>{title}</h1></div><span className={'uc-status '+(status.startsWith('Locally working')?'working':'')}>{status}</span></div>
   {backend[index]&&<div className="uc-capability" role="note">{backend[index]}</div>}
   {route==='screen-1'&&<div className="uc-welcome-art" aria-label="Decorative mosque artwork"><span>☪</span><h2>A brighter tomorrow,<br/>together.</h2><p>Faith. People. Purpose.</p><a href="#/screen-3" className="uc-gold-button">Get started</a></div>}
   {(route==='screen-4')&&<><div className="uc-hero"><div className="uc-eyebrow">WELCOME TO YOUR UMMAH</div><h2>Real connection.<br/>Shared purpose.</h2><p>Learn from authentic sources, care for one another and contribute to good.</p><div className="uc-actions"><a href="#/screen-5">Write a reflection</a><a href="#/screen-13" className="uc-alt">Explore knowledge</a></div></div><div className="uc-shortcuts"><a href="#/screen-14"><BookOpen/>Quran & Tafsir</a><a href="#/screen-15"><ShieldCheck/>Hadith Research</a><a href="#/podcasts"><Headphones/>Podcasts</a></div></>}

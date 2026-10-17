@@ -45,7 +45,7 @@ export function createSocialMiddleware({ resolveActor = async () => null, origin
       const actor = await resolveActor(req);
       if (!actor) return send(401, { error: 'social_account_link_required' });
       const reviewer = ['reviewer', 'owner'].includes(actor.role || '');
-      const submitter = ['author', 'reviewer', 'publisher', 'owner'].includes(actor.role || '');
+      const submitter = ['author', 'publisher', 'owner'].includes(actor.role || '');
       if (url.pathname === '/api/social/reviews' && !reviewer) return send(403, { error: 'social_review_forbidden' });
       if (url.pathname === '/api/social/submissions' && !submitter)
         return send(403, { error: 'social_submit_forbidden' });
@@ -74,7 +74,7 @@ export function createSocialMiddleware({ resolveActor = async () => null, origin
         return send(200, await client.decide(input.reviewId, input.decision, input.note));
       }
       if (url.pathname.endsWith('/me')) return send(200, { ...await client.me(), canReview: reviewEnabled && reviewer,
-        canSubmit: reviewEnabled && ['author','reviewer','publisher','owner'].includes(actor.role || ''), reviewEnabled });
+        canSubmit: reviewEnabled && submitter, reviewEnabled });
       if (url.pathname.endsWith('/spaces')) return send(200, await client.spaces(page));
       if (url.pathname.endsWith('/post')) {
         const postId = Number(url.searchParams.get('id'));

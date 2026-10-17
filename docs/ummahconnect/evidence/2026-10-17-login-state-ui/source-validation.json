@@ -1,0 +1,26 @@
+{
+  "localNode": "22.13.0",
+  "appTests": {
+    "passed": 76,
+    "failed": 0
+  },
+  "identityPrivacyTests": {
+    "passed": 35,
+    "failed": 0
+  },
+  "lint": "pass",
+  "viteBuild": "pass-existing-chunk-warning",
+  "gatewayReviewerCanSubmit": false,
+  "nativeSourceChanged": false,
+  "identityVendorChanged": false,
+  "screenTemplatesOrCssChanged": false,
+  "matrixCounts": {
+    "locallyWorking": 6,
+    "uiOnly": 20,
+    "blocked": 7
+  },
+  "controlledSourceTestsOnly": true,
+  "pinnedCi": "pending",
+  "hostedHumanAcceptance": false,
+  "physicalIPhoneSafari": "not-run"
+}

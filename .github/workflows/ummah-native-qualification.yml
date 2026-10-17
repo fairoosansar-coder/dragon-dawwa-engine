@@ -9,6 +9,7 @@ on:
       - development/ummahconnect-app-identity-host-20261017
       - development/ummahconnect-real-member-provisioning-20261017
       - development/ummahconnect-signin-diagnostics-20261017
+      - development/ummahconnect-login-state-ui-20261017
   workflow_dispatch:
 
 permissions:
@@ -38,6 +39,8 @@ jobs:
         run: |
           npm ci --no-audit --no-fund
           npm ci --prefix deployment/staging/identity --no-audit --no-fund
+          npm run lint
+          npm run build
           node --import tsx --test tests/*.test.ts integrations/social/social.test.mjs
           npm test --prefix deployment/staging/identity
       - name: Build and qualify isolated native containers

@@ -12,15 +12,15 @@ export const routes = new Set([...screens.map(s => s.id), 'directory', 'podcasts
 export const mosqueTabs = [['mosque-current-site', 'Current Site'], ['mosque-proposed-design', 'Proposed Design'], ['mosque-construction', 'Construction'], ['mosque-finances', 'Finances'], ['mosque-donations', 'Donations']];
 export function routeFromHash(hash: string) { const key = hash.replace(/^#\/?/, '').split('?')[0]; return routes.has(key) ? key : key ? 'directory' : 'screen-4'; }
 export const backend: Record<number, string> = {
-  2: 'Account linking to the existing authentication service is pending. No account is created here.',
-  4: 'HumHub feed requires a linked account and an isolated social instance.',
-  5: 'Draft submission and independent human-review controls are implemented. Live use requires qualified staging identity and HumHub services.',
-  6: 'Approved-only post detail is implemented in source. Live HumHub connection, comments and reactions remain pending.',
-  8: 'Persistent profiles and relationships require account linking and HumHub.',
+  2: 'Review sign-in is checked through same-origin staging endpoints. Public configuration alone does not prove a signed-in or mapped member.',
+  4: 'Community content is requested only after server-side session and member-permission checks. Availability remains unverified.',
+  5: 'Submissions use guarded review endpoints when current permission checks allow. Fresh human submissions and decisions remain unverified.',
+  6: 'Only approved community posts may be displayed. Comments and reactions are not available in this milestone.',
+  8: 'Persistent profiles and relationships are not available in this interface.',
   9: 'Private messaging, delivery and abuse controls are not connected.',
   10: 'Notifications require authenticated social events.',
-  11: 'HumHub communities require a linked account and an isolated social instance.',
-  12: 'Community membership and posts require HumHub.',
+  11: 'Community visibility follows server-side session and member-permission checks. Service acceptance remains unverified.',
+  12: 'Community membership and posts are shown only when the current server-side checks permit them.',
   13: 'Knowledge tools are connected below. Article, video, course and scholar listings are illustrative until the editorial content service is linked.',
   15: 'Research and dossiers use the existing engine. Generated output is an AI-assisted draft, not a scholarly authentication.',
   17: 'Scholar identity verification, question delivery and assignment are pending.',
@@ -38,12 +38,22 @@ export const backend: Record<number, string> = {
   29: 'Volunteer examples only. Opportunities, matching and registration are pending.',
   30: 'Marketplace examples only. Sellers, listings, orders and payments are pending.',
   32: 'Organization verification and permissioned dashboards are not connected.',
-  33: 'Independent human-review queue and guarded decisions are implemented in source. Live role grants, HumHub installation and scholarly qualification remain pending.',
+  33: 'Review actions remain guarded. Fresh human sessions, posts, decisions and iPhone acceptance are unverified.',
 };
 export function screenNumber(route: string) { return route.startsWith('mosque-') ? 23 : Number(route.replace('screen-', '')); }
+
+export type ScreenReadiness = 'locallyWorking' | 'uiOnly' | 'blocked';
+const locallyWorking = new Set(['screen-1','screen-3','screen-7','screen-14','screen-16','screen-31']);
+const blocked = new Set(['screen-2','screen-6','screen-9','screen-10','screen-15','screen-20','screen-21']);
+/** The 33 primary screens remain classified as 6 locally working, 20 UI-only, and 7 blocked. */
+export function screenReadiness(route: string): ScreenReadiness {
+  if (locallyWorking.has(route)) return 'locallyWorking';
+  return blocked.has(route) ? 'blocked' : 'uiOnly';
+}
 export function screenStatus(route: string) {
-  if (['screen-1','screen-3','screen-7','screen-31','directory'].includes(route)) return 'Working';
-  if (['screen-14','screen-15','screen-16','podcasts'].includes(route)) return 'Working · service-dependent';
-  if (['screen-2','screen-6','screen-9','screen-10','screen-20','screen-21'].includes(route)) return 'Blocked';
-  return 'UI Only';
+  if (route === 'directory') return 'Locally working';
+  if (route === 'podcasts') return 'Locally working · service-dependent';
+  if (route === 'screen-2') return 'Acceptance pending';
+  if (screenReadiness(route) === 'locallyWorking') return ['screen-14','screen-15','screen-16'].includes(route) ? 'Locally working · service-dependent' : 'Locally working';
+  return screenReadiness(route) === 'blocked' ? 'Blocked' : 'UI only';
 }

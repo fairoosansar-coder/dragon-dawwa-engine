@@ -1,0 +1,52 @@
+{
+  "checkedAtUtc": "2026-10-17T16:21:15.935Z",
+  "commit": "5b8c72187b47d1aa8ada60dd8ff13d634d4f38b4",
+  "decisionCreated": false,
+  "deploymentId": "41d33882-2b51-4fe8-a423-ab7fbd44c79c",
+  "humanAttestationRequired": true,
+  "kind": "staging-human-activity-observation",
+  "ok": true,
+  "outcomes": [
+    {
+      "active": true,
+      "nativeUserId": 1,
+      "reads": [
+        {
+          "path": "ummahreview/posts?space=1",
+          "records": [],
+          "status": 200,
+          "total": 0
+        },
+        {
+          "path": "ummahreview/submissions?space=1",
+          "records": [],
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "role": "author"
+    },
+    {
+      "active": true,
+      "nativeUserId": 3,
+      "reads": [
+        {
+          "path": "ummahreview/posts?space=1",
+          "records": [],
+          "status": 200,
+          "total": 0
+        },
+        {
+          "path": "ummahreview/reviews?space=1",
+          "records": [],
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "role": "reviewer"
+    }
+  ],
+  "postCreated": false,
+  "readOnly": true,
+  "sessionCreated": false
+}
