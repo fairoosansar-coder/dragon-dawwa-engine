@@ -1,6 +1,21 @@
 <?php
 /** Account-free isolated initialization. Never creates users, posts, tokens or grants. */
 declare(strict_types=1);
+define('YII_ENABLE_ERROR_HANDLER', false);
+set_error_handler(static function (int $severity, string $message, string $file, int $line): bool {
+    if (!(error_reporting() & $severity)) return false;
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
+set_exception_handler(static function (Throwable $error): void {
+    $message = $error->getMessage();
+    foreach (['HUMHUB_DB_PASSWORD', 'HUMHUB_COOKIE_KEY', 'MYSQL_PASSWORD', 'MYSQL_ROOT_PASSWORD'] as $key) {
+        $secret = getenv($key); if ($secret) $message = str_replace($secret, '[redacted]', $message);
+    }
+    $trace = array_map(static fn(array $frame): array => ['file' => basename($frame['file'] ?? ''), 'line' => $frame['line'] ?? 0], array_slice($error->getTrace(), 0, 5));
+    fwrite(STDERR, json_encode(['kind' => 'private-bootstrap-error', 'errorClass' => get_class($error),
+        'message' => substr($message, 0, 700), 'file' => basename($error->getFile()), 'line' => $error->getLine(), 'trace' => $trace]) . "\n");
+    exit(1);
+});
 const PRIVATE_COMMUNITY = 'UmmahConnect Staging Review';
 const STAGING_PROJECT = '48d7a4cf-07dc-489b-8a3d-d6d10142b14e';
 const STAGING_ENVIRONMENT = '1f7d98bf-1d49-4d9f-a5cc-13b57abcc095';

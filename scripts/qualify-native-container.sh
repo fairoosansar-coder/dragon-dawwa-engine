@@ -55,6 +55,16 @@ quiet() {
 }
 
 fail() {
+    if [[ "$phase" == 'account-free-private-bootstrap' && "$humhub_started" == '1' ]]; then
+        docker logs --tail 80 "$HUMHUB_CONTAINER" >"${RUNNER_PRIVATE_ROOT}/bootstrap-errors.log" 2>&1 || true
+        PRIVATE_DIAGNOSTIC_PATH="${RUNNER_PRIVATE_ROOT}/bootstrap-errors.log" DIAGNOSTIC_APP_SECRET="${MYSQL_APP_PASSWORD:-}" DIAGNOSTIC_COOKIE_SECRET="${HUMHUB_COOKIE_KEY:-}" node --input-type=module - <<'NODE'
+import {readFileSync} from 'node:fs';
+const secrets=[process.env.DIAGNOSTIC_APP_SECRET,process.env.DIAGNOSTIC_COOKIE_SECRET].filter(Boolean);
+const lines=readFileSync(process.env.PRIVATE_DIAGNOSTIC_PATH,'utf8').split('\n').filter(l=>/Fatal|Exception|Error|bootstrap|#[0-9]/i.test(l)).slice(-20);
+const headers=lines.map(l=>secrets.reduce((v,k)=>v.replaceAll(k,'[redacted]'),l).replace(/[A-Za-z0-9_+\/=\-]{40,}/g,'[redacted]').slice(0,700));
+console.log(JSON.stringify({kind:'sanitized-account-free-bootstrap-failure',headers}));
+NODE
+    fi
     printf 'Native container qualification: %s failed. See protected runner-local status files only.\n' "$phase" >&2
     exit 1
 }
@@ -400,6 +410,13 @@ printf 'Native container phase: %s\n' "$phase"
 review_count_before="$(mysql_scalar 'SELECT COUNT(*) FROM ummah_review')" || fail
 event_count_before="$(mysql_scalar 'SELECT COUNT(*) FROM ummah_review_event')" || fail
 fixture_count_before="$(mysql_scalar "SELECT COUNT(*) FROM user WHERE username IN ('ummah-author','ummah-reviewer','ummah-excluded')")" || fail
+
+phase='reject-first-boot-over-existing-accounts'
+printf 'Native container phase: %s\n' "$phase"
+if docker exec --env 'UMMAH_INITIALIZE_HUMHUB=yes' --env 'UMMAH_BOOTSTRAP_PRIVATE_EMPTY=yes' "$HUMHUB_CONTAINER" php /usr/local/bin/bootstrap-private-humhub.php --assert-empty >>"$COMMAND_LOG" 2>&1; then fail; fi
+[[ "$(mysql_scalar 'SELECT COUNT(*) FROM ummah_review')" == "$review_count_before" ]] || fail
+[[ "$(mysql_scalar 'SELECT COUNT(*) FROM ummah_review_event')" == "$event_count_before" ]] || fail
+[[ "$(mysql_scalar "SELECT COUNT(*) FROM user WHERE username IN ('ummah-author','ummah-reviewer','ummah-excluded')")" == "$fixture_count_before" ]] || fail
 
 phase='restart-with-persistent-volumes'
 printf 'Native container phase: %s\n' "$phase"
