@@ -1,0 +1,93 @@
+{
+  "checkedAtUtc": "2026-10-17T15:54:45Z",
+  "applicationOrigin": "https://ummah-app-staging.up.railway.app",
+  "nativeOrigin": "https://ummah-humhub-staging.up.railway.app",
+  "projectId": "48d7a4cf-07dc-489b-8a3d-d6d10142b14e",
+  "environmentId": "1f7d98bf-1d49-4d9f-a5cc-13b57abcc095",
+  "appDeploymentId": "41d33882-2b51-4fe8-a423-ab7fbd44c79c",
+  "appCommit": "5b8c72187b47d1aa8ada60dd8ff13d634d4f38b4",
+  "nativeCommitUnchanged": "44ee3bb5f39b275de84832e15fa02ae82c7b14f7",
+  "qualifiedOperatorCommit": "56b797a2be2f24ea54587dad1c6e611c79b88e18",
+  "qualifiedOperatorCiRun": "39033827738",
+  "reviewerReferenceVerifiedAndOwnerDesignated": true,
+  "reviewerInvitationActive": true,
+  "accountMap": {
+    "schemaVersion": 1,
+    "memberCount": 2,
+    "mode": "0600",
+    "ownerUid": 1000,
+    "authorEntryPreservedExactlyInProvider": true
+  },
+  "privateCommunity": {
+    "id": 1,
+    "name": "UmmahConnect Staging Review"
+  },
+  "roles": [
+    {
+      "role": "author",
+      "nativeUserId": 1,
+      "identityRoleActive": true,
+      "nativeCurrentUser": 200,
+      "privateSpace": 200,
+      "approvedFeed": 200,
+      "approvedCount": 0,
+      "ownSubmissions": 200,
+      "ownSubmissionsCount": 0,
+      "reviewQueue": 403
+    },
+    {
+      "role": "reviewer",
+      "nativeUserId": 3,
+      "identityRoleActive": true,
+      "nativeCurrentUser": 200,
+      "privateSpace": 200,
+      "approvedFeed": 200,
+      "approvedCount": 0,
+      "ownSubmissions": 403,
+      "reviewQueue": 200,
+      "pendingQueueCount": 0,
+      "canSubmit": false,
+      "canReview": true,
+      "administrator": false,
+      "passwordCreated": false
+    }
+  ],
+  "apiProbe": {
+    "method": "GET only",
+    "casesPassed": 10,
+    "scopedIdentitySqlReadsPassed": true,
+    "createdSession": false,
+    "submittedPost": false,
+    "createdHumanReview": false
+  },
+  "operatorHandling": {
+    "credentialsEmittedEncryptedOnly": true,
+    "privateKeyNonExportable": true,
+    "protectedSettingsVariableChanged": "UMMAH_ACCOUNT_MAP_JSON",
+    "changedVariableCount": 1,
+    "otherSettingsUnchanged": true,
+    "nativeSourceRedeployed": false,
+    "contextRefusalBeforeNativeMutation": "native_root_guard",
+    "explicitNativeRootUsed": "/var/www/html",
+    "optionalProfileLabelRejectedAndTransactionRolledBack": "profile_create",
+    "successfulPayloadOmittedOptionalDisplayName": true,
+    "optionalProfileLabelPathQualified": false,
+    "browserTransientCredentialKeySourceMemoryCleared": true,
+    "ownedAppTemporaryFilesVerifiedRemoved": true
+  },
+  "acceptance": {
+    "realGoogleIdentityReferencesReceived": 2,
+    "freshInvitedReviewerSessionTested": false,
+    "freshInvitedAuthorSessionTested": false,
+    "realMainInterfaceSubmissionTested": false,
+    "independentHumanApprovalTested": false,
+    "independentHumanRejectionTested": false,
+    "excludedTesterEnrolled": false,
+    "physicalIPhoneSafariTested": false,
+    "all33ScreenStatusesUnchanged": true
+  },
+  "productionModified": false,
+  "aishuModified": false,
+  "resourcesChanged": false,
+  "originalRecoveryWorkstreamUnchanged": true
+}

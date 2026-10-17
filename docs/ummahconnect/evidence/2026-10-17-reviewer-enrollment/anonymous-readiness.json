@@ -1,0 +1,18 @@
+{
+  "checkedAtUtc": "2026-10-17T15:56:27.096462+00:00",
+  "checks": [
+    {
+      "path": "/api/health",
+      "status": 200
+    },
+    {
+      "path": "/api/review/session",
+      "status": 401
+    },
+    {
+      "path": "/auth/login",
+      "status": 302
+    }
+  ],
+  "scope": "Anonymous health/session/login start only; not fresh invited human login."
+}

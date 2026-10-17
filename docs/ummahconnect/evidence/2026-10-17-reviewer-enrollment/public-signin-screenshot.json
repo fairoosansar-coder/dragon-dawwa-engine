@@ -1,0 +1,14 @@
+{
+  "checkedAtUtc": "2026-10-17T15:59:58.404Z",
+  "url": "https://ummah-app-staging.up.railway.app/login#/screen-2",
+  "documentStatus": 200,
+  "browser": "154.0.8037.57",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "pageErrors": [],
+  "horizontalOverflow": false,
+  "scope": "Actual hosted anonymous main-interface rendering; desktop Chromium with mobile viewport. No mocked API, Reviewer session, post or human decision.",
+  "physicalIPhoneSafari": false
+}
