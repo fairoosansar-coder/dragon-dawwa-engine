@@ -5,6 +5,7 @@ on:
     branches:
       - development/ummahconnect-native-hardening-20261016
       - development/ummahconnect-native-hardening-private-bootstrap-20261017
+      - development/ummahconnect-native-login-boundary-20261017
   workflow_dispatch:
 
 permissions:

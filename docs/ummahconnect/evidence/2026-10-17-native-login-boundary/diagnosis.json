@@ -1,0 +1,38 @@
+{
+  "checkedAtUtc": "2026-10-17T07:18:25.187862+00:00",
+  "deployedNativeCommit": "66a1adb0052b56a0c094eb43ce0b1259bfc37a4f",
+  "reportedRoute": "https://ummah-humhub-staging.up.railway.app/user/auth/login",
+  "reproducedHttpStatus": 500,
+  "tlsVerified": true,
+  "exactError": {
+    "category": "yii\\base\\InvalidConfigException",
+    "message": "Unable to locate message source for category 'yii/bootstrap5'.",
+    "file": "protected/vendor/yiisoft/yii2/i18n/I18N.php",
+    "line": 201,
+    "hostedLogId": 908,
+    "timeUtc": "2026-10-17T07:11:42Z"
+  },
+  "separateRuntimeObservation": {
+    "nativeRuntimeIsSymlink": false,
+    "nativeRuntimePath": "/var/www/html/protected/runtime",
+    "runtimeOwner": "www-data:www-data",
+    "runtimeMode": "775",
+    "cacheOwner": "root:root",
+    "cacheMode": "775",
+    "privateVolumeRuntimePath": "/var/lib/ummah-humhub/runtime",
+    "privateRuntimeOwner": "www-data:www-data",
+    "privateRuntimeMode": "700",
+    "warnings": "FileCache write permission/no-directory failures",
+    "linkLossCause": "Not yet established"
+  },
+  "workers": [
+    "apache RUNNING",
+    "humhub-queue RUNNING",
+    "humhub-cron RUNNING"
+  ],
+  "nativeGoogleOrPasswordLoginEnabledByThisTask": false,
+  "realUsersOrGrantsCreated": false,
+  "fixDeployed": false,
+  "productionModified": false,
+  "aishuModified": false
+}

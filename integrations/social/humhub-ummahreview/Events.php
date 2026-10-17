@@ -24,6 +24,27 @@ class Events
     private static ?int $publishingContentId = null;
     private static ?Post $submittedDraft = null;
 
+    /** Native passwords/external login must not form a second browser authority. */
+    public static function beforeNativeBrowserRequest($event): void
+    {
+        if (!Yii::$app instanceof \yii\web\Application) {
+            return;
+        }
+        $request = Yii::$app->request;
+        $routes = [$request->getPathInfo(), $request->getQueryParam(Yii::$app->urlManager->routeParam, '')];
+        foreach ($routes as $route) {
+            if (!is_string($route)) {
+                Yii::$app->response->headers->set('Cache-Control', 'no-store');
+                throw new \yii\web\BadRequestHttpException('Invalid native route.');
+            }
+            $route = trim($route, '/');
+            if ($route === 'user/auth' || str_starts_with($route, 'user/auth/')) {
+                Yii::$app->response->headers->set('Cache-Control', 'no-store');
+                throw new \yii\web\ForbiddenHttpException('Native sign-in is disabled. Use the UmmahConnect application.');
+            }
+        }
+    }
+
     /**
      * The sole supported native Post creation path for a moderated space.
      * The identity comparison prevents a wider request/global "create" bypass.

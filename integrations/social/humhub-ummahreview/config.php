@@ -16,6 +16,7 @@ return [
     'class' => 'humhub\\modules\\ummahreview\\Module',
     'namespace' => 'humhub\\modules\\ummahreview',
     'events' => [
+        [\yii\web\Application::class, \yii\web\Application::EVENT_BEFORE_REQUEST, [Events::class, 'beforeNativeBrowserRequest']],
         [Post::class, Post::EVENT_BEFORE_INSERT, [Events::class, 'beforePostInsert']],
         [Post::class, Post::EVENT_BEFORE_UPDATE, [Events::class, 'beforePostUpdate']],
         [Content::class, Content::EVENT_BEFORE_INSERT, [Events::class, 'beforeContentSave']],

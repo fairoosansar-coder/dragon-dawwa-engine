@@ -1,0 +1,26 @@
+{
+  "checkedAtUtc": "2026-10-17T07:27:55.057761+00:00",
+  "app": {
+    "pass": 47,
+    "fail": 0
+  },
+  "identity": {
+    "pass": 19,
+    "fail": 0,
+    "runner": "node --test deployment/staging/identity/test.mjs"
+  },
+  "pinnedDatabaseFreeBoundary": {
+    "routeCasesPass": 8,
+    "translationSourceAndGermanClose": "pass",
+    "databaseUsed": false
+  },
+  "phpLint": "pass",
+  "shellLint": "pass",
+  "typescriptLint": "pass",
+  "build": "pass",
+  "nativeProbeIsolationRefusal": "pass",
+  "nativeCiStatus": "pending",
+  "hostedRepairDeployed": false,
+  "physicalSafariTested": false,
+  "humanReviewTested": false
+}

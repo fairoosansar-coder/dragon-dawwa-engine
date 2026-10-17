@@ -196,6 +196,27 @@ assert_protected_paths() {
     done
 }
 
+assert_native_browser_boundary() {
+    local path status
+    for path in '/user/auth/login' '/user/auth/password' '/user/auth/register' '/user/auth/external' '/index.php/user/auth/login' '/?r=user%2Fauth%2Flogin' '/index.php?r=user%2Fauth%2Flogin'; do
+        status="$(curl --silent --show-error --dump-header "${RUNNER_PRIVATE_ROOT}/native-auth-headers" --output "${RUNNER_PRIVATE_ROOT}/native-auth-body" --write-out '%{http_code}' --max-time 8 --path-as-is "http://127.0.0.1:${HUMHUB_PORT}${path}" 2>>"$COMMAND_LOG")" || return 1
+        [[ "$status" == '403' ]] || { printf 'Native auth boundary failure: %s status=%s\n' "$path" "$status"; return 1; }
+        grep -Eqi '^cache-control:.*no-store' "${RUNNER_PRIVATE_ROOT}/native-auth-headers" || return 1
+        grep -Fq 'Native sign-in is disabled.' "${RUNNER_PRIVATE_ROOT}/native-auth-body" || return 1
+    done
+    status="$(curl --silent --show-error --request POST --data '' --output /dev/null --write-out '%{http_code}' --max-time 8 "http://127.0.0.1:${HUMHUB_PORT}/user/auth/password" 2>>"$COMMAND_LOG")" || return 1
+    [[ "$status" == '403' ]] || return 1
+    status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 8 'http://127.0.0.1:3401/?r%5B%5D=user%2Fauth%2Flogin' 2>>"$COMMAND_LOG")" || return 1
+    [[ "$status" == '400' ]] || return 1
+    status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 8 "http://127.0.0.1:${HUMHUB_PORT}/api/v1/auth/current" 2>>"$COMMAND_LOG")" || return 1
+    [[ "$status" == '401' ]]
+}
+
+assert_private_runtime() {
+    quiet docker cp scripts/test-native-runtime-boundary.php "${HUMHUB_CONTAINER}:/tmp/test-native-runtime-boundary.php" || return 1
+    docker exec --user www-data --env 'UMMAH_NATIVE_FIXTURE=sandbox-only' --env 'HUMHUB_ROOT=/var/www/html' "$HUMHUB_CONTAINER" php /tmp/test-native-runtime-boundary.php
+}
+
 start_humhub() {
     local initialize="$1" private_bootstrap="${2:-no}" ids="$REVIEW_SPACE_IDS"
     if [[ "$private_bootstrap" == yes ]]; then ids=''; fi
@@ -276,6 +297,11 @@ start_humhub 'yes' 'yes' || fail
 wait_for_http || fail
 wait_for_schema || fail
 wait_for_workers || fail
+# Reproduce the hosted materialized-docroot runtime without touching the
+# persistent target. Correctness must follow configured @runtime, not the link.
+quiet docker exec "$HUMHUB_CONTAINER" sh -c 'if [ -L /var/www/html/protected/runtime ]; then unlink /var/www/html/protected/runtime; fi; mkdir -p /var/www/html/protected/runtime/cache; chown www-data:www-data /var/www/html/protected/runtime; chown root:root /var/www/html/protected/runtime/cache; chmod 775 /var/www/html/protected/runtime /var/www/html/protected/runtime/cache' || fail
+assert_native_browser_boundary || fail
+assert_private_runtime || fail
 quiet docker exec "$HUMHUB_CONTAINER" sh -c 'set -- /etc/apache2/mods-enabled/mpm_*.load; [ "$#" -eq 1 ] && [ "$1" = /etc/apache2/mods-enabled/mpm_prefork.load ] && apache2ctl -t' || fail
 [[ "$(mysql_scalar 'SELECT COUNT(*) FROM user')" == '0' ]] || fail
 [[ "$(mysql_scalar 'SELECT COUNT(*) FROM post')" == '0' ]] || fail
@@ -306,7 +332,7 @@ wait_for_http || fail
 
 phase='apply-native-migrations'
 printf 'Native container phase: %s\n' "$phase"
-quiet docker exec "$HUMHUB_CONTAINER" php /var/www/html/protected/yii migrate/up --includeModuleMigrations=1 --interactive=0 || fail
+quiet docker exec --user www-data "$HUMHUB_CONTAINER" php /var/www/html/protected/yii migrate/up --includeModuleMigrations=1 --interactive=0 || fail
 wait_for_schema || fail
 
 phase='runtime-readiness'
@@ -314,15 +340,17 @@ printf 'Native container phase: %s\n' "$phase"
 wait_for_http || fail
 wait_for_workers || fail
 assert_protected_paths || fail
+assert_native_browser_boundary || fail
+assert_private_runtime || fail
 docker exec --user www-data "$HUMHUB_CONTAINER" php -r 'clearstatcache(); $ok=is_dir("/var/www/html/uploads")&&is_writable("/var/www/html/uploads"); echo json_encode(["kind"=>"native-storage-readiness","traversableWritable"=>$ok]),PHP_EOL; if(!$ok) exit(1);' || fail
 
 phase='prepare-private-native-fixture'
 printf 'Native container phase: %s\n' "$phase"
-quiet docker exec "$HUMHUB_CONTAINER" sh -c 'mkdir -p /run/ummah-fixture && chmod 700 /run/ummah-fixture' || fail
+quiet docker exec "$HUMHUB_CONTAINER" sh -c 'mkdir -p /run/ummah-fixture && chown www-data:www-data /run/ummah-fixture && chmod 700 /run/ummah-fixture' || fail
 for source in scripts/seed-native-humhub.php scripts/native-fixture-db.php scripts/test-native-model-guards.php scripts/configure-native-rest-fixture.php; do
     quiet docker cp "$source" "${HUMHUB_CONTAINER}:/tmp/$(basename "$source")" || fail
 done
-quiet docker exec \
+quiet docker exec --user www-data \
     --env 'UMMAH_NATIVE_FIXTURE=sandbox-only' \
     --env 'UMMAH_REVIEW_ENVIRONMENT=isolated-staging' \
     --env "UMMAH_REVIEW_SPACE_IDS=${REVIEW_SPACE_IDS}" \
@@ -330,7 +358,7 @@ quiet docker exec \
     --env 'HUMHUB_ROOT=/var/www/html' \
     --env "UMMAH_NATIVE_FIXTURE_FILE=${FIXTURE_PATH}" \
     "$HUMHUB_CONTAINER" php /tmp/seed-native-humhub.php || fail
-quiet docker exec \
+quiet docker exec --user www-data \
     --env 'UMMAH_NATIVE_FIXTURE=sandbox-only' \
     --env 'UMMAH_REVIEW_ENVIRONMENT=isolated-staging' \
     --env "UMMAH_REVIEW_SPACE_IDS=${REVIEW_SPACE_IDS}" \
@@ -345,7 +373,7 @@ quiet docker exec "$HUMHUB_CONTAINER" chown -R www-data:www-data /var/lib/ummah-
 
 DB_PROBE_COMMAND_JSON="$(DB_PROBE_CONTAINER="$HUMHUB_CONTAINER" DB_PROBE_FIXTURE_PATH="$FIXTURE_PATH" node --input-type=module - <<'NODE'
 const command = [
-  'docker', 'exec', '-i', process.env.DB_PROBE_CONTAINER, 'env',
+  'docker', 'exec', '--user', 'www-data', '-i', process.env.DB_PROBE_CONTAINER, 'env',
   'UMMAH_NATIVE_FIXTURE=sandbox-only',
   'UMMAH_REVIEW_ENVIRONMENT=isolated-staging',
   'UMMAH_REVIEW_SPACE_IDS=1,2',
@@ -395,7 +423,7 @@ chmod 600 "$HTTP_REPORT" "$HTTP_LOG"
 
 phase='native-model-guard-qualification'
 printf 'Native container phase: %s\n' "$phase"
-if ! docker exec \
+if ! docker exec --user www-data \
     --env 'UMMAH_NATIVE_FIXTURE=sandbox-only' \
     --env 'UMMAH_REVIEW_ENVIRONMENT=isolated-staging' \
     --env "UMMAH_REVIEW_SPACE_IDS=${REVIEW_SPACE_IDS}" \
@@ -417,7 +445,7 @@ fixture_count_before="$(mysql_scalar "SELECT COUNT(*) FROM user WHERE username I
 
 phase='reject-first-boot-over-existing-accounts'
 printf 'Native container phase: %s\n' "$phase"
-if docker exec --env 'UMMAH_INITIALIZE_HUMHUB=yes' --env 'UMMAH_BOOTSTRAP_PRIVATE_EMPTY=yes' "$HUMHUB_CONTAINER" php /usr/local/bin/bootstrap-private-humhub.php --assert-empty >>"$COMMAND_LOG" 2>&1; then fail; fi
+if docker exec --user www-data --env 'UMMAH_INITIALIZE_HUMHUB=yes' --env 'UMMAH_BOOTSTRAP_PRIVATE_EMPTY=yes' "$HUMHUB_CONTAINER" php /usr/local/bin/bootstrap-private-humhub.php --assert-empty >>"$COMMAND_LOG" 2>&1; then fail; fi
 [[ "$(mysql_scalar 'SELECT COUNT(*) FROM ummah_review')" == "$review_count_before" ]] || fail
 [[ "$(mysql_scalar 'SELECT COUNT(*) FROM ummah_review_event')" == "$event_count_before" ]] || fail
 [[ "$(mysql_scalar "SELECT COUNT(*) FROM user WHERE username IN ('ummah-author','ummah-reviewer','ummah-excluded')")" == "$fixture_count_before" ]] || fail
@@ -434,6 +462,8 @@ wait_for_http || fail
 wait_for_schema || fail
 wait_for_workers || fail
 assert_protected_paths || fail
+assert_native_browser_boundary || fail
+assert_private_runtime || fail
 
 phase='verify-persistence-after-restart'
 printf 'Native container phase: %s\n' "$phase"
