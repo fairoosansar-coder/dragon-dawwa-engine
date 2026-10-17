@@ -1,0 +1,22 @@
+{
+  "kind": "saved-native-bootstrap-failure-diagnosis",
+  "observedAtUtc": "2026-10-17T03:53:23Z",
+  "runId": "38999928604",
+  "sourceCommit": "ecc3b4baac6de1bf28994b48a6febc54a4eba620",
+  "conclusion": "failure",
+  "phase": "account-free-private-bootstrap",
+  "exceptionClass": "RuntimeException",
+  "message": "Private staging bootstrap precondition failed.",
+  "traceFile": "bootstrap-private-humhub.php",
+  "traceLine": 90,
+  "failingOperation": "new native Space instance save returned false",
+  "pinnedSourceCause": "Space checkVisibility requires logged-in CreatePrivateSpace permission; an account-free guest has none",
+  "correction": "On the bootstrap new Space instance only, replace the single human permission validator with the exact isolated account-free CLI authorization and strict private flags; retain all remaining field validators and native model hooks",
+  "globalGuestPermissionChanged": false,
+  "usersInvented": false,
+  "hostedHumHubDeployed": false,
+  "hostedHumanAcceptance": false,
+  "physicalIPhoneSafariTested": false,
+  "originalInterruptedFilesRecovered": false,
+  "qualificationAfterCorrection": "pending exact new revision CI"
+}

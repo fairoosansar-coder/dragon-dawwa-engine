@@ -1,0 +1,209 @@
+{
+  "browser": "154.0.8037.57",
+  "method": "Desktop Chromium with viewport emulation; NOT real iPhone Safari",
+  "mockedAPIs": false,
+  "hostedAcceptance": false,
+  "routes": [
+    {
+      "screen": 1,
+      "heading": "Splash & Welcome",
+      "overflow": false
+    },
+    {
+      "screen": 2,
+      "heading": "Sign Up / Login",
+      "overflow": false
+    },
+    {
+      "screen": 3,
+      "heading": "Onboarding & Preferences",
+      "overflow": false
+    },
+    {
+      "screen": 4,
+      "heading": "Home Feed",
+      "overflow": false
+    },
+    {
+      "screen": 5,
+      "heading": "Create Post",
+      "overflow": false
+    },
+    {
+      "screen": 6,
+      "heading": "Post Detail & Comments",
+      "overflow": false
+    },
+    {
+      "screen": 7,
+      "heading": "Explore & Search",
+      "overflow": false
+    },
+    {
+      "screen": 8,
+      "heading": "User Profile",
+      "overflow": false
+    },
+    {
+      "screen": 9,
+      "heading": "Messages & Chat",
+      "overflow": false
+    },
+    {
+      "screen": 10,
+      "heading": "Notifications",
+      "overflow": false
+    },
+    {
+      "screen": 11,
+      "heading": "Community Directory",
+      "overflow": false
+    },
+    {
+      "screen": 12,
+      "heading": "Community Detail",
+      "overflow": false
+    },
+    {
+      "screen": 13,
+      "heading": "Knowledge Hub",
+      "overflow": false
+    },
+    {
+      "screen": 14,
+      "heading": "Quran Reader",
+      "overflow": false
+    },
+    {
+      "screen": 15,
+      "heading": "Hadith Library",
+      "overflow": false
+    },
+    {
+      "screen": 16,
+      "heading": "Prayer & Spiritual",
+      "overflow": false
+    },
+    {
+      "screen": 17,
+      "heading": "Scholars & Questions",
+      "overflow": false
+    },
+    {
+      "screen": 18,
+      "heading": "Charity Hub",
+      "overflow": false
+    },
+    {
+      "screen": 19,
+      "heading": "Charity Campaign Detail",
+      "overflow": false
+    },
+    {
+      "screen": 20,
+      "heading": "Donation Checkout",
+      "overflow": false
+    },
+    {
+      "screen": 21,
+      "heading": "My Donations",
+      "overflow": false
+    },
+    {
+      "screen": 22,
+      "heading": "Build a Mosque Directory",
+      "overflow": false
+    },
+    {
+      "screen": 23,
+      "heading": "Mosque Project Detail",
+      "overflow": false
+    },
+    {
+      "screen": 24,
+      "heading": "Mosque Construction Updates",
+      "overflow": false
+    },
+    {
+      "screen": 25,
+      "heading": "Create Mosque Project",
+      "overflow": false
+    },
+    {
+      "screen": 26,
+      "heading": "Mosque Project Management",
+      "overflow": false
+    },
+    {
+      "screen": 27,
+      "heading": "Events & Registration",
+      "overflow": false
+    },
+    {
+      "screen": 28,
+      "heading": "Mosque Directory",
+      "overflow": false
+    },
+    {
+      "screen": 29,
+      "heading": "Volunteer Opportunities",
+      "overflow": false
+    },
+    {
+      "screen": 30,
+      "heading": "Halal Marketplace",
+      "overflow": false
+    },
+    {
+      "screen": 31,
+      "heading": "More & Settings",
+      "overflow": false
+    },
+    {
+      "screen": 32,
+      "heading": "Organization Dashboard",
+      "overflow": false
+    },
+    {
+      "screen": 33,
+      "heading": "Admin & Moderation",
+      "overflow": false
+    }
+  ],
+  "screenshots": [
+    "screen-2-chrome-mobile.png",
+    "screen-4-chrome-mobile.png",
+    "screen-5-chrome-mobile.png",
+    "screen-6-chrome-mobile.png",
+    "screen-33-chrome-mobile.png",
+    "home-chrome-desktop.png"
+  ],
+  "api": {
+    "config": {
+      "status": 200,
+      "body": {
+        "reviewEnabled": false,
+        "loginPath": null
+      }
+    },
+    "spaces": {
+      "status": 401,
+      "body": {
+        "error": "social_account_link_required"
+      }
+    },
+    "submissions": {
+      "status": 405,
+      "body": {
+        "error": "social_writes_not_enabled"
+      }
+    },
+    "reviews": {
+      "status": 404,
+      "body": {
+        "error": "social_route_not_found"
+      }
+    }
+  },
+  "pageErrors": []
+}

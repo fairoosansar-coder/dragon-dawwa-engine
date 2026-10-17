@@ -87,7 +87,28 @@ if ($mode === '--create') {
             'visibility' => Space::VISIBILITY_NONE, 'join_policy' => Space::JOIN_POLICY_NONE,
             'default_content_visibility' => Content::VISIBILITY_PRIVATE,
             'auto_add_new_members' => 0, 'status' => Space::STATUS_ENABLED, 'color' => '#059669']);
-        if ($space->isNewRecord && !$space->save()) rejectBootstrap();
+        if ($space->isNewRecord) {
+            // Native checkVisibility authorizes a logged-in human, which is
+            // deliberately absent at first boot. Replace ONLY that validator
+            // on this new instance with the stricter operator CLI contract.
+            // Never change core/global validators, impersonate a user, skip
+            // other field validation, or save a subclass as the container type.
+            if (getenv('UMMAH_INITIALIZE_HUMHUB') !== 'yes'
+                || $space->visibility !== Space::VISIBILITY_NONE
+                || $space->join_policy !== Space::JOIN_POLICY_NONE
+                || $space->default_content_visibility !== Content::VISIBILITY_PRIVATE
+                || $space->auto_add_new_members !== 0) rejectBootstrap();
+            $permissionValidators = [];
+            foreach ($space->getValidators() as $validator) {
+                if ($validator instanceof yii\validators\InlineValidator
+                    && $validator->method === 'checkVisibility'
+                    && $validator->attributes === ['visibility']) $permissionValidators[] = $validator;
+            }
+            if (count($permissionValidators) !== 1) rejectBootstrap();
+            $space->getValidators()->remove($permissionValidators[0]);
+            if (!$space->save()) throw new RuntimeException('Native private-space validation failed for attributes: '
+                . implode(', ', array_keys($space->getErrors())));
+        }
         if ($space->created_by !== null && (int)$space->created_by !== 0) rejectBootstrap();
         if ((int)$space->visibility !== Space::VISIBILITY_NONE || (int)$space->join_policy !== Space::JOIN_POLICY_NONE
             || (int)$space->auto_add_new_members !== 0 || (int)$space->default_content_visibility !== Content::VISIBILITY_PRIVATE) rejectBootstrap();

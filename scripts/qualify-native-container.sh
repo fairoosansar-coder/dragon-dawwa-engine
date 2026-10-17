@@ -153,6 +153,7 @@ wait_for_schema() {
 wait_for_http() {
     local deadline=$((SECONDS + TIMEOUT_SECONDS)) status
     while (( SECONDS < deadline )); do
+        [[ "$(docker inspect --format '{{.State.Status}}' "$HUMHUB_CONTAINER" 2>>"$COMMAND_LOG")" == 'running' ]] || return 1
         if status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 5 "http://127.0.0.1:${HUMHUB_PORT}/api/v1/auth/current" 2>>"$COMMAND_LOG")"; then
             case "$status" in
                 2*|3*|401) return 0 ;;
@@ -425,7 +426,7 @@ quiet docker rm "$HUMHUB_CONTAINER" || fail
 humhub_started=0
 # Recreate against the same volumes with initialization disabled. This catches
 # destructive writes that a plain Docker restart would conceal.
-start_humhub 'no' || fail
+start_humhub 'no' 'yes' || fail
 wait_for_http || fail
 wait_for_schema || fail
 wait_for_workers || fail
@@ -461,7 +462,7 @@ HTTP_REPORT_PATH="$HTTP_REPORT" MODEL_LOG_PATH="$MODEL_LOG" node --input-type=mo
 import {readFileSync} from 'node:fs';
 const http=JSON.parse(readFileSync(process.env.HTTP_REPORT_PATH,'utf8'));
 const model=JSON.parse(readFileSync(process.env.MODEL_LOG_PATH,'utf8').trim().split('\n').at(-1));
-if(http.failed || model.failed || http.passed<32 || model.passed<15)process.exit(1);
-console.log(JSON.stringify({kind:'actual-native-container-summary',mysql:'8.4',httpPassed:http.passed,modelPassed:model.passed,failed:0,appImageBuilt:true,humhubImageBuilt:true,queueCronWorkers:'pass',persistentRestart:'pass',humanParticipation:false,realGoogleLoginTested:false,physicalIPhoneSafariTested:false,hostedEnvironmentTested:false}));
+if(http.failed || model.failed || http.passed<32 || model.passed<16)process.exit(1);
+console.log(JSON.stringify({kind:'actual-native-container-summary',mysql:'8.4',httpPassed:http.passed,modelPassed:model.passed,failed:0,appImageBuilt:true,humhubImageBuilt:true,queueCronWorkers:'pass',persistentRestart:'pass',accountFreePrivateBootstrap:'pass',ordinaryGuestPrivateSpaceDenied:'pass',firstBootOverExistingAccountsDenied:'pass',privateMarkerRestartWithAccounts:'pass',humanParticipation:false,realGoogleLoginTested:false,physicalIPhoneSafariTested:false,hostedEnvironmentTested:false}));
 NODE
 printf 'Native container qualification passed: MySQL 8.4 ran in an ephemeral isolated container; HumHub was loopback-only; synthetic fixtures only.\n'
