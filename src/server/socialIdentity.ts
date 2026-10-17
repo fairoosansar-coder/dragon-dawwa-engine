@@ -2,6 +2,7 @@ import { readFile, stat } from 'node:fs/promises';
 import type { IncomingMessage } from 'node:http';
 import { SocialError, validateOrigin } from '../../integrations/social/humhub-client.mjs';
 import { createSocialMiddleware, type SocialActor } from './socialGateway.ts';
+import { fetchPrivateIdentity } from './privateIdentityTransport.ts';
 
 const ROLES = new Set(['owner','reader','author','reviewer','publisher']);
 export interface VerifiedSession { id: string; role: string }
@@ -37,6 +38,7 @@ export function configuredStagingSocialMiddleware(env = process.env, fetcher = f
   } catch {
     return createSocialMiddleware({ resolveActor: async () => { throw new SocialError('isolated_social_configuration_required', 503); } });
   }
+  const identityFetcher = fetcher === fetch ? fetchPrivateIdentity : fetcher;
   const resolveActor = createTrustedSocialResolver({
     async verifySession(req) {
       if (req.headers?.host !== new URL(publicOrigin).host) return null;
@@ -44,7 +46,7 @@ export function configuredStagingSocialMiddleware(env = process.env, fetcher = f
       const matches = (req.headers.cookie || '').split(';').map(s => s.trim()).filter(s => s.startsWith('webdev_app_session='));
       if (matches.length !== 1 || matches[0].length > 8100 || /[\r\n]/.test(matches[0])) return null;
       let response: Response;
-      try { response = await fetcher(identityOrigin + '/api/review/session', { method: 'GET', redirect: 'error',
+      try { response = await identityFetcher(identityOrigin + '/api/review/session', { method: 'GET', redirect: 'error',
         signal: AbortSignal.timeout(10000), headers: { Host: new URL(publicOrigin).host, Cookie: matches[0], Accept: 'application/json' } }); }
       catch { throw new SocialError('identity_authority_unavailable', 503); }
       if ([401,403].includes(response.status)) { await response.body?.cancel(); return null; }

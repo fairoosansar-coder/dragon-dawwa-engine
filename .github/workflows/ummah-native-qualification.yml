@@ -6,6 +6,7 @@ on:
       - development/ummahconnect-native-hardening-20261016
       - development/ummahconnect-native-hardening-private-bootstrap-20261017
       - development/ummahconnect-native-login-boundary-20261017
+      - development/ummahconnect-app-identity-host-20261017
   workflow_dispatch:
 
 permissions:
@@ -30,6 +31,13 @@ jobs:
         with:
           node-version: 24.21.0
           check-latest: false
+      - name: Qualify source and actual private identity HTTP transport
+        shell: bash
+        run: |
+          npm ci --no-audit --no-fund
+          npm ci --prefix deployment/staging/identity --no-audit --no-fund
+          node --import tsx --test tests/*.test.ts integrations/social/social.test.mjs
+          node --test deployment/staging/identity/test.mjs
       - name: Build and qualify isolated native containers
         shell: bash
         run: bash scripts/qualify-native-container.sh

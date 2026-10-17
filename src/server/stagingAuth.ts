@@ -1,8 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { validateOrigin } from '../../integrations/social/humhub-client.mjs';
+import { fetchPrivateIdentity } from './privateIdentityTransport.ts';
 const paths = new Set(['/auth/login','/auth/callback','/auth/logout','/auth/logout-all','/api/review/session']);
 const cookies = (value: string) => value.split(';').map(s => s.trim()).filter(s => /^(webdev_app_session|__Host-dd_oidc_flow)=/.test(s)).join('; ');
-export function configuredStagingAuthMiddleware(env = process.env, fetcher = fetch) {
+export function configuredStagingAuthMiddleware(env = process.env, fetcher = fetchPrivateIdentity) {
   return async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
     const url = new URL(req.url || '/', 'http://local');
     if (!paths.has(url.pathname) || env.UMMAH_SOCIAL_ENVIRONMENT !== 'isolated-staging') return next();

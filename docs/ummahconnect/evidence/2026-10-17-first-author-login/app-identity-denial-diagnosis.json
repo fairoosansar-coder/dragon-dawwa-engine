@@ -1,0 +1,30 @@
+[
+  {
+    "path": "/api/health",
+    "status": 200,
+    "body": "{\"status\":\"online\",\"engine\":\"Dragon Dawwa v2.5 with Gemini TTS\",\"hasKey\":false}",
+    "cacheControl": null,
+    "redirectPresent": false
+  },
+  {
+    "path": "/api/review/session",
+    "status": 403,
+    "body": "Canonical staging host required.",
+    "cacheControl": "no-store",
+    "redirectPresent": false
+  },
+  {
+    "path": "/auth/login",
+    "status": 403,
+    "body": "Canonical staging host required.",
+    "cacheControl": "no-store",
+    "redirectPresent": false
+  },
+  {
+    "path": "/api/social/session",
+    "status": 404,
+    "body": "{\"error\":\"social_route_not_found\"}",
+    "cacheControl": "private, no-store",
+    "redirectPresent": false
+  }
+]

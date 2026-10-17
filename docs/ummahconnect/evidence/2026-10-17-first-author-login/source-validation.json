@@ -1,0 +1,22 @@
+{
+  "checkedAtUtc": "2026-10-17T11:23:30Z",
+  "nodeVersion": "22.13.0",
+  "branch": "development/ummahconnect-app-identity-host-20261017",
+  "appAndSocialTests": {"passed": 53, "failed": 0},
+  "privateRealWireTestsIncluded": {"passed": 6, "failed": 0},
+  "isolatedIdentityTests": {"passed": 19, "failed": 0},
+  "typecheckLint": "pass",
+  "build": "pass",
+  "diffCheck": "pass",
+  "identityAuthorityValidationChanged": false,
+  "nativeExecutableFilesChanged": false,
+  "uiDesignFilesChanged": false,
+  "googleLiveLoginTested": false,
+  "hostedHumanReviewTested": false,
+  "physicalIPhoneSafariTested": false,
+  "pinnedNode24ContainerQualification": "pending exact correction commit",
+  "hostedCorrectionDeployed": false,
+  "sourceWireTestsUseSyntheticLocalResponses": true,
+  "sourceWireTestsCreateGoogleOrNativeAccounts": false,
+  "credentialsInEvidence": false
+}
