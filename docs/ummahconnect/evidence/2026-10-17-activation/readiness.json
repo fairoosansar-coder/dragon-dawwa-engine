@@ -1,0 +1,21 @@
+{
+  "checkedAtUtc": "2026-10-17T00:48:18Z",
+  "url": "https://ummah-app-staging.up.railway.app/",
+  "httpStatus": 404,
+  "tlsVerifyResult": 0,
+  "message": "Application not found",
+  "hostedFlowTested": false,
+  "physicalIPhoneSafariTested": false,
+  "sourceTests": {
+    "app": 44,
+    "identity": 19,
+    "failed": 0
+  },
+  "nativeCi": {
+    "runUrl": "https://github.com/fairoosansar-coder/dragon-dawwa-engine/actions/runs/38826633944",
+    "httpPassed": 32,
+    "modelFileCachePassed": 15,
+    "actors": "synthetic native qualification fixtures",
+    "rerunOnRailway": false
+  }
+}

@@ -1,0 +1,109 @@
+
+> test
+> node --test test.mjs
+
+TAP version 13
+# Subtest: Staging identity configuration accepted with separate scope
+ok 1 - Staging identity configuration accepted with separate scope
+  ---
+  duration_ms: 1.528665
+  ...
+# Subtest: Reject non-staging RAILWAY_PROJECT_ID
+ok 2 - Reject non-staging RAILWAY_PROJECT_ID
+  ---
+  duration_ms: 0.303679
+  ...
+# Subtest: Reject non-staging RAILWAY_ENVIRONMENT_ID
+ok 3 - Reject non-staging RAILWAY_ENVIRONMENT_ID
+  ---
+  duration_ms: 0.11551
+  ...
+# Subtest: Reject non-staging REVIEW_DB_NAME
+ok 4 - Reject non-staging REVIEW_DB_NAME
+  ---
+  duration_ms: 0.108662
+  ...
+# Subtest: Reject non-staging REVIEW_DB_USER
+ok 5 - Reject non-staging REVIEW_DB_USER
+  ---
+  duration_ms: 0.202671
+  ...
+# Subtest: Reject non-staging REVIEW_DB_HOST
+ok 6 - Reject non-staging REVIEW_DB_HOST
+  ---
+  duration_ms: 0.148487
+  ...
+# Subtest: Reject non-staging REVIEW_PUBLIC_ORIGIN
+ok 7 - Reject non-staging REVIEW_PUBLIC_ORIGIN
+  ---
+  duration_ms: 0.249175
+  ...
+# Subtest: Reject non-staging REVIEW_APP_ID
+ok 8 - Reject non-staging REVIEW_APP_ID
+  ---
+  duration_ms: 0.186475
+  ...
+# Subtest: Reject non-staging UMMAH_IDENTITY_ENVIRONMENT
+ok 9 - Reject non-staging UMMAH_IDENTITY_ENVIRONMENT
+  ---
+  duration_ms: 0.34452
+  ...
+# Subtest: Original auth and revocation vendor files are byte-identical
+ok 10 - Original auth and revocation vendor files are byte-identical
+  ---
+  duration_ms: 1.497033
+  ...
+# Subtest: Google vendor differs only by the three documented scope constants
+ok 11 - Google vendor differs only by the three documented scope constants
+  ---
+  duration_ms: 0.550447
+  ...
+# Subtest: Current session resolves role only from database
+ok 12 - Current session resolves role only from database
+  ---
+  duration_ms: 6.446576
+  ...
+# Subtest: Wrong canonical host denied
+ok 13 - Wrong canonical host denied
+  ---
+  duration_ms: 0.729427
+  ...
+# Subtest: Production-scoped signed token rejected by staging audience
+ok 14 - Production-scoped signed token rejected by staging audience
+  ---
+  duration_ms: 0.721473
+  ...
+# Subtest: Disabled staging account denied
+ok 15 - Disabled staging account denied
+  ---
+  duration_ms: 0.812669
+  ...
+# Subtest: Revoked token denied
+ok 16 - Revoked token denied
+  ---
+  duration_ms: 0.817399
+  ...
+# Subtest: Revoked account epoch denied
+ok 17 - Revoked account epoch denied
+  ---
+  duration_ms: 0.728657
+  ...
+# Subtest: Duplicate session cookies denied
+ok 18 - Duplicate session cookies denied
+  ---
+  duration_ms: 0.638818
+  ...
+# Subtest: Failed session database never grants access
+ok 19 - Failed session database never grants access
+  ---
+  duration_ms: 0.858758
+  ...
+1..19
+# tests 19
+# suites 0
+# pass 19
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 262.082617

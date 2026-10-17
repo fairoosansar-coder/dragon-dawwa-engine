@@ -4,66 +4,61 @@
   "projectId": "48d7a4cf-07dc-489b-8a3d-d6d10142b14e",
   "environmentId": "1f7d98bf-1d49-4d9f-a5cc-13b57abcc095",
   "environmentName": "staging",
-  "actualState": "ummah-app-empty-service-created-capped-no-source-no-deployment",
+  "actualState": "four-empty-offline-services-capped-reserved-https-domain-no-source-no-workloads",
   "activationApproved": true,
   "applicationHttpsUrl": null,
+  "reservedApplicationHttpsUrl": "https://ummah-app-staging.up.railway.app",
+  "reservedGoogleCallback": "https://ummah-app-staging.up.railway.app/auth/callback",
+  "hostnameReadiness": {
+    "checkedAtUtc": "2026-10-17T00:48:18Z",
+    "httpStatus": 404,
+    "tlsVerifyResult": 0,
+    "message": "Application not found",
+    "liveApplicationReady": false
+  },
   "identityDesign": "existing Google OIDC subject/session implementation, isolated secrets/database, private same-container loopback listener",
+  "qualifiedRuntimeCommit": "558cf5c53775d2412ef3d9f8e1fddcdf9e298d22",
+  "qualifiedEvidenceCommit": "b0d3de57e19e7a5831675540959f209fd09008a3",
   "plannedServices": [
-    {
-      "name": "ummah-app",
-      "dockerfile": "deployment/staging/app.Dockerfile",
-      "publicPort": 3000
-    },
-    {
-      "name": "ummah-humhub",
-      "dockerfile": "deployment/staging/humhub.Dockerfile",
-      "publicPort": 80,
-      "volumeMount": "/var/lib/ummah-humhub"
-    },
-    {
-      "name": "ummah-humhub-mysql",
-      "imageLock": "upstream-lock.json:mysql",
-      "schema": "ummah_humhub_staging",
-      "user": "ummah_humhub_app",
-      "publicNetworking": false
-    },
-    {
-      "name": "ummah-identity-mysql",
-      "imageLock": "upstream-lock.json:mysql",
-      "schema": "ummah_identity_staging",
-      "user": "ummah_identity_app",
-      "initSql": "identity/schema.sql",
-      "publicNetworking": false
-    }
+    {"name":"ummah-app","dockerfile":"deployment/staging/app.Dockerfile","publicPort":3000},
+    {"name":"ummah-humhub","dockerfile":"deployment/staging/humhub.Dockerfile","publicPort":80,"volumeMount":"/var/lib/ummah-humhub"},
+    {"name":"ummah-humhub-mysql","imageLock":"upstream-lock.json:mysql","schema":"ummah_humhub_staging","user":"ummah_humhub_app","publicNetworking":false},
+    {"name":"ummah-identity-mysql","imageLock":"upstream-lock.json:mysql","schema":"ummah_identity_staging","user":"ummah_identity_app","initSql":"identity/schema.sql","publicNetworking":false}
   ],
+  "repositoryAccess": {
+    "requestedRepository": "fairoosansar-coder/dragon-dawwa-engine",
+    "requestedScope": "add only dragon-dawwa-engine; preserve existing Railway app grants",
+    "pickerListsRequestedRepository": true,
+    "selectionRedirectedToGitHubConfirmAccess": true,
+    "installationSettingsUrl": "https://github.com/settings/installations/167750118",
+    "grantChangeAppliedByThisTask": false,
+    "sourceAttachmentVerified": false
+  },
   "blockers": [
-    "Railway repository picker cannot find fairoosansar-coder/dragon-dawwa-engine; correct GitHub installation access must be inspected/authorized without removing existing grants",
-    "separate staging Google OIDC client and project choice",
-    "designated author/reviewer/excluded identities and scoped grants",
-    "remaining private services/volumes and hosted acceptance",
-    "physical iPhone Safari test"
+    "GitHub Confirm access security re-authentication still required; a listed repository did not produce a verified source attachment",
+    "attach only the qualified development source and correct per-service Dockerfile; do not use main or substitute the production repository",
+    "private database images, protected credentials, volumes and isolated schema bootstrap remain unactivated",
+    "separate staging Google Cloud project/Web OAuth client; canonical callback is now specified",
+    "designated real author, different human reviewer and excluded account; explicit staging community membership and review grants",
+    "hosted HTTPS login/submission/independent human approval/rejection/self-review/excluded-user acceptance",
+    "physical iPhone Safari acceptance"
   ],
   "productionModified": false,
   "aishuModified": false,
   "approvalRecordedAt": "2026-10-16T12:07:14Z",
+  "observedAtUtc": "2026-10-17T00:48:18Z",
   "approvedResourceEnvelope": {
-    "serviceCount": 4,
-    "replicasPerService": 1,
-    "maxVcpuPerService": 1,
-    "maxMemoryGbPerService": 1,
-    "aggregateVolumeGbTarget": 5,
-    "monthlyTargetUsd": 125,
-    "absoluteSpendCap": false,
-    "paymentHandledByOwner": true
+    "serviceCount":4,"replicasPerService":1,"maxVcpuPerService":1,"maxMemoryGbPerService":1,
+    "aggregateVolumeGbTarget":5,"monthlyTargetUsd":125,"absoluteSpendCap":false,"paymentHandledByOwner":true
   },
   "observedServices": [
-    {
-      "name": "ummah-app",
-      "serviceId": "f3756510-4e87-445b-9cfb-9dad042d6758",
-      "maxVcpu": 1,
-      "maxMemoryGb": 1,
-      "sourceConnected": false,
-      "runningDeployment": false
-    }
-  ]
+    {"name":"ummah-app","serviceId":"f3756510-4e87-445b-9cfb-9dad042d6758","maxVcpu":1,"maxMemoryGb":1,"replicas":1,"sourceConnected":false,"runningDeployment":false},
+    {"name":"ummah-humhub","serviceId":"e6498121-1725-4d5a-a66f-e0f1091d6d35","maxVcpu":1,"maxMemoryGb":1,"replicas":1,"sourceConnected":false,"runningDeployment":false},
+    {"name":"ummah-humhub-mysql","serviceId":"40669655-b0cd-4b44-83ab-d0f4bf0376d7","maxVcpu":1,"maxMemoryGb":1,"replicas":1,"sourceConnected":false,"runningDeployment":false},
+    {"name":"ummah-identity-mysql","serviceId":"f7abeb9a-2a67-4fb7-9c6b-8a12dc19db44","maxVcpu":1,"maxMemoryGb":1,"replicas":1,"sourceConnected":false,"runningDeployment":false}
+  ],
+  "volumesCreated": false,
+  "databaseRuntimeActive": false,
+  "oauthConfigured": false,
+  "paymentActionPerformed": false
 }

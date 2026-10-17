@@ -116,3 +116,16 @@ Qualified runtime source: `558cf5c53775d2412ef3d9f8e1fddcdf9e298d22`. [Actual st
 Corrections verified: actual authenticated final-server MySQL readiness; GD codecs needed by native avatars; private supervisor Unix control socket; writable native runtime/asset ownership; base-image sticky-webroot/protected-symlink traversal; resolved-path and URL-level private storage denial. Linux symlink protections and host firewall safeguards were not disabled. Local Docker kernel restriction remains a local limitation, superseded by actual standard-runner container qualification.
 
 **Hosted HTTPS Google login / independent human review / physical iPhone Safari are NOT tested.** CI actors are synthetic; no scholarly review, financial or construction facts are certified. Separate Railway activation/OIDC/account choices and hardware acceptance remain blockers; no app staging URL is claimed. All other selected services remain pending in the documented order.
+
+## 2026-10-17 UTC — activation preparation validation
+
+- Fresh `npm run lint`: pass.
+- Fresh `node --import tsx --test tests/*.test.ts integrations/social/social.test.mjs`: **44/44 pass**; controlled provider/source fixtures only.
+- Fresh `npm test --prefix deployment/staging/identity`: **19/19 pass**; no Google login performed.
+- Fresh `npm run build`: pass; existing bundle-size warning remains.
+- Reserved actual Railway hostname `https://ummah-app-staging.up.railway.app`: HTTPS certificate verifies (`curl` verification result 0); **HTTP 404 / Application not found**. This is a negative readiness result, not a hosted flow pass.
+- Four empty service slots were saved with one replica and 1 vCPU / 1 GB caps. No source or database workloads/volumes are active. Repository picker visibility did not prove access: selecting the requested repo redirected to GitHub **Confirm access**.
+- Prior actual HumHub/REST/MySQL evidence (**32 HTTP + 15 native model/file/cache**, workers/private paths/persistent restart) remains separately attributed to [CI 38826633944](https://github.com/fairoosansar-coder/dragon-dawwa-engine/actions/runs/38826633944). It was not rerun on Railway.
+- Hosted existing-account login, independent human approval, rejection, self-review denial, excluded users and physical iPhone Safari: **not run / blocked**.
+
+Evidence directory: `evidence/2026-10-17-activation/`. Runtime/UI code remains unchanged from the qualified ancestry; original 13-file recovery is separate. No production/Aishu change or payment action was performed.
