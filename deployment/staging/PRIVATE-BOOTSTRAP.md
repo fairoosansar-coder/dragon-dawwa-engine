@@ -4,15 +4,15 @@
 
 The owner explicitly approved a **separate UmmahConnect staging Google Cloud project and Web OAuth client** on 2026-10-17. No production Google project, client, account, database or Aishu runtime may be changed.
 
-The browser's Google Cloud account chooser currently shows a signed-out account. This is not a verified current session or a designated participant. Project/client creation therefore remains blocked by Google sign-in. The three supplied account entries remain bracketed placeholders; none is eligible for enrollment, membership or role grants.
+**Current OAuth update, 17 October 2026, 06:23 UTC:** owner sign-in and policy approval are complete. Separate project `ummahconnect-staging-261017`, External/Testing consent and **UmmahConnect Staging Web** client are created; final credentials are saved in protected ummah-app settings, with no pending change set and no app deployment. Two unused temporary setup secrets that appeared in diagnostics were disabled/deleted; only the final unlogged replacement remains active. See [current Google handoff](../../docs/ummahconnect/GOOGLE-STAGING.md). The three account entries remain placeholders; none is eligible for enrollment, membership or role grants. Google's basic-identity Testing exception means test-user lists cannot replace current application role and native membership/grant enforcement.
 
-Create the separate project under the owner's intended Google account after sign-in, without linking a billing account or creating Google compute resources. Configure a server-side Web OAuth client for:
+The created separate project did not attach billing or create Google compute resources. Its server-side Web OAuth client is configured as follows:
 
 - App name: **UmmahConnect Staging**.
 - Audience: **External / Testing**, not production publication.
 - Minimum identity scopes: `openid profile email` only.
 - Authorized redirect URI: `https://ummah-app-staging.up.railway.app/auth/callback`.
-- Authorized JavaScript origin, if the console requires one: `https://ummah-app-staging.up.railway.app`.
+- Authorized JavaScript origins: **none**, server-side redirect flow only.
 - Support/developer contact: the owner-designated verified Google account, not an invented email.
 - Test users: only the actual designated accounts once supplied.
 - Store `GOOGLE_OIDC_CLIENT_ID` and `GOOGLE_OIDC_CLIENT_SECRET` directly in the protected `ummah-app` Railway settings. Never put values in source, evidence, chat, screenshots or the completion matrix. Google displays a new client secret only at creation; preserve it immediately in protected storage.

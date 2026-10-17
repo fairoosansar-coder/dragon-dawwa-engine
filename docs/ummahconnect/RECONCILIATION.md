@@ -86,3 +86,19 @@ Staging's new identity schema is `ummah_identity_staging`, role `ummah_identity_
 Evidence: `evidence/2026-10-17-private-bootstrap/`, particularly `qualified-apache-correction-ci.json`, `hosted-corrected-runtime-verification.json`, `hosted-anonymous-boundary-audit.json`, `hosted-runtime-console.webp` and `screenshots/`. No financial, scholarly or construction fact is certified; Qdrant/BGE → Docling → PeerTube → charity/mosque follow only after the documented social milestone.
 
 Production authentication/deployment authority remains `dragon-dawwa-railway-deploy` at the previously authenticated reconciled revision. No production/main merge, deployment, account or session data operation occurred. The separate staging identity package retains its provenance/isolation/subject/session/role semantics; only native social bootstrap and startup normalization advanced. HumHub owns all social content/reviews/grants/events.
+
+## OAuth configuration update — 17 October 2026, 06:23 UTC
+
+The owner-approved Google consent and single Web client are created in **`ummahconnect-staging-261017`**, **External/Testing**, with basic identity scopes only and exact callback `https://ummah-app-staging.up.railway.app/auth/callback`. The final credentials are privately saved in only the isolated **ummah-app** protected settings: **26 service variables, zero pending changes, Service is offline**. No app deployment, real account enrollment, native grant or human decision was performed.
+
+Two unused temporary secrets surfaced in diagnostic output; both were disabled and deleted before application use/deployment. The final fresh replacement is the only enabled secret, was not returned in output and is not exported. Temporary browser memory/clipboard were cleared. See [Google staging setup](GOOGLE-STAGING.md) for the exact handling record and remaining gates.
+
+**Authorization blind spot addressed:** Google's basic-name/email/profile login exception means its Testing user list is not an application/community allowlist. The existing verified issuer/subject + enabled current database role + session/revocation authority remains mandatory, followed by native membership/grants; no email auto-invites or browser-trusted identities. No additional broad scopes were added to force a Google allowlist.
+
+Fresh source regressions: **47/47 app and 19/19 identity**, zero failures. Native CI remains the prior qualified **36 HTTP + 16 model** at `66a1adb0052b56a0c094eb43ce0b1259bfc37a4f`, run **39003367427**, with synthetic actors. Fresh anonymous HTTPS probes: **main-app /api/health 404**, **native /api/v1/auth/current 401**, verified TLS. These are not genuine Google login/member/reviewer/excluded or physical-device results.
+
+Next: three actual distinct account designations; qualified invitation-required app deployment to observe genuine subjects; deliberate identity/native mappings and scoped grants; different-human approve/reject and negative-access acceptance; physical iPhone Safari. The author cannot review, the reviewer is review-only, the excluded tester gets no community membership/grant. All **33 screen status counts stay 6 locally Working / 20 UI Only / 7 Blocked**. Original 13-file recovery, production, Aishu, approved colors and later-service order remain unchanged/separate.
+
+Evidence: `evidence/2026-10-17-google-staging/`. Earlier dated setup/unready records are history; this update supersedes only their resolved Google creation/credential blocker.
+
+Authentication/deployment authority is unchanged: `dragon-dawwa-railway-deploy` semantics, separate staging identity DB/session secrets and HumHub as the sole social engine. This milestone changes only staging provider configuration and documentation/evidence, not executable auth or native code.

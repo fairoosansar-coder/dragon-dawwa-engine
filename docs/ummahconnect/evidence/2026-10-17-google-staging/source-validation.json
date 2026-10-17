@@ -1,0 +1,26 @@
+{
+  "checkedAtUtc": "2026-10-17T06:25:50.974666+00:00",
+  "app": {
+    "tests": 47,
+    "pass": 47,
+    "fail": 0,
+    "scope": "Source and controlled-provider regressions"
+  },
+  "identity": {
+    "tests": 19,
+    "pass": 19,
+    "fail": 0,
+    "scope": "Source/controlled authority and denial tests"
+  },
+  "runtimeSourceChanged": false,
+  "freshNativeCiRerun": false,
+  "priorQualifiedNativeCommit": "66a1adb0052b56a0c094eb43ce0b1259bfc37a4f",
+  "priorQualifiedNativeCiRun": "39003367427",
+  "physicalSafariRun": false,
+  "realGoogleHumanFlowRun": false,
+  "matrixCounts": {
+    "Working": 6,
+    "UI Only": 20,
+    "Blocked": 7
+  }
+}

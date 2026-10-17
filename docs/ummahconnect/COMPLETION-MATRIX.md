@@ -1,11 +1,11 @@
 # 33-screen completion matrix
 
-Updated 2026-10-17 04:53 UTC: actual native HumHub HTTPS bootstrap/Apache/queue/cron/private-path checks now pass at `66a1adb0052b56a0c094eb43ce0b1259bfc37a4f`; space 1 and zero users/content/grants are verified. **No social screen is promoted:** app Google/verified participant/human/device acceptance remains blocked. Working still describes prior local interaction only, not hosted acceptance.
+Updated 2026-10-17 06:23 UTC: Google consent/Web client and protected staging credentials are configured; app remains offline, real subject enrollment/human/Safari pending. Native HTTPS qualification remains at `66a1adb0052b56a0c094eb43ce0b1259bfc37a4f`. **No social screen is promoted.** Working still describes prior local interaction, not hosted acceptance.
 
 | # | Screen | Status | Implemented scope / missing capability |
 |---|---|---|---|
 | 1 | Splash & Welcome (`#/screen-1`) | Working | Welcome links and main-app navigation. |
-| 2 | Sign Up / Login (`#/screen-2`) | Blocked | Separate staging identity MySQL/schema active, exact instance marker verified, zero real roles; 19 source tests pass. Staging Google client, designated accounts and protected native mappings remain pending. Reserved HTTPS host is not a working login. |
+| 2 | Sign Up / Login (`#/screen-2`) | Blocked | Separate staging identity MySQL/schema active, exact instance marker verified, zero real roles; 19 source tests pass. Staging Google External/Testing Web client and protected credentials are configured; designated accounts, verified subjects and protected native mappings remain pending. Reserved HTTPS host is not a working login. |
 | 3 | Onboarding & Preferences (`#/screen-3`) | Working | Interest selection and browser-local persistence. |
 | 4 | Home Feed (`#/screen-4`) | UI Only | Approved-only feed passes actual isolated HumHub/MySQL CI; no linked hosted Google sessions or human acceptance yet. |
 | 5 | Create Post (`#/screen-5`) | UI Only | Native draft-first/first-INSERT state=10 and authenticated own pending/rejected list pass controlled/native tests; main UI refresh/reload retained. Hosted actual-account submission/human acceptance pending. |
@@ -124,3 +124,17 @@ Evidence: `evidence/2026-10-17-private-bootstrap/`, particularly `qualified-apac
 Owner sign-in is now verified and the separate project **`ummahconnect-staging-261017`** (number `677673398182`, name UmmahConnect Staging) is actually created. No Aishu/production project was edited. The External/Testing consent draft is prepared with the owner's support/notification contact, but Google's explicit **User Data Policy agreement remains unchecked** pending owner approval. Consent and Web client are not created; protected credentials, actual participant subjects, app deployment, human approval and physical Safari remain pending. Details: [Google staging setup](GOOGLE-STAGING.md).
 
 All **33 screen status rows remain unchanged: 6 locally Working / 20 UI Only / 7 Blocked**. Project creation is not successful Google login into the application. No test users, native users, grants or approvals have been invented.
+
+## OAuth configuration update — 17 October 2026, 06:23 UTC
+
+The owner-approved Google consent and single Web client are created in **`ummahconnect-staging-261017`**, **External/Testing**, with basic identity scopes only and exact callback `https://ummah-app-staging.up.railway.app/auth/callback`. The final credentials are privately saved in only the isolated **ummah-app** protected settings: **26 service variables, zero pending changes, Service is offline**. No app deployment, real account enrollment, native grant or human decision was performed.
+
+Two unused temporary secrets surfaced in diagnostic output; both were disabled and deleted before application use/deployment. The final fresh replacement is the only enabled secret, was not returned in output and is not exported. Temporary browser memory/clipboard were cleared. See [Google staging setup](GOOGLE-STAGING.md) for the exact handling record and remaining gates.
+
+**Authorization blind spot addressed:** Google's basic-name/email/profile login exception means its Testing user list is not an application/community allowlist. The existing verified issuer/subject + enabled current database role + session/revocation authority remains mandatory, followed by native membership/grants; no email auto-invites or browser-trusted identities. No additional broad scopes were added to force a Google allowlist.
+
+Fresh source regressions: **47/47 app and 19/19 identity**, zero failures. Native CI remains the prior qualified **36 HTTP + 16 model** at `66a1adb0052b56a0c094eb43ce0b1259bfc37a4f`, run **39003367427**, with synthetic actors. Fresh anonymous HTTPS probes: **main-app /api/health 404**, **native /api/v1/auth/current 401**, verified TLS. These are not genuine Google login/member/reviewer/excluded or physical-device results.
+
+Next: three actual distinct account designations; qualified invitation-required app deployment to observe genuine subjects; deliberate identity/native mappings and scoped grants; different-human approve/reject and negative-access acceptance; physical iPhone Safari. The author cannot review, the reviewer is review-only, the excluded tester gets no community membership/grant. All **33 screen status counts stay 6 locally Working / 20 UI Only / 7 Blocked**. Original 13-file recovery, production, Aishu, approved colors and later-service order remain unchanged/separate.
+
+Evidence: `evidence/2026-10-17-google-staging/`. Earlier dated setup/unready records are history; this update supersedes only their resolved Google creation/credential blocker.
