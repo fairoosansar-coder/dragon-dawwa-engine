@@ -1,0 +1,230 @@
+TAP version 13
+# Subtest: uses the space content container and returns only projected published fields
+ok 1 - uses the space content container and returns only projected published fields
+  ---
+  duration_ms: 7.811953
+  ...
+# Subtest: identity mismatch stops reads before touching private content
+ok 2 - identity mismatch stops reads before touching private content
+  ---
+  duration_ms: 1.14463
+  ...
+# Subtest: denied space does not trigger post request or disclose provider error
+ok 3 - denied space does not trigger post request or disclose provider error
+  ---
+  duration_ms: 1.313254
+  ...
+# Subtest: invalid target, token, pagination and IDs are rejected
+ok 4 - invalid target, token, pagination and IDs are rejected
+  ---
+  duration_ms: 0.53115
+  ...
+# Subtest: HTML, invalid JSON and oversized responses fail closed
+ok 5 - HTML, invalid JSON and oversized responses fail closed
+  ---
+  duration_ms: 11.287744
+  ...
+# Subtest: upstream outages and rate limits are safe errors
+ok 6 - upstream outages and rate limits are safe errors
+  ---
+  duration_ms: 0.608835
+  ...
+# Subtest: real HTTP lab serves assets and honest unconfigured state
+ok 7 - real HTTP lab serves assets and honest unconfigured state
+  ---
+  duration_ms: 41.985449
+  ...
+# Subtest: real HTTP lab rejects writes and cross-origin access
+ok 8 - real HTTP lab rejects writes and cross-origin access
+  ---
+  duration_ms: 31.390437
+  ...
+# Subtest: real HTTP route returns projected posts without bearer credentials
+ok 9 - real HTTP route returns projected posts without bearer credentials
+  ---
+  duration_ms: 21.852018
+  ...
+# Subtest: missing Gemini configuration fails visibly without a sample dossier
+ok 10 - missing Gemini configuration fails visibly without a sample dossier
+  ---
+  duration_ms: 1.851903
+  ...
+# Subtest: TTS uses documented interactions payload and preserves selected voice
+ok 11 - TTS uses documented interactions payload and preserves selected voice
+  ---
+  duration_ms: 0.937671
+  ...
+# Subtest: TTS access failure returns a safe error rather than generated fallback audio
+ok 12 - TTS access failure returns a safe error rather than generated fallback audio
+  ---
+  duration_ms: 0.621481
+  ...
+# Subtest: explicit date, coordinates, method and school survive URL construction
+ok 13 - explicit date, coordinates, method and school survive URL construction
+  ---
+  duration_ms: 1.176757
+  ...
+# Subtest: invalid and absent coordinates are rejected
+ok 14 - invalid and absent coordinates are rejected
+  ---
+  duration_ms: 0.341074
+  ...
+# Subtest: zero coordinates remain valid
+ok 15 - zero coordinates remain valid
+  ---
+  duration_ms: 0.289095
+  ...
+# Subtest: only supported method and Asr selections are accepted
+ok 16 - only supported method and Asr selections are accepted
+  ---
+  duration_ms: 0.254558
+  ...
+# Subtest: provider data is reduced to five times and its time zone
+ok 17 - provider data is reduced to five times and its time zone
+  ---
+  duration_ms: 0.372156
+  ...
+# Subtest: wrong-date responses are not displayed
+ok 18 - wrong-date responses are not displayed
+  ---
+  duration_ms: 0.162265
+  ...
+# Subtest: invalid or missing times and failed provider responses are rejected
+ok 19 - invalid or missing times and failed provider responses are rejected
+  ---
+  duration_ms: 0.326055
+  ...
+# Subtest: controlled two-identity HTTP flow: account → community → draft → human review → approved feed/detail
+ok 20 - controlled two-identity HTTP flow: account → community → draft → human review → approved feed/detail
+  ---
+  duration_ms: 75.586699
+  ...
+# Subtest: duplicate requests are idempotent; changed payload cannot reuse a key
+ok 21 - duplicate requests are idempotent; changed payload cannot reuse a key
+  ---
+  duration_ms: 18.607259
+  ...
+# Subtest: rejection leaves unpublished draft and removes it from approved detail
+ok 22 - rejection leaves unpublished draft and removes it from approved detail
+  ---
+  duration_ms: 13.983155
+  ...
+# Subtest: revocation, missing session, identity mismatch and forbidden space fail closed
+ok 23 - revocation, missing session, identity mismatch and forbidden space fail closed
+  ---
+  duration_ms: 14.602973
+  ...
+# Subtest: same-origin JSON, source URLs, decision notes and byte limits are mandatory
+ok 24 - same-origin JSON, source URLs, decision notes and byte limits are mandatory
+  ---
+  duration_ms: 11.521452
+  ...
+# Subtest: provider returning a draft to approved-only endpoint is rejected, not rendered
+ok 25 - provider returning a draft to approved-only endpoint is rejected, not rendered
+  ---
+  duration_ms: 7.451076
+  ...
+# Subtest: legacy native reader excludes author drafts and missing publication metadata
+ok 26 - legacy native reader excludes author drafts and missing publication metadata
+  ---
+  duration_ms: 1.151849
+  ...
+# Subtest: trusted resolver never uses browser roles/IDs or grants authority from the account map
+ok 27 - trusted resolver never uses browser roles/IDs or grants authority from the account map
+  ---
+  duration_ms: 0.226
+  ...
+# Subtest: isolated staging cannot target the production identity host
+ok 28 - isolated staging cannot target the production identity host
+  ---
+  duration_ms: 0.673109
+  ...
+# Subtest: native PHP source guard contracts: draft BEFORE first save; locked decision, hash and no self-review
+ok 29 - native PHP source guard contracts: draft BEFORE first save; locked decision, hash and no self-review
+  ---
+  duration_ms: 6.70642
+  ...
+# Subtest: staging auth forwards only app cookies and canonical host to the existing authority
+ok 30 - staging auth forwards only app cookies and canonical host to the existing authority
+  ---
+  duration_ms: 41.316979
+  ...
+# Subtest: staging callback preserves same-origin redirect and host-only app session
+ok 31 - staging callback preserves same-origin redirect and host-only app session
+  ---
+  duration_ms: 0.676934
+  ...
+# Subtest: external redirect or domain-scoped cookie from authority fails closed
+ok 32 - external redirect or domain-scoped cookie from authority fails closed
+  ---
+  duration_ms: 0.77378
+  ...
+# Subtest: production origin, bad host and authority outage are blocked without exposing secrets
+ok 33 - production origin, bad host and authority outage are blocked without exposing secrets
+  ---
+  duration_ms: 0.543496
+  ...
+# Subtest: default auth transport is not installed on production and cannot proxy arbitrary APIs
+ok 34 - default auth transport is not installed on production and cannot proxy arbitrary APIs
+  ---
+  duration_ms: 2.467701
+  ...
+# Subtest: existing authority may clear its legacy logout nonce, never mint a new legacy cookie
+ok 35 - existing authority may clear its legacy logout nonce, never mint a new legacy cookie
+  ---
+  duration_ms: 1.09157
+  ...
+# Subtest: all approved screens and five project tabs are unique routable main-app views
+ok 36 - all approved screens and five project tabs are unique routable main-app views
+  ---
+  duration_ms: 1.890932
+  ...
+# Subtest: social gateway never accepts a browser identity as a linked session
+ok 37 - social gateway never accepts a browser identity as a linked session
+  ---
+  duration_ms: 0.732008
+  ...
+# Subtest: unconfigured linked social instance is explicit and writes stay disabled
+ok 38 - unconfigured linked social instance is explicit and writes stay disabled
+  ---
+  duration_ms: 0.398889
+  ...
+# Subtest: rejects invalid references without an upstream call
+ok 39 - rejects invalid references without an upstream call
+  ---
+  duration_ms: 1.243112
+  ...
+# Subtest: keeps only HTTPS recordings from approved delivery host
+ok 40 - keeps only HTTPS recordings from approved delivery host
+  ---
+  duration_ms: 0.733422
+  ...
+# Subtest: upstream failure returns an error without exposing credentials
+ok 41 - upstream failure returns an error without exposing credentials
+  ---
+  duration_ms: 0.380613
+  ...
+# Subtest: study source validation and cache
+ok 42 - study source validation and cache
+  ---
+  duration_ms: 2.032735
+  ...
+# Subtest: rejects wrong verse and wrong tafsir edition
+ok 43 - rejects wrong verse and wrong tafsir edition
+  ---
+  duration_ms: 0.657273
+  ...
+# Subtest: upstream outage fails closed and redacts details
+ok 44 - upstream outage fails closed and redacts details
+  ---
+  duration_ms: 0.373171
+  ...
+1..44
+# tests 44
+# suites 0
+# pass 44
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 878.107232

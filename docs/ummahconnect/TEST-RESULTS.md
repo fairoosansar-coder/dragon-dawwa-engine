@@ -129,3 +129,21 @@ Corrections verified: actual authenticated final-server MySQL readiness; GD code
 - Hosted existing-account login, independent human approval, rejection, self-review denial, excluded users and physical iPhone Safari: **not run / blocked**.
 
 Evidence directory: `evidence/2026-10-17-activation/`. Runtime/UI code remains unchanged from the qualified ancestry; original 13-file recovery is separate. No production/Aishu change or payment action was performed.
+
+## 2026-10-17 UTC — after verified GitHub access and protected source preparation
+
+- Fresh app source/controlled-provider suite: **44/44 pass**.
+- Fresh isolated identity source suite: **19/19 pass**; this is not Google login.
+- Fresh TypeScript and Vite production build: **pass**, with the existing bundle warning.
+- Runtime/UI equivalence: the diff against qualified runtime `558cf5c53775d2412ef3d9f8e1fddcdf9e298d22` contains only staging plan metadata, documentation and evidence. No executable deployment/application/native code changed in this preparation.
+- Existing selected-repository grant: `dragon-dawwa-engine` verified; existing Aishu relay/production repository grants unchanged. Correct engine/development branch selections are visible in both service drafts; two private MySQL drafts use the exact qualified image digest. A fresh architecture reload confirms **46 unapplied configuration changes** and all four existing 1 vCPU / 1 GB caps.
+- App HTTPS `/api/health`: **404**, TLS verification **0**, checked at `2026-10-17T01:12:08Z`.
+- Reserved HumHub HTTPS origin: **404**, TLS verification **0**, checked at `2026-10-17T01:16:11Z`.
+- No volume, source deployment, database/bootstrap, real account enrollment or independent human approval was activated. The new Pro-volume capacity mismatch and separate staging identity choices block activation; see `RAILWAY-VOLUME-DECISION-20261017.md`.
+- Actual HumHub/REST/MySQL native qualification remains the earlier **32 HTTP + 15 model/file/cache** passes in [CI 38826633944](https://github.com/fairoosansar-coder/dragon-dawwa-engine/actions/runs/38826633944), including workers, private paths and persistent restart. These were **not** newly rerun on Railway and their actors are explicitly synthetic.
+- Hosted HTTPS author login → community → submission → a different human's approval → permitted visibility, rejection, self-review denial and excluded-user acceptance: **not run / blocked**.
+- Physical iPhone Safari: **not run**. No new main-interface hardware or live-flow screenshots are claimed; the current screenshot records only Railway's unapplied configuration state.
+
+Evidence: `evidence/2026-10-17-source-preparation/`. New unused app keys inadvertently appeared in a setup diagnostic and were replaced before any deployment or user enrollment; the owned transient diagnostic was removed. Replacement credentials and database/cookie secrets are not exported in this evidence. No production or existing account secret was changed.
+
+Production, Aishu, the 33-screen design and original 13-file recovery remain unchanged/separate. Pending configuration is not a milestone pass.

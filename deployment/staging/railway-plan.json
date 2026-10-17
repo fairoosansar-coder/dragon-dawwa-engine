@@ -4,61 +4,89 @@
   "projectId": "48d7a4cf-07dc-489b-8a3d-d6d10142b14e",
   "environmentId": "1f7d98bf-1d49-4d9f-a5cc-13b57abcc095",
   "environmentName": "staging",
-  "actualState": "four-empty-offline-services-capped-reserved-https-domain-no-source-no-workloads",
+  "actualState": "46-source-variable-changes-staged-not-applied-no-volumes-no-workloads-storage-and-identity-decisions-pending",
   "activationApproved": true,
   "applicationHttpsUrl": null,
   "reservedApplicationHttpsUrl": "https://ummah-app-staging.up.railway.app",
+  "reservedHumhubHttpsUrl": "https://ummah-humhub-staging.up.railway.app",
   "reservedGoogleCallback": "https://ummah-app-staging.up.railway.app/auth/callback",
   "hostnameReadiness": {
-    "checkedAtUtc": "2026-10-17T00:48:18Z",
+    "checkedAtUtc": "2026-10-17T01:12:08Z",
     "httpStatus": 404,
     "tlsVerifyResult": 0,
-    "message": "Application not found",
     "liveApplicationReady": false
+  },
+  "humhubHostnameReadiness": {
+    "checkedAtUtc": "2026-10-17T01:16:11Z",
+    "httpStatus": 404,
+    "tlsVerifyResult": 0,
+    "liveHumhubReady": false
   },
   "identityDesign": "existing Google OIDC subject/session implementation, isolated secrets/database, private same-container loopback listener",
   "qualifiedRuntimeCommit": "558cf5c53775d2412ef3d9f8e1fddcdf9e298d22",
   "qualifiedEvidenceCommit": "b0d3de57e19e7a5831675540959f209fd09008a3",
+  "sourceSnapshotAtPreparation": "fbb08173611800a20e1bc9e81a645656f8c6ef15",
+  "preparedSourceBranch": "development/ummahconnect-railway-activation-20261017",
   "plannedServices": [
     {"name":"ummah-app","dockerfile":"deployment/staging/app.Dockerfile","publicPort":3000},
     {"name":"ummah-humhub","dockerfile":"deployment/staging/humhub.Dockerfile","publicPort":80,"volumeMount":"/var/lib/ummah-humhub"},
-    {"name":"ummah-humhub-mysql","imageLock":"upstream-lock.json:mysql","schema":"ummah_humhub_staging","user":"ummah_humhub_app","publicNetworking":false},
-    {"name":"ummah-identity-mysql","imageLock":"upstream-lock.json:mysql","schema":"ummah_identity_staging","user":"ummah_identity_app","initSql":"identity/schema.sql","publicNetworking":false}
+    {"name":"ummah-humhub-mysql","imageLock":"upstream-lock.json:mysql","schema":"ummah_humhub_staging","user":"ummah_humhub_app","volumeMount":"/var/lib/mysql","publicNetworking":false},
+    {"name":"ummah-identity-mysql","imageLock":"upstream-lock.json:mysql","schema":"ummah_identity_staging","user":"ummah_identity_app","volumeMount":"/var/lib/mysql","initSql":"identity/schema.sql","publicNetworking":false}
   ],
   "repositoryAccess": {
     "requestedRepository": "fairoosansar-coder/dragon-dawwa-engine",
     "requestedScope": "add only dragon-dawwa-engine; preserve existing Railway app grants",
     "pickerListsRequestedRepository": true,
-    "selectionRedirectedToGitHubConfirmAccess": true,
+    "installationGrantVerified": true,
+    "existingGrantsPreserved": ["fairoosansar-coder/aishu-relay","fairoosansar-coder/dragon-dawwa-railway-deploy"],
+    "selectionRedirectedToGitHubConfirmAccess": false,
     "installationSettingsUrl": "https://github.com/settings/installations/167750118",
     "grantChangeAppliedByThisTask": false,
-    "sourceAttachmentVerified": false
+    "sourceAttachmentVerifiedInDraft": true,
+    "sourceAttachmentApplied": false
   },
-  "blockers": [
-    "GitHub Confirm access security re-authentication still required; a listed repository did not produce a verified source attachment",
-    "attach only the qualified development source and correct per-service Dockerfile; do not use main or substitute the production repository",
-    "private database images, protected credentials, volumes and isolated schema bootstrap remain unactivated",
-    "separate staging Google Cloud project/Web OAuth client; canonical callback is now specified",
-    "designated real author, different human reviewer and excluded account; explicit staging community membership and review grants",
-    "hosted HTTPS login/submission/independent human approval/rejection/self-review/excluded-user acceptance",
-    "physical iPhone Safari acceptance"
-  ],
-  "productionModified": false,
-  "aishuModified": false,
-  "approvalRecordedAt": "2026-10-16T12:07:14Z",
-  "observedAtUtc": "2026-10-17T00:48:18Z",
   "approvedResourceEnvelope": {
     "serviceCount":4,"replicasPerService":1,"maxVcpuPerService":1,"maxMemoryGbPerService":1,
     "aggregateVolumeGbTarget":5,"monthlyTargetUsd":125,"absoluteSpendCap":false,"paymentHandledByOwner":true
   },
+  "storageDecision": {
+    "requiredVolumeCount":3,
+    "providerPlanDefaultCapacityGbPerVolume":50,
+    "combinedAllocatedCapacityGbIfCreated":150,
+    "customInitialSizeSupported":false,
+    "downsizingSupported":false,
+    "billedBy":"actual-used-space-including-filesystem-metadata",
+    "defaultAllocationDeviationApproved":false,
+    "volumesCreated":0,
+    "source":"https://docs.railway.com/volumes/reference",
+    "employeeConfirmation":"https://station.railway.com/questions/creating-small-volume-562ce3b2",
+    "decisionRecord":"docs/ummahconnect/RAILWAY-VOLUME-DECISION-20261017.md"
+  },
   "observedServices": [
-    {"name":"ummah-app","serviceId":"f3756510-4e87-445b-9cfb-9dad042d6758","maxVcpu":1,"maxMemoryGb":1,"replicas":1,"sourceConnected":false,"runningDeployment":false},
-    {"name":"ummah-humhub","serviceId":"e6498121-1725-4d5a-a66f-e0f1091d6d35","maxVcpu":1,"maxMemoryGb":1,"replicas":1,"sourceConnected":false,"runningDeployment":false},
-    {"name":"ummah-humhub-mysql","serviceId":"40669655-b0cd-4b44-83ab-d0f4bf0376d7","maxVcpu":1,"maxMemoryGb":1,"replicas":1,"sourceConnected":false,"runningDeployment":false},
-    {"name":"ummah-identity-mysql","serviceId":"f7abeb9a-2a67-4fb7-9c6b-8a12dc19db44","maxVcpu":1,"maxMemoryGb":1,"replicas":1,"sourceConnected":false,"runningDeployment":false}
+    {"name":"ummah-app","serviceId":"f3756510-4e87-445b-9cfb-9dad042d6758","maxVcpu":1,"maxMemoryGb":1,"replicas":1,"sourcePrepared":true,"sourceApplied":false,"preparedVariableCount":24,"pendingChangeCount":26,"generatedProtectedSecretCount":3,"runningDeployment":false},
+    {"name":"ummah-humhub","serviceId":"e6498121-1725-4d5a-a66f-e0f1091d6d35","maxVcpu":1,"maxMemoryGb":1,"replicas":1,"sourcePrepared":true,"sourceApplied":false,"preparedVariableCount":8,"pendingChangeCount":10,"generatedProtectedSecretCount":1,"runningDeployment":false},
+    {"name":"ummah-humhub-mysql","serviceId":"40669655-b0cd-4b44-83ab-d0f4bf0376d7","maxVcpu":1,"maxMemoryGb":1,"replicas":1,"imagePrepared":"mysql:8.4@sha256:24989179f58856db763f418010c1169fecc944e3ec1ea7e921572d83eb070f70","sourceApplied":false,"preparedVariableCount":4,"pendingChangeCount":5,"generatedProtectedSecretCount":2,"runningDeployment":false},
+    {"name":"ummah-identity-mysql","serviceId":"f7abeb9a-2a67-4fb7-9c6b-8a12dc19db44","maxVcpu":1,"maxMemoryGb":1,"replicas":1,"imagePrepared":"mysql:8.4@sha256:24989179f58856db763f418010c1169fecc944e3ec1ea7e921572d83eb070f70","sourceApplied":false,"preparedVariableCount":4,"pendingChangeCount":5,"generatedProtectedSecretCount":2,"runningDeployment":false}
   ],
-  "volumesCreated": false,
-  "databaseRuntimeActive": false,
-  "oauthConfigured": false,
-  "paymentActionPerformed": false
+  "stagedChangeCount":46,
+  "volumesCreated":false,
+  "databaseRuntimeActive":false,
+  "oauthConfigured":false,
+  "realAccountsEnrolled":false,
+  "humhubInitializationEnabled":false,
+  "moderatedCommunityIdsConfigured":false,
+  "blockers": [
+    "Owner decision on three default 50 GB volumes: 150 GB capacity differs from the approved approximately 5 GB aggregate target; no volumes created",
+    "Separate staging Google Cloud project and Web OAuth client, protected configuration and registered canonical callback",
+    "Designated real author, different human reviewer and excluded account, private community and permissions",
+    "Activate persistent private MySQL and HumHub; apply isolated identity schema and native migrations, establish actual private communities, scoped grants and per-member mappings",
+    "Apply the prepared app/HumHub source and variables; no source deployment has been applied yet",
+    "Hosted HTTPS existing-account login/submission/independent human approval/rejection/self-review/excluded-user acceptance",
+    "Physical iPhone Safari acceptance"
+  ],
+  "productionModified":false,
+  "aishuModified":false,
+  "paymentActionPerformed":false,
+  "approvalRecordedAt":"2026-10-16T12:07:14Z",
+  "observedAtUtc":"2026-10-17T01:15:27Z"
 }

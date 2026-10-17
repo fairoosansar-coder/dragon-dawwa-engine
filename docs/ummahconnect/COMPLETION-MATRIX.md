@@ -1,11 +1,11 @@
 # 33-screen completion matrix
 
-Updated 2026-10-16 after native permission/concurrency hardening. Route labels below identify the existing main app, not a working hosted URL. The earlier Mac-mini localhost preview is historical. No social screen is promoted to live Working: HTTPS Google/human/device acceptance is still blocked. Working describes previously verified local interactions, not hosted acceptance.
+Updated 2026-10-17 UTC after source/credential staging preparation. Route labels below identify the existing main app, not a working hosted URL. The earlier Mac-mini localhost preview is historical. No social screen is promoted to live Working: HTTPS Google/human/device acceptance is still blocked. Working describes previously verified local interactions, not hosted acceptance.
 
 | # | Screen | Status | Implemented scope / missing capability |
 |---|---|---|---|
 | 1 | Splash & Welcome (`#/screen-1`) | Working | Welcome links and main-app navigation. |
-| 2 | Sign Up / Login (`#/screen-2`) | Blocked | Separate staging OIDC/session/DB package prepared and 19 source tests pass; actual Google client, callback host and designated accounts pending. |
+| 2 | Sign Up / Login (`#/screen-2`) | Blocked | Separate staging OIDC/session/DB package and protected configuration staged; 19 source tests pass. HTTPS callback host reserved, not live; Google client/accounts and persistent hosted bootstrap remain pending. |
 | 3 | Onboarding & Preferences (`#/screen-3`) | Working | Interest selection and browser-local persistence. |
 | 4 | Home Feed (`#/screen-4`) | UI Only | Approved-only feed passes actual HumHub/MariaDB tests; no linked hosted Google sessions yet. |
 | 5 | Create Post (`#/screen-5`) | UI Only | Real native draft submission and first-INSERT state=10 verified; main UI retained. Hosted existing-account submission/human acceptance pending. |
@@ -79,3 +79,13 @@ Railway's existing GitHub connection lists other repositories but its completed 
 The four planned Railway service slots are now saved with one replica and 1 vCPU / 1 GB each, but all are empty/offline. The staging hostname `https://ummah-app-staging.up.railway.app` is reserved on port 3000; certificate verification succeeds, but the endpoint is **404 / Application not found**. Canonical Google callback can now be specified as `/auth/callback` on that host. A hostname reservation does not complete screen 2 or any social workflow.
 
 Railway lists the requested repository, but selection still reaches GitHub **Confirm access**; attachment and the already-approved narrow grant are not verified. Source tests rerun: **44/44 app + 19/19 identity**, TypeScript and Vite build pass. Actual native qualification remains the prior **32 HTTP + 15 model/file/cache** container result, not Railway-hosted or human acceptance. No live integration or physical iPhone Safari tests ran in this activation step. All 33 row statuses/counts above remain unchanged (**6 local Working, 20 UI Only, 7 Blocked**). See `RAILWAY-RESOURCE-PREPARATION-20261017.md` for exact service IDs, tests and remaining gates. Original 13-file recovery stays separate and preserved.
+
+## 2026-10-17 UTC — verified GitHub access; 46 unapplied configuration changes
+
+The Railway app's selected-repository grant now includes `dragon-dawwa-engine`; the existing Aishu relay and production-repository grants remain unchanged. Both app and HumHub source drafts select `development/ummahconnect-railway-activation-20261017` and their respective qualified Dockerfiles. Two separate private MySQL services have the exact qualified image digest and independent root/application credential pairs prepared. The app/identity secrets, empty account mapping, HumHub cookie key and private database references are staged. After a full browser reload, the provider shows **46 unapplied changes**: app 26, HumHub 10, and each MySQL service 5. All four retain one replica and 1 vCPU / 1 GB caps.
+
+The app origin `https://ummah-app-staging.up.railway.app` and HumHub origin `https://ummah-humhub-staging.up.railway.app` are reserved, **not live**. Both readiness checks return HTTP 404 with valid TLS. No volume, schema bootstrap, source deployment, real account enrollment or human approval was activated.
+
+A newly verified provider constraint requires an owner decision: this Pro plan creates **50 GB per volume**, cannot select a smaller initial size or downsize, and bills used storage including filesystem metadata. The three required volumes would allocate **150 GB**, not the planned approximately 5 GB. Creation was left unsubmitted. See `RAILWAY-VOLUME-DECISION-20261017.md`. Google staging project/client, designated author/different reviewer/excluded accounts and actual private community grants are also pending.
+
+Fresh source validation remains **44/44 app tests, 19/19 identity tests, TypeScript and Vite build passing**. Prior actual HumHub/REST/MySQL qualification remains **32 HTTP + 15 model/file/cache** tests in isolated CI, not newly hosted or human acceptance. Physical iPhone Safari is **not run**. All 33 row statuses and counts remain **6 locally Working / 20 UI Only / 7 Blocked**. The approved design, production and Aishu are unchanged; original 13-file recovery remains separate.
