@@ -118,3 +118,9 @@ Counts stay **6 locally Working / 20 UI Only / 7 Blocked**. Design colors, sourc
 - **Preservation:** production, Aishu, existing auth algorithms, approved design and original 13-file recovery remain unchanged/separate. An accidental **unapplied** function draft from a mistargeted generic text-input attempt was individually discarded before deploy; exactly the four approved services/no extra pending resource remain. The first old image's real duplicate-MPM/502 failure and the settings-triggered old-source redeployment remain documented, not hidden.
 
 Evidence: `evidence/2026-10-17-private-bootstrap/`, particularly `qualified-apache-correction-ci.json`, `hosted-corrected-runtime-verification.json`, `hosted-anonymous-boundary-audit.json`, `hosted-runtime-console.webp` and `screenshots/`. No financial, scholarly or construction fact is certified; Qdrant/BGE → Docling → PeerTube → charity/mosque follow only after the documented social milestone.
+
+## Google setup update — 17 October 2026, 05:29 UTC
+
+Owner sign-in is now verified and the separate project **`ummahconnect-staging-261017`** (number `677673398182`, name UmmahConnect Staging) is actually created. No Aishu/production project was edited. The External/Testing consent draft is prepared with the owner's support/notification contact, but Google's explicit **User Data Policy agreement remains unchecked** pending owner approval. Consent and Web client are not created; protected credentials, actual participant subjects, app deployment, human approval and physical Safari remain pending. Details: [Google staging setup](GOOGLE-STAGING.md).
+
+All **33 screen status rows remain unchanged: 6 locally Working / 20 UI Only / 7 Blocked**. Project creation is not successful Google login into the application. No test users, native users, grants or approvals have been invented.
