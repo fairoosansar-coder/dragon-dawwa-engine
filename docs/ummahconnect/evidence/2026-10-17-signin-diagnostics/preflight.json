@@ -1,11 +1,25 @@
 {
   "checkedAtUtc": "2026-10-17T15:04:01Z",
   "reportedSymptom": "Sign-in is temporarily unavailable during designated reviewer attempt",
-  "originalFailureStage": "not yet established; owner clarification pending",
+  "originalFailureStage": "Before Google opened: owner clarified 2026-10-17T15:21:00Z",
   "originalCause": "not yet established",
-  "currentPublicChecks": {"health": 200, "anonymousSession": 401, "loginPage": 200, "googleLoginStart": 302},
+  "currentPublicChecks": {
+    "health": 200,
+    "anonymousSession": 401,
+    "loginPage": 200,
+    "googleLoginStart": 302
+  },
   "sessionPath": "/api/review/session",
-  "actualHostedReadOnlyProbe": {"configuration": true, "databaseMarker": true, "uninvitedLookupReturnsNull": true, "authorRoleActive": true, "protectedMapEntryCount": 1, "freshGoogleDiscoveryStatus": 200, "freshGoogleDiscoveryElapsedMs": 691, "freshGoogleLoginStartStatus": 302},
+  "actualHostedReadOnlyProbe": {
+    "configuration": true,
+    "databaseMarker": true,
+    "uninvitedLookupReturnsNull": true,
+    "authorRoleActive": true,
+    "protectedMapEntryCount": 1,
+    "freshGoogleDiscoveryStatus": 200,
+    "freshGoogleDiscoveryElapsedMs": 691,
+    "freshGoogleLoginStartStatus": 302
+  },
   "firstProbeAttempt": "ERR_MODULE_NOT_FOUND for mysql2 because temporary script was outside identity dependency directory; no SQL/OAuth operation reached; corrected dependency-directory probe passed",
   "noAccountOrSessionWrite": true,
   "reviewerEmailIsNotSubjectReference": true,

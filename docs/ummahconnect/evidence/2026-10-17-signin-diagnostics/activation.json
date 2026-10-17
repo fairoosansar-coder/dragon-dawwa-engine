@@ -1,0 +1,22 @@
+{
+  "projectId": "48d7a4cf-07dc-489b-8a3d-d6d10142b14e",
+  "environmentId": "1f7d98bf-1d49-4d9f-a5cc-13b57abcc095",
+  "serviceId": "f3756510-4e87-445b-9cfb-9dad042d6758",
+  "deploymentId": "a61b81a7-3811-4572-86a2-d4286e64f861",
+  "source": "5b8c72187b47d1aa8ada60dd8ff13d634d4f38b4",
+  "branch": "development/ummahconnect-signin-diagnostics-20261017",
+  "ciRun": "39043950586",
+  "ciConclusion": "success",
+  "successfulCiGateEnabled": true,
+  "reviewedChange": "ummah-app source branch only",
+  "appliedAtUtc": "2026-10-17T15:19:43Z",
+  "initialProviderStatus": "building",
+  "runtimeSourceVerification": "passed exact commit, deployment ID and hashes",
+  "protectedVariablesChanged": false,
+  "accountRolesChanged": false,
+  "nativeSourceChanged": false,
+  "databaseOrVolumeChanged": false,
+  "productionChanged": false,
+  "aishuChanged": false,
+  "providerStatus": "Active"
+}

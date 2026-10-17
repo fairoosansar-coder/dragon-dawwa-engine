@@ -1,0 +1,27 @@
+{
+  "checkedAtUtc": "2026-10-17T15:21:54.580802+00:00",
+  "scope": "anonymous health/session/login only; exact source and loaded map require separate protected console proof",
+  "checks": [
+    {
+      "path": "/api/health",
+      "status": 200,
+      "contentType": "application/json; charset=utf-8",
+      "noStore": false
+    },
+    {
+      "path": "/api/review/session",
+      "status": 401,
+      "contentType": "application/json",
+      "noStore": true
+    },
+    {
+      "path": "/auth/login",
+      "status": 302,
+      "contentType": "text/plain",
+      "noStore": true
+    }
+  ],
+  "pass": true,
+  "humanLoginAccepted": false,
+  "originalFailureCause": "unconfirmed"
+}

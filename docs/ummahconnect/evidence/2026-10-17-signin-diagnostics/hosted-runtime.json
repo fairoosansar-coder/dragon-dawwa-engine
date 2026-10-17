@@ -1,0 +1,22 @@
+{
+  "verifiedAtUtc": "2026-10-17T15:23:38Z",
+  "node": "v24.21.0",
+  "commit": "5b8c72187b47d1aa8ada60dd8ff13d634d4f38b4",
+  "deploymentId": "a61b81a7-3811-4572-86a2-d4286e64f861",
+  "hashes": {"server.mjs": "3c4062c66b37640e55d8c400a2f14b7c1a0ba644b12bc3857dd27b5ff07ac383", "signinDiagnostics.mjs": "b1a01ce4684a59090385244ccdf8ad293945e5d73f7ef4cf49e5fc75b25d15bf", "vendor/google-auth.mjs": "2bbc7681aa589707d4266c71604711fbf6d2001a88e02800aca14906a8448b3a"},
+  "hashesMatchQualifiedSource": true,
+  "protectedMap": {"regularFile": true, "mode": "0600", "uid": 1000, "entries": 1, "matchesProtectedEnvironment": true},
+  "isolatedDatabaseMarker": true,
+  "authorRoleActive": true,
+  "genuineInstalledSdkLoginStartStatus": 302,
+  "secureHostOnlyFlowCookie": true,
+  "noAccountOrSessionWrite": true,
+  "reportedFailureStage": "Before Google opened; owner confirmed 2026-10-17T15:21:00Z",
+  "originalFailureCause": "unconfirmed; current checks passing, no old internal exception retained",
+  "reviewerInvitationActive": false,
+  "humanGoogleSessionAccepted": false,
+  "humanReviewAccepted": false,
+  "physicalIPhoneSafariTested": false,
+  "productionModified": false,
+  "aishuModified": false
+}

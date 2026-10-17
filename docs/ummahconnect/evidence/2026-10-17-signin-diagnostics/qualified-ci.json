@@ -1,0 +1,13 @@
+{
+  "runId": "39043950586",
+  "result": {
+    "conclusion": "success",
+    "headSha": "5b8c72187b47d1aa8ada60dd8ff13d634d4f38b4",
+    "status": "completed",
+    "url": "https://github.com/fairoosansar-coder/dragon-dawwa-engine/actions/runs/39043950586"
+  },
+  "summary": [
+    "actual-native-container-summary\",\"mysql\":\"8.4\",\"httpPassed\":36,\"modelPassed\":16,\"failed\":0,\"appImageBuilt\":true,\"humhubImageBuilt\":true,\"queueCronWorkers\":\"pass\",\"persistentRestart\":\"pass\",\"accountFreePrivateBootstrap\":\"pass\",\"apacheDuplicateMpmRecovery\":\"pass\",\"ordinaryGuestPrivateSpaceDenied\":\"pass\",\"firstBootOverExistingAccountsDenied\":\"pass\",\"privateMarkerRestartWithAccounts\":\"pass\",\"humanParticipation\":false,\"realGoogleLoginTested\":false,\"physicalIPhoneSafariTested\":false,\"hostedEnvironmentTested\":false}"
+  ],
+  "scope": "non-deploying pinned Node24 and ephemeral MySQL/HumHub/app qualification; no hosted Google or human approval"
+}

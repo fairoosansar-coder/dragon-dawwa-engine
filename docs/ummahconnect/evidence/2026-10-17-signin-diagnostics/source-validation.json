@@ -1,8 +1,19 @@
 {
   "localNode": "22.13.0",
-  "applicationTests": {"passed": 65, "failed": 0},
-  "identityTests": {"passed": 35, "failed": 0, "includesOriginalAuthorityProvenance": true, "diagnosticCallbackPrivacyCases": 16},
-  "actualLoopbackTransportSubset": {"passed": 14, "failed": 0},
+  "applicationTests": {
+    "passed": 65,
+    "failed": 0
+  },
+  "identityTests": {
+    "passed": 35,
+    "failed": 0,
+    "includesOriginalAuthorityProvenance": true,
+    "diagnosticCallbackPrivacyCases": 16
+  },
+  "actualLoopbackTransportSubset": {
+    "passed": 14,
+    "failed": 0
+  },
   "lint": "passed",
   "build": "passed; existing chunk-size warnings only",
   "diffCheck": "passed",
@@ -10,7 +21,7 @@
   "vendorFilesChanged": false,
   "nativeRuntimeSourceChanged": false,
   "uiSourceChanged": false,
-  "pinnedNode24NativeCi": "pending exact source revision",
+  "pinnedNode24NativeCi": "passed exact commit in run 39043950586",
   "originalFailureCause": "unconfirmed",
   "humanGoogleReviewerLoginAccepted": false,
   "humanReviewAccepted": false,
