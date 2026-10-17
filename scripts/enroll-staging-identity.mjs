@@ -258,7 +258,7 @@ function rowsOf(result) {
 }
 
 async function assertDatabaseScope(db) {
-  const principals = rowsOf(await db.execute('SELECT CURRENT_USER() AS current_user'));
+  const principals = rowsOf(await db.execute('SELECT CURRENT_USER() AS `current_user`'));
   const currentUser = principals.length === 1 ? principals[0]?.current_user : null;
   if (typeof currentUser !== 'string' || !new RegExp(`^${DB_USER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}@[^@]+$`).test(currentUser)) {
     fail('database_scope_mismatch');
