@@ -101,7 +101,7 @@ if ($mode === '--create') {
             $permissionValidators = [];
             foreach ($space->getValidators() as $validator) {
                 if ($validator instanceof yii\validators\InlineValidator
-                    && $validator->method === 'checkVisibility'
+                    && $validator->method === [$space, 'checkVisibility']
                     && $validator->attributes === ['visibility']) $permissionValidators[] = $validator;
             }
             if (count($permissionValidators) !== 1) rejectBootstrap();
