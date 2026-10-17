@@ -481,7 +481,7 @@ ci_mysql_ip="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IP
 for source in scripts/provision-native-member.php scripts/test-native-member-provisioning.php; do
     quiet docker cp "$source" "${HUMHUB_CONTAINER}:/tmp/$(basename "$source")" || fail
 done
-docker exec --user www-data --env 'RAILWAY_SERVICE_ID=e6498121-1725-4d5a-a66f-e0f1091d6d35' --env 'UMMAH_INITIALIZE_HUMHUB=no' --env 'UMMAH_NATIVE_FIXTURE=sandbox-only' --env 'HUMHUB_ROOT=/var/www/html' "$HUMHUB_CONTAINER" php /tmp/test-native-member-provisioning.php || fail
+docker exec --user www-data --env 'RAILWAY_SERVICE_ID=e6498121-1725-4d5a-a66f-e0f1091d6d35' --env 'UMMAH_INITIALIZE_HUMHUB=no' --env 'UMMAH_REVIEW_SPACE_IDS=1' --env 'UMMAH_NATIVE_FIXTURE=sandbox-only' --env 'HUMHUB_ROOT=/var/www/html' "$HUMHUB_CONTAINER" php /tmp/test-native-member-provisioning.php || fail
 env UMMAH_MEMBER_TEST_MODE=ephemeral-ci UMMAH_MEMBER_TEST_CONTAINER="$HUMHUB_CONTAINER" UMMAH_CI_MYSQL_IP="$ci_mysql_ip" UMMAH_CI_MYSQL_PASSWORD="$MYSQL_APP_PASSWORD" node scripts/qualify-native-member-enrollment.mjs || fail
 
 phase='write-runner-local-report'
