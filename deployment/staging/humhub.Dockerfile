@@ -13,6 +13,7 @@ RUN php /opt/ummah/scripts/apply-humhub-review-hooks.php --runtime=/var/www/html
 COPY integrations/social/humhub-ummahreview protected/modules/ummahreview
 COPY deployment/staging/humhub-apache.conf /etc/apache2/conf-enabled/ummah-isolated.conf
 COPY deployment/staging/configure-humhub.php /usr/local/bin/configure-humhub.php
+COPY deployment/staging/bootstrap-private-humhub.php /usr/local/bin/bootstrap-private-humhub.php
 COPY deployment/staging/start-humhub.sh /usr/local/bin/start-humhub
 COPY deployment/staging/humhub-cron.sh /usr/local/bin/ummah-humhub-cron
 COPY deployment/staging/humhub-supervisor.conf /etc/supervisor/ummah-humhub.conf

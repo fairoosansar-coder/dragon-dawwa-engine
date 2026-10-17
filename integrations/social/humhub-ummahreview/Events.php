@@ -397,6 +397,7 @@ class Events
             ['pattern' => 'ummahreview/posts', 'route' => 'ummahreview/review/posts', 'verb' => 'GET'],
             ['pattern' => 'ummahreview/post/<id:\\d+>', 'route' => 'ummahreview/review/view', 'verb' => 'GET'],
             ['pattern' => 'ummahreview/submissions', 'route' => 'ummahreview/review/submit', 'verb' => 'POST'],
+            ['pattern' => 'ummahreview/submissions', 'route' => 'ummahreview/review/submissions', 'verb' => 'GET'],
             ['pattern' => 'ummahreview/reviews', 'route' => 'ummahreview/review/queue', 'verb' => 'GET'],
             ['pattern' => 'ummahreview/reviews/<id:\\d+>', 'route' => 'ummahreview/review/decide', 'verb' => 'POST'],
         ], 'ummahreview');

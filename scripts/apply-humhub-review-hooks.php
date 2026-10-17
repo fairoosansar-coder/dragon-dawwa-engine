@@ -17,6 +17,7 @@ const ORIGINAL_HASHES = [
     'protected/humhub/modules/file/models/File.php' => '70bcf44be79434a9aa75e36942e60feb8f5a493ed2960b6ba5ee23afb22d3d61',
     'protected/humhub/modules/content/search/ContentSearchProvider.php' => '519916ecf494175990f0ffc7c2aa51d4fc8dc4e51ede6f4cae6119b9d907b118',
     'protected/humhub/modules/content/search/driver/AbstractDriver.php' => 'bbabdd9daf35557f706b13c24d7d1ddb2316f6b9cac7d7674f23ba8fd982b507',
+    'protected/humhub/modules/space/models/Space.php' => '7cc1f5e76cbac15e025eedcf7bceb3aa5a11d380de0dbcfd72339476be55222b',
 ];
 
 const PATCHED_HASHES = [
@@ -26,6 +27,7 @@ const PATCHED_HASHES = [
     'protected/humhub/modules/file/models/File.php' => 'd52d7d2d879aa9b637957d09d69fadbdd6d0eacaf43229768dcb8fd11f5f81f5',
     'protected/humhub/modules/content/search/ContentSearchProvider.php' => '1631d86394abafbbb9e9c819abfd4035daf149ef58532fd0940d993bdf8ea480',
     'protected/humhub/modules/content/search/driver/AbstractDriver.php' => 'aefc7ed86a3e34ec5ee1ac221512a993106a1e8e5553f9bff8cebc5b26fd3590',
+    'protected/humhub/modules/space/models/Space.php' => '24f15ac627343332509cceda5cc54fc1a445af0994e480ada821989426803190',
 ];
 
 const PATCH_FILES = [
@@ -35,6 +37,7 @@ const PATCH_FILES = [
     'protected/humhub/modules/file/models/File.php' => 'file.patch',
     'protected/humhub/modules/content/search/ContentSearchProvider.php' => 'contentsearchprovider.patch',
     'protected/humhub/modules/content/search/driver/AbstractDriver.php' => 'abstractdriver.patch',
+    'protected/humhub/modules/space/models/Space.php' => 'space-ownerless.patch',
 ];
 
 function fail(string $message): never

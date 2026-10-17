@@ -31,7 +31,7 @@ export function createSocialMiddleware({ resolveActor = async () => null, origin
     const write = req.method === 'POST';
     if (req.method === 'GET' && url.pathname === '/api/social/config') return send(200, { reviewEnabled, loginPath: reviewEnabled ? '/auth/login' : null });
     if (req.method !== 'GET' && (!write || !reviewEnabled)) return send(405, { error: 'social_writes_not_enabled' });
-    const readRoutes = ['/api/social/me', '/api/social/spaces', '/api/social/posts', ...(reviewEnabled ? ['/api/social/post','/api/social/reviews'] : [])];
+    const readRoutes = ['/api/social/me', '/api/social/spaces', '/api/social/posts', ...(reviewEnabled ? ['/api/social/post','/api/social/reviews','/api/social/submissions'] : [])];
     if (write ? !['/api/social/submissions','/api/social/reviews'].includes(url.pathname) : !readRoutes.includes(url.pathname))
       return send(404, { error: 'social_route_not_found' });
     if (write) {
@@ -45,8 +45,9 @@ export function createSocialMiddleware({ resolveActor = async () => null, origin
       const actor = await resolveActor(req);
       if (!actor) return send(401, { error: 'social_account_link_required' });
       const reviewer = ['reviewer', 'owner'].includes(actor.role || '');
+      const submitter = ['author', 'reviewer', 'publisher', 'owner'].includes(actor.role || '');
       if (url.pathname === '/api/social/reviews' && !reviewer) return send(403, { error: 'social_review_forbidden' });
-      if (write && url.pathname.endsWith('/submissions') && !['author','reviewer','publisher','owner'].includes(actor.role || ''))
+      if (url.pathname === '/api/social/submissions' && !submitter)
         return send(403, { error: 'social_submit_forbidden' });
       const target = origin();
       if (!target) return send(503, { error: 'humhub_not_configured' });
@@ -79,6 +80,14 @@ export function createSocialMiddleware({ resolveActor = async () => null, origin
         const postId = Number(url.searchParams.get('id'));
         if (!positive(postId)) return send(400, { error: 'invalid_post' });
         return send(200, await client.approvedPost(postId));
+      }
+      if (url.pathname.endsWith('/submissions')) {
+        if (!positive(space)) return send(400, { error: 'invalid_space' });
+        if (['userId','user','authorId','author_id','author','status'].some(key => url.searchParams.has(key)) ||
+            url.searchParams.getAll('includeApproved').length > 1) return send(400, { error: 'invalid_submission_filter' });
+        const includeApproved = url.searchParams.get('includeApproved');
+        if (includeApproved !== null && includeApproved !== '1') return send(400, { error: 'invalid_submission_filter' });
+        return send(200, await client.ownSubmissions(space, page, includeApproved === '1'));
       }
       if (!positive(space)) return send(400, { error: 'invalid_space' });
       const result = url.pathname.endsWith('/reviews') ? await client.reviewQueue(space, page)

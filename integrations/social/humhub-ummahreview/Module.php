@@ -6,7 +6,12 @@ class Module extends \humhub\components\Module
     public function init()
     {
         parent::init();
-        if (getenv('UMMAH_REVIEW_ENVIRONMENT') !== 'isolated-staging' || !self::spaceIds()) {
+        $emptyBootstrap = PHP_SAPI === 'cli'
+            && getenv('UMMAH_BOOTSTRAP_PRIVATE_EMPTY') === 'yes'
+            && getenv('UMMAH_INITIALIZE_HUMHUB') === 'yes'
+            && getenv('RAILWAY_PROJECT_ID') === '48d7a4cf-07dc-489b-8a3d-d6d10142b14e'
+            && getenv('RAILWAY_ENVIRONMENT_ID') === '1f7d98bf-1d49-4d9f-a5cc-13b57abcc095';
+        if (getenv('UMMAH_REVIEW_ENVIRONMENT') !== 'isolated-staging' || (!self::spaceIds() && !$emptyBootstrap)) {
             throw new \yii\base\InvalidConfigException('Ummah review requires isolated staging and explicit moderated space IDs.');
         }
         $manifest = json_decode(file_get_contents(__DIR__ . '/core-hooks/manifest.json'), true, 16, JSON_THROW_ON_ERROR);

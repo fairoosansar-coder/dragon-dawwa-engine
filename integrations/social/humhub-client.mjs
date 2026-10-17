@@ -114,6 +114,13 @@ export function createHumHubClient({ origin, token, expectedUserId, fetcher = fe
       await me();
       return reviewed(await get('ummahreview/submissions', { spaceId, message, sources, requestKey }));
     },
+    async ownSubmissions(spaceId, page = 1, includeApproved = false) {
+      id(spaceId); pageNumber(page);
+      if (typeof includeApproved !== 'boolean') fail('invalid_submission_filter', 400);
+      await me();
+      const query = `space=${spaceId}&page=${page}${includeApproved ? '&includeApproved=1' : ''}`;
+      return collection(await get(`ummahreview/submissions?${query}`), value => reviewed(value));
+    },
     async reviewQueue(spaceId, page = 1) {
       id(spaceId); pageNumber(page); await me();
       return collection(await get(`ummahreview/reviews?space=${spaceId}&page=${page}`), value => reviewed(value, 'pending'));

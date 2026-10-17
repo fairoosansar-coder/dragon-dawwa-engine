@@ -47,7 +47,18 @@ export function SocialSubmit() {
   const community = useSpaces();
   const [message, setMessage] = useState(() => { try { return localStorage.getItem('uc.draft.post') || ''; } catch { return ''; } });
   const [sources, setSources] = useState(''), [status, setStatus] = useState(''), [busy, setBusy] = useState(false), [sent, setSent] = useState(false);
+  const [ownItems, setOwnItems] = useState<any[]>([]), [ownStatus, setOwnStatus] = useState(''), [ownBusy, setOwnBusy] = useState(false);
   const retry = useRef<{ fingerprint: string; key: string } | null>(null);
+  const ownRequest = useRef(0);
+  async function loadOwn(space = community.spaceId) {
+    if (!space) { setOwnItems([]); return; }
+    const request = ++ownRequest.current; setOwnBusy(true); setOwnStatus('');
+    try { const data = await socialRequest('submissions?space=' + space);
+      if (request === ownRequest.current) setOwnItems(data.items);
+    } catch (e) { if (request === ownRequest.current) { setOwnItems([]); setOwnStatus(guidance((e as Error).message)); } }
+    finally { if (request === ownRequest.current) setOwnBusy(false); }
+  }
+  useEffect(() => { setOwnItems([]); setOwnStatus(''); if (community.spaceId) void loadOwn(community.spaceId); }, [community.spaceId]);
   async function submit(event: React.FormEvent) {
     event.preventDefault(); setBusy(true); setStatus('');
     const input = { spaceId: community.spaceId, message, sources: sources.split('\n').map(s => s.trim()).filter(Boolean) };
@@ -58,7 +69,7 @@ export function SocialSubmit() {
       setStatus(data.status === 'approved' ? `Submission #${data.id} was already independently approved.`
         : data.status === 'rejected' ? `Submission #${data.id} was rejected and remains unpublished.`
         : `Post #${data.id} is saved as a real HumHub draft, pending independent human review. It is not in the approved feed.`);
-      setSent(true);
+      setSent(true); await loadOwn(input.spaceId);
     } catch (e) { setStatus(guidance((e as Error).message)); } finally { setBusy(false); }
   }
   return <section className="uc-card"><h2>Share something beneficial</h2><p>Submissions remain unpublished until an independent authorized human approves the unchanged text and its source references. Review is not automated scholarly verification.</p>
@@ -68,6 +79,13 @@ export function SocialSubmit() {
       <div className="uc-actions"><button type="submit" disabled={busy || !community.spaceId || !message.trim() || sent}>{busy ? 'Submitting…' : 'Submit for human review'}</button>
         <button type="button" className="uc-alt" onClick={() => { try { localStorage.setItem('uc.draft.post', message); setStatus('Draft saved on this device only. This is not a server submission.'); } catch { setStatus('Browser storage unavailable. Copy your text before leaving.'); } }}>Save device draft</button></div>
     </form>{status && <p role="status">{status}</p>}
+    <div><h3>Your pending submissions</h3><p>Only your pending or rejected drafts in this community are shown. They remain outside the approved feed.</p>
+      <button disabled={ownBusy || !community.spaceId} onClick={() => void loadOwn()}>{ownBusy ? 'Refreshing submissions…' : 'Refresh submissions'}</button>
+      {!ownItems.length && !ownBusy && <p>No pending or rejected submissions are displayed. This does not imply a successful provider connection.</p>}
+      {ownItems.map(item => <article className="uc-social-post" key={item.reviewId}><h3>{item.status === 'rejected' ? `Rejected submission #${item.id}` : `Pending submission #${item.id}`}</h3>
+        <p style={{whiteSpace:'pre-wrap'}}>{item.message}</p><Sources values={item.sources}/><p>{item.status === 'rejected' ? 'Rejected by a human reviewer; it remains unpublished.' : 'Awaiting independent human review; it is not in the approved feed.'}</p>
+      </article>)}{ownStatus && <p role="status">{ownStatus}</p>}
+    </div>
   </section>;
 }
 export function SocialPostDetail() {

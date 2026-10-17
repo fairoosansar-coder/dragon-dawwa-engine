@@ -55,6 +55,23 @@ class ReviewController extends BaseController
         }
     }
 
+    /** Re-check live account, membership and scoped submission authority for author-private reads. */
+    private function submittingMemberSpace($id): Space
+    {
+        $space = $this->memberSpace($id);
+        $userId = (int)Yii::$app->user->id;
+        $liveUser = (new Query())->from('{{%user}}')->where(['id' => $userId,
+            'status' => User::STATUS_ENABLED])->exists();
+        $liveMembership = (new Query())->from('{{%space_membership}}')->where([
+            'space_id' => $space->id, 'user_id' => $userId, 'status' => Membership::STATUS_MEMBER,
+        ])->exists();
+        if (!$liveUser || !$liveMembership) {
+            throw new HttpException(403, 'Access denied.');
+        }
+        $this->grant($space, 'can_submit');
+        return $space;
+    }
+
     private function lockScope(Space $space, string $field): void
     {
         $db = Yii::$app->db;
@@ -195,6 +212,57 @@ class ReviewController extends BaseController
 
     public function actionPosts(): array { return $this->listing(false); }
     public function actionQueue(): array { return $this->listing(true); }
+
+    /**
+     * Returns only the authenticated author's unpublished submissions in one permitted space.
+     * Approved rows are deliberately excluded unless the caller opts in; the public feed remains
+     * the separate approved-only endpoint. A requested author identity is never accepted.
+     */
+    public function actionSubmissions(): array
+    {
+        $params = Yii::$app->request->getQueryParams();
+        if (array_key_exists('userId', $params) || array_key_exists('user', $params)
+            || array_key_exists('authorId', $params) || array_key_exists('author_id', $params)
+            || array_key_exists('author', $params) || array_key_exists('status', $params)) {
+            throw new HttpException(400, 'Author filter is not supported.');
+        }
+        $includeApproved = Yii::$app->request->get('includeApproved', '0');
+        if (!in_array($includeApproved, ['0', '1'], true)) {
+            throw new HttpException(400, 'Invalid submission filter.');
+        }
+        $page = Yii::$app->request->get('page', '1');
+        if (!ctype_digit((string)$page) || (int)$page < 1 || (int)$page > 10000) {
+            throw new HttpException(400, 'Invalid page.');
+        }
+        $space = $this->submittingMemberSpace(Yii::$app->request->get('space'));
+        $statuses = ['pending', 'rejected'];
+        if ($includeApproved === '1') {
+            $statuses[] = 'approved';
+        }
+        $query = Post::find()->contentContainer($space)
+            ->innerJoin('{{%ummah_review}} r', 'r.post_id=post.id')
+            ->andWhere(['r.space_id' => $space->id, 'r.author_id' => (int)Yii::$app->user->id,
+                'r.status' => $statuses])
+            ->joinWith('content');
+        // Do not rely on native author-draft shortcuts: each returned row must match its review state.
+        $query->stateFilterCondition = ['or',
+            ['and', ['r.status' => ['pending', 'rejected']], ['content.state' => Content::STATE_DRAFT]],
+            ['and', ['r.status' => 'approved'], ['content.state' => Content::STATE_PUBLISHED]],
+        ];
+        $query->andWhere($query->stateFilterCondition);
+        $total = (int)(clone $query)->count();
+        $posts = $query->orderBy(['post.id' => SORT_DESC])->limit(20)->offset(((int)$page - 1) * 20)->all();
+        $results = [];
+        foreach ($posts as $post) {
+            $row = (new Query())->from('{{%ummah_review}}')->where([
+                'post_id' => $post->id, 'author_id' => (int)Yii::$app->user->id,
+            ])->one();
+            if ($row && in_array($row['status'], $statuses, true) && $this->consistent($row, $post)) {
+                $results[] = $this->projection($row, $post);
+            }
+        }
+        return ['results' => $results, 'total' => $total, 'page' => (int)$page, 'pages' => (int)ceil($total / 20)];
+    }
 
     public function actionView($id): array
     {

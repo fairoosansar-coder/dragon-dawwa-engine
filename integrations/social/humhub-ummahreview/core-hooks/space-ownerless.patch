@@ -1,0 +1,13 @@
+--- protected/humhub/modules/space/models/Space.php
++++ protected/humhub/modules/space/models/Space.php
+@@ -272,7 +272,9 @@
+             }
+         }
+ 
+-        Yii::$app->cache->delete('userSpaces_' . $user->id);
++        if ($user) {
++            Yii::$app->cache->delete('userSpaces_' . $user->id);
++        }
+     }
+ 
+     /**

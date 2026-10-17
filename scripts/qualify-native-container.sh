@@ -186,7 +186,8 @@ assert_protected_paths() {
 }
 
 start_humhub() {
-    local initialize="$1"
+    local initialize="$1" private_bootstrap="${2:-no}" ids="$REVIEW_SPACE_IDS"
+    if [[ "$private_bootstrap" == yes ]]; then ids=''; fi
     quiet docker run -d \
         --name "$HUMHUB_CONTAINER" \
         --network "$NETWORK" \
@@ -202,7 +203,8 @@ start_humhub() {
         --env "RAILWAY_ENVIRONMENT_ID=${ENVIRONMENT_ID}" \
         --env "ENV=${ENVIRONMENT_ID}" \
         --env 'UMMAH_REVIEW_ENVIRONMENT=isolated-staging' \
-        --env "UMMAH_REVIEW_SPACE_IDS=${REVIEW_SPACE_IDS}" \
+        --env "UMMAH_REVIEW_SPACE_IDS=${ids}" \
+        --env "UMMAH_BOOTSTRAP_PRIVATE_EMPTY=${private_bootstrap}" \
         --env "SPACE_IDS=${REVIEW_SPACE_IDS}" \
         --env "UMMAH_INITIALIZE_HUMHUB=${initialize}" \
         "$HUMHUB_IMAGE" || return 1
@@ -256,9 +258,37 @@ quiet docker exec -e "MYSQL_PWD=${MYSQL_ROOT_PASSWORD}" "$MYSQL_CONTAINER" mysql
 log_bin="$(mysql_scalar 'SELECT @@log_bin')" || fail
 [[ "$log_bin" == '0' ]] || fail
 
+phase='account-free-private-bootstrap'
+printf 'Native container phase: %s\n' "$phase"
+start_humhub 'yes' 'yes' || fail
+wait_for_http || fail
+wait_for_schema || fail
+wait_for_workers || fail
+[[ "$(mysql_scalar 'SELECT COUNT(*) FROM user')" == '0' ]] || fail
+[[ "$(mysql_scalar 'SELECT COUNT(*) FROM post')" == '0' ]] || fail
+[[ "$(mysql_scalar 'SELECT COUNT(*) FROM space_membership')" == '0' ]] || fail
+[[ "$(mysql_scalar 'SELECT COUNT(*) FROM ummah_review_grant')" == '0' ]] || fail
+[[ "$(mysql_scalar "SELECT COUNT(*) FROM space WHERE name='UmmahConnect Staging Review' AND visibility=0 AND join_policy=0 AND auto_add_new_members=0 AND default_content_visibility=0")" == '1' ]] || fail
+private_space_before="$(mysql_scalar "SELECT id FROM space WHERE name='UmmahConnect Staging Review'")" || fail
+private_container_before="$(mysql_scalar "SELECT contentcontainer_id FROM space WHERE id=${private_space_before}")" || fail
+quiet docker stop "$HUMHUB_CONTAINER" || fail
+quiet docker rm "$HUMHUB_CONTAINER" || fail
+humhub_started=0
+start_humhub 'no' 'yes' || fail
+wait_for_http || fail
+wait_for_workers || fail
+[[ "$(mysql_scalar "SELECT id FROM space WHERE name='UmmahConnect Staging Review'")" == "$private_space_before" ]] || fail
+[[ "$(mysql_scalar "SELECT contentcontainer_id FROM space WHERE id=${private_space_before}")" == "$private_container_before" ]] || fail
+[[ "$(mysql_scalar 'SELECT COUNT(*) FROM user')" == '0' ]] || fail
+assert_protected_paths || fail
+printf '%s\n' '{"kind":"native-account-free-bootstrap","privateCommunityCreated":true,"users":0,"posts":0,"memberships":0,"grants":0,"actualSpaceIdResolved":true,"privatePersistentRestart":"pass","humanParticipation":false}'
+quiet docker stop "$HUMHUB_CONTAINER" || fail
+quiet docker rm "$HUMHUB_CONTAINER" || fail
+humhub_started=0
+
 phase='initialize-humhub'
 printf 'Native container phase: %s\n' "$phase"
-start_humhub 'yes' || fail
+start_humhub 'no' || fail
 wait_for_http || fail
 
 phase='apply-native-migrations'
