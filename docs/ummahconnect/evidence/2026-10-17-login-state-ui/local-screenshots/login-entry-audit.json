@@ -1,0 +1,42 @@
+{
+  "origin": "http://127.0.0.1:3307",
+  "commit": "ac8fee3f3e12c535d9eb6e61f31229282018257a",
+  "browser": "154.0.8037.57",
+  "method": "Credential-free desktop Chromium; mobile viewport emulation, NOT physical iPhone Safari",
+  "mockedAPIs": false,
+  "humanLogin": false,
+  "humanReview": false,
+  "physicalSafari": false,
+  "routes": [
+    {
+      "path": "/login",
+      "viewport": "mobile",
+      "status": 200,
+      "heading": "Sign Up / Login",
+      "readiness": "Authentication readiness: review sign-in is not enabled",
+      "pageErrors": []
+    },
+    {
+      "path": "/login#/screen-5",
+      "viewport": "mobile",
+      "anonymousSubmitControls": 0
+    },
+    {
+      "path": "/login",
+      "viewport": "desktop",
+      "status": 200,
+      "heading": "Sign Up / Login",
+      "readiness": "Authentication readiness: review sign-in is not enabled",
+      "pageErrors": []
+    },
+    {
+      "path": "/login#/screen-5",
+      "viewport": "desktop",
+      "anonymousSubmitControls": 0
+    }
+  ],
+  "screenshots": [
+    "login-entry-mobile-chromium.png",
+    "login-entry-desktop-chromium.png"
+  ]
+}

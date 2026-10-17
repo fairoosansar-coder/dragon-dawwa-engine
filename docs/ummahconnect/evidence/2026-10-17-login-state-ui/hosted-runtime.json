@@ -1,0 +1,89 @@
+{
+  "checkedAtUtc": "2026-10-17T16:42:03.391Z",
+  "commit": "ac8fee3f3e12c535d9eb6e61f31229282018257a",
+  "decisionCreated": false,
+  "deploymentId": "51ae04c3-2f99-4d26-ba47-3c66295d6371",
+  "humanAcceptance": false,
+  "kind": "login-state-runtime-verification",
+  "node": "v24.21.0",
+  "ok": true,
+  "physicalSafari": false,
+  "postCreated": false,
+  "privateMap": {
+    "members": 2,
+    "mode": "0600",
+    "uid": 1000
+  },
+  "readOnly": true,
+  "roles": [
+    {
+      "active": true,
+      "reads": [
+        {
+          "path": "auth/current",
+          "status": 200,
+          "total": null
+        },
+        {
+          "path": "space/1",
+          "status": 200,
+          "total": null
+        },
+        {
+          "path": "ummahreview/posts?space=1",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "path": "ummahreview/submissions?space=1",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "path": "ummahreview/reviews?space=1",
+          "status": 403,
+          "total": null
+        }
+      ],
+      "role": "author"
+    },
+    {
+      "active": true,
+      "reads": [
+        {
+          "path": "auth/current",
+          "status": 200,
+          "total": null
+        },
+        {
+          "path": "space/1",
+          "status": 200,
+          "total": null
+        },
+        {
+          "path": "ummahreview/posts?space=1",
+          "status": 200,
+          "total": 0
+        },
+        {
+          "path": "ummahreview/submissions?space=1",
+          "status": 403,
+          "total": null
+        },
+        {
+          "path": "ummahreview/reviews?space=1",
+          "status": 200,
+          "total": 0
+        }
+      ],
+      "role": "reviewer"
+    }
+  ],
+  "sessionCreated": false,
+  "sourceHashes": {
+    "deployment/staging/identity/vendor/google-auth.mjs": "2bbc7681aa589707d4266c71604711fbf6d2001a88e02800aca14906a8448b3a",
+    "src/server/socialGateway.ts": "3c09e7351b29b65ccf7264f6fc456baf91f43fb32dded9463dadb20e5056d6dd",
+    "src/ummah/SocialPanels.tsx": "919fe53cd46a365618e02a708de8d418a6150fd94ab0837dbbd19a059e5117fe",
+    "src/ummah/loginState.ts": "5f8e8c84115c30e671d047e76ea8d7649c91e0127592455a9511e98a79e618e9"
+  }
+}

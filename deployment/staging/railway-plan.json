@@ -11,14 +11,14 @@
   "reservedHumhubHttpsUrl": "https://ummah-humhub-staging.up.railway.app",
   "reservedGoogleCallback": "https://ummah-app-staging.up.railway.app/auth/callback",
   "hostnameReadiness": {
-    "checkedAtUtc": "2026-10-17T15:56:27Z",
+    "checkedAtUtc": "2026-10-17T16:35:38.507443+00:00",
     "httpStatus": 200,
     "tlsVerifyResult": 0,
     "liveApplicationReady": true,
     "googleLoginStartHttpStatus": 302,
     "identitySessionHttpStatus": 401,
     "secureHostOnlyFlowCookie": true,
-    "scope": "Anonymous health/session/login start and protected two-role native authorization only; fresh invited main-interface human sessions/decisions not verified.",
+    "scope": "Anonymous HTTPS, actual hosted public UI and ten operator native member GET checks only; no human review or iPhone Safari.",
     "identitySessionPath": "/api/review/session"
   },
   "humhubHostnameReadiness": {
@@ -142,15 +142,15 @@
       "generatedProtectedSecretCount": 3,
       "runningDeployment": true,
       "providerStatus": "Active",
-      "sourceBranch": "development/ummahconnect-signin-diagnostics-20261017",
+      "sourceBranch": "development/ummahconnect-login-state-ui-20261017",
       "accountMapping": "two privately mapped distinct verified Author/Reviewer native identities; schema-1 mode-0600 UID-1000 file; no client bearer",
       "oauthProtectedVariableCount": 2,
-      "deploymentId": "41d33882-2b51-4fe8-a423-ab7fbd44c79c",
-      "deployedCommit": "5b8c72187b47d1aa8ada60dd8ff13d634d4f38b4",
+      "deploymentId": "51ae04c3-2f99-4d26-ba47-3c66295d6371",
+      "deployedCommit": "ac8fee3f3e12c535d9eb6e61f31229282018257a",
       "successfulCiGate": true,
-      "observedConsoleDeploymentId": "41d33882-2b51-4fe8-a423-ab7fbd44c79c",
+      "observedConsoleDeploymentId": "51ae04c3-2f99-4d26-ba47-3c66295d6371",
       "mappingRestartDeploymentCorrelation": "Reviewer two-member mapping restart is uniquely correlated; earlier Author-only discrepancy remains historical.",
-      "currentDeploymentCorrelation": "Provider mapping-restart ID matches actual authenticated console deployment ID"
+      "currentDeploymentCorrelation": "Provider source-change ID matches actual protected console deployment ID"
     },
     {
       "name": "ummah-humhub",
@@ -260,14 +260,13 @@
     "Real main-interface submission, independent human approve/reject and permitted/excluded access",
     "Original login-start failure cause unconfirmed; trace uc-auth reference if symptom recurs",
     "Physical iPhone Safari acceptance",
-    "Original interrupted 13-file recovery remains separate and unrecovered",
-    "Anonymous login copy still contains generic pre-linking wording; reconcile during main-interface acceptance."
+    "Original interrupted 13-file recovery remains separate and unrecovered"
   ],
   "productionModified": false,
   "aishuModified": false,
   "paymentActionPerformed": false,
   "approvalRecordedAt": "2026-10-16T12:07:14Z",
-  "observedAtUtc": "2026-10-17T15:56:27Z",
+  "observedAtUtc": "2026-10-17T16:42:03.391Z",
   "hostedDatabaseActivation": {
     "status": "two private MySQL services deployed; both non-root SQL probes passed",
     "identitySchemaInitialized": true,
@@ -275,7 +274,7 @@
     "humhubNativeSchemaInitialized": true,
     "nativeTableCount": 50
   },
-  "status": "Both scoped invitations active; ten native permission GET checks pass; real human main-interface review and physical-device acceptance remain pending.",
+  "status": "Qualified login UI/readiness and review-only gateway deployed; real human social acceptance remains pending.",
   "lastAppliedChangeCount": 55,
   "configurationAppliedWithoutSourceDeployment": false,
   "activationRecordBranch": "development/ummahconnect-volume-activation-20261017",
@@ -296,11 +295,13 @@
   "nativeLoginRepairVerified": true,
   "nativeRepairAppliedChangeCount": 1,
   "applicationHttpReachableUrl": "https://ummah-app-staging.up.railway.app",
-  "qualifiedAppRuntimeCommit": "5b8c72187b47d1aa8ada60dd8ff13d634d4f38b4",
-  "qualifiedAppCiRun": "39043950586",
+  "qualifiedAppRuntimeCommit": "ac8fee3f3e12c535d9eb6e61f31229282018257a",
+  "qualifiedAppCiRun": "39049525723",
   "realAccountsEnrolledCount": 2,
   "qualifiedMemberOperatorCommit": "56b797a2be2f24ea54587dad1c6e611c79b88e18",
   "qualifiedMemberOperatorCiRun": "39033827738",
   "reviewerMappingAppliedChangeCount": 1,
-  "reviewerRuntimeEvidence": "docs/ummahconnect/evidence/2026-10-17-reviewer-enrollment/hosted-verification.json"
+  "reviewerRuntimeEvidence": "docs/ummahconnect/evidence/2026-10-17-reviewer-enrollment/hosted-verification.json",
+  "loginStateUiEvidence": "docs/ummahconnect/evidence/2026-10-17-login-state-ui/",
+  "lastAppSourceAppliedChangeCount": 1
 }

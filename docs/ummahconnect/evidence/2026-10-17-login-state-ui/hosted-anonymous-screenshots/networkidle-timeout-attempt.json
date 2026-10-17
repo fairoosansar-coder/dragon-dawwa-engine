@@ -1,0 +1,12 @@
+{
+  "origin": "https://ummah-app-staging.up.railway.app",
+  "commit": "ac8fee3f3e12c535d9eb6e61f31229282018257a",
+  "browser": "154.0.8037.57",
+  "method": "Credential-free desktop Chromium; mobile viewport emulation, NOT physical iPhone Safari",
+  "mockedAPIs": false,
+  "humanLogin": false,
+  "humanReview": false,
+  "physicalSafari": false,
+  "routes": [],
+  "screenshots": []
+}

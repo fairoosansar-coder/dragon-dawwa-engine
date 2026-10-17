@@ -1,0 +1,9 @@
+{
+  "ok": false,
+  "stage": "native_get",
+  "wrongOperationalEndpoint": "/api/v1/ummahreview/spaces",
+  "actualCommittedEndpoint": "/api/v1/space/1",
+  "sourceAndMapGuardsPassedBeforeFailure": true,
+  "runtimeSourceChanged": false,
+  "correction": "use previously-qualified native member GET paths"
+}
