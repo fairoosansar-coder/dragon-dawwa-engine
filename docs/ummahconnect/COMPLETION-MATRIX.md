@@ -1,13 +1,13 @@
 # 33-screen completion matrix
 
-Updated 2026-10-17 UTC after source/credential staging preparation. Route labels below identify the existing main app, not a working hosted URL. The earlier Mac-mini localhost preview is historical. No social screen is promoted to live Working: HTTPS Google/human/device acceptance is still blocked. Working describes previously verified local interactions, not hosted acceptance.
+Updated 2026-10-17 UTC after approved volume/database activation. Three 50 GB volumes are saved; both private MySQL services passed non-root SQL health checks; the separate identity schema is initialized with zero user roles. App and HumHub remain offline pending identity/community setup and native bootstrap. Route labels identify the existing main app, not a working hosted URL. No social screen is promoted to live Working: HTTPS Google/human/device acceptance remains uncompleted. Working describes previously verified local interactions, not hosted acceptance.
 
 | # | Screen | Status | Implemented scope / missing capability |
 |---|---|---|---|
 | 1 | Splash & Welcome (`#/screen-1`) | Working | Welcome links and main-app navigation. |
-| 2 | Sign Up / Login (`#/screen-2`) | Blocked | Separate staging OIDC/session/DB package and protected configuration staged; 19 source tests pass. HTTPS callback host reserved, not live; Google client/accounts and persistent hosted bootstrap remain pending. |
+| 2 | Sign Up / Login (`#/screen-2`) | Blocked | Separate staging identity MySQL/schema active, exact instance marker verified, zero real roles; 19 source tests pass. Staging Google client, designated accounts and protected native mappings remain pending. Reserved HTTPS host is not a working login. |
 | 3 | Onboarding & Preferences (`#/screen-3`) | Working | Interest selection and browser-local persistence. |
-| 4 | Home Feed (`#/screen-4`) | UI Only | Approved-only feed passes actual HumHub/MariaDB tests; no linked hosted Google sessions yet. |
+| 4 | Home Feed (`#/screen-4`) | UI Only | Approved-only feed passes actual isolated HumHub/MySQL CI; no linked hosted Google sessions or human acceptance yet. |
 | 5 | Create Post (`#/screen-5`) | UI Only | Real native draft submission and first-INSERT state=10 verified; main UI retained. Hosted existing-account submission/human acceptance pending. |
 | 6 | Post Detail & Comments (`#/screen-6`) | Blocked | Approved detail and denied pending/rejected detail verified against actual native provider. Hosted UI acceptance, comments and reactions remain pending. |
 | 7 | Explore & Search (`#/screen-7`) | Working | Search/filter all 33 routes and open results. |
@@ -89,3 +89,11 @@ The app origin `https://ummah-app-staging.up.railway.app` and HumHub origin `htt
 A newly verified provider constraint requires an owner decision: this Pro plan creates **50 GB per volume**, cannot select a smaller initial size or downsize, and bills used storage including filesystem metadata. The three required volumes would allocate **150 GB**, not the planned approximately 5 GB. Creation was left unsubmitted. See `RAILWAY-VOLUME-DECISION-20261017.md`. Google staging project/client, designated author/different reviewer/excluded accounts and actual private community grants are also pending.
 
 Fresh source validation remains **44/44 app tests, 19/19 identity tests, TypeScript and Vite build passing**. Prior actual HumHub/REST/MySQL qualification remains **32 HTTP + 15 model/file/cache** tests in isolated CI, not newly hosted or human acceptance. Physical iPhone Safari is **not run**. All 33 row statuses and counts remain **6 locally Working / 20 UI Only / 7 Blocked**. The approved design, production and Aishu are unchanged; original 13-file recovery remains separate.
+
+## 2026-10-17 UTC — three volumes applied; two actual private databases active
+
+The owner approved three default 50 GB volumes with actual-used billing. All three persistent attachments are saved with their correct mount paths and capacities. Railway's documented Alt-click apply-only action committed 55 changes without deploying the incomplete app or HumHub. Both private MySQL services were then deployed individually from the pinned image; actual non-root SQL probes report MySQL 8.4.11 and separate schemas/users. The identity instance marker, four tables and zero enrolled roles are verified. HumHub's database remains empty pending native installation and real community/account setup.
+
+Fresh source: **44/44 app tests + 19/19 identity tests**, TypeScript and Vite build pass. These are not real Google login. Reserved app/backend endpoints remain **HTTP 404 with valid TLS**. Earlier **32 HTTP + 15 model/file/cache** passes remain actual isolated native CI evidence with synthetic actors, not hosted human approval. Physical iPhone Safari is **NOT RUN**. No screen is promoted: counts remain **6 locally Working / 20 UI Only / 7 Blocked**.
+
+See `RAILWAY-VOLUME-ACTIVATION-20261017.md` and `evidence/2026-10-17-volume-activation/`. This record is on a separate development branch so its push does not start the still-unconfigured Railway source branch. Runtime/UI code, production and Aishu are unchanged; original 13-file recovery remains separate.

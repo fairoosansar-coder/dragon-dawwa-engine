@@ -1,5 +1,7 @@
 # Missing capabilities and integration gates
 
+**Current state (17 October 2026 UTC):** three approved persistent volumes are applied; both private MySQL services passed actual non-root SQL probes; the isolated identity schema has four tables and zero user roles. App/HumHub remain offline. Hosted Google/human flow and physical iPhone Safari are not complete. Historical entries below are retained; see the final volume/database activation section and `RAILWAY-VOLUME-ACTIVATION-20261017.md`.
+
 These are actual dependencies for the integrated screens, not features claimed as completed. No payment, approval or production account action is simulated as successful.
 
 | Area | Missing contract / capability | Affected screens |
@@ -98,3 +100,19 @@ The old GitHub login/installation blocker is cleared: the narrow selected-reposi
 7. **Original-file recovery:** preserve and compare the original 13 Mac-M5 edits/stashes/reflogs when access returns. This remains separate and does not justify resetting or overwriting the qualified continuation.
 
 Current source validation: 44 app tests and 19 identity tests pass; TypeScript/Vite pass. The prior 32 native HTTP and 15 model/file/cache passes remain actual isolated HumHub/REST/MySQL CI evidence with synthetic actors, not hosted human review. Production and Aishu remain unchanged. Qdrant/BGE → Docling → PeerTube → charity/mosque remains the subsequent rollout order; selected services/models are not reported as connected.
+
+## 2026-10-17 UTC — current blockers after approved volume/database activation
+
+The previous volume-capacity decision is **cleared**. Three approved 50 GB volumes are created, attached and applied. Both private MySQL 8.4.11 services are running and passed actual non-root SQL probes. The separate identity schema and exact instance marker are initialized and verified, with **zero enrolled roles**. GitHub access and saved qualified source configuration are also cleared. No additional volume-capacity or resource-envelope approval is being requested.
+
+Remaining work:
+
+1. **Separate staging Google Web client:** identify the Google Cloud project; configure `GOOGLE_OIDC_CLIENT_ID` and `GOOGLE_OIDC_CLIENT_SECRET` through protected deployment settings and register `https://ummah-app-staging.up.railway.app/auth/callback`. Production OAuth configuration/secrets remain excluded.
+2. **Actual human identity/permission choices:** designate the author, a reviewer belonging to a different human, and an account that can log in but cannot access the private community. Specify the community and intended rights. Email can designate an intended account; it is not accepted as authenticated identity. Bind only verified issuer/subject references, never browser-provided IDs or automatic email enrollment.
+3. **Live HumHub bootstrap:** the database is ready but still contains zero native tables. Initialize HumHub/REST/native review migrations; establish actual private community IDs, membership, scoped review grants and individual expiring bearer tokens. Do not invent IDs or use the synthetic fixture seeder for hosted real accounts. No native hosted content, review or scholarly approval is yet claimed.
+4. **Deploy app/HumHub after configuration:** both remain offline; saved source uses the qualified development ancestry, not `main`. Enable first boot only for the new database and disable it afterward. Finish account mapping and session/role/revocation checks. Hosted queue/cron/private-path and persistence checks remain unrun, distinct from passing CI.
+5. **HTTPS human-flow acceptance:** the two reserved endpoints return 404 with valid TLS. Run actual existing-account login → community → draft → different human approval → permitted visibility, then rejection, reviewer self-review denial, excluded-user access, revocation and native bypass/rollback tests against that hosted HumHub. Earlier synthetic native CI is not this pass.
+6. **Physical iPhone Safari:** record actual hardware/iOS/browser, callback/cookies, navigation, keyboard/safe areas and permission-different users. No browser emulation is substituted.
+7. **Separate original-file recovery:** keep the original 13 Mac-M5 edits/stashes/reflogs intact and compare them when access returns. Current staging work does not reset or overwrite those files.
+
+The activation record is pushed on a new development branch not connected to Railway's auto-deploying source, preventing a documentation push from launching the incomplete app. Fresh source checks remain 44/44 app + 19/19 identity, TypeScript/Vite passing. The approved 33-screen design and runtime code are unchanged. Production and Aishu were not modified. Later work remains Qdrant/BGE → Docling → PeerTube → charity/mosque, with citations, human review and explicit separation of examples from genuine records.

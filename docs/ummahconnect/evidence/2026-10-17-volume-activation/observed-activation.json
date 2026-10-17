@@ -1,0 +1,96 @@
+{
+  "checkedAtUtc": "2026-10-17T02:22:32.797Z",
+  "projectId": "48d7a4cf-07dc-489b-8a3d-d6d10142b14e",
+  "environmentId": "1f7d98bf-1d49-4d9f-a5cc-13b57abcc095",
+  "ownerVolumeApprovalAtUtc": "2026-10-17T02:04:31Z",
+  "volumeAllocationApprovedGb": 150,
+  "billing": "actual-used storage including filesystem metadata; no hard 5 GB cap",
+  "volumes": [
+    {
+      "name": "ummah-humhub-mysql-volume",
+      "id": "cd19acff-8eae-49c8-a6c4-f4c3f3b74dc0",
+      "serviceId": "40669655-b0cd-4b44-83ab-d0f4bf0376d7",
+      "mountPath": "/var/lib/mysql",
+      "providerReportedCapacityGb": 50
+    },
+    {
+      "name": "ummah-identity-mysql-volume",
+      "id": "fb91f820-835c-47db-b9fb-31a2ddb867a0",
+      "serviceId": "f7abeb9a-2a67-4fb7-9c6b-8a12dc19db44",
+      "mountPath": "/var/lib/mysql",
+      "providerReportedCapacityGb": 50
+    },
+    {
+      "name": "ummah-humhub-volume",
+      "id": "8f87dd68-860c-4345-a5c6-e472c2184394",
+      "serviceId": "e6498121-1725-4d5a-a66f-e0f1091d6d35",
+      "mountPath": "/var/lib/ummah-humhub",
+      "providerReportedCapacityGb": 50
+    }
+  ],
+  "configurationAppliedWithoutSourceDeployment": true,
+  "applyOnlyDocumentedMethod": "Alt-click Deploy; saved 55 staged changes without redeploying services",
+  "applyOnlyOfficialSource": "https://docs.railway.com/deployments/staged-changes",
+  "applyOnlyProviderExplanation": "https://station.railway.com/questions/will-skip-deploys-or-railway-up-touch-fc291a96",
+  "volumeRules": "https://docs.railway.com/volumes/reference",
+  "services": {
+    "ummah-identity-mysql": {
+      "providerStatus": "Online",
+      "deploymentId": "6bc0c2bc-52ec-48b0-8dd5-49facc08c8ed",
+      "sqlProbePassed": true,
+      "mysqlVersion": "8.4.11",
+      "currentDatabaseUser": "ummah_identity_app@%",
+      "schema": "ummah_identity_staging",
+      "tablesBeforeBootstrap": 0
+    },
+    "ummah-humhub-mysql": {
+      "providerStatus": "Online",
+      "sqlProbePassed": true,
+      "deploymentId": "3ff26047-c006-4846-8586-ff57b6e09cdb",
+      "mysqlVersion": "8.4.11",
+      "currentDatabaseUser": "ummah_humhub_app@%",
+      "schema": "ummah_humhub_staging",
+      "nativeTableCount": 0,
+      "grantScope": "USAGE globally; ALL PRIVILEGES only on ummah_humhub_staging.*"
+    },
+    "ummah-app": {
+      "providerStatus": "Service is offline",
+      "sourceConfigurationApplied": true,
+      "sourceDeploymentStarted": false
+    },
+    "ummah-humhub": {
+      "providerStatus": "Service is offline",
+      "sourceConfigurationApplied": true,
+      "sourceDeploymentStarted": false
+    }
+  },
+  "identitySchema": {
+    "firstBootGuardedBootstrapApplied": true,
+    "bootstrapDatabaseRole": "ummah_identity_app (non-root)",
+    "guards": [
+      "exact project",
+      "exact environment",
+      "exact schema",
+      "exact application role",
+      "zero existing schema tables"
+    ],
+    "instanceId": "ummahconnect-isolated-staging",
+    "projectId": "48d7a4cf-07dc-489b-8a3d-d6d10142b14e",
+    "environmentId": "1f7d98bf-1d49-4d9f-a5cc-13b57abcc095",
+    "tables": [
+      "ummah_identity_instance",
+      "review_roles",
+      "review_session_epochs",
+      "review_session_revocations"
+    ],
+    "realRoleCount": 0,
+    "automaticAccountEnrollment": false
+  },
+  "humhubNativeBootstrapCompleted": false,
+  "oauthConfigured": false,
+  "hostedHumanModerationFlowTested": false,
+  "physicalIphoneSafariTested": false,
+  "productionModified": false,
+  "aishuModified": false,
+  "scope": "Actual Railway infrastructure and identity SQL evidence, not a completed hosted HumHub login/moderation workflow"
+}

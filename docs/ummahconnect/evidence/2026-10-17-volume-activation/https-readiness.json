@@ -1,0 +1,20 @@
+{
+  "checkedAtUtc": "2026-10-17T02:25:58.196062+00:00",
+  "purpose": "Negative hosted readiness; not a successful login or native HumHub flow",
+  "requests": [
+    {
+      "url": "https://ummah-app-staging.up.railway.app/api/health",
+      "httpCode": "404",
+      "tlsVerifyResult": "0",
+      "curlExitCode": 0,
+      "error": ""
+    },
+    {
+      "url": "https://ummah-humhub-staging.up.railway.app/api/v1/auth/current",
+      "httpCode": "404",
+      "tlsVerifyResult": "0",
+      "curlExitCode": 0,
+      "error": ""
+    }
+  ]
+}

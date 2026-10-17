@@ -1,5 +1,7 @@
 # Private staging handoff
 
+**Current state (17 October 2026 UTC):** three approved persistent volumes are applied; both private MySQL services passed actual non-root SQL probes; the isolated identity schema has four tables and zero user roles. App/HumHub remain offline. Hosted Google/human flow and physical iPhone Safari are not complete. Historical entries below are retained; see the final volume/database activation section and `RAILWAY-VOLUME-ACTIVATION-20261017.md`.
+
 Preview: https://ummahconnect-integration-staging.feroz1890.chatgpt.site
 
 Source branch: https://github.com/fairoosansar-coder/dragon-dawwa-engine/tree/integration/ummahconnect-33
@@ -83,3 +85,23 @@ Reserved app origin: **https://ummah-app-staging.up.railway.app**, port 3000. Re
 Creation of the three required persistent volumes is paused for a specific capacity decision. Official Railway guidance confirms that Pro volumes start at 50 GB, cannot have a custom smaller initial size or be downsized, and bill used storage including filesystem metadata. Three default volumes would allocate 150 GB versus the approved approximately 5 GB aggregate target. No volume was created. See `RAILWAY-VOLUME-DECISION-20261017.md`; retain separate database instances and do not silently change workspace-wide cost controls.
 
 After that choice and the staging Google project/client plus designated author, different human reviewer and excluded account are supplied, activate the persistent services, apply the isolated schema/native migrations, establish actual private community IDs/grants and protected member mappings, then deploy and exercise the full HTTPS main-interface flow. Test rejected posts, self-review denial and excluded users against that actual hosted HumHub. Physical iPhone Safari remains an independent gate. Production, Aishu, original interrupted files and the existing 33-screen design are unchanged.
+
+## 2026-10-17 UTC — current state after approved volume/database activation
+
+**This entry supersedes the older unapplied/no-volume state.** The owner approved three default 50 GB volumes at `2026-10-17T02:04:31Z`, with actual-used storage billing. All three were created, attached, applied and checked in their settings:
+
+| Volume | ID | Mount | Capacity |
+|---|---|---|---|
+| HumHub MySQL | `cd19acff-8eae-49c8-a6c4-f4c3f3b74dc0` | `/var/lib/mysql` | 50 GB |
+| Identity MySQL | `fb91f820-835c-47db-b9fb-31a2ddb867a0` | `/var/lib/mysql` | 50 GB |
+| HumHub storage | `8f87dd68-860c-4345-a5c6-e472c2184394` | `/var/lib/ummah-humhub` | 50 GB |
+
+Railway's [documented Alt-click Deploy action](https://docs.railway.com/deployments/staged-changes) applied 55 staged changes without starting source deployments. Both MySQL services were then started individually. Each passed an actual application-role SQL probe on MySQL **8.4.11**: `ummah_identity_app@%` / `ummah_identity_staging`, and `ummah_humhub_app@%` / `ummah_humhub_staging`. The latter's grants are USAGE globally and ALL PRIVILEGES only within its own schema. Neither database exposes public HTTP/TCP networking.
+
+The identity schema was applied only after exact project/environment/schema/role and empty-database checks. Four tables and the exact staging instance marker are verified; `review_roles` contains **zero users**. No production data, accounts or secrets were copied. HumHub's database still has **zero native tables**; live native installation, community IDs, memberships, per-member tokens and review grants are not claimed completed.
+
+App and HumHub source configuration is now saved, but both services remain deliberately offline. At `2026-10-17T02:25:58Z`, their reserved HTTPS endpoints still return **404 with TLS verification 0**. The app origin is `https://ummah-app-staging.up.railway.app`; its Google callback remains `https://ummah-app-staging.up.railway.app/auth/callback`. These are not working login/flow URLs.
+
+Immediate owner inputs: choose the separate Google Cloud staging project/Web client; configure `GOOGLE_OIDC_CLIENT_ID` and `GOOGLE_OIDC_CLIENT_SECRET` only in protected deployment settings; designate an existing author account, a reviewer belonging to a **different human**, and an account allowed to log in but excluded from the private community; state the private community and intended rights. Then complete native bootstrap, verified issuer/subject bindings, scoped grants and app/HumHub deployment. No further volume-capacity approval is needed. No workspace-wide production stop limit was changed.
+
+Source evidence is preserved separately on `development/ummahconnect-volume-activation-20261017`; Railway's source branch is not changed by that push. See `RAILWAY-VOLUME-ACTIVATION-20261017.md`. Source/native-CI/hosted-human/physical-Safari results remain separate; the latter two gates are not complete. Production, Aishu, approved design and original interrupted files are unchanged.

@@ -1,5 +1,7 @@
 # Integration test results — 2026-10-13
 
+**Current state (17 October 2026 UTC):** three approved persistent volumes are applied; both private MySQL services passed actual non-root SQL probes; the isolated identity schema has four tables and zero user roles. App/HumHub remain offline. Hosted Google/human flow and physical iPhone Safari are not complete. Historical entries below are retained; see the final volume/database activation section and `RAILWAY-VOLUME-ACTIVATION-20261017.md`.
+
 Staging preview: https://ummahconnect-integration-staging.feroz1890.chatgpt.site
 
 This is an isolated owner-private staging deployment. The existing production site, Railway runtime and database were not changed.
@@ -147,3 +149,24 @@ Evidence directory: `evidence/2026-10-17-activation/`. Runtime/UI code remains u
 Evidence: `evidence/2026-10-17-source-preparation/`. New unused app keys inadvertently appeared in a setup diagnostic and were replaced before any deployment or user enrollment; the owned transient diagnostic was removed. Replacement credentials and database/cookie secrets are not exported in this evidence. No production or existing account secret was changed.
 
 Production, Aishu, the 33-screen design and original 13-file recovery remain unchanged/separate. Pending configuration is not a milestone pass.
+
+## 2026-10-17 UTC — approved storage and actual Railway MySQL activation
+
+| Category | Result | Exact boundary |
+|---|---|---|
+| Persisted volumes | PASS, 3/3 | Three default 50 GB volumes; saved IDs, correct service attachments and mount paths checked in provider settings. Not a whole-application milestone pass. |
+| Apply-only configuration | PASS | 55 changes committed by documented Alt-click Deploy; all four services remained offline immediately afterward. Databases were subsequently started individually. |
+| Actual identity SQL | PASS | Native Railway console authenticated as non-root `ummah_identity_app@%`; MySQL 8.4.11, `ummah_identity_staging`, initially zero tables. |
+| Actual identity schema | PASS | Exact project/environment/schema/user and empty-state guards; four tables and correct instance marker verified; **zero enrolled user roles**. No production data copied. |
+| Actual HumHub SQL | PASS | Native Railway console authenticated as non-root `ummah_humhub_app@%`; MySQL 8.4.11, separate `ummah_humhub_staging`; schema-local grants verified. Native table count **0**: this is database readiness, not installed live HumHub. |
+| App source/controlled suite | PASS, 44/44 | Fresh run; controlled provider/session cases are not Google login. |
+| Identity source suite | PASS, 19/19 | Fresh run; simulated database/session fixtures are separate from the SQL probes above. |
+| TypeScript / Vite build | PASS | Fresh checks; existing large-chunk warning remains. No runtime/UI changes. |
+| Prior actual native CI | PASS, 32 HTTP + 15 model/file/cache | Earlier actual HumHub/REST/MySQL tests in CI 38826633944, synthetic actors; **not newly rerun on Railway**. |
+| Reserved HTTPS readiness | NOT READY | App `/api/health` and HumHub `/api/v1/auth/current`: **HTTP 404**, valid TLS (verification 0), checked `2026-10-17T02:25:58Z`. |
+| Hosted Google → post → another human → permitted visibility | NOT RUN / BLOCKED | Separate Google client, designated real accounts, native community/grants/tokens and app/HumHub bootstrap/deployment remain pending. Rejection, self-review and excluded-user tests are not claimed as live passes. |
+| Hosted app/HumHub restart/queue/cron acceptance | NOT RUN | Earlier container restart/worker tests are CI evidence, not evidence for the two still-offline hosted services. |
+| Physical iPhone Safari | NOT RUN | No physical-device/session evidence; no emulation is represented as Safari. |
+| Production / Aishu / interrupted source | UNCHANGED | Only approved new staging resources operated; original 13-file recovery remains separate. |
+
+Evidence: `evidence/2026-10-17-volume-activation/`. `observed-activation.json` contains only non-secret provider IDs, SQL metadata, guard results and exact scopes. `https-readiness.json` records the negative checks. The source/evidence push uses a new development branch, not the branch connected to the still-unconfigured Railway app/HumHub, avoiding automatic premature deployments. No genuine donation, transaction, scholarship or construction claim was generated.
