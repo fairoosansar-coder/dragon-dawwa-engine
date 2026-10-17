@@ -99,13 +99,13 @@ if ($mode === '--create') {
                 || $space->default_content_visibility !== Content::VISIBILITY_PRIVATE
                 || $space->auto_add_new_members !== 0) rejectBootstrap();
             $permissionValidators = [];
-            foreach ($space->getValidators() as $validator) {
+            foreach ($space->getValidators() as $index => $validator) {
                 if ($validator instanceof yii\validators\InlineValidator
                     && $validator->method === [$space, 'checkVisibility']
-                    && $validator->attributes === ['visibility']) $permissionValidators[] = $validator;
+                    && $validator->attributes === ['visibility']) $permissionValidators[$index] = $validator;
             }
             if (count($permissionValidators) !== 1) rejectBootstrap();
-            $space->getValidators()->remove($permissionValidators[0]);
+            $space->getValidators()->offsetUnset(array_key_first($permissionValidators));
             if (!$space->save()) throw new RuntimeException('Native private-space validation failed for attributes: '
                 . implode(', ', array_keys($space->getErrors())));
         }
