@@ -473,6 +473,17 @@ printf 'Native container phase: %s\n' "$phase"
 [[ "$(mysql_scalar "SELECT COUNT(*) FROM ummah_review WHERE space_id<>${private_space_before}")" == '0' ]] || fail
 quiet docker exec "$HUMHUB_CONTAINER" sh -c "test -f '${FIXTURE_PATH}' && test \$(stat -c '%a' '${FIXTURE_PATH}') = 600" || fail
 
+phase='native-member-enrollment-qualification'
+printf 'Native container phase: %s\n' "$phase"
+quiet docker exec -e "MYSQL_PWD=${MYSQL_ROOT_PASSWORD}" "$MYSQL_CONTAINER" mysql -uroot -e "CREATE DATABASE ummah_identity_staging; CREATE USER 'ummah_identity_app'@'%' IDENTIFIED BY '${MYSQL_APP_PASSWORD}'; GRANT SELECT,INSERT,UPDATE,DELETE ON ummah_identity_staging.* TO 'ummah_identity_app'@'%';" || fail
+quiet docker exec -i -e "MYSQL_PWD=${MYSQL_ROOT_PASSWORD}" "$MYSQL_CONTAINER" mysql -uroot ummah_identity_staging < deployment/staging/identity/schema.sql || fail
+ci_mysql_ip="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$MYSQL_CONTAINER")" || fail
+for source in scripts/provision-native-member.php scripts/test-native-member-provisioning.php; do
+    quiet docker cp "$source" "${HUMHUB_CONTAINER}:/tmp/$(basename "$source")" || fail
+done
+docker exec --user www-data --env 'RAILWAY_SERVICE_ID=e6498121-1725-4d5a-a66f-e0f1091d6d35' --env 'UMMAH_INITIALIZE_HUMHUB=no' --env 'UMMAH_NATIVE_FIXTURE=sandbox-only' --env 'HUMHUB_ROOT=/var/www/html' "$HUMHUB_CONTAINER" php /tmp/test-native-member-provisioning.php || fail
+env UMMAH_MEMBER_TEST_MODE=ephemeral-ci UMMAH_MEMBER_TEST_CONTAINER="$HUMHUB_CONTAINER" UMMAH_CI_MYSQL_IP="$ci_mysql_ip" UMMAH_CI_MYSQL_PASSWORD="$MYSQL_APP_PASSWORD" node scripts/qualify-native-member-enrollment.mjs || fail
+
 phase='write-runner-local-report'
 printf 'Native container phase: %s\n' "$phase"
 QUALIFICATION_REPORT_PATH="$QUALIFICATION_REPORT" HTTP_REPORT_PATH="$HTTP_REPORT" node --input-type=module - <<'NODE' >>"$COMMAND_LOG" 2>&1
