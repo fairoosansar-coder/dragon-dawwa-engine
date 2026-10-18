@@ -1,0 +1,159 @@
+{
+  "kind": "reported-human-decisions-verification",
+  "ok": true,
+  "reportedApprovalRejectionCorroborated": true,
+  "citationAndTextPreserved": true,
+  "checkedAtUtc": "2026-10-18T16:08:02.788Z",
+  "commit": "dae5c666b6b54575ddf2879f2d253f5ec52d121a",
+  "deploymentId": "5a1820b2-36f1-405f-9ef8-3e9a1d98bb34",
+  "outcomes": [
+    {
+      "role": "author",
+      "nativeUserId": 1,
+      "active": true,
+      "checks": [
+        {
+          "path": "auth/current",
+          "status": 200
+        },
+        {
+          "path": "ummahreview/posts?space=1",
+          "status": 200,
+          "total": 1,
+          "records": [
+            {
+              "postId": 1,
+              "reviewId": 1,
+              "status": "approved",
+              "state": 1,
+              "sourceCount": 1,
+              "submittedAt": "2026-10-18 14:47:18",
+              "reviewedAt": "2026-10-18 16:03:02"
+            }
+          ]
+        },
+        {
+          "path": "ummahreview/submissions?space=1",
+          "status": 200,
+          "total": 1,
+          "records": [
+            {
+              "postId": 2,
+              "reviewId": 2,
+              "status": "rejected",
+              "state": 10,
+              "sourceCount": 0,
+              "submittedAt": "2026-10-18 16:00:04",
+              "reviewedAt": "2026-10-18 16:02:50"
+            }
+          ]
+        },
+        {
+          "path": "ummahreview/reviews?space=1",
+          "status": 403
+        },
+        {
+          "path": "ummahreview/submissions?space=1&includeApproved=1",
+          "status": 200,
+          "total": 2,
+          "records": [
+            {
+              "postId": 2,
+              "reviewId": 2,
+              "status": "rejected",
+              "state": 10,
+              "sourceCount": 0,
+              "submittedAt": "2026-10-18 16:00:04",
+              "reviewedAt": "2026-10-18 16:02:50"
+            },
+            {
+              "postId": 1,
+              "reviewId": 1,
+              "status": "approved",
+              "state": 1,
+              "sourceCount": 1,
+              "submittedAt": "2026-10-18 14:47:18",
+              "reviewedAt": "2026-10-18 16:03:02"
+            }
+          ]
+        },
+        {
+          "path": "ummahreview/post/1",
+          "status": 200,
+          "record": {
+            "postId": 1,
+            "reviewId": 1,
+            "status": "approved",
+            "state": 1,
+            "sourceCount": 1,
+            "submittedAt": "2026-10-18 14:47:18",
+            "reviewedAt": "2026-10-18 16:03:02"
+          }
+        },
+        {
+          "path": "ummahreview/post/2",
+          "status": 404
+        }
+      ]
+    },
+    {
+      "role": "reviewer",
+      "nativeUserId": 3,
+      "active": true,
+      "checks": [
+        {
+          "path": "auth/current",
+          "status": 200
+        },
+        {
+          "path": "ummahreview/posts?space=1",
+          "status": 200,
+          "total": 1,
+          "records": [
+            {
+              "postId": 1,
+              "reviewId": 1,
+              "status": "approved",
+              "state": 1,
+              "sourceCount": 1,
+              "submittedAt": "2026-10-18 14:47:18",
+              "reviewedAt": "2026-10-18 16:03:02"
+            }
+          ]
+        },
+        {
+          "path": "ummahreview/submissions?space=1",
+          "status": 403
+        },
+        {
+          "path": "ummahreview/reviews?space=1",
+          "status": 200,
+          "total": 0,
+          "records": []
+        },
+        {
+          "path": "ummahreview/post/1",
+          "status": 200,
+          "record": {
+            "postId": 1,
+            "reviewId": 1,
+            "status": "approved",
+            "state": 1,
+            "sourceCount": 1,
+            "submittedAt": "2026-10-18 14:47:18",
+            "reviewedAt": "2026-10-18 16:03:02"
+          }
+        },
+        {
+          "path": "ummahreview/post/2",
+          "status": 404
+        }
+      ]
+    }
+  ],
+  "readOnly": true,
+  "decisionCreated": false,
+  "sessionCreated": false,
+  "humanReportIsSeparateAttestation": true,
+  "physicalIPhoneSafari": false
+}
