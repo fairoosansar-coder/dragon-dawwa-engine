@@ -1,0 +1,21 @@
+{
+  "userSuppliedScreenshot": "user-author-pending.png",
+  "userInterfaceSubmissionShown": true,
+  "independentNativeStateVerified": true,
+  "postId": 1,
+  "reviewId": 1,
+  "draftState": 10,
+  "reviewStatus": "pending",
+  "approvedFeedCounts": {
+    "author": 0,
+    "reviewer": 0
+  },
+  "sourceCount": 1,
+  "citationUsabilityVerified": false,
+  "scholarlyVerification": false,
+  "agentCreatedPostOrDecision": false,
+  "independentHumanDecisionVerified": false,
+  "physicalIPhoneSafari": false,
+  "runtimeUnchanged": true,
+  "roleAndAccountMapUnchanged": true
+}
