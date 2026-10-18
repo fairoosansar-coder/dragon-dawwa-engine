@@ -15,8 +15,8 @@ const guidance = (value: string) => /configuration|mapping|authority|humhub_not_
   : /forbidden|access_denied/.test(value) ? 'This account is not permitted to perform that community action.' : value;
 interface Space { id: number; name: string }
 
-const loginRequest: LoginRequest = async path => {
-  const response = await fetch(path, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+const loginRequest: LoginRequest = async (path, options) => {
+  const response = await fetch(path, { credentials: 'same-origin', headers: { Accept: 'application/json' }, signal: options?.signal });
   return { status: response.status, json: () => response.json() };
 };
 
@@ -62,12 +62,18 @@ export function LoginStatePanel({ state, retry }: {state: LoginState; retry?: ()
 export function SocialLogin() {
   const [state, setState] = useState<LoginState>({ kind: 'loading' });
   const checkId = useRef(0);
+  const checkController = useRef<AbortController | null>(null);
   const check = () => {
+    checkController.current?.abort();
     const current = ++checkId.current;
+    const controller = new AbortController();
+    checkController.current = controller;
     setState({ kind: 'loading' });
-    void loadLoginState(loginRequest).then(next => { if (current === checkId.current) setState(next); });
+    void loadLoginState(loginRequest, { signal: controller.signal }).then(next => {
+      if (current === checkId.current && checkController.current === controller && !controller.signal.aborted) setState(next);
+    });
   };
-  useEffect(() => { check(); return () => { checkId.current++; }; }, []);
+  useEffect(() => { check(); return () => { checkId.current++; checkController.current?.abort(); checkController.current = null; }; }, []);
   return <LoginStatePanel state={state} retry={check}/>;
 }
 

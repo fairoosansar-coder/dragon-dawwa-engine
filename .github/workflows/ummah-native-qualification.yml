@@ -10,6 +10,7 @@ on:
       - development/ummahconnect-real-member-provisioning-20261017
       - development/ummahconnect-signin-diagnostics-20261017
       - development/ummahconnect-login-state-ui-20261017
+      - development/ummahconnect-login-deadline-20261018
   workflow_dispatch:
 
 permissions:

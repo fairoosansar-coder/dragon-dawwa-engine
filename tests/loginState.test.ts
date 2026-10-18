@@ -1,7 +1,7 @@
 // Controlled endpoint-response tests only: they do not perform OIDC, provider, device, or human-login acceptance.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { loadLoginState, routeFromLocation, signOutCurrentSession, trustedLoginPath, type LoginRequest } from '../src/ummah/loginState.ts';
+import { loadLoginState, routeFromLocation, signOutCurrentSession, trustedLoginPath, type LoginRequest, type LoginResponse } from '../src/ummah/loginState.ts';
 import { routeFromHash, screenReadiness } from '../src/ummah/catalog.ts';
 
 const response = (status: number, body: unknown = {}) => ({ status, json: async () => body });
@@ -24,7 +24,7 @@ test('login route opens screen 2 only for the no-hash /login entry point and hon
   assert.equal(routeFromLocation('/', '', routeFromHash), 'screen-4');
 });
 
-test('public config controls only the safe login affordance, not identity or membership', async () => {
+test('public config controls only the safe login affordance, not identity or membership, and a 401 retains only that safe link', async () => {
   assert.equal(trustedLoginPath({ reviewEnabled: true, loginPath: '/auth/login' }), '/auth/login');
   assert.equal(trustedLoginPath({ reviewEnabled: true, loginPath: 'https://attacker.test/auth/login' }), null);
   assert.equal(trustedLoginPath({ reviewEnabled: true, loginPath: '//attacker.test/auth/login' }), null);
@@ -81,10 +81,112 @@ test('config failures, invalid login paths, session failures, and member failure
   }
 });
 
-test('malformed success responses never fabricate a mapped member',async()=>{
+const never = <T>(): Promise<T> => new Promise<T>(() => {});
+const deadlineOptions = { budgetMs: 25 };
+const configuredResponse = () => response(200, { reviewEnabled: true, loginPath: '/auth/login' });
+const sessionResponse = () => response(200, { user: { id: 'controlled-session' } });
+const memberResponse = () => response(200, { id: 9, name: 'Controlled member', canReview: false, canSubmit: true, reviewEnabled: true });
+
+test('one overall deadline bounds never-resolving injected fetches at config, session, and member stages', async () => {
+  const scenarios: Array<{ stage: 'config' | 'session' | 'member'; replies: Array<LoginResponse | 'hang'>; paths: string[] }> = [
+    { stage: 'config', replies: ['hang'], paths: ['/api/social/config'] },
+    { stage: 'session', replies: [configuredResponse(), 'hang'], paths: ['/api/social/config', '/api/review/session'] },
+    { stage: 'member', replies: [configuredResponse(), sessionResponse(), 'hang'], paths: ['/api/social/config', '/api/review/session', '/api/social/me'] },
+  ];
+  for (const scenario of scenarios) {
+    const paths: string[] = [];
+    let receivedSignal: AbortSignal | undefined;
+    const replies = [...scenario.replies];
+    const request: LoginRequest = async (path, options) => {
+      paths.push(path);
+      receivedSignal = options?.signal;
+      const next = replies.shift();
+      if (next === 'hang') return never<LoginResponse>(); // Deliberately ignores the abort signal.
+      if (!next) throw new Error(`Unexpected request: ${path}`);
+      return next;
+    };
+    assert.deepEqual(await loadLoginState(request, deadlineOptions), { kind: 'temporary-error', stage: scenario.stage }, scenario.stage);
+    assert.deepEqual(paths, scenario.paths, `${scenario.stage} must stop later endpoint requests`);
+    assert.equal(receivedSignal?.aborted, true, `${scenario.stage} deadline aborts the fetch signal`);
+  }
+});
+
+test('one overall deadline also bounds hanging JSON at config, session, and member stages', async () => {
+  const hangingJson = () => ({ status: 200, json: () => never<unknown>() });
+  const scenarios: Array<{ stage: 'config' | 'session' | 'member'; replies: LoginResponse[]; paths: string[] }> = [
+    { stage: 'config', replies: [hangingJson()], paths: ['/api/social/config'] },
+    { stage: 'session', replies: [configuredResponse(), hangingJson()], paths: ['/api/social/config', '/api/review/session'] },
+    { stage: 'member', replies: [configuredResponse(), sessionResponse(), hangingJson()], paths: ['/api/social/config', '/api/review/session', '/api/social/me'] },
+  ];
+  for (const scenario of scenarios) {
+    const paths: string[] = [];
+    const replies = [...scenario.replies];
+    const request: LoginRequest = async path => {
+      paths.push(path);
+      const next = replies.shift();
+      if (!next) throw new Error(`Unexpected request: ${path}`);
+      return next;
+    };
+    assert.deepEqual(await loadLoginState(request, deadlineOptions), { kind: 'temporary-error', stage: scenario.stage }, scenario.stage);
+    assert.deepEqual(paths, scenario.paths, `${scenario.stage} JSON timeout must stop later endpoint requests`);
+  }
+});
+
+test('a late member result after the deadline cannot yield a mapped member', async () => {
+  let resolveMember!: (value: LoginResponse) => void;
+  let memberSignal: AbortSignal | undefined;
+  const paths: string[] = [];
+  const lateRequest: LoginRequest = async (path, options) => {
+    paths.push(path);
+    if (path === '/api/social/config') return configuredResponse();
+    if (path === '/api/review/session') return sessionResponse();
+    memberSignal = options?.signal;
+    // This promise intentionally ignores abort and resolves after loadLoginState has returned.
+    return new Promise<LoginResponse>(resolve => { resolveMember = resolve; });
+  };
+  const state = await loadLoginState(lateRequest, deadlineOptions);
+  assert.deepEqual(state, { kind: 'temporary-error', stage: 'member' });
+  assert.equal(memberSignal?.aborted, true);
+  resolveMember(memberResponse());
+  await Promise.resolve();
+  assert.deepEqual(state, { kind: 'temporary-error', stage: 'member' });
+  assert.deepEqual(paths, ['/api/social/config', '/api/review/session', '/api/social/me']);
+});
+
+test('a cancelled stale check does not block a successful retry', async () => {
+  const cancellation = new AbortController();
+  let staleSignal: AbortSignal | undefined;
+  const stale: LoginRequest = async (_path, options) => {
+    staleSignal = options?.signal;
+    return never<LoginResponse>(); // Deliberately ignores cancellation.
+  };
+  const staleCheck = loadLoginState(stale, { budgetMs: 200, signal: cancellation.signal });
+  cancellation.abort();
+  assert.deepEqual(await staleCheck, { kind: 'temporary-error', stage: 'config' });
+  assert.equal(staleSignal?.aborted, true);
+
+  const retry = controlled(configuredResponse(), sessionResponse(), memberResponse());
+  assert.deepEqual(await loadLoginState(retry.request, deadlineOptions), {
+    kind: 'mapped-member', name: 'Controlled member', canReview: false, canSubmit: true,
+  });
+  assert.deepEqual(retry.paths, ['/api/social/config', '/api/review/session', '/api/social/me']);
+});
+
+test('malformed config, session, or member success responses never fabricate a mapped member',async()=>{
+  const malformedEarlyStages: Array<[string, ReturnType<typeof response>[], { kind: 'temporary-error'; stage: 'config' | 'session' }]> = [
+    ['config', [response(200, { reviewEnabled: true })], { kind: 'temporary-error', stage: 'config' }],
+    ['session', [response(200, { reviewEnabled: true, loginPath: '/auth/login' }), response(200, { user: { id: '' } })], { kind: 'temporary-error', stage: 'session' }],
+  ];
+  for (const [stage, replies, expected] of malformedEarlyStages) {
+    const state = await loadLoginState(controlled(...replies).request);
+    assert.deepEqual(state, expected, stage);
+    assert.ok(!('name' in state), `${stage} malformed data must not retain a member label`);
+  }
   for(const body of [{}, {error:'unexpected'}, {id:12,canSubmit:true,canReview:false}, {id:'12',canSubmit:true,canReview:false,reviewEnabled:true}]){
     const h=controlled(response(200,{reviewEnabled:true,loginPath:'/auth/login'}),response(200,{user:{id:'synthetic'}}),response(200,body));
-    assert.deepEqual(await loadLoginState(h.request),{kind:'temporary-error',stage:'member'});
+    const state = await loadLoginState(h.request);
+    assert.deepEqual(state,{kind:'temporary-error',stage:'member'});
+    assert.ok(!('name' in state), 'malformed member data must not retain a member label');
   }
 });
 

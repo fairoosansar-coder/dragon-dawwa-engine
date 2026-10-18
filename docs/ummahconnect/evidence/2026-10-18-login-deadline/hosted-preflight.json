@@ -1,0 +1,31 @@
+{
+  "kind": "hosted-stall-preflight",
+  "method": "Credential-free Chromium mobile viewport emulation, not iPhone Safari",
+  "browser": "154.0.8037.57",
+  "checkedAtUtc": "2026-10-18T11:48:11.207Z",
+  "mockedApis": false,
+  "humanLogin": false,
+  "humanReview": false,
+  "requests": [
+    {
+      "path": "/api/social/config",
+      "status": 200,
+      "elapsedMs": 637
+    },
+    {
+      "path": "/api/health",
+      "status": 200,
+      "elapsedMs": 1089
+    },
+    {
+      "path": "/api/review/session",
+      "status": 401,
+      "elapsedMs": 672
+    }
+  ],
+  "errors": [],
+  "settled": true,
+  "readiness": "Authentication readiness: sign-in is available; no session is present",
+  "googleLink": 1,
+  "overflow": false
+}

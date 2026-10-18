@@ -1,0 +1,27 @@
+{
+  "kind": "login-deadline-browser",
+  "origin": "http://127.0.0.1:3307",
+  "checkedAtUtc": "2026-10-18T11:52:07.540Z",
+  "browser": "154.0.8037.57",
+  "method": "Credential-free Chromium mobile viewport emulation; not physical iPhone Safari",
+  "humanLogin": false,
+  "humanReview": false,
+  "controlledFault": "Intercept config request until explicit release; do not fabricate a successful API response",
+  "cases": [
+    {
+      "name": "induced-stalled-config",
+      "elapsedMs": 11986,
+      "temporaryError": true,
+      "retryButton": true,
+      "unverifiedGoogleLink": false
+    },
+    {
+      "name": "real-endpoint-retry",
+      "readiness": "Authentication readiness: review sign-in is not enabled",
+      "noPageErrors": true,
+      "noOverflow": true,
+      "mockedApiSuccess": false
+    }
+  ],
+  "ok": true
+}

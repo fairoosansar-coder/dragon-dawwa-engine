@@ -1,0 +1,11 @@
+{
+  "appTests": 80,
+  "identityPrivacyTests": 35,
+  "lint": "pass",
+  "build": "pass",
+  "node": "22.13.0",
+  "sourceScope": "login client only; no auth/native/server change",
+  "originalStallCause": "unconfirmed; current hosted anonymous preflight healthy",
+  "physicalSafari": false,
+  "humanReview": false
+}
