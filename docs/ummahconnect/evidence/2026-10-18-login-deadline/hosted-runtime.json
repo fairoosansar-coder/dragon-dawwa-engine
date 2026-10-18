@@ -1,0 +1,20 @@
+{
+  "checkedAtUtc": "2026-10-18T12:03:00.290Z",
+  "commit": "dae5c666b6b54575ddf2879f2d253f5ec52d121a",
+  "deploymentId": "5a1820b2-36f1-405f-9ef8-3e9a1d98bb34",
+  "hashes": {
+    "deployment/staging/identity/vendor/google-auth.mjs": "2bbc7681aa589707d4266c71604711fbf6d2001a88e02800aca14906a8448b3a",
+    "src/ummah/SocialPanels.tsx": "6068986b85e86606c2bc12973d976e807ea027c52988be962a39c6e454a10135",
+    "src/ummah/loginState.ts": "64da38a1203c8035e3bbaab001748873df1e66240a2c495fbf0d2bda3c6a52d0"
+  },
+  "humanAcceptance": false,
+  "kind": "login-deadline-runtime",
+  "node": "v24.21.0",
+  "ok": true,
+  "privateMap": {
+    "members": 2,
+    "mode": "0600",
+    "uid": 1000
+  },
+  "readOnly": true
+}

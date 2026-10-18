@@ -1,0 +1,13 @@
+{
+  "newDeadlineCode": true,
+  "ready": true,
+  "statuses": {
+    "/api/health": 200,
+    "/api/social/config": 200,
+    "/api/review/session": 401,
+    "/auth/login": 302
+  },
+  "checkedAtUtc": "2026-10-18T12:01:14Z",
+  "humanLogin": false,
+  "physicalSafari": false
+}

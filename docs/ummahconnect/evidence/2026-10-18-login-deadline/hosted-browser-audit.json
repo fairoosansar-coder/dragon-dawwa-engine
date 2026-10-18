@@ -1,0 +1,27 @@
+{
+  "kind": "login-deadline-browser",
+  "origin": "https://ummah-app-staging.up.railway.app",
+  "checkedAtUtc": "2026-10-18T12:01:29.366Z",
+  "browser": "154.0.8037.57",
+  "method": "Credential-free Chromium mobile viewport emulation; not physical iPhone Safari",
+  "humanLogin": false,
+  "humanReview": false,
+  "controlledFault": "Intercept config request until explicit release; do not fabricate a successful API response",
+  "cases": [
+    {
+      "name": "induced-stalled-config",
+      "elapsedMs": 12001,
+      "temporaryError": true,
+      "retryButton": true,
+      "unverifiedGoogleLink": false
+    },
+    {
+      "name": "real-endpoint-retry",
+      "readiness": "Authentication readiness: sign-in is available; no session is present",
+      "noPageErrors": true,
+      "noOverflow": true,
+      "mockedApiSuccess": false
+    }
+  ],
+  "ok": true
+}
