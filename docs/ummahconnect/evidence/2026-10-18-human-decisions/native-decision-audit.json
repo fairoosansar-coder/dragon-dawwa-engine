@@ -1,0 +1,111 @@
+{
+  "kind": "native-human-decision-audit",
+  "ok": true,
+  "checkedAtUtc": "2026-10-18T16:11:09Z",
+  "commit": "44ee3bb5f39b275de84832e15fa02ae82c7b14f7",
+  "deploymentId": "934b51d6-7c64-4d51-94a4-cbc4504ff0f7",
+  "checks": {
+    "exactTwoRecords": true,
+    "differentMappedReviewer": true,
+    "privateUnscheduled": true,
+    "notesPresent": true,
+    "messageVersionsIntact": true,
+    "submissionReviewVersionsUnchanged": true,
+    "committedDecisionActors": true,
+    "approvedRejectedStates": true,
+    "scopedGrants": true
+  },
+  "records": [
+    {
+      "reviewId": 1,
+      "postId": 1,
+      "authorId": 1,
+      "reviewerId": 3,
+      "status": "approved",
+      "submittedAt": "2026-10-18 14:47:18",
+      "reviewedAt": "2026-10-18 16:03:02",
+      "state": 1,
+      "visibility": 0,
+      "scheduledAt": null,
+      "notePresent": true,
+      "messageVersionIntact": true
+    },
+    {
+      "reviewId": 2,
+      "postId": 2,
+      "authorId": 1,
+      "reviewerId": 3,
+      "status": "rejected",
+      "submittedAt": "2026-10-18 16:00:04",
+      "reviewedAt": "2026-10-18 16:02:50",
+      "state": 10,
+      "visibility": 0,
+      "scheduledAt": null,
+      "notePresent": true,
+      "messageVersionIntact": true
+    }
+  ],
+  "decisionEvents": [
+    {
+      "id": 5,
+      "operation": "decide",
+      "phase": "started",
+      "outcome": "started",
+      "actorId": 3,
+      "requestedReviewId": 2,
+      "reviewId": null,
+      "decision": null,
+      "createdAt": "2026-10-18 16:02:50"
+    },
+    {
+      "id": 6,
+      "operation": "decide",
+      "phase": "finished",
+      "outcome": "committed",
+      "actorId": 3,
+      "requestedReviewId": 2,
+      "reviewId": 2,
+      "decision": "rejected",
+      "createdAt": "2026-10-18 16:02:50"
+    },
+    {
+      "id": 7,
+      "operation": "decide",
+      "phase": "started",
+      "outcome": "started",
+      "actorId": 3,
+      "requestedReviewId": 1,
+      "reviewId": null,
+      "decision": null,
+      "createdAt": "2026-10-18 16:03:02"
+    },
+    {
+      "id": 8,
+      "operation": "decide",
+      "phase": "finished",
+      "outcome": "committed",
+      "actorId": 3,
+      "requestedReviewId": 1,
+      "reviewId": 1,
+      "decision": "approved",
+      "createdAt": "2026-10-18 16:03:02"
+    }
+  ],
+  "grants": [
+    {
+      "userId": 1,
+      "canSubmit": 1,
+      "canReview": 0
+    },
+    {
+      "userId": 3,
+      "canSubmit": 0,
+      "canReview": 1
+    }
+  ],
+  "readOnly": true,
+  "yiiLoaded": false,
+  "sessionCreated": false,
+  "decisionCreated": false,
+  "humanAttestationRequired": true
+}

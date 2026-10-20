@@ -15,3 +15,11 @@ Actual built-loopback Chromium 154.0.8037.57 with mobile viewport emulation: ind
 Exact new CI and hosted deployment verification are pending at source submission. Do not deploy unless that exact source passes. After qualification, change only ummah-app staging source; preserve the qualified native deployment and two protected map entries. Return actual deployed revision and hosted checks separately.
 
 Real Author submission, independent human approve/reject, permitted visibility, third excluded account and physical iPhone Safari remain social milestone gates. No automated approval can satisfy human acceptance. Original 13-file recovery remains independent.
+
+## Exact qualification and hosted result — PASS
+
+Source `dae5c666b6b54575ddf2879f2d253f5ec52d121a` passed [CI 39125043697](https://github.com/fairoosansar-coder/dragon-dawwa-engine/actions/runs/39125043697), including pinned Node tests/lint/build and disposable native **36 HTTP + 16 model** checks, restart, private bootstrap and guest/refusal regressions. Only ummah-app staging changed source. Actual runtime Node **v24.21.0**, deployment `5a1820b2-36f1-405f-9ef8-3e9a1d98bb34`; exact client/vendor hashes verified and private two-member map is mode 0600/UID 1000. No live fixture, session, content or review was created.
+
+Actual hosted browser code under an induced request stall shows temporary error/Retry check at **12,001 ms**. Restoring the real network and retrying shows **sign-in is available; no session is present** and the safe Google link. Zero page errors/overflow. Anonymous real HTTPS checks: health/config 200, session 401, login start 302. No successful API response was fabricated. These are **Chromium emulation**, not physical iPhone Safari or actual human end-to-end moderation. The original screenshot's triggering condition remains unidentified; the unbounded wait defect is fixed.
+
+Next user action: reload https://ummah-app-staging.up.railway.app/login and select Sign in with Google with the designated account. If the temporary state appears, use Retry check. Real participants must submit and independently approve/reject their own clearly labelled staging tests.

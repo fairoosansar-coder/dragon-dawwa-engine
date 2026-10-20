@@ -11,14 +11,14 @@
   "reservedHumhubHttpsUrl": "https://ummah-humhub-staging.up.railway.app",
   "reservedGoogleCallback": "https://ummah-app-staging.up.railway.app/auth/callback",
   "hostnameReadiness": {
-    "checkedAtUtc": "2026-10-17T16:35:38.507443+00:00",
+    "checkedAtUtc": "2026-10-18T12:01:14Z",
     "httpStatus": 200,
     "tlsVerifyResult": 0,
     "liveApplicationReady": true,
     "googleLoginStartHttpStatus": 302,
     "identitySessionHttpStatus": 401,
     "secureHostOnlyFlowCookie": true,
-    "scope": "Anonymous HTTPS, actual hosted public UI and ten operator native member GET checks only; no human review or iPhone Safari.",
+    "scope": "Actual anonymous HTTPS and controlled Chromium request-stall/retry only; not human moderation or physical Safari.",
     "identitySessionPath": "/api/review/session"
   },
   "humhubHostnameReadiness": {
@@ -142,15 +142,15 @@
       "generatedProtectedSecretCount": 3,
       "runningDeployment": true,
       "providerStatus": "Active",
-      "sourceBranch": "development/ummahconnect-login-state-ui-20261017",
+      "sourceBranch": "development/ummahconnect-login-deadline-20261018",
       "accountMapping": "two privately mapped distinct verified Author/Reviewer native identities; schema-1 mode-0600 UID-1000 file; no client bearer",
       "oauthProtectedVariableCount": 2,
-      "deploymentId": "51ae04c3-2f99-4d26-ba47-3c66295d6371",
-      "deployedCommit": "ac8fee3f3e12c535d9eb6e61f31229282018257a",
+      "deploymentId": "5a1820b2-36f1-405f-9ef8-3e9a1d98bb34",
+      "deployedCommit": "dae5c666b6b54575ddf2879f2d253f5ec52d121a",
       "successfulCiGate": true,
-      "observedConsoleDeploymentId": "51ae04c3-2f99-4d26-ba47-3c66295d6371",
+      "observedConsoleDeploymentId": "5a1820b2-36f1-405f-9ef8-3e9a1d98bb34",
       "mappingRestartDeploymentCorrelation": "Reviewer two-member mapping restart is uniquely correlated; earlier Author-only discrepancy remains historical.",
-      "currentDeploymentCorrelation": "Provider source-change ID matches actual protected console deployment ID"
+      "currentDeploymentCorrelation": "Exact deployed source and actual console ID verified; initial provider card list included previous active deployment."
     },
     {
       "name": "ummah-humhub",
@@ -303,5 +303,15 @@
   "reviewerMappingAppliedChangeCount": 1,
   "reviewerRuntimeEvidence": "docs/ummahconnect/evidence/2026-10-17-reviewer-enrollment/hosted-verification.json",
   "loginStateUiEvidence": "docs/ummahconnect/evidence/2026-10-17-login-state-ui/",
-  "lastAppSourceAppliedChangeCount": 1
+  "lastAppSourceAppliedChangeCount": 1,
+  "loginDeadlineRepair": {
+    "maximumMs": 12000,
+    "qualifiedCiRun": 39125043697,
+    "hostedInducedStallMs": 12001,
+    "sourceHashesVerified": true,
+    "nativeUnchanged": true,
+    "rolesMapUnchanged": true,
+    "humanAcceptance": false,
+    "evidence": "docs/ummahconnect/evidence/2026-10-18-login-deadline/"
+  }
 }

@@ -11,6 +11,7 @@ on:
       - development/ummahconnect-signin-diagnostics-20261017
       - development/ummahconnect-login-state-ui-20261017
       - development/ummahconnect-login-deadline-20261018
+      - cursor/ummahconnect-completion-f488
   workflow_dispatch:
 
 permissions:

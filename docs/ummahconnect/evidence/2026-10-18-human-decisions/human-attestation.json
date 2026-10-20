@@ -1,0 +1,14 @@
+{
+  "kind": "owner-reported-human-attestation",
+  "reportedAtUtc": "2026-10-18T16:03:42Z",
+  "basis": "Owner reports that the previously designated different human Reviewer saw both pending items, approved one for testing and rejected one for testing, and said both actions worked.",
+  "agentWitnessedClicks": false,
+  "corroboration": "hosted-observation.json",
+  "reportedBrowserRoute": "#/screen-11",
+  "routeIsViewingContextNotProofOfReviewerAction": true,
+  "reviewQueueRoute": "#/screen-33",
+  "identityReferenceMismatchAutoResolved": false,
+  "newRoleGranted": false,
+  "testApprovalIsScholarlyVerification": false,
+  "physicalIPhoneSafari": false
+}
