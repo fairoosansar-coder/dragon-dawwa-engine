@@ -33,7 +33,7 @@ HumHub remains the sole social authority. Enabled native user, current private m
 1. Completed: the Author reference from genuine Google verification is linked to native user 1 with one private member/grant and active author-only identity role. Qualified operator source and hosted read/queue-denial proof are in REAL-MEMBER-ENROLLMENT.md.
 2. Perform a fresh invited Author Google login. The current task chooser shows Signed out. No password/client secret is requested in messages. Use the main app `/login`, never the deliberately denied native password page.
 3. Completed: the designated different-human Reviewer supplied its genuine Google reference, now linked to native user 3 and active review-only identity role. Perform a fresh Reviewer Google login; Testing-list/email entry alone was never used as the identity or authorization key.
-4. Obtain an actual third login-permitted, community-excluded tester; grant no native membership or review permission. No guest/public space.
+4. Obtain an actual third login-permitted, community-excluded tester; grant no native membership or review permission. No guest/public space. Enrollment path: identity role `reader` only — see [EXCLUDED-TESTER-ENROLLMENT.md](EXCLUDED-TESTER-ENROLLMENT.md).
 5. Verify real main-interface submission/own-pending reload, another human's approval and rejection, self-review denial, approved-only visibility and excluded-user denial. Automated fixture decisions are not human scholarship.
 6. Run physical iPhone Safari separately. All 33 statuses/design remain unchanged; later Qdrant/BGE, Docling, PeerTube and charity/mosque are not complete.
 

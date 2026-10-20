@@ -45,4 +45,8 @@ Pass explicit `HUMHUB_ROOT=/var/www/html` to the qualified native CLI. An initia
 
 Credentials/key/source browser memory was cleared after persistence and verification. Native bearer expiry remains fail-closed and rotation is an explicit operator responsibility; the seven-day credentials are not permanent access. Fresh invited main-interface login/submission, actual independent human approval and rejection, third excluded tester and physical iPhone Safari remain unverified. See evidence/2026-10-17-reviewer-enrollment/hosted-verification.json.
 
+## Excluded (login-only) tester
+
+The third sign-in-permitted, community-excluded tester uses identity role **`reader`** with **no** `UMMAH_ACCOUNT_MAP` entry and **no** native membership/grant. Do not use Author/Reviewer native provisioning for that account. Operator steps and the observed Invitation-required subject reference are in [EXCLUDED-TESTER-ENROLLMENT.md](EXCLUDED-TESTER-ENROLLMENT.md).
+
 The actual anonymous public-login screenshot still contains generic pre-linking/authority-pending text. That copy is not current backend enrollment status and remains a UI reconciliation item; it must not be presented as authenticated Reviewer acceptance. The existing-account login link and actual Google start 302 are separately verified.
