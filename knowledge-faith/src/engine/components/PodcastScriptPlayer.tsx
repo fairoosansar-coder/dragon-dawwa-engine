@@ -25,11 +25,14 @@ import {
   Share2
 } from 'lucide-react';
 import { audioStudio, StudioFxType } from '../utils/audioStudio';
+import { browserSpeechAvailable, cancelBrowserSpeech, speakInBrowser } from '../utils/browserVoice';
 
 interface PodcastScriptPlayerProps {
   script: string;
   executiveReport: string;
   onShare?: () => void;
+  /** When false, skip Gemini TTS and speak with the browser so Play is never silent. */
+  neuralVoice?: boolean;
 }
 
 export type PersonaId = 
@@ -57,6 +60,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
   script,
   executiveReport,
   onShare,
+  neuralVoice = true,
 }) => {
   const [activeTab, setActiveTab] = useState<'podcast' | 'report'>('podcast');
   const [isPlaying, setIsPlaying] = useState(false);
@@ -64,7 +68,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
   const [copied, setCopied] = useState(false);
   const [speechRate, setSpeechRate] = useState<number>(1.0);
   const [soundFxEnabled, setSoundFxEnabled] = useState<boolean>(true);
-  const useGeminiVoice = true;
+  const useGeminiVoice = neuralVoice;
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [isSynthesizing, setIsSynthesizing] = useState<boolean>(false);
   const [testingPersonaVoice, setTestingPersonaVoice] = useState<PersonaId | null>(null);
@@ -414,8 +418,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
         return data.audioBase64;
       }
       return null;
-    } catch (err) {
-      setVoiceError(err instanceof Error ? err.message : 'Gemini voice unavailable. Press Play to retry.');
+    } catch {
       return null;
     } finally {
       setIsSynthesizing(false);
@@ -494,7 +497,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
       currentAudioRef.current = null;
     }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+      cancelBrowserSpeech();
     }
 
     if (index >= dialogueItems.length) {
@@ -589,17 +592,23 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
           return;
         } catch (playErr) {
           console.warn('Gemini playback blocked:', playErr);
-          if (isPlayingRef.current) {
-            stopForVoiceError();
-          }
-          return;
         }
       }
     }
 
-    // Stop visibly when Gemini is unavailable
-    if (isPlayingRef.current) {
+    if (!isPlayingRef.current) return;
+    if (!browserSpeechAvailable()) {
       stopForVoiceError();
+      return;
+    }
+    try {
+      await speakInBrowser(cleanSpeech, item.speaker, speechRate);
+      if (isPlayingRef.current) onStepEnded();
+    } catch {
+      if (isPlayingRef.current) {
+        setVoiceError('This browser could not play the line. Press Play to retry.');
+        stopForVoiceError();
+      }
     }
   };
 
@@ -612,9 +621,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
         currentAudioRef.current.pause();
         currentAudioRef.current = null;
       }
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      cancelBrowserSpeech();
     } else {
       isPlayingRef.current = true;
       setIsPlaying(true);
@@ -629,7 +636,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
       currentAudioRef.current = null;
     }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+      cancelBrowserSpeech();
     }
     isPlayingRef.current = true;
     setIsPlaying(true);
@@ -654,35 +661,34 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
       currentAudioRef.current = null;
     }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+      cancelBrowserSpeech();
     }
     setVoiceError(null);
     setTestingPersonaVoice(personaId);
     try {
       const phrase = sampleVoicePhrases[personaId];
-      const targetVoice = personasConfig[personaId]?.geminiVoice;
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: phrase, speaker: personaId, voiceName: targetVoice })
-      });
-      if (!res.ok) {
-        const problem = await res.json().catch(() => ({}));
-        throw new Error(problem.error || `Gemini voice failed (${res.status}).`);
-      }
-      if (res.ok) {
-        const data = await res.json();
-        if (data.audioBase64) {
-          const audio = new Audio(`data:audio/wav;base64,${data.audioBase64}`);
-          currentAudioRef.current = audio;
-          audio.onended = () => setTestingPersonaVoice(null);
-          audio.onerror = () => setTestingPersonaVoice(null);
-          await audio.play();
-          return;
+      if (useGeminiVoice) {
+        const targetVoice = personasConfig[personaId]?.geminiVoice;
+        const res = await fetch('/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: phrase, speaker: personaId, voiceName: targetVoice })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.audioBase64) {
+            const audio = new Audio(`data:audio/wav;base64,${data.audioBase64}`);
+            currentAudioRef.current = audio;
+            audio.onended = () => setTestingPersonaVoice(null);
+            audio.onerror = () => setTestingPersonaVoice(null);
+            await audio.play();
+            return;
+          }
         }
       }
+      await speakInBrowser(phrase, personaId, speechRate);
     } catch (err) {
-      setVoiceError(err instanceof Error ? err.message : 'Gemini voice preview failed.');
+      setVoiceError(err instanceof Error ? err.message : 'Voice preview failed.');
     }
     setTestingPersonaVoice(null);
   };
@@ -697,7 +703,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
       currentAudioRef.current = null;
     }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+      cancelBrowserSpeech();
     }
   };
 
@@ -707,9 +713,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
         currentAudioRef.current.pause();
         currentAudioRef.current = null;
       }
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      cancelBrowserSpeech();
     };
   }, []);
 
@@ -773,6 +777,11 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
     <div className="space-y-6">
       
       {voiceError && <div role="alert" className="rounded-xl border border-amber-500 p-4 text-amber-200">{voiceError}</div>}
+      {!useGeminiVoice && (
+        <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          Playing with this browser&apos;s built-in voice. Gemini neural voices need GEMINI_API_KEY on the server.
+        </p>
+      )}
       {/* Radio Studio Master Control Console */}
       <div className="bg-[var(--surface-panel)] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden backdrop-blur-xl">
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />

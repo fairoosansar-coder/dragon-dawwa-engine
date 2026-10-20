@@ -7,6 +7,7 @@ import { hadithEdition, findCollection } from '../src/shared/sources.ts';
 import { pcmToWav, toWavBase64 } from '../src/server/wav.ts';
 import { aladhanDate } from '../src/server/prayer.ts';
 import { SAMPLE_HADITHS } from '../src/engine/data/sampleHadiths.ts';
+import { browserSpeechAvailable, speakInBrowser } from '../src/engine/utils/browserVoice.ts';
 
 test('parseRefs handles single ayahs, ranges and rejects nonsense', () => {
   assert.deepEqual(parseRefs('2:153'), [{ surah: 2, ayah: 153 }]);
@@ -80,4 +81,9 @@ test('staging dossier presets include the actions-by-intentions benchmark', () =
   assert.ok(preset);
   assert.ok(preset.defaultData.agent_6_synthesis.podcast_script.length > 0);
   assert.ok(preset.defaultData.agent_2_isnad.narrator_sequence.length > 0);
+});
+
+test('browser voice helpers are silent and safe on the server', async () => {
+  assert.equal(browserSpeechAvailable(), false);
+  await speakInBrowser('Peace be upon you');
 });

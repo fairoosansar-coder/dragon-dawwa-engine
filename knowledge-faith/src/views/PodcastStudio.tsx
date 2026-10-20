@@ -7,6 +7,7 @@ import { base64ToObjectUrl, pauseAudio } from '../lib/audio.ts';
 import { useApp, useStored } from '../lib/store.tsx';
 import { CitationChips, EvidenceList } from '../components/cards.tsx';
 import { Button, Card, ErrorNote, IconButton, Loading, Notice, SectionTitle, Select, TabLinks } from '../components/ui.tsx';
+import { speakInBrowser } from '../engine/utils/browserVoice.ts';
 
 function GeneratedAudio({ audio, filename }: { audio: TtsResult; filename: string }) {
   const { t } = useApp();
@@ -229,7 +230,12 @@ function VoiceStudio() {
     setBusy(true);
     setError(null);
     try {
-      setAudio(await postJson<TtsResult>('/api/voice/narrate', { text, voice, style }));
+      if (config?.ai) {
+        setAudio(await postJson<TtsResult>('/api/voice/narrate', { text, voice, style }));
+      } else {
+        setAudio(null);
+        await speakInBrowser(text, 'Host');
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -244,7 +250,7 @@ function VoiceStudio() {
           <Mic className="h-5 w-5" aria-hidden /> {t.voiceStudio}
         </span>
       </SectionTitle>
-      {disabled && <Notice>{t.aiOff}</Notice>}
+      {disabled && <Notice>{t.browserVoice}</Notice>}
       <form onSubmit={narrate} className="mt-3 space-y-3">
         <label className="flex flex-col gap-1 text-xs font-medium text-ink/70">
           {t.text}
@@ -253,7 +259,6 @@ function VoiceStudio() {
             maxLength={3000}
             rows={6}
             onChange={e => setText(e.target.value)}
-            disabled={disabled}
             className="rounded-2xl border border-pine/20 bg-white px-4 py-3 text-sm leading-relaxed text-ink"
           />
         </label>
@@ -278,7 +283,7 @@ function VoiceStudio() {
               className="rounded-xl border border-pine/20 bg-white px-3 py-2 text-sm text-ink"
             />
           </label>
-          <Button type="submit" disabled={disabled || busy || !text.trim()}>
+          <Button type="submit" disabled={busy || !text.trim()}>
             <Mic className="h-4 w-4" aria-hidden /> {busy ? t.generating : t.narrate}
           </Button>
         </div>

@@ -106,6 +106,7 @@ const en = {
   scholarCopied: 'Copied',
   scholarSaved: 'Draft saved on this device.',
   shortcuts: 'Explore',
+  browserVoice: "Playing with this browser's built-in voice. Gemini neural voices need GEMINI_API_KEY on the server.",
 };
 
 export type Strings = typeof en;
@@ -184,6 +185,7 @@ const ta: Strings = {
   scholarCopy: 'கேள்வியை நகலெடு',
   scholarCopied: 'நகலெடுக்கப்பட்டது',
   shortcuts: 'ஆராயுங்கள்',
+  browserVoice: 'இந்த உலாவியின் உள்ளமைந்த குரல் பயன்படுத்தப்படுகிறது. Gemini குரலுக்கு சேவையகத்தில் GEMINI_API_KEY தேவை.',
 };
 
 const si: Strings = {
@@ -260,6 +262,7 @@ const si: Strings = {
   scholarCopy: 'ප්‍රශ්නය පිටපත් කරන්න',
   scholarCopied: 'පිටපත් විය',
   shortcuts: 'ගවේෂණය',
+  browserVoice: 'මෙම බ්‍රවුසරයේ තිබෙන හඬ භාවිතා වේ. Gemini හඬ සඳහා සේවාදායකයේ GEMINI_API_KEY අවශ්‍යයි.',
 };
 
 export const STRINGS: Record<Lang, Strings> = { en, ta, si };
