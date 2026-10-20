@@ -18,7 +18,9 @@ const MAX_FILE_BYTES = 1_048_576;
 const NATIVE_TIMEOUT_MS = 10_000;
 const SUBJECT_REFERENCE = /^google:[A-Za-z0-9_-]{43}$/;
 const NATIVE_TOKEN = /^[A-Za-z0-9_-]{86}$/;
-const ROLES = new Set(['author', 'reviewer']);
+/** author/reviewer require community map + native checks; reader is login-only excluded. */
+const MEMBER_ROLES = new Set(['author', 'reviewer']);
+const ROLES = new Set([...MEMBER_ROLES, 'reader']);
 
 export class EnrollmentError extends Error {
   constructor(code) {
@@ -135,6 +137,25 @@ async function readLinkedAccount(subjectReference, mapPath) {
   return { account: linkedNativeAccount(map.accounts[subjectReference]), digest: file.digest };
 }
 
+/**
+ * Excluded (reader) testers must receive an app session without a community
+ * account-map entry, membership, or review grant. If the protected map is
+ * present and already links this subject, refuse activation.
+ */
+async function assertExcludedNotCommunityMapped(subjectReference, mapPath) {
+  let listed;
+  try { listed = await lstat(mapPath); } catch { return; }
+  if (!listed.isFile()) return;
+  let file;
+  try { file = await readPrivateJson(mapPath, { mode: 0o600, maxBytes: MAX_FILE_BYTES - 1 }); }
+  catch { return; }
+  const map = file.value;
+  if (plainObject(map) && map.schemaVersion === 1 && plainObject(map.accounts) &&
+      Object.hasOwn(map.accounts, subjectReference)) {
+    fail('excluded_must_not_be_community_mapped');
+  }
+}
+
 function equalDigest(left, right) {
   return Buffer.isBuffer(left) && Buffer.isBuffer(right) && left.length === right.length && timingSafeEqual(left, right);
 }
@@ -223,7 +244,7 @@ async function nativeGet(fetcher, origin, token, path, expectedStatus) {
  * contracts. It never submits content, changes memberships, or mints a session.
  */
 export async function verifyNativeEnrollment({ role, account, nativeFetch = fetch, origin = HUMHUB_ORIGIN }) {
-  if (!ROLES.has(role) || !account || !Number.isSafeInteger(account.humhubUserId) || account.humhubUserId < 1 ||
+  if (!MEMBER_ROLES.has(role) || !account || !Number.isSafeInteger(account.humhubUserId) || account.humhubUserId < 1 ||
       typeof account.token !== 'string' || !NATIVE_TOKEN.test(account.token) || !exactOrigin(origin, HUMHUB_ORIGIN)) {
     fail('native_checks_failed');
   }
@@ -387,6 +408,20 @@ export async function enrollStagingIdentity({
         role: enrollment.role,
         stage: true,
         nativeChecksPassed: false,
+      });
+    }
+
+    // Login-only excluded tester: enable reader without native map/membership.
+    if (enrollment.role === 'reader') {
+      await assertExcludedNotCommunityMapped(enrollment.subjectReference, mapPath);
+      await activateRole(connection.db, enrollment, now);
+      return Object.freeze({
+        kind: 'staging-identity-enrollment',
+        operation: 'activate',
+        role: 'reader',
+        activated: true,
+        nativeChecksPassed: false,
+        communityMapped: false,
       });
     }
 

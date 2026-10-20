@@ -45,7 +45,7 @@ async function files(t: any, input: any, map?: any) {
   return { inputPath, mapPath };
 }
 
-function request(role: 'author' | 'reviewer' = 'author', operation: 'stage' | 'activate' = 'stage', extra: Record<string, unknown> = {}) {
+function request(role: 'author' | 'reviewer' | 'reader' = 'author', operation: 'stage' | 'activate' = 'stage', extra: Record<string, unknown> = {}) {
   return {
     kind: 'verified-ummah-identity-enrollment',
     subjectReference: subject,
@@ -257,4 +257,52 @@ test('activates only the exact staged reviewer after native authorization checks
   assert.ok(db.history.some(item => item.sql.includes('FOR UPDATE')));
   const update = db.history.find(item => item.sql.startsWith('UPDATE review_roles'));
   assert.deepEqual(update?.params.slice(2), [subject, 'reviewer', operator]);
+});
+
+test('stages and activates a login-only reader without native map or membership checks', async t => {
+  const { inputPath } = await files(t, request('reader', 'stage'));
+  const db = new FakeDb();
+  const staged = await run({
+    env: stagingEnv(inputPath),
+    db,
+    fetcher: () => assert.fail('reader stage must not call native'),
+  });
+  assert.deepEqual(staged, {
+    kind: 'staging-identity-enrollment', operation: 'stage', role: 'reader', stage: true, nativeChecksPassed: false,
+  });
+  assert.equal(db.row.role, 'reader');
+  assert.equal(db.row.disabled, 1);
+
+  const dir = await mkdtemp(join(tmpdir(), 'enroll-reader-activate-'));
+  await chmod(dir, 0o700);
+  const activateInput = join(dir, 'input.json');
+  await privateJson(activateInput, request('reader', 'activate'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const activated = await enrollStagingIdentity({
+    env: stagingEnv(activateInput),
+    db,
+    mapPath: join(dir, 'missing-account-map.json'),
+    nativeFetch: () => assert.fail('reader activate must not call native'),
+    now: () => new Date('2026-10-17T12:00:00.000Z'),
+  });
+  assert.deepEqual(activated, {
+    kind: 'staging-identity-enrollment',
+    operation: 'activate',
+    role: 'reader',
+    activated: true,
+    nativeChecksPassed: false,
+    communityMapped: false,
+  });
+  assert.equal(db.row.disabled, 0);
+});
+
+test('refuses reader activation when the subject is already community-mapped', async t => {
+  const { inputPath, mapPath } = await files(t, request('reader', 'activate'), protectedMap());
+  const db = new FakeDb({ role: 'reader', disabled: 1, updated_by: operator });
+  await rejectsCode(
+    run({ env: stagingEnv(inputPath), db, mapPath, fetcher: () => assert.fail('must not call native') }),
+    'excluded_must_not_be_community_mapped',
+  );
+  assert.equal(db.row.disabled, 1);
+  assert.equal(db.began, 0);
 });
