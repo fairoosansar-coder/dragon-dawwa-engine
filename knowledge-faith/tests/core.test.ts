@@ -9,7 +9,7 @@ import { aladhanDate } from '../src/server/prayer.ts';
 import { SAMPLE_HADITHS } from '../src/engine/data/sampleHadiths.ts';
 import { browserSpeechAvailable, speakInBrowser } from '../src/engine/utils/browserVoice.ts';
 import { hasGeminiApiKey } from '../src/server/loadEnv.ts';
-import { publicAppUrl } from '../src/server/publicUrl.ts';
+import { publicAppUrl, viteDevServerOptions } from '../src/server/publicUrl.ts';
 
 test('parseRefs handles single ayahs, ranges and rejects nonsense', () => {
   assert.deepEqual(parseRefs('2:153'), [{ surah: 2, ayah: 153 }]);
@@ -108,6 +108,12 @@ test('publicAppUrl uses the Codespaces forwarded host instead of localhost', () 
       publicAppUrl(3000),
       'https://ubiquitous-system-g49wp7r645rwcw5rx-3000.app.github.dev',
     );
+    const dev = viteDevServerOptions(3000);
+    const socket = dev.ws && typeof dev.ws === 'object' ? dev.ws : undefined;
+    assert.equal(socket && 'host' in socket, false);
+    assert.equal(socket?.protocol, 'wss');
+    assert.equal(socket?.clientPort, 443);
+    assert.equal('hmr' in dev, false);
     delete process.env.CODESPACE_NAME;
     delete process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN;
     assert.equal(publicAppUrl(3000), 'http://localhost:3000');

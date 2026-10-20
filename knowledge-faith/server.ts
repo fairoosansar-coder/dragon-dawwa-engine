@@ -1,5 +1,6 @@
 import './src/server/loadEnv.ts';
 import express, { type NextFunction, type Request, type Response } from 'express';
+import http from 'node:http';
 import path from 'node:path';
 import { HADITH_COLLECTIONS, PRAYER_METHODS, RECITERS, toLang } from './src/shared/sources.ts';
 import { dedupeRefs, parseRefs, refKey, type HadithRef } from './src/shared/refs.ts';
@@ -321,6 +322,8 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(status).json({ error: message });
 });
 
+const httpServer = http.createServer(app);
+
 if (isProduction) {
   const dist = path.resolve(import.meta.dirname, 'dist');
   app.use(express.static(dist, { index: false, maxAge: '1h' }));
@@ -328,13 +331,13 @@ if (isProduction) {
 } else {
   const { createServer } = await import('vite');
   const vite = await createServer({
-    server: { middlewareMode: true, ...viteDevServerOptions(PORT) },
+    server: { middlewareMode: true, ...viteDevServerOptions(PORT, httpServer) },
     appType: 'spa',
   });
   app.use(vite.middlewares);
 }
 
-app.listen(PORT, HOST, () => {
+httpServer.listen(PORT, HOST, () => {
   console.log(
     `Knowledge & Faith running on ${publicAppUrl(PORT)} (${isProduction ? 'production' : 'development'}); Gemini neural TTS ${geminiConfigured() ? 'on' : 'off'}`,
   );
