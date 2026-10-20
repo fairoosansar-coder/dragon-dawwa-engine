@@ -1056,7 +1056,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                 {isSynthesizing && (
                   <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-mono animate-pulse">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Gemini Audio Streaming...</span>
+                    <span>{useGeminiVoice ? 'Gemini audio streaming…' : 'Speaking…'}</span>
                   </div>
                 )}
 

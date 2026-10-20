@@ -51,7 +51,7 @@ export async function speakInBrowser(text: string, speaker = 'Host', rate = 1): 
     utterance.pitch = FEMALE.test(speaker) ? 1.2 : 0.9;
     utterance.onend = () => resolve();
     utterance.onerror = event => {
-      if (event.error === 'interrupted' || event.error === 'canceled') resolve();
+      if (event.error === 'interrupted' || event.error === 'canceled' || event.error === 'not-allowed') resolve();
       else reject(new Error('This browser could not speak the line.'));
     };
     window.speechSynthesis.resume();
