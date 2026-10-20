@@ -33,7 +33,7 @@ export function geminiConfigured(): boolean {
 function client(): GoogleGenAI {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!hasGeminiApiKey(apiKey)) throw new UpstreamError('AI features are not configured on this server (GEMINI_API_KEY missing).', 503);
-  return new GoogleGenAI({ apiKey: apiKey!.trim() });
+  return new GoogleGenAI({ apiKey: apiKey.trim() });
 }
 
 function isTemporary(err: unknown): boolean {

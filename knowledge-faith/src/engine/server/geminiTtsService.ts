@@ -278,7 +278,7 @@ export async function synthesizeGeminiVoice(
       try {
         const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey.trim() },
           signal: AbortSignal.timeout(60000),
           body: JSON.stringify({
             model,

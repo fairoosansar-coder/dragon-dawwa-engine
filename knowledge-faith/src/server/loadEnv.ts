@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 /** True when GEMINI_API_KEY is a real secret, not empty or the committed placeholder. */
-export function hasGeminiApiKey(value: string | undefined): boolean {
+export function hasGeminiApiKey(value: string | undefined): value is string {
   const key = value?.trim() ?? '';
   return Boolean(key) && key !== 'MY_GEMINI_API_KEY';
 }
