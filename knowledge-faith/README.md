@@ -10,7 +10,7 @@ A standalone UmmaConnect app for learning from primary Islamic sources in **Engl
 | **Quran Reader** | 114 surahs, Uthmani Arabic + named translation (Saheeh International / Jan Trust Foundation / Naseem Ismail), per-ayah and continuous recitation (Alafasy, Husary, Minshawi), bookmarks, last surah remembered | AlQuran Cloud, islamic.network CDN |
 | **Hadith Library** | Nine collections, browse by book or jump to a number, Arabic text, grades exactly as supplied by the source (named grader), Tamil for Bukhari and Muslim, otherwise an explicit English fallback notice | hadith-api (fawazahmed0) |
 | **Prayer & Spiritual** | Daily prayer times by city or device location, method and Asr school, next-prayer countdown in the location's timezone, Hijri date, Qibla bearing, tasbih counter | Aladhan |
-| **Podcasts & Voice Studio** | Two-voice learning episodes scripted from retrieved sources (or your saved items) with citations, Gemini multi-speaker audio, local episode library, and single-voice narration of any text | Gemini text + TTS |
+| **Podcasts & Voice Studio** | Two-voice learning episodes scripted from retrieved sources (or your saved items) with citations. Play speaks the first few lines immediately and loads the next speaker while those play. Local episode library, and single-voice narration of any text | Gemini text + TTS |
 
 ### Source integrity
 
