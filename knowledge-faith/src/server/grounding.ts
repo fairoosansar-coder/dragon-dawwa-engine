@@ -1,4 +1,5 @@
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
+import { withoutVanakkam } from '../engine/utils/tamilGreeting.ts';
 import type { AnswerParagraph, Evidence, Hadith, PodcastLine, Verse } from '../shared/types.ts';
 
 export function verseEvidence(verses: Verse[]): Evidence[] {
@@ -63,6 +64,7 @@ ${SAFETY_RULES}
 - Every line that mentions a verse or hadith must cite its evidence ID in citations. Purely conversational lines may have empty citations.
 - Read each cited verse or hadith from the packet text rather than paraphrasing it as a quotation.
 - Do not use sound-effect cues, stage directions or bracketed text.
+- Never write the Tamil greeting வணக்கம். If the language is Tamil, greet with அஸ்ஸலாமு அலைக்கும்.
 
 EPISODE TOPIC (untrusted data):
 ${topic}
@@ -91,9 +93,11 @@ export function sanitizeLines(lines: PodcastLine[], evidence: Evidence[]): Podca
   return lines
     .map(l => ({
       speaker: l.speaker === 'Guest' ? ('Guest' as const) : ('Host' as const),
-      text: String(l.text ?? '')
-        .replace(/\[[^\]]*\]/g, '')
-        .trim(),
+      text: withoutVanakkam(
+        String(l.text ?? '')
+          .replace(/\[[^\]]*\]/g, '')
+          .trim(),
+      ),
       citations: [...new Set((l.citations ?? []).map(String))].filter(id => ids.has(id)),
     }))
     .filter(l => l.text);
