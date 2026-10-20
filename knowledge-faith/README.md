@@ -66,4 +66,6 @@ There are no accounts. Bookmarks, episodes, tasbih count, language and location 
 
 ## API
 
-`GET /api/health`, `/api/config`, `/api/quran/surahs`, `/api/quran/surah/:n?lang=`, `/api/quran/verses?refs=2:153,96:1-5&lang=`, `/api/hadith/:collection/sections`, `/api/hadith/:collection/section/:n?lang=`, `/api/hadith/:collection/:number?lang=`, `/api/prayer?lat=&lng=&method=&school=`; `POST /api/ask`, `/api/podcast/script`, `/api/voice/narrate`, `/api/voice/dialogue`, `/api/tts`.
+`GET /api/health`, `/api/config`, `/api/quran/surahs`, `/api/quran/surah/:n?lang=`, `/api/quran/verses?refs=2:153,96:1-5&lang=`, `/api/hadith/:collection/sections`, `/api/hadith/:collection/section/:n?lang=`, `/api/hadith/:collection/:number?lang=`, `/api/prayer?lat=&lng=&method=&school=`, `/api/analyze/:id`; `POST /api/ask`, `/api/analyze` (returns a job id immediately; poll the GET), `/api/podcast/script`, `/api/voice/narrate`, `/api/voice/dialogue`, `/api/tts`.
+
+Hadith research is a long Gemini call. `POST /api/analyze` returns `202` with `{ id, status: "running" }` so a Codespaces or proxy `504` cannot cut the dossier off. The app polls `GET /api/analyze/:id` until `status` is `done` or `error`.

@@ -20,6 +20,7 @@ import {
   type SourceFetchers,
 } from './src/server/gemini.ts';
 import { executeDragonDawwaAnalysis } from './src/engine/server/hadithEngine.ts';
+import { getResearchJob, startResearchJob } from './src/engine/server/researchJobs.ts';
 import { synthesizeRoundtableVoice } from './src/engine/server/geminiTtsService.ts';
 import { extractHadithFromMedia } from './src/engine/server/hadithOcrService.ts';
 import { transcribeAudioWithGemini } from './src/engine/server/geminiAudioTranscribe.ts';
@@ -227,11 +228,23 @@ app.post(
     const hadith = text(req.body?.hadith_input, 4000, 'hadith_input');
     const isnad = typeof req.body?.isnad_input === 'string' ? req.body.isnad_input.slice(0, 2000) : '';
     requireAi();
-    try {
-      res.json(await executeDragonDawwaAnalysis(hadith, isnad, toLang(req.body?.preferred_language)));
-    } catch (err) {
-      throw engineFailure(err, 'The hadith research engine could not complete this request. Please retry.');
-    }
+    const id = startResearchJob(
+      () => executeDragonDawwaAnalysis(hadith, isnad, toLang(req.body?.preferred_language)),
+      err => engineFailure(err, 'The hadith research engine could not complete this request. Please retry.').message,
+    );
+    res.status(202).json({ id, status: 'running' });
+  }),
+);
+
+app.get(
+  '/api/analyze/:id',
+  route(async (req, res) => {
+    const job = getResearchJob(String(req.params.id));
+    if (!job) throw new UpstreamError('Research job not found. Please run it again.', 404);
+    res.set('Cache-Control', 'no-store');
+    if (job.status === 'done') return res.json({ id: job.id, status: 'done', analysis: job.result });
+    if (job.status === 'error') return res.json({ id: job.id, status: 'error', error: job.error });
+    res.json({ id: job.id, status: 'running' });
   }),
 );
 

@@ -251,7 +251,7 @@ export async function executeDragonDawwaAnalysis(
     const ai = new GoogleGenAI({
       apiKey,
       httpOptions: {
-        timeout: 60000,
+        timeout: 180000,
         headers: {
           "User-Agent": "aistudio-build",
         },
