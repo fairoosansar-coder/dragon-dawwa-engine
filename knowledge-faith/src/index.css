@@ -1,0 +1,48 @@
+@import 'tailwindcss';
+@import './engine/engine.css';
+
+@theme {
+  --font-sans: 'Inter', 'Noto Sans Tamil', 'Noto Sans Sinhala', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-arabic: 'Amiri Quran', 'Amiri', serif;
+  --color-ink: #0f2a24;
+  --color-pine: #134e40;
+  --color-moss: #1f6b57;
+  --color-mint: #d8efe6;
+  --color-sand: #f7f2e8;
+  --color-parchment: #fffdf8;
+  --color-gold: #b8862f;
+}
+
+html {
+  background: var(--color-sand);
+  color: var(--color-ink);
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.arabic {
+  font-family: var(--font-arabic);
+  direction: rtl;
+  text-align: right;
+  line-height: 2.3;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-gold);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
