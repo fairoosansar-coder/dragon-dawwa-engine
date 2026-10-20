@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from 'react';
+import type { ViewProps } from '../App.tsx';
 import { Download, Mic, Radio, Sparkles, Trash2 } from 'lucide-react';
 import type { PodcastScript, TtsResult, Verse } from '../shared/types.ts';
 import { getJson, postJson } from '../lib/api.ts';
 import { base64ToObjectUrl, pauseAudio } from '../lib/audio.ts';
 import { useApp, useStored } from '../lib/store.tsx';
 import { CitationChips, EvidenceList } from '../components/cards.tsx';
-import { Button, Card, ErrorNote, IconButton, Loading, Notice, SectionTitle, Select } from '../components/ui.tsx';
+import { Button, Card, ErrorNote, IconButton, Loading, Notice, SectionTitle, Select, TabLinks } from '../components/ui.tsx';
 
 function GeneratedAudio({ audio, filename }: { audio: TtsResult; filename: string }) {
   const { t } = useApp();
@@ -293,11 +294,33 @@ function VoiceStudio() {
   );
 }
 
-export default function PodcastStudio() {
+const Roundtable = lazy(() => import('../engine/Roundtable.tsx'));
+
+export default function PodcastStudio({ sub }: ViewProps) {
+  const { t } = useApp();
+  const roundtable = sub === 'roundtable';
   return (
-    <div className="space-y-6">
-      <EpisodeBuilder />
-      <VoiceStudio />
-    </div>
+    <>
+      <TabLinks
+        label={t.navStudio}
+        tabs={[
+          { href: '#/studio', label: t.studioTitle, active: !roundtable },
+          { href: '#/studio/roundtable', label: t.roundtable, active: roundtable },
+        ]}
+      />
+      {roundtable ? (
+        <>
+          <p className="mb-4 text-sm text-ink/70">{t.roundtableHint}</p>
+          <Suspense fallback={<Loading />}>
+            <Roundtable />
+          </Suspense>
+        </>
+      ) : (
+        <div className="space-y-6">
+          <EpisodeBuilder />
+          <VoiceStudio />
+        </div>
+      )}
+    </>
   );
 }

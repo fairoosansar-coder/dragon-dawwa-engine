@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
+import type { ViewProps } from '../App.tsx';
 import { ChevronLeft, ChevronRight, ListMusic, Pause } from 'lucide-react';
 import { recitationUrl, QURAN_TRANSLATIONS } from '../shared/sources.ts';
 import type { SurahInfo, Verse } from '../shared/types.ts';
@@ -6,11 +7,36 @@ import { useRemote } from '../lib/api.ts';
 import { pauseAudio, playAudio, useAudioState } from '../lib/audio.ts';
 import { useApp, useStored } from '../lib/store.tsx';
 import { useReciter, VerseCard } from '../components/cards.tsx';
-import { Button, Card, ErrorNote, IconButton, Loading, Select } from '../components/ui.tsx';
+import { Button, Card, ErrorNote, IconButton, Loading, Select, TabLinks } from '../components/ui.tsx';
+
+const QuranStudyEdition = lazy(() => import('../engine/QuranStudyEdition.tsx'));
+
+export default function QuranReader({ sub }: ViewProps) {
+  const { t } = useApp();
+  const study = sub === 'study';
+  return (
+    <>
+      <TabLinks
+        label={t.navQuran}
+        tabs={[
+          { href: '#/quran', label: t.quranSimple, active: !study },
+          { href: '#/quran/study', label: t.quranStudy, active: study },
+        ]}
+      />
+      {study ? (
+        <Suspense fallback={<Loading />}>
+          <QuranStudyEdition />
+        </Suspense>
+      ) : (
+        <SimpleReader />
+      )}
+    </>
+  );
+}
 
 const BISMILLAH = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ';
 
-export default function QuranReader() {
+function SimpleReader() {
   const { t, lang, config } = useApp();
   const [surah, setSurah] = useStored<number>('kf-last-surah', 1);
   const [query, setQuery] = useState('');

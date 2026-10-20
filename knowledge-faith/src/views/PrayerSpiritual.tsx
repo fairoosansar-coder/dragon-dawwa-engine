@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Compass, LocateFixed, RotateCcw } from 'lucide-react';
 import type { PrayerDay } from '../shared/types.ts';
 import { minutesInZone, nextPrayer, qiblaBearing } from '../shared/spiritual.ts';
@@ -98,6 +98,43 @@ function Tasbih() {
   );
 }
 
+function isoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function CoordinateForm({ place, onApply }: { place: Place; onApply: (p: Place) => void }) {
+  const { t } = useApp();
+  const [lat, setLat] = useState(String(place.lat));
+  const [lng, setLng] = useState(String(place.lng));
+  useEffect(() => {
+    setLat(String(place.lat));
+    setLng(String(place.lng));
+  }, [place.lat, place.lng]);
+  const valid = lat.trim() !== '' && lng.trim() !== '' && Math.abs(+lat) <= 90 && Math.abs(+lng) <= 180;
+
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    if (valid) onApply({ name: t.customPlace, lat: +(+lat).toFixed(4), lng: +(+lng).toFixed(4) });
+  }
+
+  const field = 'w-28 rounded-full border border-pine/20 bg-white px-3 py-1.5 text-sm tabular-nums';
+  return (
+    <form onSubmit={submit} className="mt-3 flex flex-wrap items-end gap-3">
+      <label className="flex flex-col gap-1 text-xs text-ink/70">
+        {t.latitude}
+        <input className={field} type="number" step="any" min={-90} max={90} required value={lat} onChange={e => setLat(e.target.value)} />
+      </label>
+      <label className="flex flex-col gap-1 text-xs text-ink/70">
+        {t.longitude}
+        <input className={field} type="number" step="any" min={-180} max={180} required value={lng} onChange={e => setLng(e.target.value)} />
+      </label>
+      <Button type="submit" variant="soft" disabled={!valid}>
+        {t.applyCoords}
+      </Button>
+    </form>
+  );
+}
+
 export default function PrayerSpiritual() {
   const { t, config } = useApp();
   const [place, setPlace] = useStored<Place>('kf-place', CITIES[0]);
@@ -105,12 +142,16 @@ export default function PrayerSpiritual() {
   const [school, setSchool] = useStored<number>('kf-school', 0);
   const [geoError, setGeoError] = useState<string | null>(null);
   const now = useNow(30_000);
-  const url = `/api/prayer?lat=${place.lat}&lng=${place.lng}&method=${method}&school=${school}`;
+  const today = isoDate(now);
+  const [picked, setPicked] = useState<string | null>(null);
+  const date = picked ?? today;
+  const isToday = date === today;
+  const url = `/api/prayer?lat=${place.lat}&lng=${place.lng}&method=${method}&school=${school}&date=${date}`;
   const { data, error, loading, reload } = useRemote<PrayerDay>(url);
 
   const upcoming = useMemo(
-    () => (data ? nextPrayer(data.timings, minutesInZone(now, data.timezone)) : null),
-    [data, now],
+    () => (data && isToday ? nextPrayer(data.timings, minutesInZone(now, data.timezone)) : null),
+    [data, now, isToday],
   );
   const bearing = qiblaBearing(place.lat, place.lng);
 
@@ -162,7 +203,23 @@ export default function PrayerSpiritual() {
               { value: '1', label: t.asrHanafi },
             ]}
           />
+          <label className="flex flex-col gap-1 text-xs text-ink/70">
+            {t.date}
+            <input
+              type="date"
+              required
+              value={date}
+              onChange={e => setPicked(e.target.value && e.target.value !== today ? e.target.value : null)}
+              className="rounded-full border border-pine/20 bg-white px-3 py-1.5 text-sm"
+            />
+          </label>
+          {!isToday && (
+            <Button variant="ghost" onClick={() => setPicked(null)}>
+              {t.today}
+            </Button>
+          )}
         </div>
+        <CoordinateForm place={place} onApply={setPlace} />
         {geoError && (
           <div className="mt-3">
             <ErrorNote message={geoError} />
@@ -177,14 +234,23 @@ export default function PrayerSpiritual() {
         {data && (
           <>
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-pine p-5 text-white">
-              <div>
-                <p className="text-xs uppercase tracking-widest text-mint/80">{t.nextPrayer}</p>
-                <p className="font-display text-3xl font-bold">{upcoming?.name}</p>
-              </div>
-              {upcoming && (
-                <p className="text-lg tabular-nums">
-                  {t.inTime} {Math.floor(upcoming.minutesUntil / 60)}h {upcoming.minutesUntil % 60}m
-                </p>
+              {isToday ? (
+                <>
+                  <div>
+                    <p className="text-xs uppercase tracking-widest text-mint/80">{t.nextPrayer}</p>
+                    <p className="font-display text-3xl font-bold">{upcoming?.name}</p>
+                  </div>
+                  {upcoming && (
+                    <p className="text-lg tabular-nums">
+                      {t.inTime} {Math.floor(upcoming.minutesUntil / 60)}h {upcoming.minutesUntil % 60}m
+                    </p>
+                  )}
+                </>
+              ) : (
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-mint/80">{t.date}</p>
+                  <p className="font-display text-3xl font-bold tabular-nums">{data.gregorian}</p>
+                </div>
               )}
             </div>
             <ul className="mt-4 divide-y divide-pine/10">

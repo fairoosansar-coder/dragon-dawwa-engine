@@ -5,6 +5,8 @@ import { minutesInZone, nextPrayer, qiblaBearing } from '../src/shared/spiritual
 import { TOPICS, verseOfTheDay } from '../src/shared/topics.ts';
 import { hadithEdition, findCollection } from '../src/shared/sources.ts';
 import { pcmToWav, toWavBase64 } from '../src/server/wav.ts';
+import { aladhanDate } from '../src/server/prayer.ts';
+import { SAMPLE_HADITHS } from '../src/engine/data/sampleHadiths.ts';
 
 test('parseRefs handles single ayahs, ranges and rejects nonsense', () => {
   assert.deepEqual(parseRefs('2:153'), [{ surah: 2, ayah: 153 }]);
@@ -63,4 +65,19 @@ test('PCM is wrapped in a valid WAV header', () => {
   const b64 = Buffer.from('abc').toString('base64');
   assert.equal(toWavBase64(b64, 'audio/wav'), b64);
   assert.equal(Buffer.from(toWavBase64(b64, 'audio/L16;codec=pcm;rate=16000'), 'base64').readUInt32LE(24), 16000);
+});
+
+test('aladhanDate converts ISO dates and rejects impossible ones', () => {
+  assert.equal(aladhanDate(undefined), null);
+  assert.equal(aladhanDate('2026-10-20'), '20-10-2026');
+  assert.equal(aladhanDate('2028-02-29'), '29-02-2028');
+  assert.throws(() => aladhanDate('2026-02-30'));
+  assert.throws(() => aladhanDate('20-10-2026'));
+});
+
+test('staging dossier presets include the actions-by-intentions benchmark', () => {
+  const preset = SAMPLE_HADITHS.find(p => p.id === 'actions-by-intentions');
+  assert.ok(preset);
+  assert.ok(preset.defaultData.agent_6_synthesis.podcast_script.length > 0);
+  assert.ok(preset.defaultData.agent_2_isnad.narrator_sequence.length > 0);
 });

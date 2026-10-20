@@ -1,11 +1,12 @@
-import { useState, type FormEvent } from 'react';
+import { lazy, Suspense, useState, type FormEvent } from 'react';
 import { ArrowLeft } from 'lucide-react';
+import type { ViewProps } from '../App.tsx';
 import { HADITH_COLLECTIONS } from '../shared/sources.ts';
 import type { Hadith, HadithSection } from '../shared/types.ts';
 import { useRemote } from '../lib/api.ts';
 import { useApp, useStored } from '../lib/store.tsx';
 import { HadithCard } from '../components/cards.tsx';
-import { Button, Card, ErrorNote, Loading, Notice, SectionTitle } from '../components/ui.tsx';
+import { Button, Card, ErrorNote, Loading, Notice, SectionTitle, TabLinks } from '../components/ui.tsx';
 
 const PAGE = 15;
 
@@ -76,7 +77,32 @@ function Lookup({ collection }: { collection: string }) {
   );
 }
 
-export default function HadithLibrary() {
+const DossierWorkbench = lazy(() => import('../engine/DossierWorkbench.tsx'));
+
+export default function HadithLibrary({ sub }: ViewProps) {
+  const { t } = useApp();
+  const research = sub === 'research';
+  return (
+    <>
+      <TabLinks
+        label={t.navHadith}
+        tabs={[
+          { href: '#/hadith', label: t.browseHadith, active: !research },
+          { href: '#/hadith/research', label: t.researchHadith, active: research },
+        ]}
+      />
+      {research ? (
+        <Suspense fallback={<Loading />}>
+          <DossierWorkbench />
+        </Suspense>
+      ) : (
+        <CollectionBrowser />
+      )}
+    </>
+  );
+}
+
+function CollectionBrowser() {
   const { t, lang } = useApp();
   const [collection, setCollection] = useStored<string>('kf-collection', 'bukhari');
   const [section, setSection] = useState<HadithSection | null>(null);

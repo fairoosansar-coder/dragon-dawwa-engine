@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './engine/engine.css';
 
 @theme {
   --font-sans: 'Inter', 'Noto Sans Tamil', 'Noto Sans Sinhala', ui-sans-serif, system-ui, sans-serif;

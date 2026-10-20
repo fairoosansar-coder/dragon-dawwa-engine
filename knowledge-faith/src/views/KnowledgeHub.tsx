@@ -1,9 +1,10 @@
-import { useMemo, useState, type FormEvent } from 'react';
-import { ArrowLeft, Search, Sparkles } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { ArrowLeft, BookOpen, Check, Copy, MoonStar, Radio, Search, ShieldCheck, Sparkles } from 'lucide-react';
+import type { ViewProps } from '../App.tsx';
 import { TOPICS, verseOfTheDay } from '../shared/topics.ts';
 import type { AskResult, Hadith, Verse } from '../shared/types.ts';
 import { postJson, useRemote } from '../lib/api.ts';
-import { useApp } from '../lib/store.tsx';
+import { useApp, useStored } from '../lib/store.tsx';
 import { CitationChips, EvidenceList, HadithCard, VerseCard } from '../components/cards.tsx';
 import { Button, Card, ErrorNote, Loading, Notice, SectionTitle } from '../components/ui.tsx';
 
@@ -104,7 +105,88 @@ function AskPanel() {
   );
 }
 
-export default function KnowledgeHub() {
+function ScholarDraft({ focus }: { focus: boolean }) {
+  const { t } = useApp();
+  const [draft, setDraft] = useStored<string>('kf-scholar-draft', '');
+  const [copied, setCopied] = useState(false);
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (focus) ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [focus]);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(draft.trim());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <section ref={ref} id="ask-scholar" className="scroll-mt-24 rounded-3xl border border-pine/10 bg-parchment p-5 shadow-sm sm:p-6">
+      <SectionTitle sub={t.scholarHint}>{t.scholarTitle}</SectionTitle>
+      <label htmlFor="scholar-draft" className="sr-only">
+        {t.scholarTitle}
+      </label>
+      <textarea
+        id="scholar-draft"
+        value={draft}
+        onChange={e => setDraft(e.target.value.slice(0, 2000))}
+        rows={5}
+        placeholder={t.scholarPlaceholder}
+        className="w-full rounded-2xl border border-pine/20 bg-white p-3 text-sm"
+      />
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <Button variant="soft" onClick={() => void copy()} disabled={!draft.trim()}>
+          {copied ? <Check className="h-4 w-4" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
+          {copied ? t.scholarCopied : t.scholarCopy}
+        </Button>
+        {draft.trim() && <span className="text-xs text-ink/50">{t.scholarSaved}</span>}
+        <span className="ml-auto flex gap-3 text-sm">
+          <a href="#/quran/study" className="font-medium text-pine hover:underline">
+            {t.quranStudy}
+          </a>
+          <a href="#/hadith/research" className="font-medium text-pine hover:underline">
+            {t.researchHadith}
+          </a>
+        </span>
+      </div>
+    </section>
+  );
+}
+
+function Shortcuts() {
+  const { t } = useApp();
+  const items = [
+    { href: '#/quran/study', icon: BookOpen, label: t.quranStudy, hint: t.navQuran },
+    { href: '#/hadith/research', icon: ShieldCheck, label: t.researchHadith, hint: t.navHadith },
+    { href: '#/prayer', icon: MoonStar, label: t.prayerTimes, hint: t.navPrayer },
+    { href: '#/studio/roundtable', icon: Radio, label: t.roundtable, hint: t.navStudio },
+  ];
+  return (
+    <nav aria-label={t.shortcuts} className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {items.map(item => (
+        <a
+          key={item.href}
+          href={item.href}
+          className="flex items-center gap-3 rounded-2xl border border-pine/10 bg-parchment p-4 transition hover:border-pine/40 hover:shadow"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-mint text-pine">
+            <item.icon className="h-5 w-5" aria-hidden />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-pine">{item.label}</span>
+            <span className="block text-xs text-ink/50">{item.hint}</span>
+          </span>
+        </a>
+      ))}
+    </nav>
+  );
+}
+
+export default function KnowledgeHub({ sub }: ViewProps) {
   const { t, lang, saved } = useApp();
   const [topicId, setTopicId] = useState<string | null>(null);
   const topic = TOPICS.find(x => x.id === topicId);
@@ -124,7 +206,11 @@ export default function KnowledgeHub() {
         </Card>
       </div>
 
+      <Shortcuts />
+
       <AskPanel />
+
+      <ScholarDraft focus={sub === 'scholar'} />
 
       <Card>
         {topic ? (

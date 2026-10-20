@@ -77,6 +77,23 @@ export function Notice({ children }: { children: ReactNode }) {
   return <p className="rounded-2xl bg-gold/10 px-4 py-3 text-sm text-ink/80">{children}</p>;
 }
 
+export function TabLinks({ label, tabs }: { label: string; tabs: { href: string; label: string; active: boolean }[] }) {
+  return (
+    <nav aria-label={label} className="mb-5 flex flex-wrap gap-2">
+      {tabs.map(tab => (
+        <a
+          key={tab.href}
+          href={tab.href}
+          aria-current={tab.active ? 'page' : undefined}
+          className={`rounded-full px-4 py-2 text-sm font-medium transition ${tab.active ? 'bg-pine text-white' : 'bg-mint text-pine hover:bg-mint/70'}`}
+        >
+          {tab.label}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
 export function Select({
   label,
   value,

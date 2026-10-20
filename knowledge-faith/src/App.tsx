@@ -4,6 +4,7 @@ import { LANGS, LANGUAGE_NAMES, toLang } from './shared/sources.ts';
 import { AppProvider, useApp } from './lib/store.tsx';
 import type { Strings } from './lib/i18n.ts';
 import { Loading } from './components/ui.tsx';
+import { DossierProvider } from './engine/DossierContext.tsx';
 
 const KnowledgeHub = lazy(() => import('./views/KnowledgeHub.tsx'));
 const QuranReader = lazy(() => import('./views/QuranReader.tsx'));
@@ -11,11 +12,15 @@ const HadithLibrary = lazy(() => import('./views/HadithLibrary.tsx'));
 const PrayerSpiritual = lazy(() => import('./views/PrayerSpiritual.tsx'));
 const PodcastStudio = lazy(() => import('./views/PodcastStudio.tsx'));
 
+export interface ViewProps {
+  sub?: string;
+}
+
 interface Route {
   path: string;
   label: keyof Strings;
   icon: ComponentType<{ className?: string }>;
-  view: ComponentType;
+  view: ComponentType<ViewProps>;
 }
 
 const ROUTES: Route[] = [
@@ -26,28 +31,47 @@ const ROUTES: Route[] = [
   { path: 'studio', label: 'navStudio', icon: Mic, view: PodcastStudio },
 ];
 
-function currentPath(): string {
-  const path = window.location.hash.replace(/^#\/?/, '');
-  return ROUTES.some(r => r.path === path) ? path : 'hub';
+/** UmmahConnect staging deep links, so shared links like `?preset=…#/screen-15` open the same feature here. */
+const ALIASES: Record<string, string> = {
+  'screen-13': 'hub',
+  'screen-14': 'quran/study',
+  'screen-15': 'hadith/research',
+  'screen-16': 'prayer',
+  'screen-17': 'hub/scholar',
+  podcasts: 'studio/roundtable',
+};
+
+interface Location {
+  path: string;
+  sub?: string;
 }
 
-function useHashRoute(): string {
-  const [path, setPath] = useState(currentPath);
+function currentLocation(): Location {
+  const raw = window.location.hash.replace(/^#\/?/, '');
+  const [path, sub] = (ALIASES[raw] ?? raw).split('/');
+  return ROUTES.some(r => r.path === path) ? { path, sub: sub || undefined } : { path: 'hub' };
+}
+
+function useHashRoute(): Location {
+  const [location, setLocation] = useState(currentLocation);
   useEffect(() => {
     const onChange = () => {
-      setPath(currentPath());
-      window.scrollTo({ top: 0 });
+      const next = currentLocation();
+      setLocation(prev => {
+        if (prev.path !== next.path) window.scrollTo({ top: 0 });
+        return next;
+      });
     };
     window.addEventListener('hashchange', onChange);
     return () => window.removeEventListener('hashchange', onChange);
   }, []);
-  return path;
+  return location;
 }
 
 function Shell() {
   const { t, lang, setLang } = useApp();
-  const path = useHashRoute();
-  const route = ROUTES.find(r => r.path === path) ?? ROUTES[0];
+  const location = useHashRoute();
+  const route = ROUTES.find(r => r.path === location.path) ?? ROUTES[0];
   const View = route.view;
 
   useEffect(() => {
@@ -102,7 +126,7 @@ function Shell() {
 
       <main id="main" className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
         <Suspense fallback={<Loading />}>
-          <View />
+          <View sub={location.sub} />
         </Suspense>
         <footer className="mt-10 space-y-1 text-center text-xs text-ink/50">
           <p>{t.sourcesNote}</p>
@@ -134,7 +158,9 @@ function Shell() {
 export default function App() {
   return (
     <AppProvider>
-      <Shell />
+      <DossierProvider>
+        <Shell />
+      </DossierProvider>
     </AppProvider>
   );
 }

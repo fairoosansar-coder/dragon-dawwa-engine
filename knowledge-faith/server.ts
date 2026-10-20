@@ -19,6 +19,12 @@ import {
   writePodcast,
   type SourceFetchers,
 } from './src/server/gemini.ts';
+import { executeDragonDawwaAnalysis } from './src/engine/server/hadithEngine.ts';
+import { synthesizeGeminiVoice } from './src/engine/server/geminiTtsService.ts';
+import { extractHadithFromMedia } from './src/engine/server/hadithOcrService.ts';
+import { transcribeAudioWithGemini } from './src/engine/server/geminiAudioTranscribe.ts';
+import { ummahQuranMiddleware } from './src/engine/server/ummahQuran.ts';
+import { ummahStudyMiddleware } from './src/engine/server/ummahStudy.ts';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const isProduction = process.env.NODE_ENV === 'production';
@@ -30,6 +36,9 @@ const fetchers: SourceFetchers = {
 
 const app = express();
 app.disable('x-powered-by');
+app.use(ummahQuranMiddleware);
+app.use(ummahStudyMiddleware);
+app.use(['/api/extract-hadith-media', '/api/transcribe-audio'], express.json({ limit: '15mb' }));
 app.use(express.json({ limit: '64kb' }));
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
@@ -43,22 +52,27 @@ function text(value: unknown, max: number, field: string): string {
 }
 
 const AI_WINDOW_MS = 15 * 60_000;
-const AI_LIMIT = Number(process.env.AI_REQUESTS_PER_15_MIN ?? 30);
-const aiUsage = new Map<string, number[]>();
 
-function aiLimiter(req: Request, res: Response, next: NextFunction) {
-  const key = req.ip ?? 'unknown';
-  const now = Date.now();
-  const recent = (aiUsage.get(key) ?? []).filter(t => now - t < AI_WINDOW_MS);
-  if (recent.length >= AI_LIMIT) {
-    res.status(429).json({ error: 'Too many AI requests. Please wait a few minutes and try again.' });
-    return;
-  }
-  recent.push(now);
-  aiUsage.set(key, recent);
-  if (aiUsage.size > 10_000) aiUsage.clear();
-  next();
+function rateLimiter(limit: number) {
+  const usage = new Map<string, number[]>();
+  return (req: Request, res: Response, next: NextFunction) => {
+    const key = req.ip ?? 'unknown';
+    const now = Date.now();
+    const recent = (usage.get(key) ?? []).filter(t => now - t < AI_WINDOW_MS);
+    if (recent.length >= limit) {
+      res.status(429).json({ error: 'Too many AI requests. Please wait a few minutes and try again.' });
+      return;
+    }
+    recent.push(now);
+    usage.set(key, recent);
+    if (usage.size > 10_000) usage.clear();
+    next();
+  };
 }
+
+const aiLimiter = rateLimiter(Number(process.env.AI_REQUESTS_PER_15_MIN ?? 30));
+// The roundtable player synthesises one request per script line.
+const ttsLimiter = rateLimiter(Number(process.env.TTS_REQUESTS_PER_15_MIN ?? 240));
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', app: 'UmmaConnect Knowledge & Faith', ai: geminiConfigured() });
@@ -114,7 +128,13 @@ app.get(
   '/api/prayer',
   route(async (req, res) =>
     res.json(
-      await getPrayerTimes(Number(req.query.lat), Number(req.query.lng), Number(req.query.method), Number(req.query.school)),
+      await getPrayerTimes(
+        Number(req.query.lat),
+        Number(req.query.lng),
+        Number(req.query.method),
+        Number(req.query.school),
+        typeof req.query.date === 'string' && req.query.date ? req.query.date : undefined,
+      ),
     ),
   ),
 );
@@ -183,14 +203,103 @@ app.post(
   }),
 );
 
+function requireAi() {
+  if (!geminiConfigured()) throw new UpstreamError('AI features are not configured on this server (GEMINI_API_KEY missing).', 503);
+}
+
+function engineFailure(err: unknown, fallback: string): UpstreamError {
+  if (err instanceof UpstreamError) return err;
+  console.error(err);
+  const message = err instanceof Error ? err.message : '';
+  if (/503|UNAVAILABLE|high demand|overloaded/i.test(message)) return new UpstreamError('Gemini is temporarily unavailable. Please retry.', 503);
+  return new UpstreamError(fallback, 502);
+}
+
+app.post(
+  '/api/analyze',
+  aiLimiter,
+  route(async (req, res) => {
+    const hadith = text(req.body?.hadith_input, 4000, 'hadith_input');
+    const isnad = typeof req.body?.isnad_input === 'string' ? req.body.isnad_input.slice(0, 2000) : '';
+    requireAi();
+    try {
+      res.json(await executeDragonDawwaAnalysis(hadith, isnad, toLang(req.body?.preferred_language)));
+    } catch (err) {
+      throw engineFailure(err, 'The hadith research engine could not complete this request. Please retry.');
+    }
+  }),
+);
+
+app.post(
+  '/api/tts',
+  ttsLimiter,
+  route(async (req, res) => {
+    const body = text(req.body?.text, 3000, 'text');
+    const speaker = typeof req.body?.speaker === 'string' ? req.body.speaker.slice(0, 80) : 'Host';
+    const voice = typeof req.body?.voiceName === 'string' ? req.body.voiceName.slice(0, 40) : undefined;
+    requireAi();
+    try {
+      res.json(await synthesizeGeminiVoice(body, speaker, voice));
+    } catch (err) {
+      throw engineFailure(err, 'Voice synthesis failed. Please retry.');
+    }
+  }),
+);
+
+function base64Field(value: unknown, field: string): string {
+  if (typeof value !== 'string' || !value.trim()) throw new UpstreamError(`${field} is required`, 400);
+  return value;
+}
+
+const MEDIA_TYPE = /^(image\/[a-z0-9.+-]+|application\/pdf|text\/plain|audio\/[a-z0-9.+-]+)$/i;
+
+function mediaType(value: unknown, fallback: string): string {
+  const type = typeof value === 'string' && value ? value.split(';')[0].trim() : fallback;
+  if (!MEDIA_TYPE.test(type)) throw new UpstreamError('Unsupported file type', 415);
+  return type;
+}
+
+app.post(
+  '/api/extract-hadith-media',
+  aiLimiter,
+  route(async (req, res) => {
+    const file = base64Field(req.body?.file_base64, 'file_base64');
+    const type = mediaType(req.body?.mime_type, 'image/jpeg');
+    const notes = typeof req.body?.user_notes === 'string' ? req.body.user_notes.slice(0, 1000) : undefined;
+    requireAi();
+    try {
+      res.json(await extractHadithFromMedia(file, type, notes));
+    } catch (err) {
+      throw engineFailure(err, 'The media service could not read this file.');
+    }
+  }),
+);
+
+app.post(
+  '/api/transcribe-audio',
+  aiLimiter,
+  route(async (req, res) => {
+    const audio = base64Field(req.body?.audio_base64, 'audio_base64');
+    const type = mediaType(req.body?.mime_type, 'audio/webm');
+    requireAi();
+    try {
+      res.json(await transcribeAudioWithGemini(audio, type));
+    } catch (err) {
+      throw engineFailure(err, 'Speech transcription failed. Please retry.');
+    }
+  }),
+);
+
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  const status = err instanceof UpstreamError ? err.status : 500;
+  const parserStatus = (err as { status?: unknown; expose?: unknown }).expose === true ? Number((err as { status?: unknown }).status) : 0;
+  const status = err instanceof UpstreamError ? err.status : parserStatus || 500;
   if (status >= 500) console.error(err);
-  const message = err instanceof UpstreamError ? err.message : 'Unexpected server error';
+  const message =
+    err instanceof UpstreamError ? err.message : status === 413 ? 'Upload is too large' : parserStatus ? 'Invalid request body' : 'Unexpected server error';
   res.status(status).json({ error: message });
 });
 
