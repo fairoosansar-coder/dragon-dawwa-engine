@@ -39,7 +39,7 @@ export default function Roundtable() {
         script={s.podcast_script}
         executiveReport={s.executive_report_markdown}
         onShare={() => void d.share()}
-        neuralVoice={config?.ai === true}
+        neuralVoice={config == null || config.ai === true}
       />
     </EngineFrame>
   );

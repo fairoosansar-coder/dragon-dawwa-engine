@@ -8,6 +8,8 @@ import { pcmToWav, toWavBase64 } from '../src/server/wav.ts';
 import { aladhanDate } from '../src/server/prayer.ts';
 import { SAMPLE_HADITHS } from '../src/engine/data/sampleHadiths.ts';
 import { browserSpeechAvailable, speakInBrowser } from '../src/engine/utils/browserVoice.ts';
+import { hasGeminiApiKey } from '../src/server/loadEnv.ts';
+import { publicAppUrl } from '../src/server/publicUrl.ts';
 
 test('parseRefs handles single ayahs, ranges and rejects nonsense', () => {
   assert.deepEqual(parseRefs('2:153'), [{ surah: 2, ayah: 153 }]);
@@ -86,4 +88,33 @@ test('staging dossier presets include the actions-by-intentions benchmark', () =
 test('browser voice helpers are silent and safe on the server', async () => {
   assert.equal(browserSpeechAvailable(), false);
   await speakInBrowser('Peace be upon you');
+});
+
+test('placeholder and empty Gemini keys do not count as configured', () => {
+  assert.equal(hasGeminiApiKey(undefined), false);
+  assert.equal(hasGeminiApiKey(''), false);
+  assert.equal(hasGeminiApiKey('   '), false);
+  assert.equal(hasGeminiApiKey('MY_GEMINI_API_KEY'), false);
+  assert.equal(hasGeminiApiKey(' AIzaSyRealLookingKey '), true);
+});
+
+test('publicAppUrl uses the Codespaces forwarded host instead of localhost', () => {
+  const name = process.env.CODESPACE_NAME;
+  const domain = process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN;
+  try {
+    process.env.CODESPACE_NAME = 'ubiquitous-system-g49wp7r645rwcw5rx';
+    process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN = 'app.github.dev';
+    assert.equal(
+      publicAppUrl(3000),
+      'https://ubiquitous-system-g49wp7r645rwcw5rx-3000.app.github.dev',
+    );
+    delete process.env.CODESPACE_NAME;
+    delete process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN;
+    assert.equal(publicAppUrl(3000), 'http://localhost:3000');
+  } finally {
+    if (name === undefined) delete process.env.CODESPACE_NAME;
+    else process.env.CODESPACE_NAME = name;
+    if (domain === undefined) delete process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN;
+    else process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN = domain;
+  }
 });

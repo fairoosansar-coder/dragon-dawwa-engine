@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './src/server/loadEnv.ts';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import path from 'node:path';
 import { HADITH_COLLECTIONS, PRAYER_METHODS, RECITERS, toLang } from './src/shared/sources.ts';
@@ -20,13 +20,15 @@ import {
   type SourceFetchers,
 } from './src/server/gemini.ts';
 import { executeDragonDawwaAnalysis } from './src/engine/server/hadithEngine.ts';
-import { synthesizeGeminiVoice } from './src/engine/server/geminiTtsService.ts';
+import { synthesizeRoundtableVoice } from './src/engine/server/geminiTtsService.ts';
 import { extractHadithFromMedia } from './src/engine/server/hadithOcrService.ts';
 import { transcribeAudioWithGemini } from './src/engine/server/geminiAudioTranscribe.ts';
 import { ummahQuranMiddleware } from './src/engine/server/ummahQuran.ts';
 import { ummahStudyMiddleware } from './src/engine/server/ummahStudy.ts';
+import { publicAppUrl, viteDevServerOptions } from './src/server/publicUrl.ts';
 
 const PORT = Number(process.env.PORT ?? 3000);
+const HOST = process.env.HOST ?? '0.0.0.0';
 const isProduction = process.env.NODE_ENV === 'production';
 
 const fetchers: SourceFetchers = {
@@ -36,6 +38,9 @@ const fetchers: SourceFetchers = {
 
 const app = express();
 app.disable('x-powered-by');
+if (process.env.CODESPACES === 'true' || process.env.CODESPACE_NAME) {
+  app.set('trust proxy', 1);
+}
 app.use(ummahQuranMiddleware);
 app.use(ummahStudyMiddleware);
 app.use(['/api/extract-hadith-media', '/api/transcribe-audio'], express.json({ limit: '15mb' }));
@@ -239,9 +244,9 @@ app.post(
     const voice = typeof req.body?.voiceName === 'string' ? req.body.voiceName.slice(0, 40) : undefined;
     requireAi();
     try {
-      res.json(await synthesizeGeminiVoice(body, speaker, voice));
+      res.json(await synthesizeRoundtableVoice(body, speaker, voice));
     } catch (err) {
-      throw engineFailure(err, 'Voice synthesis failed. Please retry.');
+      throw engineFailure(err, 'Gemini neural voice failed. The robotic system voice is not used. Please retry.');
     }
   }),
 );
@@ -309,10 +314,15 @@ if (isProduction) {
   app.get('/{*splat}', (_req, res) => res.sendFile(path.join(dist, 'index.html')));
 } else {
   const { createServer } = await import('vite');
-  const vite = await createServer({ server: { middlewareMode: true }, appType: 'spa' });
+  const vite = await createServer({
+    server: { middlewareMode: true, ...viteDevServerOptions(PORT) },
+    appType: 'spa',
+  });
   app.use(vite.middlewares);
 }
 
-app.listen(PORT, () => {
-  console.log(`Knowledge & Faith running on http://localhost:${PORT} (${isProduction ? 'production' : 'development'})`);
+app.listen(PORT, HOST, () => {
+  console.log(
+    `Knowledge & Faith running on ${publicAppUrl(PORT)} (${isProduction ? 'production' : 'development'}); Gemini neural TTS ${geminiConfigured() ? 'on' : 'off'}`,
+  );
 });

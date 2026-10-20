@@ -13,6 +13,7 @@ import {
 } from './grounding.ts';
 import { toWavBase64 } from './wav.ts';
 import { UpstreamError } from './http.ts';
+import { hasGeminiApiKey } from './loadEnv.ts';
 
 const TEXT_MODELS = (process.env.GEMINI_TEXT_MODELS ?? 'gemini-3.8-flash,gemini-flash-latest,gemini-2.5-flash')
   .split(',')
@@ -26,13 +27,13 @@ const TTS_MODELS = (process.env.GEMINI_TTS_MODELS ?? 'gemini-3.8-flash-tts,gemin
 export const VOICES = ['Kore', 'Puck', 'Charon', 'Aoede', 'Zephyr', 'Fenrir', 'Orus'] as const;
 
 export function geminiConfigured(): boolean {
-  return Boolean(process.env.GEMINI_API_KEY);
+  return hasGeminiApiKey(process.env.GEMINI_API_KEY);
 }
 
 function client(): GoogleGenAI {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new UpstreamError('AI features are not configured on this server (GEMINI_API_KEY missing).', 503);
-  return new GoogleGenAI({ apiKey });
+  if (!hasGeminiApiKey(apiKey)) throw new UpstreamError('AI features are not configured on this server (GEMINI_API_KEY missing).', 503);
+  return new GoogleGenAI({ apiKey: apiKey.trim() });
 }
 
 function isTemporary(err: unknown): boolean {
