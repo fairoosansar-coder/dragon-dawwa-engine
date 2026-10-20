@@ -1,4 +1,7 @@
 
+import { narrate } from '../../server/gemini.ts';
+import { hasGeminiApiKey } from '../../server/loadEnv.ts';
+
 /**
  * Dragon Dawwa - Gemini Multilingual Speech Generation Engine
  * Developed under Prime Dragon Technologies
@@ -228,7 +231,7 @@ export async function synthesizeGeminiVoice(
   customVoice?: string,
   apiKey: string | undefined = process.env.GEMINI_API_KEY
 ): Promise<TtsResult> {
-  if (!apiKey) {
+  if (!hasGeminiApiKey(apiKey)) {
     throw new Error("GEMINI_API_KEY is not configured on the server.");
   }
 
@@ -339,4 +342,38 @@ export async function synthesizeGeminiVoice(
       lastError?.message || 'Unknown generation failure'
     }`
   );
+}
+
+/**
+ * Prefer the Interactions TTS endpoint (persona style annotations), then the
+ * documented generateContent AUDIO path used by Voice Studio. Never falls through
+ * to the browser's robotic SpeechSynthesis voice.
+ */
+export async function synthesizeRoundtableVoice(
+  text: string,
+  speaker: string,
+  customVoice?: string,
+): Promise<TtsResult> {
+  try {
+    return await synthesizeGeminiVoice(text, speaker, customVoice);
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    console.warn(`Interactions TTS failed (${reason}); trying generateContent AUDIO.`);
+    const profile = getGeminiVoiceForSpeaker(speaker);
+    const validVoices: PrebuiltVoiceName[] = ['Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr', 'Aoede', 'Orus'];
+    const voiceName: PrebuiltVoiceName =
+      customVoice && validVoices.includes(customVoice as PrebuiltVoiceName)
+        ? (customVoice as PrebuiltVoiceName)
+        : profile.voiceName;
+    const generated = await narrate(text, voiceName, profile.style);
+    return {
+      audioBase64: generated.audioBase64,
+      mimeType: generated.mimeType || 'audio/wav',
+      voiceName,
+      speaker: speaker || profile.personaName,
+      personaName: profile.personaName,
+      role: profile.role,
+      modelUsed: generated.model,
+    };
+  }
 }

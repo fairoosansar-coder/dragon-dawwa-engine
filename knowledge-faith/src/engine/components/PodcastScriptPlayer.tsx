@@ -25,13 +25,13 @@ import {
   Share2
 } from 'lucide-react';
 import { audioStudio, StudioFxType } from '../utils/audioStudio';
-import { browserSpeechAvailable, cancelBrowserSpeech, speakInBrowser } from '../utils/browserVoice';
+import { cancelBrowserSpeech } from '../utils/browserVoice';
 
 interface PodcastScriptPlayerProps {
   script: string;
   executiveReport: string;
   onShare?: () => void;
-  /** When false, skip Gemini TTS and speak with the browser so Play is never silent. */
+  /** When false, Gemini is off — Play shows an error instead of the robotic system voice. */
   neuralVoice?: boolean;
 }
 
@@ -387,7 +387,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
   };
 
   // Fetch or retrieve Gemini Neural voice audio
-  const getGeminiAudioForLine = async (index: number, text: string, speaker: string): Promise<string | null> => {
+  const getGeminiAudioForLine = async (index: number, text: string, speaker: string): Promise<string> => {
     if (audioCacheRef.current.has(index)) {
       return audioCacheRef.current.get(index)!;
     }
@@ -417,9 +417,9 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
         audioCacheRef.current.set(index, data.audioBase64);
         return data.audioBase64;
       }
-      return null;
-    } catch {
-      return null;
+      throw new Error('Gemini returned no audio.');
+    } catch (err) {
+      throw err instanceof Error ? err : new Error('Gemini neural voice failed.');
     } finally {
       setIsSynthesizing(false);
     }
@@ -562,54 +562,46 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
       }
     };
 
-    // 1. Try Gemini Multilingual Voice Model
     if (useGeminiVoice) {
-      // Check if preloaded audio element is already buffered
-      let audio: HTMLAudioElement | null = preloadedAudioElementsRef.current.get(index) || null;
+      try {
+        let audio: HTMLAudioElement | null = preloadedAudioElementsRef.current.get(index) || null;
 
-      if (!audio) {
-        const base64Audio = await getGeminiAudioForLine(index, cleanSpeech, item.speaker);
-        // If user paused while fetching, abort playback
-        if (!isPlayingRef.current) return;
-
-        if (base64Audio) {
-          audio = new Audio(`data:audio/wav;base64,${base64Audio}`);
+        if (!audio) {
+          const base64Audio = await getGeminiAudioForLine(index, cleanSpeech, item.speaker);
+          if (!isPlayingRef.current) return;
+          if (base64Audio) {
+            audio = new Audio(`data:audio/wav;base64,${base64Audio}`);
+          }
         }
-      }
 
-      if (audio) {
+        if (!audio) {
+          throw new Error('Gemini returned no audio.');
+        }
+
         currentAudioRef.current = audio;
         audio.playbackRate = speechRate;
         audio.onended = onStepEnded;
-        audio.onerror = (e) => {
-          console.warn('Gemini audio playback failed:', e);
+        audio.onerror = () => {
           if (isPlayingRef.current) {
+            setVoiceError('Gemini audio could not play. The robotic system voice is not used. Press Play to retry.');
             stopForVoiceError();
           }
         };
-        try {
-          await audio.play();
-          return;
-        } catch (playErr) {
-          console.warn('Gemini playback blocked:', playErr);
-        }
+        await audio.play();
+        return;
+      } catch (err) {
+        if (!isPlayingRef.current) return;
+        const message = err instanceof Error ? err.message : 'Gemini neural voice failed.';
+        setVoiceError(`${message} The robotic system voice is not used. Press Play to retry.`);
+        stopForVoiceError();
+        return;
       }
     }
 
-    if (!isPlayingRef.current) return;
-    if (!browserSpeechAvailable()) {
-      stopForVoiceError();
-      return;
-    }
-    try {
-      await speakInBrowser(cleanSpeech, item.speaker, speechRate);
-      if (isPlayingRef.current) onStepEnded();
-    } catch {
-      if (isPlayingRef.current) {
-        setVoiceError('This browser could not play the line. Press Play to retry.');
-        stopForVoiceError();
-      }
-    }
+    setVoiceError(
+      'Gemini neural voices are off. Add GEMINI_API_KEY to knowledge-faith/.env, restart npm run dev, and confirm GET /api/health shows "ai": true. The robotic system voice is not used.',
+    );
+    stopForVoiceError();
   };
 
   const handleTogglePlay = () => {
@@ -667,28 +659,35 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
     setTestingPersonaVoice(personaId);
     try {
       const phrase = sampleVoicePhrases[personaId];
-      if (useGeminiVoice) {
-        const targetVoice = personasConfig[personaId]?.geminiVoice;
-        const res = await fetch('/api/tts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: phrase, speaker: personaId, voiceName: targetVoice })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.audioBase64) {
-            const audio = new Audio(`data:audio/wav;base64,${data.audioBase64}`);
-            currentAudioRef.current = audio;
-            audio.onended = () => setTestingPersonaVoice(null);
-            audio.onerror = () => setTestingPersonaVoice(null);
-            await audio.play();
-            return;
-          }
-        }
+      if (!useGeminiVoice) {
+        throw new Error(
+          'Gemini neural voices are off. Add GEMINI_API_KEY to knowledge-faith/.env and restart the server. The robotic system voice is not used.',
+        );
       }
-      await speakInBrowser(phrase, personaId, speechRate);
+      const targetVoice = personasConfig[personaId]?.geminiVoice;
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: phrase, speaker: personaId, voiceName: targetVoice })
+      });
+      if (!res.ok) {
+        const problem = await res.json().catch(() => ({}));
+        throw new Error(problem.error || `Gemini voice request failed (${res.status}).`);
+      }
+      const data = await res.json();
+      if (!data.audioBase64) {
+        throw new Error('Gemini returned no audio.');
+      }
+      const audio = new Audio(`data:audio/wav;base64,${data.audioBase64}`);
+      currentAudioRef.current = audio;
+      audio.onended = () => setTestingPersonaVoice(null);
+      audio.onerror = () => setTestingPersonaVoice(null);
+      await audio.play();
+      return;
     } catch (err) {
-      setVoiceError(err instanceof Error ? err.message : 'Voice preview failed.');
+      setVoiceError(
+        `${err instanceof Error ? err.message : 'Voice preview failed.'} The robotic system voice is not used.`,
+      );
     }
     setTestingPersonaVoice(null);
   };
@@ -779,7 +778,8 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
       {voiceError && <div role="alert" className="rounded-xl border border-amber-500 p-4 text-amber-200">{voiceError}</div>}
       {!useGeminiVoice && (
         <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-          Playing with this browser&apos;s built-in voice. Gemini neural voices need GEMINI_API_KEY on the server.
+          Gemini neural voices (Puck, Fenrir, Kore, Orus, Zephyr) are off, so Play will not use the robotic system voice.
+          Put a real GEMINI_API_KEY in knowledge-faith/.env, run npm run dev from that folder, then confirm GET /api/health shows &quot;ai&quot;: true.
         </p>
       )}
       {/* Radio Studio Master Control Console */}

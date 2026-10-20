@@ -8,6 +8,7 @@ import { pcmToWav, toWavBase64 } from '../src/server/wav.ts';
 import { aladhanDate } from '../src/server/prayer.ts';
 import { SAMPLE_HADITHS } from '../src/engine/data/sampleHadiths.ts';
 import { browserSpeechAvailable, speakInBrowser } from '../src/engine/utils/browserVoice.ts';
+import { hasGeminiApiKey } from '../src/server/loadEnv.ts';
 
 test('parseRefs handles single ayahs, ranges and rejects nonsense', () => {
   assert.deepEqual(parseRefs('2:153'), [{ surah: 2, ayah: 153 }]);
@@ -86,4 +87,12 @@ test('staging dossier presets include the actions-by-intentions benchmark', () =
 test('browser voice helpers are silent and safe on the server', async () => {
   assert.equal(browserSpeechAvailable(), false);
   await speakInBrowser('Peace be upon you');
+});
+
+test('placeholder and empty Gemini keys do not count as configured', () => {
+  assert.equal(hasGeminiApiKey(undefined), false);
+  assert.equal(hasGeminiApiKey(''), false);
+  assert.equal(hasGeminiApiKey('   '), false);
+  assert.equal(hasGeminiApiKey('MY_GEMINI_API_KEY'), false);
+  assert.equal(hasGeminiApiKey(' AIzaSyRealLookingKey '), true);
 });

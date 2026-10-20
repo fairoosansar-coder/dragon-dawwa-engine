@@ -36,7 +36,7 @@ npm run build
 npm start                # serves dist/ and the API on $PORT
 ```
 
-Without `GEMINI_API_KEY` the reader, hadith library and prayer tools work fully; AI sections show a clear "not configured" notice.
+Without a real `GEMINI_API_KEY` the reader, hadith library and prayer tools work fully; AI sections show a clear "not configured" notice. The roundtable and Voice studio do **not** fall back to the robotic browser system voice — they require Gemini TTS. After saving the key, restart `npm run dev` from this folder and confirm `GET /api/health` returns `"ai": true`.
 
 ## Checks
 
@@ -50,7 +50,7 @@ npm run build
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `GEMINI_API_KEY` | — | Enables Ask, podcast scripts and voice |
+| `GEMINI_API_KEY` | — | Enables Ask, podcast scripts and Gemini neural voices |
 | `PORT` | `3000` | HTTP port |
 | `GEMINI_TEXT_MODELS` | `gemini-3.8-flash,gemini-flash-latest,gemini-2.5-flash` | Fallback order for text |
 | `GEMINI_TTS_MODELS` | `gemini-3.8-flash-tts,gemini-2.5-flash-preview-tts` | Fallback order for speech |
@@ -62,4 +62,4 @@ There are no accounts. Bookmarks, episodes, tasbih count, language and location 
 
 ## API
 
-`GET /api/health`, `/api/config`, `/api/quran/surahs`, `/api/quran/surah/:n?lang=`, `/api/quran/verses?refs=2:153,96:1-5&lang=`, `/api/hadith/:collection/sections`, `/api/hadith/:collection/section/:n?lang=`, `/api/hadith/:collection/:number?lang=`, `/api/prayer?lat=&lng=&method=&school=`; `POST /api/ask`, `/api/podcast/script`, `/api/voice/narrate`, `/api/voice/dialogue`.
+`GET /api/health`, `/api/config`, `/api/quran/surahs`, `/api/quran/surah/:n?lang=`, `/api/quran/verses?refs=2:153,96:1-5&lang=`, `/api/hadith/:collection/sections`, `/api/hadith/:collection/section/:n?lang=`, `/api/hadith/:collection/:number?lang=`, `/api/prayer?lat=&lng=&method=&school=`; `POST /api/ask`, `/api/podcast/script`, `/api/voice/narrate`, `/api/voice/dialogue`, `/api/tts`.

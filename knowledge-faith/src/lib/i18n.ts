@@ -106,7 +106,8 @@ const en = {
   scholarCopied: 'Copied',
   scholarSaved: 'Draft saved on this device.',
   shortcuts: 'Explore',
-  browserVoice: "Playing with this browser's built-in voice. Gemini neural voices need GEMINI_API_KEY on the server.",
+  browserVoice:
+    'Gemini neural voices need a real GEMINI_API_KEY in knowledge-faith/.env and a restarted server. Confirm /api/health shows "ai": true. The robotic system voice is not used.',
 };
 
 export type Strings = typeof en;
@@ -185,7 +186,8 @@ const ta: Strings = {
   scholarCopy: 'கேள்வியை நகலெடு',
   scholarCopied: 'நகலெடுக்கப்பட்டது',
   shortcuts: 'ஆராயுங்கள்',
-  browserVoice: 'இந்த உலாவியின் உள்ளமைந்த குரல் பயன்படுத்தப்படுகிறது. Gemini குரலுக்கு சேவையகத்தில் GEMINI_API_KEY தேவை.',
+  browserVoice:
+    'Gemini நரம்பியல் குரலுக்கு knowledge-faith/.env இல் உண்மையான GEMINI_API_KEY மற்றும் சேவையக மறுதொடக்கம் தேவை. /api/health "ai": true எனக் காட்ட வேண்டும். ரோபோ அமைப்புக் குரல் பயன்படுத்தப்படாது.',
 };
 
 const si: Strings = {
@@ -262,7 +264,8 @@ const si: Strings = {
   scholarCopy: 'ප්‍රශ්නය පිටපත් කරන්න',
   scholarCopied: 'පිටපත් විය',
   shortcuts: 'ගවේෂණය',
-  browserVoice: 'මෙම බ්‍රවුසරයේ තිබෙන හඬ භාවිතා වේ. Gemini හඬ සඳහා සේවාදායකයේ GEMINI_API_KEY අවශ්‍යයි.',
+  browserVoice:
+    'Gemini ස්නායුක හඬ සඳහා knowledge-faith/.env හි සැබෑ GEMINI_API_KEY සහ සේවාදායකය යළි ආරම්භ කිරීම අවශ්‍යයි. /api/health "ai": true පෙන්විය යුතුය. රොබෝ පද්ධති හඬ භාවිතා නොවේ.',
 };
 
 export const STRINGS: Record<Lang, Strings> = { en, ta, si };

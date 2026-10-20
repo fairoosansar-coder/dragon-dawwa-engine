@@ -7,7 +7,6 @@ import { base64ToObjectUrl, pauseAudio } from '../lib/audio.ts';
 import { useApp, useStored } from '../lib/store.tsx';
 import { CitationChips, EvidenceList } from '../components/cards.tsx';
 import { Button, Card, ErrorNote, IconButton, Loading, Notice, SectionTitle, Select, TabLinks } from '../components/ui.tsx';
-import { speakInBrowser } from '../engine/utils/browserVoice.ts';
 
 function GeneratedAudio({ audio, filename }: { audio: TtsResult; filename: string }) {
   const { t } = useApp();
@@ -212,7 +211,7 @@ function VoiceStudio() {
   const [audio, setAudio] = useState<TtsResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const disabled = config ? !config.ai : false;
+  const disabled = !config?.ai;
 
   async function insert(key: string) {
     if (!key) return;
@@ -230,12 +229,10 @@ function VoiceStudio() {
     setBusy(true);
     setError(null);
     try {
-      if (config?.ai) {
-        setAudio(await postJson<TtsResult>('/api/voice/narrate', { text, voice, style }));
-      } else {
-        setAudio(null);
-        await speakInBrowser(text, 'Host');
+      if (!config?.ai) {
+        throw new Error(t.browserVoice);
       }
+      setAudio(await postJson<TtsResult>('/api/voice/narrate', { text, voice, style }));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -283,7 +280,7 @@ function VoiceStudio() {
               className="rounded-xl border border-pine/20 bg-white px-3 py-2 text-sm text-ink"
             />
           </label>
-          <Button type="submit" disabled={busy || !text.trim()}>
+          <Button type="submit" disabled={disabled || busy || !text.trim()}>
             <Mic className="h-4 w-4" aria-hidden /> {busy ? t.generating : t.narrate}
           </Button>
         </div>

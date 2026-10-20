@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './src/server/loadEnv.ts';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import path from 'node:path';
 import { HADITH_COLLECTIONS, PRAYER_METHODS, RECITERS, toLang } from './src/shared/sources.ts';
@@ -20,7 +20,7 @@ import {
   type SourceFetchers,
 } from './src/server/gemini.ts';
 import { executeDragonDawwaAnalysis } from './src/engine/server/hadithEngine.ts';
-import { synthesizeGeminiVoice } from './src/engine/server/geminiTtsService.ts';
+import { synthesizeRoundtableVoice } from './src/engine/server/geminiTtsService.ts';
 import { extractHadithFromMedia } from './src/engine/server/hadithOcrService.ts';
 import { transcribeAudioWithGemini } from './src/engine/server/geminiAudioTranscribe.ts';
 import { ummahQuranMiddleware } from './src/engine/server/ummahQuran.ts';
@@ -239,9 +239,9 @@ app.post(
     const voice = typeof req.body?.voiceName === 'string' ? req.body.voiceName.slice(0, 40) : undefined;
     requireAi();
     try {
-      res.json(await synthesizeGeminiVoice(body, speaker, voice));
+      res.json(await synthesizeRoundtableVoice(body, speaker, voice));
     } catch (err) {
-      throw engineFailure(err, 'Voice synthesis failed. Please retry.');
+      throw engineFailure(err, 'Gemini neural voice failed. The robotic system voice is not used. Please retry.');
     }
   }),
 );
@@ -314,5 +314,7 @@ if (isProduction) {
 }
 
 app.listen(PORT, () => {
-  console.log(`Knowledge & Faith running on http://localhost:${PORT} (${isProduction ? 'production' : 'development'})`);
+  console.log(
+    `Knowledge & Faith running on http://localhost:${PORT} (${isProduction ? 'production' : 'development'}); Gemini neural TTS ${geminiConfigured() ? 'on' : 'off'}`,
+  );
 });
