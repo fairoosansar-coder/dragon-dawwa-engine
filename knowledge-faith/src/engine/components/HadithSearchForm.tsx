@@ -896,7 +896,11 @@ export function HadithSearchForm({
             </div>
           )}
 
-          {isAnalyzing && <p role="status" className="text-amber-300">Research request started. Waiting for the server response…</p>}
+          {isAnalyzing && (
+            <p role="status" className="text-amber-300">
+              Research is running. The six-agent check often takes one to two minutes.
+            </p>
+          )}
           {/* ERROR / STATUS NOTIFICATION IF ANY */}
           {analysisError && (
             <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-600/50 text-xs text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
