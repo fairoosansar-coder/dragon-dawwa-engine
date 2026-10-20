@@ -108,11 +108,25 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Railway / operator probe. Keep payload minimal; do not expose provider entitlement.
+app.get('/healthz', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.status(200).json({
+    status: 'ok',
+    service: 'ummahconnect-app',
+  });
+});
+
 // Serve static assets in production
 const distPath = path.resolve(process.cwd(), 'dist');
 app.use(express.static(distPath));
 
 app.get('*', (req, res) => {
+  // Unknown API/auth paths must fail closed as JSON, never as the SPA shell.
+  if (req.path.startsWith('/api/') || req.path.startsWith('/auth/')) {
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(404).json({ error: 'not_found' });
+  }
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
