@@ -26,8 +26,12 @@ Requires Node 20.19+.
 ```bash
 npm install
 cp .env.example .env     # add GEMINI_API_KEY to enable Ask and the studio
-npm run dev              # http://localhost:3000 (Express + Vite middleware)
+npm run dev              # http://localhost:3000 on your machine
 ```
+
+On **your computer**, open `http://localhost:3000`.
+
+In **GitHub Codespaces**, the app is not on your Mac's localhost. Codespaces forwards port 3000 to a URL like `https://<codespace-name>-3000.app.github.dev` (for example `https://ubiquitous-system-g49wp7r645rwcw5rx-3000.app.github.dev/#/hub`). Use that forwarded URL, or Ports → 3000 in the Codespace. If the page does not load, set port 3000 visibility to **Public**.
 
 Production:
 
