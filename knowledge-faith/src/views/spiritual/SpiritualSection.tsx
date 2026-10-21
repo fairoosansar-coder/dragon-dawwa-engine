@@ -68,9 +68,10 @@ function Resolve({ parts }: { parts: string[] }) {
   return <TopicView id={topic.id as TopicId} />;
 }
 
-export default function SpiritualSection({ sub }: ViewProps) {
+export default function SpiritualSection({ sub, segments }: ViewProps) {
   const { s } = useSp();
-  const parts = (sub ?? '').split('/').filter(Boolean);
+  const parts = segments ?? (sub ?? '').split('/').filter(Boolean);
+  const path = parts.join('/');
 
   useEffect(() => {
     migrateSpiritualStorage();
@@ -78,7 +79,7 @@ export default function SpiritualSection({ sub }: ViewProps) {
 
   useEffect(() => {
     window.scrollTo({ top: 0 });
-  }, [sub]);
+  }, [path]);
 
   return (
     <div className="mx-auto max-w-6xl">

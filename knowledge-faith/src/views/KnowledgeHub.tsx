@@ -165,7 +165,7 @@ function Shortcuts() {
   const items = [
     { href: '#/quran/study', icon: BookOpen, label: t.quranStudy, hint: t.navQuran },
     { href: '#/hadith/research', icon: ShieldCheck, label: t.researchHadith, hint: t.navHadith },
-    { href: '#/spiritual/salah/times', icon: MoonStar, label: t.prayerTimes, hint: t.navPrayer },
+    { href: '#/spiritual', icon: MoonStar, label: t.navSpiritual, hint: t.spiritualHint },
     { href: '#/studio/roundtable', icon: Radio, label: t.roundtable, hint: t.navStudio },
   ];
   return (

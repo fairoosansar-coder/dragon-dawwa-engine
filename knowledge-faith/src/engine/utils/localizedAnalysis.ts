@@ -1,4 +1,5 @@
 import type { DragonDawwaAnalysis } from '../types/hadith.ts';
+import { scrubVanakkam } from './tamilGreeting.ts';
 
 /**
  * Returns localized dynamic analysis benchmarks for Tamil (தமிழ்) and Sinhala (සිංහල).
@@ -14,6 +15,7 @@ export function getLocalizedAnalysis(
   analysis: DragonDawwaAnalysis,
   lang: 'en' | 'ta' | 'si'
 ): DragonDawwaAnalysis {
+  analysis = scrubVanakkam(analysis);
   if (lang === 'en') {
     return analysis;
   }

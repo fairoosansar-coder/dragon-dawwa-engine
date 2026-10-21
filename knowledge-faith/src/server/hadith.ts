@@ -1,6 +1,7 @@
 import { DAY, fetchJson, UpstreamError } from './http.ts';
 import { findCollection, hadithEdition, type Lang } from '../shared/sources.ts';
 import type { Grade, Hadith, HadithSection } from '../shared/types.ts';
+import { localizeHadith, translateStudyTexts } from './hadithTranslate.ts';
 
 const BASE = 'https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1';
 
@@ -59,11 +60,24 @@ function requireCollection(id: string) {
   return collection;
 }
 
-export async function listSections(collectionId: string): Promise<{ sections: HadithSection[]; last: number }> {
+export async function listSections(
+  collectionId: string,
+  lang: Lang = 'en',
+): Promise<{ sections: HadithSection[]; last: number; machineTranslation: boolean }> {
   requireCollection(collectionId);
   const entry = (await loadSectionIndex()).get(collectionId);
   if (!entry) throw new UpstreamError('Collection index unavailable', 502);
-  return entry;
+  if (lang === 'en') return { ...entry, machineTranslation: false };
+  const rendered = await translateStudyTexts(
+    entry.sections.map(section => section.title),
+    lang,
+  );
+  const sections = entry.sections.map((section, i) => ({
+    ...section,
+    title: rendered[i]?.machineTranslation ? rendered[i].text : section.title,
+    machineTranslation: Boolean(rendered[i]?.machineTranslation),
+  }));
+  return { sections, last: entry.last, machineTranslation: sections.some(section => section.machineTranslation) };
 }
 
 function merge(
@@ -98,7 +112,12 @@ async function arabicFile(collectionId: string, path: string): Promise<RawFile |
   }
 }
 
-export async function getSection(collectionId: string, section: number, lang: Lang): Promise<Hadith[]> {
+export async function getSection(
+  collectionId: string,
+  section: number,
+  lang: Lang,
+  limit?: number,
+): Promise<{ items: Hadith[]; total: number }> {
   const collection = requireCollection(collectionId);
   if (!Number.isInteger(section) || section < 1) throw new UpstreamError('Invalid section', 400);
   const edition = hadithEdition(collection, lang);
@@ -106,7 +125,9 @@ export async function getSection(collectionId: string, section: number, lang: La
     fetchJson<RawFile>(`${BASE}/editions/${edition.edition}/sections/${section}.min.json`, 7 * DAY),
     arabicFile(collection.id, `sections/${section}`),
   ]);
-  return merge(collection.id, translated.hadiths, arabic?.hadiths ?? [], edition.lang, translated.metadata.section);
+  const merged = merge(collection.id, translated.hadiths, arabic?.hadiths ?? [], edition.lang, translated.metadata.section);
+  const cap = limit && Number.isFinite(limit) ? Math.max(1, Math.min(Math.floor(limit), merged.length)) : merged.length;
+  return { items: await localizeHadith(merged.slice(0, cap), lang, edition.lang), total: merged.length };
 }
 
 export async function getHadith(collectionId: string, number: number, lang: Lang): Promise<Hadith | null> {
@@ -121,5 +142,8 @@ export async function getHadith(collectionId: string, number: number, lang: Lang
     throw err;
   }
   const arabic = await arabicFile(collection.id, String(number));
-  return merge(collection.id, translated.hadiths, arabic?.hadiths ?? [], edition.lang, translated.metadata.section)[0] ?? null;
+  const merged = merge(collection.id, translated.hadiths, arabic?.hadiths ?? [], edition.lang, translated.metadata.section);
+  if (!merged[0]) return null;
+  const [localized] = await localizeHadith(merged.slice(0, 1), lang, edition.lang);
+  return localized ?? null;
 }
