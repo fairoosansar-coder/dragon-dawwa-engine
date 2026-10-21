@@ -5,8 +5,8 @@ import path from 'node:path';
 import { HADITH_COLLECTIONS, PRAYER_METHODS, RECITERS, quranPronunciationEdition, toLang } from './src/shared/sources.ts';
 import { dedupeRefs, parseRefs, refKey, type HadithRef } from './src/shared/refs.ts';
 import type { PodcastLine } from './src/shared/types.ts';
-import { getSurah, getVerses, listSurahs } from './src/server/quran.ts';
-import { listQuranEncEditions, loadAudioManifest, MEANING_AUDIO_NOT_LISTED } from './src/server/quranenc.ts';
+import { getSurah, getSurahArabic, getSurahMeaning, getVerses, listSurahs } from './src/server/quran.ts';
+import { listQuranEncEditions, loadAudioManifest, loadMukhtasar, MEANING_AUDIO_NOT_LISTED } from './src/server/quranenc.ts';
 import { readEditionQuery } from './src/shared/quranenc.ts';
 import { getAsma } from './src/server/asma.ts';
 import { getHadith, getSection, listSections } from './src/server/hadith.ts';
@@ -123,6 +123,24 @@ app.get(
   }),
 );
 app.get('/api/asma', route(async (_req, res) => res.json(await getAsma())));
+
+app.get(
+  '/api/quran/surah/:n/arabic',
+  route(async (req, res) => res.json(await getSurahArabic(Number(req.params.n), quranPronunciationEdition(req.query.pronunciation)))),
+);
+
+app.get(
+  '/api/quran/surah/:n/meaning',
+  route(async (req, res) => res.json(await getSurahMeaning(Number(req.params.n), toLang(req.query.lang), editionKeyFrom(req.query.edition)))),
+);
+
+app.get(
+  '/api/quran/tafsir',
+  route(async (req, res) => {
+    const surah = Number(req.query.surah);
+    res.json(await loadMukhtasar(toLang(req.query.lang), surah));
+  }),
+);
 
 app.get(
   '/api/quran/surah/:n',

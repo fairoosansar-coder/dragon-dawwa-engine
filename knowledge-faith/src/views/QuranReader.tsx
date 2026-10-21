@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, List } from 'lucide-react';
+import { BookOpen, ChevronLeft, ChevronRight, List } from 'lucide-react';
 import type { ViewProps } from '../App.tsx';
+import { Mukhtasar } from '../components/Mukhtasar.tsx';
+import { VerseShare } from '../components/VerseShare.tsx';
 import { playAudio, stopAudio, useAudioState } from '../lib/audio.ts';
 import { useRemote } from '../lib/api.ts';
 import { useQuranEdition } from '../lib/quranEdition.ts';
@@ -9,15 +11,16 @@ import { scrollBehavior, scrollMain } from '../lib/scroll.ts';
 import { useShell } from '../lib/shell.tsx';
 import { usePronunciation, withPronunciation } from '../lib/pronunciation.ts';
 import { useApp, useStored } from '../lib/store.tsx';
+import { usePendingReadingLink } from '../lib/verseShare.ts';
 import {
+  acceptsMeaning,
   coverageFromPayload,
   listedMeaningUrl,
   meaningPlaybackId,
   nextListedMeaning,
-  shownVerses,
   type AudioCoverage,
 } from '../shared/quranenc.ts';
-import { recitationUrl } from '../shared/sources.ts';
+import { recitationUrl, type Lang } from '../shared/sources.ts';
 import type { SurahInfo, Verse } from '../shared/types.ts';
 import { useReciter } from '../components/cards.tsx';
 import { VerseCard } from '../components/cards.tsx';
@@ -25,6 +28,48 @@ import { audioStatusLabel, BookPage, EmptyState, PronunciationStatus, ReadingSet
 import { Button, Card, ErrorNote, IconButton, Loading, TabLinks } from '../components/ui.tsx';
 
 const BISMILLAH = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ';
+
+interface ArabicPayload {
+  info: SurahInfo;
+  verses: Array<{
+    key: string;
+    surah: number;
+    ayah: number;
+    number: number;
+    arabic: string;
+    surahName: string;
+    transliteration?: string;
+    transliterationEdition?: string;
+  }>;
+}
+
+interface MeaningPayload {
+  surah: number;
+  lang: Lang;
+  editionKey: string;
+  translationVersion: string;
+  translationTitle: string;
+  translationDescription: string;
+  verses: { ayah: number; translation: string; footnotes: string }[];
+}
+
+function mergeReading(arabic: ArabicPayload, meaning: MeaningPayload | null, lang: Lang): Verse[] {
+  const byAyah = new Map(meaning?.verses.map(verse => [verse.ayah, verse]) ?? []);
+  return arabic.verses.map(verse => {
+    const row = byAyah.get(verse.ayah);
+    return {
+      ...verse,
+      lang,
+      translation: row?.translation ?? '',
+      translator: meaning?.translationTitle ?? '',
+      footnotes: row?.footnotes || undefined,
+      translationKey: meaning?.editionKey,
+      translationVersion: meaning?.translationVersion,
+      translationTitle: meaning?.translationTitle,
+      translationDescription: meaning?.translationDescription,
+    };
+  });
+}
 
 type ReadMode = 'study' | 'book';
 
@@ -35,12 +80,17 @@ export default function QuranReader({ sub }: ViewProps) {
   const [place, setPlace] = useReadingPlace();
   const surah = place.surah;
   const [ayah, setAyah] = useState(place.ayah);
+  const pendingLink = usePendingReadingLink();
+  const { t, lang, setLang } = useApp();
+  const quranEdition = useQuranEdition();
+  const viewSurah = pendingLink.link?.surah ?? surah;
+  const viewAyah = pendingLink.link?.ayah ?? ayah;
+  const viewLang = pendingLink.link?.lang ?? lang;
+  const viewEdition = pendingLink.link?.edition ?? quranEdition.editionKey;
   const [storedSize, setStoredSize] = useStored<unknown>('kf-text-size', 'md');
   const textSize = readTextSize(storedSize);
   const setTextSize = (size: TextSize) => setStoredSize(size);
   const [reciter, setReciter] = useReciter();
-  const { t } = useApp();
-  const quranEdition = useQuranEdition();
   const editionsError = quranEdition.error ?? (!quranEdition.loading && quranEdition.editions.length === 0 ? t.quranEncMissing : null);
   const { setFocus } = useShell();
   const mode: 'library' | ReadMode = sub === 'book' ? 'book' : sub === 'study' ? 'study' : 'library';
@@ -49,6 +99,16 @@ export default function QuranReader({ sub }: ViewProps) {
     const next = clampSurah(number);
     setPlace(prev => (prev.surah === next ? prev : { ...prev, surah: next }));
   }, [setPlace]);
+
+  useEffect(() => {
+    const link = pendingLink.link;
+    if (!link) return;
+    if (link.lang) setLang(link.lang);
+    if (link.edition) quranEdition.accept(link.lang ?? lang, link.edition);
+    if (link.surah) setSurah(link.surah);
+    if (link.ayah) setAyah(link.ayah);
+    pendingLink.consume();
+  }, [lang, pendingLink, quranEdition.accept, setAyah, setLang, setSurah]);
 
   useEffect(() => {
     if (ayah < 1) return;
@@ -86,7 +146,7 @@ export default function QuranReader({ sub }: ViewProps) {
         }}
         onOpen={open}
         editions={quranEdition.editions}
-        editionKey={quranEdition.edition?.key ?? ''}
+        editionKey={viewEdition}
         onEdition={quranEdition.choose}
         editionsError={editionsError}
       />
@@ -96,8 +156,9 @@ export default function QuranReader({ sub }: ViewProps) {
   return (
     <Edition
       mode={mode}
-      surah={surah}
-      ayah={ayah}
+      surah={viewSurah}
+      ayah={viewAyah}
+      contentLang={viewLang}
       setSurah={setSurah}
       setAyah={setAyah}
       textSize={textSize}
@@ -109,7 +170,7 @@ export default function QuranReader({ sub }: ViewProps) {
       }}
       onMode={onMode}
       editions={quranEdition.editions}
-      editionKey={quranEdition.edition?.key ?? ''}
+      editionKey={viewEdition}
       onEdition={quranEdition.choose}
       editionsError={editionsError}
       onEditionsRetry={quranEdition.error ? quranEdition.reload : undefined}
@@ -226,24 +287,28 @@ function Library({
           {surahs.loading && <Loading />}
           {surahs.error && <ErrorNote message={surahs.error} onRetry={surahs.reload} />}
           {!surahs.loading && !surahs.error && filtered.length === 0 && <EmptyState>{t.noResults}</EmptyState>}
-          <ul className="divide-y divide-pine/10">
+          <ul className="grid grid-cols-1 gap-px bg-pine/10 md:grid-cols-2 xl:grid-cols-3">
             {filtered.map(item => (
-              <li key={item.number}>
+              <li key={item.number} className={item.number === surah ? 'bg-mint' : 'bg-sand'}>
                 <button
                   type="button"
                   onClick={() => onOpen(item.number, 1, prefer)}
                   aria-current={item.number === surah ? 'true' : undefined}
-                  className={`flex w-full items-center gap-3 px-2 py-3 text-left ${item.number === surah ? 'bg-mint' : ''}`}
+                  className="flex w-full items-center gap-3 px-3 py-3 text-left"
                 >
-                  <span className="w-8 text-sm font-semibold text-pine">{item.number}</span>
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gold bg-sand text-sm font-semibold text-pine">
+                    {item.number}
+                  </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block font-medium text-ink">{item.englishName}</span>
-                    <span className="block text-xs text-muted">{item.englishNameTranslation}</span>
+                    <span lang="ar" dir="rtl" className="block w-fit font-[family-name:var(--font-arabic)] text-xl leading-tight text-ink">
+                      {item.name.replace(/^سُورَةُ\s+/, '')}
+                    </span>
+                    <span className="mt-1 flex items-center gap-1 text-xs text-muted">
+                      <BookOpen className="h-3.5 w-3.5" aria-hidden />
+                      {item.numberOfAyahs} {item.numberOfAyahs === 1 ? t.verseOne : t.verseMany}
+                    </span>
                   </span>
-                  <span lang="ar" className="font-[family-name:var(--font-arabic)] text-lg text-ink">
-                    {item.name.replace('سُورَةُ ', '')}
-                  </span>
-                  <span className="w-10 text-right text-xs text-muted">{item.numberOfAyahs}</span>
+                  <span className="max-w-[9rem] shrink-0 text-right text-sm font-medium text-ink">{item.englishName}</span>
                 </button>
               </li>
             ))}
@@ -258,6 +323,7 @@ function Edition({
   mode,
   surah,
   ayah,
+  contentLang,
   setSurah,
   setAyah,
   textSize,
@@ -274,6 +340,7 @@ function Edition({
   mode: ReadMode;
   surah: number;
   ayah: number;
+  contentLang: Lang;
   setSurah: (value: number) => void;
   setAyah: (value: number) => void;
   textSize: TextSize;
@@ -287,12 +354,15 @@ function Edition({
   editionsError: string | null;
   onEditionsRetry?: () => void;
 }) {
-  const { t, lang, config, toggleVerse, isVerseSaved } = useApp();
+  const { t, config, toggleVerse, isVerseSaved } = useApp();
+  const lang = contentLang;
   const [pronunciation] = usePronunciation();
   const { query, setFocus } = useShell();
   const [contents, setContents] = useState(false);
-  const requestUrl = editionKey ? withPronunciation(`/api/quran/surah/${surah}?lang=${lang}&edition=${encodeURIComponent(editionKey)}`, pronunciation) : null;
-  const reader = useRemote<{ info: SurahInfo; verses: Verse[] }>(requestUrl);
+  const arabicUrl = withPronunciation(`/api/quran/surah/${surah}/arabic`, pronunciation);
+  const meaningUrl = editionKey ? `/api/quran/surah/${surah}/meaning?lang=${lang}&edition=${encodeURIComponent(editionKey)}` : null;
+  const arabicRemote = useRemote<ArabicPayload>(arabicUrl);
+  const meaningRemote = useRemote<MeaningPayload>(meaningUrl);
   const manifestRemote = useRemote<unknown>(editionKey ? `/api/quran/audio-manifest?edition=${encodeURIComponent(editionKey)}` : null);
   const coverage = useMemo<AudioCoverage | null>(() => {
     if (!editionKey || manifestRemote.error || !manifestRemote.data) return null;
@@ -300,9 +370,10 @@ function Edition({
     return parsed && parsed.translation === editionKey ? parsed : null;
   }, [editionKey, manifestRemote.data, manifestRemote.error]);
   const surahs = useRemote<SurahInfo[]>('/api/quran/surahs');
-  const candidate = reader.data?.info.number === surah ? reader.data : null;
-  const loaded = editionKey && candidate && shownVerses(candidate.verses, lang, editionKey) ? candidate : null;
-  const verses = loaded?.verses ?? [];
+  const arabic = arabicRemote.data?.info.number === surah ? arabicRemote.data : null;
+  const meaning = acceptsMeaning(meaningRemote.data, surah, lang, editionKey) ? meaningRemote.data : null;
+  const loaded = arabic;
+  const verses = arabic ? mergeReading(arabic, meaning, lang) : [];
   const versesRef = useRef(verses);
   versesRef.current = verses;
   const touch = useRef({ x: 0, y: 0 });
@@ -516,10 +587,10 @@ function Edition({
             editionsError={editionsError}
           />
         </div>
-        {!loaded && (reader.loading || (!editionKey && !editionsError)) && <Loading />}
-        {!loaded && !reader.loading && !reader.error && editionKey && candidate && <p className="text-sm text-muted">{t.quranEncUnread}</p>}
+        {!arabic && arabicRemote.loading && <Loading />}
+        {!arabic && !arabicRemote.loading && arabicRemote.error && <ErrorNote message={arabicRemote.error} onRetry={arabicRemote.reload} />}
         {editionsError && <ErrorNote message={editionsError} onRetry={onEditionsRetry} />}
-        {reader.error && <ErrorNote message={reader.error} onRetry={reader.reload} />}
+        {meaningRemote.error && <ErrorNote message={meaningRemote.error} onRetry={meaningRemote.reload} />}
         {loaded && mode === 'study' && (
           <Card>
             <p className="text-xs uppercase tracking-widest text-muted">
@@ -528,7 +599,7 @@ function Edition({
             <h2 className="font-display text-3xl font-bold text-pine">{loaded.info.englishName}</h2>
             <p className="text-sm text-muted">{loaded.info.englishNameTranslation}</p>
             <div className="mt-3 space-y-2">
-              <SourceAttribution verse={verses[0]} />
+              {meaning && <SourceAttribution verse={verses[0]} />}
               {editionNotice && (
                 <p className="text-sm text-muted" role="status">
                   {editionNotice}
@@ -544,6 +615,11 @@ function Edition({
               {pronunciation === 'en' && verses.some(verse => verse.transliteration) && <p className="text-sm text-muted">{t.pronunciationSource}</p>}
               {pronunciation === 'en' && verses.length > 0 && !verses.some(verse => verse.transliteration) && (
                 <p className="text-sm text-muted">{t.pronunciationMissing}</p>
+              )}
+              {!meaning && meaningRemote.loading && (
+                <p className="text-sm text-muted" role="status">
+                  {t.loadingMeaning}
+                </p>
               )}
             </div>
             {surah !== 1 && surah !== 9 && (
@@ -569,6 +645,27 @@ function Edition({
                 );
               })}
             </div>
+            {current && (
+              <div className="mt-6">
+                <VerseShare
+                  lang={lang}
+                  mode="study"
+                  verse={{
+                    surah: current.surah,
+                    ayah: current.ayah,
+                    arabic: current.arabic,
+                    translation: current.translation,
+                    footnotes: current.footnotes,
+                    surahName: current.surahName,
+                    translationTitle: current.translationTitle,
+                    translationKey: current.translationKey,
+                    translationVersion: current.translationVersion,
+                    translationDescription: current.translationDescription,
+                  }}
+                />
+              </div>
+            )}
+            <Mukhtasar surah={surah} ayah={ayah >= 1 ? ayah : 1} lang={lang} />
           </Card>
         )}
         {loaded && mode === 'book' && (
@@ -623,31 +720,40 @@ function Edition({
                   ))}
                 </p>
               )}
-              <p lang={lang} className={`mt-6 leading-loose text-ink ${BODY_SIZE[textSize]}`}>
-                {verses.map(verse => (
-                  <span key={`${verse.key}-tr`} onClick={() => setAyah(verse.ayah)} className={verse.ayah === ayah ? 'rounded bg-gold/15' : undefined}>
-                    <span className="mx-1 inline-block min-w-6 rounded-full border border-gold px-1 text-center align-middle font-sans text-xs font-semibold text-pine">
-                      {verse.ayah}
+              {meaning && (
+                <p lang={lang} className={`mt-6 leading-loose text-ink ${BODY_SIZE[textSize]}`}>
+                  {verses.map(verse => (
+                    <span key={`${verse.key}-tr`} onClick={() => setAyah(verse.ayah)} className={verse.ayah === ayah ? 'rounded bg-gold/15' : undefined}>
+                      <span className="mx-1 inline-block min-w-6 rounded-full border border-gold px-1 text-center align-middle font-sans text-xs font-semibold text-pine">
+                        {verse.ayah}
+                      </span>
+                      {verse.translation}{' '}
                     </span>
-                    {verse.translation}{' '}
-                  </span>
-                ))}
-              </p>
-              {verses.some(verse => verse.footnotes) && (
-                <div className={`mt-6 space-y-3 text-ink/80 ${BODY_SIZE[textSize]}`}>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted">{t.footnotes}</p>
-                  {verses
-                    .filter(verse => verse.footnotes)
-                    .map(verse => (
-                      <p key={`${verse.key}-fn`} lang={lang} className="whitespace-pre-wrap leading-relaxed">
-                        <span className="font-semibold text-pine">{verse.ayah}. </span>
-                        {verse.footnotes}
-                      </p>
-                    ))}
-                </div>
+                  ))}
+                </p>
+              )}
+              {meaning && verses.some(verse => verse.footnotes) && (
+                <details className={`mt-6 rounded-2xl border border-pine/10 px-4 py-3 text-ink/80 ${BODY_SIZE[textSize]}`}>
+                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-widest text-muted">{t.footnotes}</summary>
+                  <div className="mt-3 space-y-3">
+                    {verses
+                      .filter(verse => verse.footnotes)
+                      .map(verse => (
+                        <p key={`${verse.key}-fn`} lang={lang} className="whitespace-pre-wrap leading-relaxed">
+                          <span className="font-semibold text-pine">{verse.ayah}. </span>
+                          {verse.footnotes}
+                        </p>
+                      ))}
+                  </div>
+                </details>
+              )}
+              {arabic && !meaning && meaningRemote.loading && (
+                <p className="mt-6 text-sm text-muted" role="status">
+                  {t.loadingMeaning}
+                </p>
               )}
               <div className="mt-8 space-y-3">
-                <SourceAttribution verse={verses[0]} />
+                {meaning && <SourceAttribution verse={verses[0]} />}
                 <PronunciationStatus pronunciation={pronunciation} />
                 {pronunciation === 'en' && verses.some(verse => verse.transliteration) && <p className="text-sm text-muted">{t.pronunciationSource}</p>}
                 {pronunciation === 'en' && verses.length > 0 && !verses.some(verse => verse.transliteration) && (
@@ -659,6 +765,25 @@ function Edition({
                   onMeaning={bookMeaning.action ?? undefined}
                   onBookmark={() => savedKey && toggleVerse(savedKey)}
                 />
+                {current && (
+                  <VerseShare
+                    lang={lang}
+                    mode="book"
+                    verse={{
+                      surah: current.surah,
+                      ayah: current.ayah,
+                      arabic: current.arabic,
+                      translation: current.translation,
+                      footnotes: current.footnotes,
+                      surahName: current.surahName,
+                      translationTitle: current.translationTitle,
+                      translationKey: current.translationKey,
+                      translationVersion: current.translationVersion,
+                      translationDescription: current.translationDescription,
+                    }}
+                  />
+                )}
+                <Mukhtasar surah={surah} ayah={ayah >= 1 ? ayah : 1} lang={lang} />
                 {editionNotice && (
                   <p className="text-sm text-muted" role="status">
                     {editionNotice}

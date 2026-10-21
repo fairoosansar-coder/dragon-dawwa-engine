@@ -3,16 +3,26 @@ import type { Lang } from './sources.ts';
 /** Successful QuranEnc responses are reused only for this long. Failures are not stored. */
 export const QURANENC_TTL_MS = 10 * 60 * 1000;
 
-export const MEANING_AUDIO_NOT_LISTED = 'Meaning audio is not listed for this edition.';
-export const MEANING_AUDIO_NOT_LISTED_VERSE = 'Meaning audio is not listed for this verse.';
+export const MEANING_AUDIO_NOT_LISTED = 'Meaning audio is unavailable for this edition.';
+export const MEANING_AUDIO_NOT_LISTED_VERSE = 'This audio file is unavailable.';
 export const MEANING_AUDIO_LIST_FAILED = 'The meaning audio list for this edition could not be loaded.';
-export const MEANING_AUDIO_NEXT_MISSING = 'Meaning audio is not listed for the next verse. Playback stopped.';
+export const MEANING_AUDIO_NEXT_MISSING = 'The next audio file is unavailable. Playback stopped.';
 
 export const DEFAULT_EDITION_KEY: Record<Lang, string> = {
-  en: 'english_saheeh',
+  en: 'english_rwwad',
   ta: 'tamil_omar_brief',
   si: 'sinhalese_mahir',
 };
+
+/** Al-Mukhtasar commentary. QuranEnc serves these on the translation API, not the tafsir list. */
+export const MUKHTASAR_KEY: Record<Lang, string> = {
+  en: 'english_mokhtasar',
+  ta: 'tamil_mokhtasar',
+  si: 'sinhalese_mokhtasar',
+};
+
+export const TAFSIR_VERSION_NOTE = 'QuranEnc did not include a version for this text.';
+export const TAFSIR_FOOTNOTES_NOTE = 'This response did not include footnotes.';
 
 export interface QuranEncEdition {
   key: string;
@@ -355,4 +365,110 @@ export function shownVerses<T extends { lang: string; translationKey?: string }>
   if (verses.some(verse => verse.lang !== lang)) return null;
   if (editionKey && verses.some(verse => verse.translationKey !== editionKey)) return null;
   return verses;
+}
+
+/** A stored catalog key, otherwise the language default. Either can start a request before the catalogue returns. */
+export function immediateEditionKey(lang: Lang, stored: Partial<Record<Lang, string>> | null | undefined): string {
+  const saved = stored?.[lang];
+  if (saved && /^[a-z0-9_]+$/.test(saved)) return saved;
+  return DEFAULT_EDITION_KEY[lang];
+}
+
+/** Ignore a meaning payload that belongs to an earlier surah, language, or edition. */
+export function acceptsMeaning(
+  payload: { surah: number; lang: string; editionKey: string } | null | undefined,
+  surah: number,
+  lang: string,
+  editionKey: string,
+): boolean {
+  return Boolean(payload && payload.surah === surah && payload.lang === lang && payload.editionKey === editionKey);
+}
+
+export interface CommentaryAyah {
+  aya: number;
+  translation: string;
+  footnotes: string | null;
+}
+
+export interface CommentarySpan {
+  fromAya: number;
+  toAya: number;
+  text: string;
+  footnotes: string | null;
+}
+
+function parseTafsirAyah(item: unknown, sura: number): CommentaryAyah | null {
+  const row = record(item);
+  if (!row) return null;
+  const suraNumber = wholeNumber(row.sura);
+  const aya = wholeNumber(row.aya);
+  const translation = exactString(row.translation);
+  if (suraNumber !== sura || aya === null || aya < 1 || translation === null) return null;
+  if (row.footnotes == null) return { aya, translation, footnotes: null };
+  const footnotes = exactString(row.footnotes);
+  if (footnotes === null) return null;
+  return { aya, translation, footnotes };
+}
+
+/** Read a QuranEnc surah payload. Null footnotes stay null. The wording is not rewritten. */
+export function parseTafsirSura(body: unknown, sura: number): CommentaryAyah[] | null {
+  const wrapped = record(body);
+  const list = wrapped && Array.isArray(wrapped.result) ? wrapped.result : Array.isArray(body) ? body : null;
+  if (!list || list.length === 0) return null;
+  const ayahs: CommentaryAyah[] = [];
+  const seen = new Set<number>();
+  for (const item of list) {
+    const row = parseTafsirAyah(item, sura);
+    if (!row || seen.has(row.aya)) return null;
+    seen.add(row.aya);
+    ayahs.push(row);
+  }
+  ayahs.sort((a, b) => a.aya - b.aya);
+  return ayahs;
+}
+
+/** Join a contiguous run only when the source text and footnotes are exactly the same. */
+export function groupSameCommentary(rows: CommentaryAyah[]): CommentarySpan[] {
+  const spans: CommentarySpan[] = [];
+  for (const row of [...rows].sort((a, b) => a.aya - b.aya)) {
+    const last = spans[spans.length - 1];
+    if (last && row.aya === last.toAya + 1 && row.translation === last.text && row.footnotes === last.footnotes) {
+      last.toAya = row.aya;
+      continue;
+    }
+    spans.push({ fromAya: row.aya, toAya: row.aya, text: row.translation, footnotes: row.footnotes });
+  }
+  return spans;
+}
+
+export function verseSpanLabel(fromAya: number, toAya: number): string {
+  return fromAya === toAya ? `Verse ${fromAya}` : `Verses ${fromAya}–${toAya}`;
+}
+
+export function describeMukhtasar(
+  lang: Lang,
+  key: string,
+  listedKeys: string[] | null,
+): { listedInTafsir: boolean; listNote: string; versionNote: string } {
+  const language = lang === 'en' ? 'English' : lang === 'ta' ? 'Tamil' : 'Sinhala';
+  const listed = Boolean(listedKeys?.includes(key));
+  const listNote = listed
+    ? `QuranEnc lists this tafsir as ${key}.`
+    : listedKeys
+      ? `QuranEnc’s tafsir list has no ${language} entry. This text is Al-Mukhtasar from the translation API as ${key}.`
+      : `The tafsir list could not be loaded. This text is Al-Mukhtasar from the translation API as ${key}. No other commentary was substituted.`;
+  return { listedInTafsir: listed, listNote, versionNote: TAFSIR_VERSION_NOTE };
+}
+
+export function parseTafsirKeys(body: unknown): string[] | null {
+  const wrapped = record(body);
+  if (!wrapped || !Array.isArray(wrapped.tafsirs)) return null;
+  const keys: string[] = [];
+  for (const item of wrapped.tafsirs) {
+    const row = record(item);
+    const key = row ? exactString(row.key) : null;
+    if (!key) return null;
+    keys.push(key);
+  }
+  return keys;
 }

@@ -5,22 +5,33 @@ import { stopForEditionChange, stopForLanguageChange, storedEditionMap } from '.
 import { audioStatusLabel } from '../src/components/shell/widgets.tsx';
 import { STRINGS } from '../src/lib/i18n.ts';
 import {
+  acceptsMeaning,
   attachQuranEnc,
   cacheParsed,
   confirmedMeaningSrc,
   coverageFromPayload,
+  DEFAULT_EDITION_KEY,
+  describeMukhtasar,
+  groupSameCommentary,
+  immediateEditionKey,
   listedMeaningUrl,
+  MUKHTASAR_KEY,
   nextListedMeaning,
   parseAudioManifest,
   parseAyaTranslation,
   parseEditionList,
   parseSuraTranslation,
+  parseTafsirKeys,
+  parseTafsirSura,
   QURANENC_TTL_MS,
   readCached,
   readEditionQuery,
   selectEdition,
   shownVerses,
+  TAFSIR_FOOTNOTES_NOTE,
+  TAFSIR_VERSION_NOTE,
   translationRequest,
+  verseSpanLabel,
   type AudioCoverage,
   type QuranEncEdition,
 } from '../src/shared/quranenc.ts';
@@ -260,7 +271,9 @@ test('each language manifest is read on its own and only listed files can play',
   );
   assert.equal(audioStatusLabel(STRINGS.en, 'error', 'meaning-english_rwwad-1-1'), STRINGS.en.meaningAudioError);
   assert.equal(audioStatusLabel(STRINGS.en, 'error', 'ayah-1'), STRINGS.en.audioError);
-  assert.equal(STRINGS.en.meaningAudioNextMissing, 'Meaning audio is not listed for the next verse. Playback stopped.');
+  assert.equal(STRINGS.en.meaningAudioNextMissing, 'The next audio file is unavailable. Playback stopped.');
+  assert.equal(STRINGS.en.meaningAudioNotListedVerse, 'This audio file is unavailable.');
+  assert.equal(STRINGS.en.meaningAudioError, 'This audio file is unavailable.');
   assert.equal(STRINGS.ta.meaningAudioNotListed, STRINGS.en.meaningAudioNotListed);
   assert.equal(STRINGS.si.meaningAudioListFailed, STRINGS.en.meaningAudioListFailed);
 });
@@ -353,4 +366,56 @@ test('changing edition or language stops the current meaning', async () => {
   assert.equal('error' in readEditionQuery(['english_saheeh', 'english_rwwad']), true);
   assert.deepEqual(readEditionQuery('english_saheeh'), { key: 'english_saheeh' });
   assert.equal('error' in readEditionQuery('../english_saheeh'), true);
+});
+
+test('english meaning defaults to Rowwad and a saved key does not wait on the catalogue', () => {
+  assert.equal(DEFAULT_EDITION_KEY.en, 'english_rwwad');
+  assert.equal(DEFAULT_EDITION_KEY.ta, 'tamil_omar_brief');
+  assert.equal(DEFAULT_EDITION_KEY.si, 'sinhalese_mahir');
+  assert.equal(immediateEditionKey('en', {}), 'english_rwwad');
+  assert.equal(immediateEditionKey('en', { en: 'english_saheeh' }), 'english_saheeh');
+  assert.equal(immediateEditionKey('ta', { ta: '../tamil_omar' }), 'tamil_omar_brief');
+  assert.equal(acceptsMeaning({ surah: 2, lang: 'en', editionKey: 'english_rwwad' }, 2, 'en', 'english_rwwad'), true);
+  assert.equal(acceptsMeaning({ surah: 2, lang: 'en', editionKey: 'english_saheeh' }, 2, 'en', 'english_rwwad'), false);
+  assert.equal(acceptsMeaning({ surah: 2, lang: 'ta', editionKey: 'english_rwwad' }, 2, 'en', 'english_rwwad'), false);
+  assert.equal(acceptsMeaning(null, 2, 'en', 'english_rwwad'), false);
+});
+
+test('Al-Mukhtasar keeps exact text, null footnotes, and a repeated multi-verse explanation', () => {
+  const shared = '4. They believe in the revelation that Allah sent down to you, O Prophet, and in what was sent before.';
+  const parsed = parseTafsirSura(
+    {
+      result: [
+        { sura: '2', aya: '1', translation: '1. Alif Lām Mīm', footnotes: null },
+        { sura: '2', aya: '3', translation: shared, footnotes: null },
+        { sura: '2', aya: '4', translation: shared, footnotes: null },
+        { sura: '2', aya: '5', translation: '5. The people who possess these qualities.', footnotes: null },
+      ],
+    },
+    2,
+  );
+  assert.ok(parsed);
+  assert.equal(parsed?.[0].footnotes, null);
+  const spans = groupSameCommentary(parsed ?? []);
+  assert.equal(spans.length, 3);
+  assert.deepEqual(spans[1], { fromAya: 3, toAya: 4, text: shared, footnotes: null });
+  assert.equal(verseSpanLabel(3, 4), 'Verses 3–4');
+  const split = groupSameCommentary([
+    { aya: 3, translation: shared, footnotes: null },
+    { aya: 4, translation: shared, footnotes: '[1] kept' },
+  ]);
+  assert.equal(split.length, 2);
+  assert.equal(parseTafsirSura({ result: [{ sura: '2', aya: '1', translation: 'A', footnotes: { bad: true } }] }, 2), null);
+  assert.equal(parseSuraTranslation({ result: [{ sura: '2', aya: '1', translation: 'A', footnotes: null }] }, 2), null);
+  assert.deepEqual(parseTafsirKeys({ tafsirs: [] }), []);
+  assert.equal(parseTafsirKeys({ tafsirs: [{ key: 1 }] }), null);
+  const english = describeMukhtasar('en', MUKHTASAR_KEY.en, []);
+  assert.equal(english.listedInTafsir, false);
+  assert.match(english.listNote, /no English entry/);
+  assert.match(english.listNote, /english_mokhtasar/);
+  assert.equal(english.versionNote, TAFSIR_VERSION_NOTE);
+  const tamil = describeMukhtasar('ta', MUKHTASAR_KEY.ta, ['tamil_mokhtasar']);
+  assert.equal(tamil.listedInTafsir, true);
+  assert.match(describeMukhtasar('si', MUKHTASAR_KEY.si, null).listNote, /could not be loaded/);
+  assert.equal(TAFSIR_FOOTNOTES_NOTE, 'This response did not include footnotes.');
 });

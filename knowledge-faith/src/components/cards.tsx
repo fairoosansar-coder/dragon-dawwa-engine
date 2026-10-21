@@ -70,13 +70,18 @@ export function VerseCard({
           {verse.transliteration}
         </p>
       )}
-      <p lang={verse.lang} className={`mt-2 leading-relaxed text-ink/90 ${scale === 'lg' ? 'text-xl' : scale === 'sm' ? 'text-sm' : ''}`}>
-        {verse.translation}
-      </p>
-      {verse.footnotes ? (
-        <p lang={verse.lang} className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink/70">
-          {verse.footnotes}
+      {verse.translation ? (
+        <p lang={verse.lang} className={`mt-2 leading-relaxed text-ink/90 ${scale === 'lg' ? 'text-xl' : scale === 'sm' ? 'text-sm' : ''}`}>
+          {verse.translation}
         </p>
+      ) : null}
+      {verse.footnotes ? (
+        <details className="mt-2 rounded-xl border border-pine/10 px-3 py-2">
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-widest text-muted">{t.footnotes}</summary>
+          <p lang={verse.lang} className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink/70">
+            {verse.footnotes}
+          </p>
+        </details>
       ) : null}
       {cite && (
         <div className="mt-1 space-y-1 text-xs text-ink/50">

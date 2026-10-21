@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useRemote } from './api.ts';
 import { useApp, useStored } from './store.tsx';
-import { DEFAULT_EDITION_KEY, type QuranEncEdition } from '../shared/quranenc.ts';
+import { DEFAULT_EDITION_KEY, immediateEditionKey, type QuranEncEdition } from '../shared/quranenc.ts';
 import { stopForEditionChange, stopForLanguageChange, storedEditionMap } from './quranPlayback.ts';
+import type { Lang } from '../shared/sources.ts';
 
 export function useQuranEdition() {
   const { lang } = useApp();
@@ -40,8 +41,20 @@ export function useQuranEdition() {
     [catalog.data, lang, setRaw, stored],
   );
 
-  const editions = !catalog.loading && catalog.data ? catalog.data.filter(item => item.languageIso === lang) : [];
-  const edition = editions.find(item => item.key === stored[lang]) ?? null;
+  const accept = useCallback(
+    (target: Lang, key: string) => {
+      if (!/^[a-z0-9_]+$/.test(key)) return;
+      const map = storedEditionMap(raw);
+      if (map[target] === key) return;
+      if (target === lang) stopForEditionChange(map[lang] ?? '', key);
+      setRaw({ ...map, [target]: key });
+    },
+    [lang, raw, setRaw],
+  );
 
-  return { editions, edition, error: catalog.error, loading: catalog.loading, reload: catalog.reload, choose };
+  const editions = !catalog.loading && catalog.data ? catalog.data.filter(item => item.languageIso === lang) : [];
+  const editionKey = immediateEditionKey(lang, stored);
+  const edition = editions.find(item => item.key === editionKey) ?? null;
+
+  return { editions, edition, editionKey, error: catalog.error, loading: catalog.loading, reload: catalog.reload, choose, accept };
 }
