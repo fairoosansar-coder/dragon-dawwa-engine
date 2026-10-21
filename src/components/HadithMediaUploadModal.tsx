@@ -273,7 +273,7 @@ export function HadithMediaUploadModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
-      <div className="relative w-full max-w-3xl bg-[#090e17] border border-slate-700/80 rounded-3xl shadow-2xl overflow-hidden my-auto animate-fadeIn">
+      <div className="relative w-full max-w-3xl bg-[var(--surface-modal)] border border-slate-700/80 rounded-3xl shadow-2xl overflow-hidden my-auto animate-fadeIn">
         
         {/* Glow accent */}
         <div className="absolute top-0 right-1/4 w-96 h-32 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -308,7 +308,7 @@ export function HadithMediaUploadModal({
         </div>
 
         {/* Modal Tabs: Camera vs Photo Upload vs Document Upload */}
-        <div className="relative z-10 flex border-b border-slate-800 bg-[#0c121e] px-4 pt-2">
+        <div className="relative z-10 flex border-b border-slate-800 bg-[var(--surface-raised)] px-4 pt-2">
           <button
             onClick={() => {
               setActiveTab('camera');
@@ -370,7 +370,7 @@ export function HadithMediaUploadModal({
                       <button
                         type="button"
                         onClick={startCamera}
-                        className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-all cursor-pointer"
+                        className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-[var(--on-gold)] text-xs font-bold transition-all cursor-pointer"
                       >
                         Try Camera Again
                       </button>
@@ -411,7 +411,7 @@ export function HadithMediaUploadModal({
                         <button
                           type="button"
                           onClick={handleCaptureSnapshot}
-                          className="px-6 py-3 rounded-full bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-bold text-sm flex items-center gap-2 shadow-xl shadow-amber-500/30 transform active:scale-95 transition-all cursor-pointer"
+                          className="px-6 py-3 rounded-full bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-[var(--on-gold)] font-bold text-sm flex items-center gap-2 shadow-xl shadow-amber-500/30 transform active:scale-95 transition-all cursor-pointer"
                         >
                           <Camera className="w-5 h-5 fill-slate-950" />
                           <span>Capture Frame</span>
@@ -484,7 +484,7 @@ export function HadithMediaUploadModal({
                       docInputRef.current?.click();
                     }
                   }}
-                  className="border-2 border-dashed border-slate-700 hover:border-amber-500/80 bg-[#0d1422]/60 hover:bg-[#111a2d]/80 rounded-2xl p-8 text-center cursor-pointer transition-all space-y-3 group"
+                  className="border-2 border-dashed border-slate-700 hover:border-amber-500/80 bg-[var(--surface-raised)]/60 hover:bg-[var(--surface-hover)]/80 rounded-2xl p-8 text-center cursor-pointer transition-all space-y-3 group"
                 >
                   <div className="w-14 h-14 rounded-2xl bg-amber-500/10 group-hover:bg-amber-500/20 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400 transition-all">
                     {activeTab === 'upload_photo' ? (
@@ -568,7 +568,7 @@ export function HadithMediaUploadModal({
                 value={userNotes}
                 onChange={(e) => setUserNotes(e.target.value)}
                 placeholder="e.g. Focus on the footnote on page 42, or extract the Arabic matn in the center column..."
-                className="w-full bg-[#080d15] border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-all"
+                className="w-full bg-[var(--surface-inset)] border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-all"
               />
             </div>
           )}
@@ -580,11 +580,11 @@ export function HadithMediaUploadModal({
                 type="button"
                 onClick={handleExecuteOcr}
                 disabled={isProcessing}
-                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-slate-950 font-bold text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-amber-500/20 transition-all cursor-pointer disabled:opacity-50"
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-[var(--on-gold)] font-bold text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-amber-500/20 transition-all cursor-pointer disabled:opacity-50"
               >
                 {isProcessing ? (
                   <>
-                    <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
+                    <RefreshCw className="w-4 h-4 animate-spin text-[var(--on-gold)]" />
                     <span>Analyzing Image & Transcribing Arabic Manuscript...</span>
                   </>
                 ) : (
@@ -626,7 +626,7 @@ export function HadithMediaUploadModal({
               </div>
 
               {/* Arabic Matn Box */}
-              <div className="p-4 rounded-2xl bg-[#070b12] border border-amber-500/30 space-y-2">
+              <div className="p-4 rounded-2xl bg-[var(--surface-well)] border border-amber-500/30 space-y-2">
                 <div className="flex justify-between items-center text-xs font-semibold text-amber-400">
                   <span>EXTRACTED ARABIC MATN (النَّصُّ النَّبَوِيّ):</span>
                   <button
@@ -644,7 +644,7 @@ export function HadithMediaUploadModal({
               </div>
 
               {/* English Translation */}
-              <div className="p-4 rounded-2xl bg-[#070b12] border border-slate-800 space-y-1.5">
+              <div className="p-4 rounded-2xl bg-[var(--surface-well)] border border-slate-800 space-y-1.5">
                 <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                   English Translation:
                 </span>
@@ -685,7 +685,7 @@ export function HadithMediaUploadModal({
                 <button
                   type="button"
                   onClick={() => handleApplyToForm(true)}
-                  className="w-full sm:w-1/2 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
+                  className="w-full sm:w-1/2 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-[var(--on-gold)] font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
                 >
                   <Sparkles className="w-4 h-4 fill-slate-950" />
                   <span>Execute Dragon Dawwa Engine Now</span>
