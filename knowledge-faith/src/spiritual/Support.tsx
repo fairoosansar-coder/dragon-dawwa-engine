@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { postJson, useRemote } from '../lib/api.ts';
+import { usePronunciation, withPronunciation } from '../lib/pronunciation.ts';
 import { useStored } from '../lib/store.tsx';
 import type { AskResult, Verse } from '../shared/types.ts';
 import { CitationChips, EvidenceList } from '../components/cards.tsx';
@@ -81,8 +82,11 @@ export function DuaLibrary({ segments }: { segments: string[] }) {
   const [target, setTarget] = useStored<number>('kf-tasbih-target', 33);
   const [phrase, setPhrase] = useStored<number>('kf-tasbih-phrase', 0);
   const entries = DUA_ENTRIES.filter(entry => (category === 'all' || entry.category === category) && (!query.trim() || entry.id.includes(query.trim()) || entry.category.includes(query.trim().toLowerCase())));
+  const [pronunciation] = usePronunciation();
   const refs = entries.flatMap(entry => entry.refs);
-  const remote = useRemote<Verse[]>(refs.length ? `/api/quran/verses?refs=${encodeURIComponent(refs.join(','))}&lang=${lang}` : null);
+  const remote = useRemote<Verse[]>(
+    refs.length ? withPronunciation(`/api/quran/verses?refs=${encodeURIComponent(refs.join(','))}&lang=${lang}`, pronunciation) : null,
+  );
   const current = DHIKR[phrase] ?? DHIKR[0];
   return (
     <div className="space-y-4">

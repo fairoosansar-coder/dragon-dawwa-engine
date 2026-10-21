@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useRemote } from '../lib/api.ts';
+import { usePronunciation, withPronunciation } from '../lib/pronunciation.ts';
 import { useStored } from '../lib/store.tsx';
 import { OCCASIONS, occasionById, text } from './content.ts';
 import {
@@ -303,9 +304,12 @@ function stepMonth(cursor: { year: number; month: number }, delta: number) {
 
 export function OccasionView({ segments, id }: { segments: string[]; id: string }) {
   const { lang, s } = useSp();
+  const [pronunciation] = usePronunciation();
   const occasion = occasionById(id);
   const refs = occasion?.verseRefs ?? [];
-  const remote = useRemote<Verse[]>(refs.length ? `/api/quran/verses?refs=${encodeURIComponent(refs.join(','))}&lang=${lang}` : null);
+  const remote = useRemote<Verse[]>(
+    refs.length ? withPronunciation(`/api/quran/verses?refs=${encodeURIComponent(refs.join(','))}&lang=${lang}`, pronunciation) : null,
+  );
   if (!occasion) {
     return (
       <Panel>

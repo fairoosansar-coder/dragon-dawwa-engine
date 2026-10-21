@@ -20,6 +20,9 @@ export interface Verse {
   translator: string;
   lang: Lang;
   surahName: string;
+  /** Pronunciation of this ayah from a checked transliteration edition. Not a translation. */
+  transliteration?: string;
+  transliterationEdition?: string;
 }
 
 export interface Grade {
@@ -99,6 +102,25 @@ export interface PrayerDay {
   latitudeAdjustment?: number | null;
   hijri: { day: string; month: string; monthArabic: string; year: string };
   gregorian: string;
+}
+
+export interface AsmaName {
+  number: number;
+  arabic: string;
+  transliteration: string;
+  meaning: string;
+}
+
+export interface AsmaCollection {
+  names: AsmaName[];
+  source: {
+    name: 'Aladhan';
+    url: string;
+    transliteration: 'Latin';
+    meaningLanguage: 'en';
+    perNameReference: false;
+    scholarReviewed: false;
+  };
 }
 
 export interface TtsResult {

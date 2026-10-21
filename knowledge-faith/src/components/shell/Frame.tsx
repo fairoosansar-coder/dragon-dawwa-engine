@@ -21,7 +21,7 @@ const NAV: NavItem[] = [
   { path: 'hub', href: '#/hub', short: 'navKnowledge', icon: Lightbulb },
   { path: 'quran', href: '#/quran', short: 'navQuranShort', icon: BookOpen },
   { path: 'hadith', href: '#/hadith', short: 'navHadithShort', icon: Library },
-  { path: 'spiritual', href: '#/spiritual', short: 'navPrayerShort', side: 'navWorship', icon: MoonStar },
+  { path: 'spiritual', href: '#/spiritual', short: 'navWorship', side: 'navWorship', icon: MoonStar },
   { path: 'studio', href: '#/studio', short: 'navListen', icon: Mic },
 ];
 

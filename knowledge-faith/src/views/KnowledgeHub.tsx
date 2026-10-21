@@ -6,6 +6,7 @@ import type { AskResult, Hadith, SurahInfo, Verse } from '../shared/types.ts';
 import { postJson, useRemote } from '../lib/api.ts';
 import { useShell } from '../lib/shell.tsx';
 import { useReadingPlace } from '../lib/readingPlace.ts';
+import { usePronunciation, withPronunciation } from '../lib/pronunciation.ts';
 import { useApp, useStored } from '../lib/store.tsx';
 import { CitationChips, EvidenceList, HadithCard, VerseCard } from '../components/cards.tsx';
 import { EmptyState, FeatureCard, PrayerStrip } from '../components/shell/widgets.tsx';
@@ -13,7 +14,8 @@ import { Button, Card, ErrorNote, Loading, Notice, SectionTitle } from '../compo
 
 function VerseList({ refs }: { refs: string[] }) {
   const { lang } = useApp();
-  const url = refs.length ? `/api/quran/verses?refs=${encodeURIComponent(refs.join(','))}&lang=${lang}` : null;
+  const [pronunciation] = usePronunciation();
+  const url = refs.length ? withPronunciation(`/api/quran/verses?refs=${encodeURIComponent(refs.join(','))}&lang=${lang}`, pronunciation) : null;
   const { data, error, loading, reload } = useRemote<Verse[]>(url);
   if (loading) return <Loading />;
   if (error) return <ErrorNote message={error} onRetry={reload} />;

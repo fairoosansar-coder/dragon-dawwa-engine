@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { VerseCard } from '../components/cards.tsx';
+import { PronunciationControl, PronunciationStatus } from '../components/shell/widgets.tsx';
 import { useRemote } from '../lib/api.ts';
+import { usePronunciation, withPronunciation } from '../lib/pronunciation.ts';
 import { useStored } from '../lib/store.tsx';
 import type { Verse } from '../shared/types.ts';
 import { isScholarReviewed } from './editorial.ts';
@@ -35,7 +37,8 @@ function sectionBlob(section: GuideSection, lang: 'en' | 'ta' | 'si'): string {
 }
 
 export function GuideView({ segments, anchor }: { segments: string[]; anchor?: string }) {
-  const { lang, s } = useSp();
+  const { lang, s, t } = useSp();
+  const [pronunciation] = usePronunciation();
   const guide = findGuide(segments);
   const [prefs, setPrefs] = useStored<ReadingPrefs>('kf-reading', { mode: 'book', font: 1, border: false });
   const [focus, setFocus] = useState(false);
@@ -99,7 +102,6 @@ export function GuideView({ segments, anchor }: { segments: string[]; anchor?: s
   const body = (
     <article className={prefs.mode === 'book' ? (prefs.border ? 'dd-book dd-illuminated' : 'dd-book') : 'dd-plain'} style={{ ['--dd-font' as string]: `${FONTS[prefs.font] ?? 1.125}rem` }}>
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-dd-emerald">{reviewed ? s.reviewer : s.notReviewed}</p>
-      {guide.meta.languageReview === 'pending' && <p className="mt-2 text-sm text-dd-ink/70">{s.languagePending}</p>}
       <h1 className="mt-4 font-display text-4xl font-bold text-dd-emerald sm:text-5xl">{text(guide.title, lang) || guide.title.en}</h1>
       {guide.id === 'shahadah' ? (
         <p lang={lang} className="mt-4 max-w-xl text-lg leading-relaxed">{SP[lang].shahadahLede}</p>
@@ -108,7 +110,14 @@ export function GuideView({ segments, anchor }: { segments: string[]; anchor?: s
           <Prose copy={guide.summary} />
         </div>
       )}
-      {testimony && <Testimony section={testimony} english={english} show={showCopy} />}
+      {testimony && <Testimony section={testimony} english={english} show={showCopy} pronunciation={pronunciation} />}
+      {guide.id === 'shahadah' && (
+        <p className="mt-10">
+          <a href="#/spiritual/names" className="text-sm font-medium text-dd-emerald underline decoration-dd-gold underline-offset-4">
+            {t.namesLink} →
+          </a>
+        </p>
+      )}
       <details className="mt-12">
         <summary className="flex min-h-11 cursor-pointer list-none items-center rounded-full border border-dd-emerald/20 bg-white px-4 text-sm font-semibold text-dd-emerald [&::-webkit-details-marker]:hidden">
           {s.contents}
@@ -127,38 +136,12 @@ export function GuideView({ segments, anchor }: { segments: string[]; anchor?: s
           ))}
         </nav>
       </details>
-      {hasDetailed && (
-        <div className="mt-6 flex flex-wrap gap-2">
-          <button type="button" className={`min-h-11 rounded-full px-4 ${beginner ? 'bg-dd-emerald text-dd-ivory' : 'bg-white'}`} onClick={() => setBeginner(true)}>
-            {s.beginner}
-          </button>
-          <button type="button" className={`min-h-11 rounded-full px-4 ${!beginner ? 'bg-dd-emerald text-dd-ivory' : 'bg-white'}`} onClick={() => setBeginner(false)}>
-            {s.detailed}
-          </button>
-        </div>
-      )}
-      <div className="mt-12 space-y-14">
-        {flow.length === 0 && needle && <p>{s.searchEmpty}</p>}
-        {flow.map(section => (
-          <section key={section.id} id={section.id === testimony?.id ? undefined : `sec-${section.id}`} className="scroll-mt-28">
-            <h2 className="font-display text-2xl font-bold text-dd-emerald">{slotLabel('en', section.id)}</h2>
-            <SectionBody section={section} english={english} />
-          </section>
-        ))}
-      </div>
-      <details id="about-page" className="mt-16 rounded-2xl border border-dd-emerald/15 bg-white/70 px-4 py-3">
-        <summary id="sec-review" className="flex min-h-11 cursor-pointer list-none items-center text-sm font-semibold text-dd-emerald [&::-webkit-details-marker]:hidden">
-          {s.aboutPage}
+      <details className="mt-4 rounded-2xl border border-dd-emerald/15 bg-white/70 px-4 py-3">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center text-sm font-semibold text-dd-emerald [&::-webkit-details-marker]:hidden">
+          {t.readingSettings}
         </summary>
-        <div className="mt-4 space-y-4 text-sm leading-relaxed">
-          {guide.id === 'shahadah' && <Prose copy={guide.summary} />}
-          <p>
-            {s.updated} {guide.meta.updated} · {s.author}: {guide.meta.author}
-          </p>
-          {withheld && <p>{s.incomplete}</p>}
-          {review?.paragraphs?.map((copy, index) => (
-            <p key={index}>{showCopy(copy) || s.missingLang}</p>
-          ))}
+        <div className="mt-4 space-y-4">
+          <PronunciationControl />
           <div className="flex flex-wrap gap-2">
             {(['book', 'plain'] as const).map(mode => (
               <button key={mode} type="button" className={`min-h-11 rounded-full px-4 ${prefs.mode === mode ? 'bg-dd-emerald text-dd-ivory' : 'bg-white'}`} onClick={() => setPrefs({ ...prefs, mode })}>
@@ -224,6 +207,49 @@ export function GuideView({ segments, anchor }: { segments: string[]; anchor?: s
           </form>
         </div>
       </details>
+      <div className="mt-3">
+        <PronunciationStatus pronunciation={pronunciation} />
+      </div>
+      {hasDetailed && (
+        <div className="mt-6 flex flex-wrap gap-2">
+          <button type="button" className={`min-h-11 rounded-full px-4 ${beginner ? 'bg-dd-emerald text-dd-ivory' : 'bg-white'}`} onClick={() => setBeginner(true)}>
+            {s.beginner}
+          </button>
+          <button type="button" className={`min-h-11 rounded-full px-4 ${!beginner ? 'bg-dd-emerald text-dd-ivory' : 'bg-white'}`} onClick={() => setBeginner(false)}>
+            {s.detailed}
+          </button>
+        </div>
+      )}
+      <div className="mt-12 space-y-14">
+        {flow.length === 0 && needle && <p>{s.searchEmpty}</p>}
+        {flow.map(section => (
+          <section key={section.id} id={section.id === testimony?.id ? undefined : `sec-${section.id}`} className="scroll-mt-28">
+            <h2 className="font-display text-2xl font-bold text-dd-emerald">{slotLabel('en', section.id)}</h2>
+            <SectionBody section={section} english={english} />
+          </section>
+        ))}
+      </div>
+      <details id="about-page" className="mt-16 rounded-2xl border border-dd-emerald/15 bg-white/70 px-4 py-3">
+        <summary id="sec-review" className="flex min-h-11 cursor-pointer list-none items-center text-sm font-semibold text-dd-emerald [&::-webkit-details-marker]:hidden">
+          {s.aboutPage}
+        </summary>
+        <div className="mt-4 space-y-4 text-sm leading-relaxed">
+          {guide.id === 'shahadah' && <Prose copy={guide.summary} />}
+          <p>
+            {s.updated} {guide.meta.updated} · {s.author}: {guide.meta.author}
+          </p>
+          {guide.meta.languageReview === 'pending' && <p>{s.languagePending}</p>}
+          <p>{s.editionUnset}</p>
+          <p>{s.audioMissing}</p>
+          {withheld && <p>{s.incomplete}</p>}
+          {testimony?.paragraphs?.map((copy, index) => (
+            <p key={`meaning-${index}`}>{showCopy(copy) || s.missingLang}</p>
+          ))}
+          {review?.paragraphs?.map((copy, index) => (
+            <p key={index}>{showCopy(copy) || s.missingLang}</p>
+          ))}
+        </div>
+      </details>
     </article>
   );
 
@@ -244,7 +270,17 @@ export function GuideView({ segments, anchor }: { segments: string[]; anchor?: s
   );
 }
 
-function Testimony({ section, english, show }: { section: GuideSection; english: boolean; show: (copy: Copy) => string }) {
+function Testimony({
+  section,
+  english,
+  show,
+  pronunciation,
+}: {
+  section: GuideSection;
+  english: boolean;
+  show: (copy: Copy) => string;
+  pronunciation: ReturnType<typeof usePronunciation>[0];
+}) {
   const { lang, s } = useSp();
   return (
     <div id="sec-meaning" className="scroll-mt-28">
@@ -254,8 +290,8 @@ function Testimony({ section, english, show }: { section: GuideSection; english:
             {section.arabic}
           </p>
         )}
-        {section.transliteration && (
-          <p className="mx-auto max-w-xl text-center text-lg leading-relaxed">
+        {pronunciation === 'en' && section.transliteration && (
+          <p lang="en" className="mx-auto max-w-xl text-center text-lg leading-relaxed">
             <span className="mb-4 block text-xs font-semibold uppercase tracking-[0.18em] text-dd-ink/60">{s.translitLabel}</span>
             {section.transliteration}
           </p>
@@ -266,28 +302,20 @@ function Testimony({ section, english, show }: { section: GuideSection; english:
             <p lang={english && lang !== 'en' ? 'en' : lang} className="mt-6 text-xl leading-relaxed">
               {show(section.meanings) || s.missingLang}
             </p>
-            <p className="mt-8 text-sm text-dd-ink/60">{s.editionUnset}</p>
-            <p className="mt-2 text-sm text-dd-ink/60">{s.audioMissing}</p>
           </div>
         )}
       </div>
-      {section.paragraphs && section.paragraphs.length > 0 && (
-        <div className="mx-auto mt-12 max-w-xl space-y-4">
-          {section.paragraphs.map((copy, index) => (
-            <p key={index} className="leading-relaxed" lang={english && lang !== 'en' ? 'en' : lang}>
-              {show(copy) || s.missingLang}
-            </p>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
 
 function SectionBody({ section, english }: { section: GuideSection; english: boolean }) {
   const { lang, s } = useSp();
+  const [pronunciation] = usePronunciation();
   const refs = section.verseRefs ?? [];
-  const url = refs.length ? `/api/quran/verses?refs=${encodeURIComponent(refs.join(','))}&lang=${english ? 'en' : lang}` : null;
+  const url = refs.length
+    ? withPronunciation(`/api/quran/verses?refs=${encodeURIComponent(refs.join(','))}&lang=${english ? 'en' : lang}`, pronunciation)
+    : null;
   const remote = useRemote<Verse[]>(url);
   const show = (copy: Guide['title']) => (english && lang !== 'en' ? copy.en : text(copy, lang) || '');
   return (
@@ -297,8 +325,8 @@ function SectionBody({ section, english }: { section: GuideSection; english: boo
           {section.arabic}
         </p>
       )}
-      {section.transliteration && (
-        <p className="text-sm italic">
+      {pronunciation === 'en' && section.transliteration && (
+        <p lang="en" className="text-sm italic">
           <span className="not-italic font-semibold">{s.translitLabel}. </span>
           {section.transliteration}
         </p>
@@ -307,7 +335,6 @@ function SectionBody({ section, english }: { section: GuideSection; english: boo
         <div>
           <h3 className="text-sm font-semibold">{s.meaningLabel}</h3>
           <p lang={english ? 'en' : lang}>{show(section.meanings) || s.missingLang}</p>
-          <p className="text-xs text-dd-ink/60">{s.editionUnset}</p>
         </div>
       )}
       {section.paragraphs?.map((copy, index) => (

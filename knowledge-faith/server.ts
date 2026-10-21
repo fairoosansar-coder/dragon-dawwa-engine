@@ -2,10 +2,11 @@ import './src/server/loadEnv.ts';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import http from 'node:http';
 import path from 'node:path';
-import { HADITH_COLLECTIONS, PRAYER_METHODS, RECITERS, toLang } from './src/shared/sources.ts';
+import { HADITH_COLLECTIONS, PRAYER_METHODS, RECITERS, quranPronunciationEdition, toLang } from './src/shared/sources.ts';
 import { dedupeRefs, parseRefs, refKey, type HadithRef } from './src/shared/refs.ts';
 import type { PodcastLine } from './src/shared/types.ts';
 import { getSurah, getVerses, listSurahs } from './src/server/quran.ts';
+import { getAsma } from './src/server/asma.ts';
 import { getHadith, getSection, listSections } from './src/server/hadith.ts';
 import { getPrayerTimes } from './src/server/prayer.ts';
 import { getHijriMonth } from './src/server/hijriMonth.ts';
@@ -101,17 +102,20 @@ app.get('/api/config', (_req, res) => {
 });
 
 app.get('/api/quran/surahs', route(async (_req, res) => res.json(await listSurahs())));
+app.get('/api/asma', route(async (_req, res) => res.json(await getAsma())));
 
 app.get(
   '/api/quran/surah/:n',
-  route(async (req, res) => res.json(await getSurah(Number(req.params.n), toLang(req.query.lang)))),
+  route(async (req, res) =>
+    res.json(await getSurah(Number(req.params.n), toLang(req.query.lang), quranPronunciationEdition(req.query.pronunciation))),
+  ),
 );
 
 app.get(
   '/api/quran/verses',
   route(async (req, res) => {
     const refs = dedupeRefs(String(req.query.refs ?? '').split(',').flatMap(parseRefs), refKey, 60);
-    res.json(await getVerses(refs, toLang(req.query.lang)));
+    res.json(await getVerses(refs, toLang(req.query.lang), quranPronunciationEdition(req.query.pronunciation)));
   }),
 );
 

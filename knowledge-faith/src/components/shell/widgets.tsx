@@ -5,6 +5,7 @@ import { useRemote } from '../../lib/api.ts';
 import { prayerQueryDate } from '../../lib/prayerClock.ts';
 import { pauseAudio, resumeAudio, useAudioState, type AudioStatus } from '../../lib/audio.ts';
 import { useShell } from '../../lib/shell.tsx';
+import { usePronunciation, type Pronunciation } from '../../lib/pronunciation.ts';
 import { useApp, useStored } from '../../lib/store.tsx';
 import type { Strings } from '../../lib/i18n.ts';
 import { QURAN_TRANSLATIONS } from '../../shared/sources.ts';
@@ -177,6 +178,39 @@ export function SourceAttribution() {
   );
 }
 
+export function PronunciationControl() {
+  const { t } = useApp();
+  const [pronunciation, setPronunciation] = usePronunciation();
+  const select = (value: string) => {
+    if (value === 'off' || value === 'en') setPronunciation(value);
+  };
+  return (
+    <div className="flex flex-col gap-1 text-xs font-medium text-muted">
+      <label className="flex flex-col gap-1">
+        {t.pronunciation}
+        <select value={pronunciation} onChange={event => select(event.target.value)} className="rounded-xl border border-pine/20 bg-parchment px-3 py-2 text-sm font-normal text-ink">
+          <option value="off">{t.pronunciationOff}</option>
+          <option value="en">English</option>
+          <option value="ta" disabled>
+            Tamil — unavailable
+          </option>
+          <option value="si" disabled>
+            Sinhala — unavailable
+          </option>
+        </select>
+      </label>
+      <p className="font-normal leading-relaxed">{t.pronunciationUnavailable}</p>
+    </div>
+  );
+}
+
+export function PronunciationStatus({ pronunciation }: { pronunciation: Pronunciation }) {
+  const { t } = useApp();
+  if (pronunciation === 'en') return <p className="text-sm leading-relaxed text-muted">{t.pronunciationNote}</p>;
+  if (pronunciation === 'ta' || pronunciation === 'si') return <p className="text-sm leading-relaxed text-muted">{t.pronunciationUnavailable}</p>;
+  return null;
+}
+
 export function ReadingSettings({
   mode,
   textSize,
@@ -197,7 +231,11 @@ export function ReadingSettings({
   const { t, lang } = useApp();
   const edition = QURAN_TRANSLATIONS[lang];
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <details className="rounded-2xl border border-pine/10 bg-parchment px-4 py-3">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center text-sm font-semibold text-pine [&::-webkit-details-marker]:hidden">
+        {t.readingSettings}
+      </summary>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <p className="flex flex-col gap-1 text-xs font-medium text-muted">
         {t.editionLabel}
         <span className="rounded-xl border border-pine/10 bg-sand px-3 py-2 text-sm font-normal text-ink">
@@ -233,7 +271,9 @@ export function ReadingSettings({
           <option value="lg">A++</option>
         </select>
       </label>
-    </div>
+      <PronunciationControl />
+      </div>
+    </details>
   );
 }
 

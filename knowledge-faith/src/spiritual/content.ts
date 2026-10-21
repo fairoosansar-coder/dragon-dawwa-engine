@@ -205,7 +205,7 @@ export const GUIDES: Guide[] = [
       'සලාත වේලා සහ කිබ්ලා මෙවලම්, සහ අධ්‍යයන පිටු. පියවරෙන් පියවර තීන්දු පළ කර නැත.',
     ),
     links: [
-      { href: '#/spiritual/salah/times', label: c('Prayer times', 'தொழுகை நேரம்', 'සලාත වේලා') },
+      { href: '#/spiritual/salah/times', label: c('Prayer Times', 'தொழுகை நேரம்', 'සලාත වේලා') },
       { href: '#/spiritual/salah/qibla', label: c('Qibla', 'கிப்லா', 'කිබ්ලා') },
       { href: '#/spiritual/salah/learn', label: c('Learning prayer', 'தொழுகை கற்றல்', 'සලාතය ඉගෙනීම') },
       { href: '#/spiritual/salah/purification', label: c('Purification', 'தூய்மை', 'පිරිසිදුවීම') },
@@ -237,7 +237,7 @@ export const GUIDES: Guide[] = [
       'ඉරියව් සහ සම්පූර්ණ අනුපිළිවෙල සමාලෝචනය බලාපොරොත්තුවෙන් ඇත. පළ නොකළ කොටස් මෙම පිටුවේ නැත.',
     ),
     links: [
-      { href: '#/spiritual/salah/times', label: c('Prayer times', 'தொழுகை நேரம்', 'සලාත වේලා') },
+      { href: '#/spiritual/salah/times', label: c('Prayer Times', 'தொழுகை நேரம்', 'සලාත වේලා') },
       { href: '#/quran', label: c('Simple Qur’an reader', 'எளிய குர்ஆன் வாசிப்பு', 'සරල කුර්ආන් කියවීම') },
     ],
     sections: [

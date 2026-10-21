@@ -25,6 +25,15 @@ export const QURAN_TRANSLATIONS: Record<Lang, QuranTranslation> = {
   si: { edition: 'si.naseemismail', translator: 'Naseem Ismail & Masoor Maulana Kaleel' },
 };
 
+/** AlQuran Cloud publishes an English transliteration edition only. Tamil and Sinhala are absent. */
+export const QURAN_TRANSLITERATION = {
+  en: { edition: 'en.transliteration', label: 'English Transliteration' },
+} as const;
+
+export function quranPronunciationEdition(value: unknown): string | null {
+  return value === 'en' ? QURAN_TRANSLITERATION.en.edition : null;
+}
+
 export const RECITERS = [
   { id: 'ar.alafasy', name: 'Mishary Rashid Alafasy' },
   { id: 'ar.husary', name: 'Mahmoud Khalil Al-Husary' },

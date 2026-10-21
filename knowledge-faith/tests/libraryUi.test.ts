@@ -161,11 +161,14 @@ test('content language changes readings while the interface stays English', () =
   assert.notEqual(SP.ta.shahadahLede, SP.en.shahadahLede);
 });
 
-test('sidebar worship label stays separate from the phone prayer label', () => {
+test('worship is the navigation label and prayer times keep their own name', () => {
   assert.equal(STRINGS.en.navWorship, 'Worship');
-  assert.equal(STRINGS.en.navPrayerShort, 'Prayer');
-  assert.equal(STRINGS.ta.navWorship, 'வழிபாடு');
-  assert.equal(STRINGS.si.navWorship, 'වන්දනාව');
+  assert.equal(STRINGS.en.navPrayerShort, 'Worship');
+  assert.equal(STRINGS.en.prayerTimes, 'Prayer Times');
+  assert.equal(STRINGS.en.navSpiritual, 'Five Pillars of Islam');
+  assert.equal(SP.en.title, 'Five Pillars of Islam');
+  assert.equal(SP.en.prayerTimes, 'Prayer Times');
+  assert.equal(SP.en.aboutPage, 'Sources & review');
 });
 
 test('public reading keeps published Shahadah sections and hides unpublished ones', () => {

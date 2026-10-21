@@ -6,12 +6,13 @@ import { useRemote } from '../lib/api.ts';
 import { ayahForLoadedSurah, clampSurah, readTextSize, useReadingPlace, type TextSize } from '../lib/readingPlace.ts';
 import { scrollBehavior, scrollMain } from '../lib/scroll.ts';
 import { useShell } from '../lib/shell.tsx';
+import { usePronunciation, withPronunciation } from '../lib/pronunciation.ts';
 import { useApp, useStored } from '../lib/store.tsx';
 import { recitationUrl } from '../shared/sources.ts';
 import type { SurahInfo, Verse } from '../shared/types.ts';
 import { useReciter } from '../components/cards.tsx';
 import { VerseCard } from '../components/cards.tsx';
-import { BookPage, EmptyState, ReadingSettings, SourceAttribution, VerseActions } from '../components/shell/widgets.tsx';
+import { BookPage, EmptyState, PronunciationStatus, ReadingSettings, SourceAttribution, VerseActions } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, IconButton, Loading, TabLinks } from '../components/ui.tsx';
 
 const BISMILLAH = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ';
@@ -244,9 +245,10 @@ function Edition({
   onMode: (mode: ReadMode) => void;
 }) {
   const { t, lang, config, toggleVerse, isVerseSaved } = useApp();
+  const [pronunciation] = usePronunciation();
   const { query, setFocus } = useShell();
   const [contents, setContents] = useState(false);
-  const reader = useRemote<{ info: SurahInfo; verses: Verse[] }>(`/api/quran/surah/${surah}?lang=${lang}`);
+  const reader = useRemote<{ info: SurahInfo; verses: Verse[] }>(withPronunciation(`/api/quran/surah/${surah}?lang=${lang}`, pronunciation));
   const surahs = useRemote<SurahInfo[]>('/api/quran/surahs');
   const loaded = reader.data?.info.number === surah ? reader.data : null;
   const verses = loaded?.verses ?? [];
@@ -397,8 +399,13 @@ function Edition({
             </p>
             <h2 className="font-display text-3xl font-bold text-pine">{loaded.info.englishName}</h2>
             <p className="text-sm text-muted">{loaded.info.englishNameTranslation}</p>
-            <div className="mt-3">
+            <div className="mt-3 space-y-2">
               <SourceAttribution />
+              <PronunciationStatus pronunciation={pronunciation} />
+              {pronunciation === 'en' && verses.some(verse => verse.transliteration) && <p className="text-sm text-muted">{t.pronunciationSource}</p>}
+              {pronunciation === 'en' && verses.length > 0 && !verses.some(verse => verse.transliteration) && (
+                <p className="text-sm text-muted">{t.pronunciationMissing}</p>
+              )}
             </div>
             {surah !== 1 && surah !== 9 && (
               <p lang="ar" className="arabic mt-6 text-center text-3xl text-pine">
@@ -444,31 +451,36 @@ function Edition({
                   </p>
                 )}
               </header>
-              {lang === 'en' && (
-                <p lang="ar" dir="rtl" className={`arabic text-ink ${ARABIC_SIZE[textSize]}`}>
+              <p lang="ar" dir="rtl" className={`arabic text-ink ${ARABIC_SIZE[textSize]}`}>
+                {verses.map(verse => (
+                  <span
+                    key={verse.key}
+                    id={`ayah-mark-${verse.ayah}`}
+                    onClick={() => setAyah(verse.ayah)}
+                    className={verse.ayah === ayah ? 'rounded bg-gold/15' : undefined}
+                  >
+                    <span className="mx-1 inline-block min-w-6 rounded-full border border-gold px-1 text-center font-sans text-xs font-semibold text-pine">
+                      {verse.ayah}
+                    </span>
+                    {verse.arabic}{' '}
+                  </span>
+                ))}
+              </p>
+              {pronunciation === 'en' && verses.some(verse => verse.transliteration) && (
+                <p lang="en" className={`mt-6 leading-loose text-ink/80 ${BODY_SIZE[textSize]}`}>
                   {verses.map(verse => (
-                    <span
-                      key={verse.key}
-                      id={`ayah-mark-${verse.ayah}`}
-                      onClick={() => setAyah(verse.ayah)}
-                      className={verse.ayah === ayah ? 'rounded bg-gold/15' : undefined}
-                    >
-                      <span className="mx-1 inline-block min-w-6 rounded-full border border-gold px-1 text-center font-sans text-xs font-semibold text-pine">
+                    <span key={`${verse.key}-pr`} onClick={() => setAyah(verse.ayah)} className={verse.ayah === ayah ? 'rounded bg-gold/15' : undefined}>
+                      <span className="mx-1 inline-block min-w-6 rounded-full border border-gold px-1 text-center align-middle font-sans text-xs font-semibold text-pine">
                         {verse.ayah}
                       </span>
-                      {verse.arabic}{' '}
+                      {verse.transliteration}{' '}
                     </span>
                   ))}
                 </p>
               )}
-              <p lang={lang} className={`mt-6 leading-loose text-ink ${BODY_SIZE[textSize]} ${lang === 'en' ? '' : ''}`}>
+              <p lang={lang} className={`mt-6 leading-loose text-ink ${BODY_SIZE[textSize]}`}>
                 {verses.map(verse => (
-                  <span
-                    key={`${verse.key}-tr`}
-                    id={lang === 'en' ? undefined : `ayah-mark-${verse.ayah}`}
-                    onClick={() => setAyah(verse.ayah)}
-                    className={verse.ayah === ayah ? 'rounded bg-gold/15' : undefined}
-                  >
+                  <span key={`${verse.key}-tr`} onClick={() => setAyah(verse.ayah)} className={verse.ayah === ayah ? 'rounded bg-gold/15' : undefined}>
                     <span className="mx-1 inline-block min-w-6 rounded-full border border-gold px-1 text-center align-middle font-sans text-xs font-semibold text-pine">
                       {verse.ayah}
                     </span>
@@ -478,6 +490,11 @@ function Edition({
               </p>
               <div className="mt-8 space-y-3">
                 <SourceAttribution />
+                <PronunciationStatus pronunciation={pronunciation} />
+                {pronunciation === 'en' && verses.some(verse => verse.transliteration) && <p className="text-sm text-muted">{t.pronunciationSource}</p>}
+                {pronunciation === 'en' && verses.length > 0 && !verses.some(verse => verse.transliteration) && (
+                  <p className="text-sm text-muted">{t.pronunciationMissing}</p>
+                )}
                 <VerseActions
                   saved={savedKey ? isVerseSaved(savedKey) : false}
                   onListen={() => current && playRef.current(current.ayah)}

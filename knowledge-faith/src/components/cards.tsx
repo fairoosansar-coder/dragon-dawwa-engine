@@ -53,6 +53,12 @@ export function VerseCard({
       <p lang="ar" className={`arabic text-ink ${compact ? 'text-2xl' : scale === 'lg' ? 'text-4xl' : scale === 'sm' ? 'text-2xl' : 'text-3xl'}`}>
         {verse.arabic}
       </p>
+      {verse.transliteration && (
+        <p lang="en" className="mt-2 text-sm leading-relaxed text-ink/80">
+          <span className="font-semibold text-pine">{t.pronunciation}. </span>
+          {verse.transliteration}
+        </p>
+      )}
       <p lang={verse.lang} className={`mt-2 leading-relaxed text-ink/90 ${scale === 'lg' ? 'text-xl' : scale === 'sm' ? 'text-sm' : ''}`}>
         {verse.translation}
       </p>
