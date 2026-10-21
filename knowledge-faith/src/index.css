@@ -1,10 +1,11 @@
 @import 'tailwindcss';
 @import './engine/engine.css';
+@import './spiritual/spiritual.css';
 
 @theme {
   --font-sans: 'Inter', 'Noto Sans Tamil', 'Noto Sans Sinhala', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Fraunces', Georgia, serif;
-  --font-arabic: 'Amiri Quran', 'Amiri', serif;
+  --font-display: 'Fraunces', 'Noto Sans Tamil', 'Noto Sans Sinhala', Georgia, serif;
+  --font-arabic: 'Amiri Quran', 'Amiri', 'Scheherazade New', serif;
   --color-ink: #0f2a24;
   --color-pine: #134e40;
   --color-moss: #1f6b57;
@@ -12,6 +13,12 @@
   --color-sand: #f7f2e8;
   --color-parchment: #fffdf8;
   --color-gold: #b8862f;
+  --color-dd-emerald: #064936;
+  --color-dd-ivory: #faf6ec;
+  --color-dd-gold: #c9a14e;
+  --color-dd-gold-soft: #f3e6c2;
+  --color-dd-lapis: #1e4d78;
+  --color-dd-ink: #1c1612;
 }
 
 html {
