@@ -126,7 +126,7 @@ export function FastingCalendar({ segments, mode }: { segments: string[]; mode: 
     <div className="space-y-4">
       <PageBack segments={segments} />
       <Panel>
-        <h1 className="font-display text-3xl font-bold text-dd-emerald">{mode === 'planner' ? s.makeup : s.hijri}</h1>
+        <h1 className="font-display text-3xl font-bold text-dd-emerald">{mode === 'planner' ? s.makeup : s.toolFasting}</h1>
         <Banner>{s.provisional}</Banner>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <Field label={s.authority}>
@@ -159,13 +159,13 @@ export function FastingCalendar({ segments, mode }: { segments: string[]; mode: 
           </p>
         )}
         <div className="mt-4 flex gap-2">
-          <button type="button" className="min-h-11 rounded-full bg-white px-4" onClick={() => setCursor(stepMonth(cursor, -1))}>
+          <button type="button" className="min-h-11 rounded-full bg-white px-4" onClick={() => setCursor(current => stepMonth(current, -1))}>
             {s.prev}
           </button>
           <p className="flex items-center font-semibold">
             {cursor.year}-{String(cursor.month).padStart(2, '0')}
           </p>
-          <button type="button" className="min-h-11 rounded-full bg-white px-4" onClick={() => setCursor(stepMonth(cursor, 1))}>
+          <button type="button" className="min-h-11 rounded-full bg-white px-4" onClick={() => setCursor(current => stepMonth(current, 1))}>
             {s.next}
           </button>
         </div>

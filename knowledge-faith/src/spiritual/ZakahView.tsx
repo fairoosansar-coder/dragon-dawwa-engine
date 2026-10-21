@@ -34,6 +34,14 @@ interface SavedCalc {
   result: ZakahSuccess;
 }
 
+function asCurrency(minor: string | null): string {
+  if (!minor) return '—';
+  const negative = minor.startsWith('-');
+  const [whole, frac = ''] = minor.replace('-', '').split('.');
+  const digits = (frac + '0'.repeat(ZAKAH_PROFILE.currencyScale)).slice(0, ZAKAH_PROFILE.currencyScale);
+  return `${negative ? '-' : ''}${whole}.${digits}`;
+}
+
 function blankRow(): Row {
   return { id: crypto.randomUUID(), category: 'cash', label: '', amount: '', currency: '', fx: '', weight: '', unit: 'g', purityMode: 'karat', purity: '24' };
 }
@@ -282,14 +290,14 @@ export function ZakahCalculator({ segments }: { segments: string[] }) {
         <Panel>
           <h2 className="font-display text-2xl font-bold text-dd-emerald">{s.due}</h2>
           <p className="text-sm">{s.notReviewed}</p>
-          <p className="mt-3 text-3xl font-bold tabular-nums">{result.dueMinor ? `${result.currency} ${result.dueMinor}` : s.noDue}</p>
+          <p className="mt-3 text-3xl font-bold tabular-nums">{result.dueMinor ? `${result.currency} ${asCurrency(result.dueMinor)}` : s.noDue}</p>
           <p className="text-sm">
             {s.profile} {result.profileVersion} · {result.valuationDate}
           </p>
           <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
             <div>
               <dt>{s.included}</dt>
-              <dd>{result.included.map(item => `${item.category} ${item.minor}`).join(', ') || '—'}</dd>
+              <dd>{result.included.map(item => `${item.category} ${asCurrency(item.minor)}`).join(', ') || '—'}</dd>
             </div>
             <div>
               <dt>{s.excluded}</dt>
@@ -297,12 +305,12 @@ export function ZakahCalculator({ segments }: { segments: string[] }) {
             </div>
             <div>
               <dt>{s.liability}</dt>
-              <dd>{result.liabilityMinor}</dd>
+              <dd>{asCurrency(result.liabilityMinor)}</dd>
             </div>
             <div>
               <dt>{s.nisab}</dt>
               <dd>
-                {result.nisabMinor ?? '—'} ({result.nisabBasis ?? '—'})
+                {asCurrency(result.nisabMinor)} ({result.nisabBasis ?? '—'})
               </dd>
             </div>
             <div>
@@ -442,7 +450,7 @@ export function SavedCalculations({ segments }: { segments: string[] }) {
           {saved.map(item => (
             <li key={item.id} className="rounded-2xl border border-dd-emerald/10 p-4">
               <p className="font-semibold">
-                {item.result.currency} {item.result.dueMinor ?? s.noDue}
+                {item.result.currency} {item.result.dueMinor ? asCurrency(item.result.dueMinor) : s.noDue}
               </p>
               <p className="text-xs">
                 {item.at} · {item.result.profileVersion} · {s.notReviewed}

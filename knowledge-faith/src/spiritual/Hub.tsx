@@ -21,10 +21,10 @@ const PILLARS = [
 const TOOLS = [
   ['#/spiritual/salah/times', 'prayerTimes'],
   ['#/spiritual/salah/qibla', 'qibla'],
-  ['#/spiritual/zakah/calculator', 'scopeTitle'],
-  ['#/spiritual/fasting/calendar', 'hijri'],
-  ['#/spiritual/dua-dhikr', 'counter'],
-  ['#/spiritual/hajj/checklist', 'checklist'],
+  ['#/spiritual/zakah/calculator', 'toolZakah'],
+  ['#/spiritual/fasting/calendar', 'toolFasting'],
+  ['#/spiritual/dua-dhikr', 'toolDua'],
+  ['#/spiritual/hajj/checklist', 'toolChecklist'],
 ] as const;
 
 interface TodayPrefs {
@@ -92,7 +92,7 @@ export function Hub() {
         <h2 className="mb-3 font-display text-2xl font-bold text-dd-emerald">{s.tools}</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {TOOLS.map(([href, key]) => (
-            <a key={href} href={href} className="flex min-h-16 items-center rounded-2xl bg-dd-emerald px-4 text-dd-ivory">
+            <a key={href} href={href} className="flex min-h-16 items-center rounded-2xl bg-dd-emerald px-4 py-3 leading-snug text-dd-ivory">
               {s[key]}
             </a>
           ))}
