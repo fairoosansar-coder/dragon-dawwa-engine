@@ -4,8 +4,10 @@ import { Download, Mic, Pause, Play, Radio, Sparkles, Trash2 } from 'lucide-reac
 import type { PodcastScript, TtsResult, Verse } from '../shared/types.ts';
 import { getJson, postJson } from '../lib/api.ts';
 import { base64ToObjectUrl, pauseAudio } from '../lib/audio.ts';
+import { useShell } from '../lib/shell.tsx';
 import { useApp, useStored } from '../lib/store.tsx';
 import { CitationChips, EvidenceList } from '../components/cards.tsx';
+import { EmptyState } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, IconButton, Loading, Notice, SectionTitle, Select, TabLinks } from '../components/ui.tsx';
 import { useEpisodePlayback } from './useEpisodePlayback.ts';
 
@@ -30,6 +32,7 @@ function useVoiceOptions() {
 
 function EpisodeBuilder() {
   const { t, lang, saved, config } = useApp();
+  const { query } = useShell();
   const voices = useVoiceOptions();
   const [episodes, setEpisodes] = useStored<PodcastScript[]>('kf-episodes', []);
   const [topic, setTopic] = useState('');
@@ -123,7 +126,7 @@ function EpisodeBuilder() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h3 className="font-display text-2xl font-bold text-pine">{current.title}</h3>
-              <p className="mt-1 flex items-center gap-1 text-xs text-gold">
+              <p className="mt-1 flex items-center gap-1 text-xs text-pine">
                 <Sparkles className="h-3 w-3" aria-hidden /> {t.aiGenerated}
               </p>
             </div>
@@ -178,16 +181,20 @@ function EpisodeBuilder() {
       <Card>
         <SectionTitle>{t.episodes}</SectionTitle>
         {episodes.length === 0 ? (
-          <p className="text-sm text-ink/60">{t.episodesEmpty}</p>
+          <EmptyState>{t.episodesEmpty}</EmptyState>
+        ) : episodes.filter(ep => !query.trim() || ep.title.toLowerCase().includes(query.trim().toLowerCase())).length === 0 ? (
+          <EmptyState>{t.noResults}</EmptyState>
         ) : (
           <ul className="divide-y divide-pine/10">
-            {episodes.map(ep => (
+            {episodes
+              .filter(ep => !query.trim() || ep.title.toLowerCase().includes(query.trim().toLowerCase()))
+              .map(ep => (
               <li key={ep.id} className="flex items-center gap-3 py-3">
                 <button
                   type="button"
                   onClick={() => {
                     setCurrent(ep);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
                   }}
                   className="flex-1 text-left"
                 >

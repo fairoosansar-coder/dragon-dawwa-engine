@@ -9,7 +9,17 @@ export function useReciter() {
   return useStored<string>('kf-reciter', 'ar.alafasy');
 }
 
-export function VerseCard({ verse, onEnded, compact }: { verse: Verse; onEnded?: () => void; compact?: boolean }) {
+export function VerseCard({
+  verse,
+  onEnded,
+  compact,
+  scale = 'md',
+}: {
+  verse: Verse;
+  onEnded?: () => void;
+  compact?: boolean;
+  scale?: 'sm' | 'md' | 'lg';
+}) {
   const { t, toggleVerse, isVerseSaved } = useApp();
   const [reciter] = useReciter();
   const audio = useAudioState();
@@ -35,10 +45,10 @@ export function VerseCard({ verse, onEnded, compact }: { verse: Verse; onEnded?:
           </IconButton>
         </div>
       </div>
-      <p lang="ar" className={`arabic text-ink ${compact ? 'text-2xl' : 'text-3xl'}`}>
+      <p lang="ar" className={`arabic text-ink ${compact ? 'text-2xl' : scale === 'lg' ? 'text-4xl' : scale === 'sm' ? 'text-2xl' : 'text-3xl'}`}>
         {verse.arabic}
       </p>
-      <p lang={verse.lang} className="mt-2 leading-relaxed text-ink/90">
+      <p lang={verse.lang} className={`mt-2 leading-relaxed text-ink/90 ${scale === 'lg' ? 'text-lg' : scale === 'sm' ? 'text-sm' : ''}`}>
         {verse.translation}
       </p>
       <p className="mt-1 text-xs text-ink/50">{verse.translator}</p>
@@ -85,8 +95,8 @@ export function HadithCard({ hadith }: { hadith: Hadith }) {
       <p lang={hadith.lang} className="leading-relaxed text-ink/90">
         {hadith.text}
       </p>
-      {hadith.machineTranslation && <p className="mt-1 text-xs text-gold">{t.machineHadithShort}</p>}
-      {!hadith.machineTranslation && hadith.lang !== lang && <p className="mt-1 text-xs text-gold">{t.fallbackEnglish}</p>}
+      {hadith.machineTranslation && <p className="mt-1 text-xs text-pine">{t.machineHadithShort}</p>}
+      {!hadith.machineTranslation && hadith.lang !== lang && <p className="mt-1 text-xs text-pine">{t.fallbackEnglish}</p>}
       <div className="mt-3">
         <GradeList grades={hadith.grades} />
       </div>

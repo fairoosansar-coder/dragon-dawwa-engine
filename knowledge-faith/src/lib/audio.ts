@@ -2,8 +2,10 @@ import { useSyncExternalStore } from 'react';
 
 /** One shared audio element so only a single recitation or narration plays at a time. */
 const audio = typeof Audio !== 'undefined' ? new Audio() : null;
+export type AudioStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'error' | 'unavailable';
+
 let currentId: string | null = null;
-let playing = false;
+let status: AudioStatus = audio ? 'idle' : 'unavailable';
 let onEnded: (() => void) | null = null;
 const listeners = new Set<() => void>();
 
@@ -11,41 +13,54 @@ function emit() {
   listeners.forEach(l => l());
 }
 
+function setStatus(next: AudioStatus) {
+  status = next;
+  emit();
+}
+
 if (audio) {
   audio.preload = 'none';
-  audio.addEventListener('play', () => {
-    playing = true;
-    emit();
+  audio.addEventListener('waiting', () => {
+    if (status !== 'error') setStatus('loading');
   });
+  audio.addEventListener('playing', () => setStatus('playing'));
   audio.addEventListener('pause', () => {
-    playing = false;
-    emit();
+    if (status !== 'error' && status !== 'unavailable') setStatus('paused');
   });
   audio.addEventListener('ended', () => {
-    playing = false;
+    setStatus('paused');
     const next = onEnded;
     onEnded = null;
-    emit();
     next?.();
   });
-  audio.addEventListener('error', () => {
-    playing = false;
-    emit();
-  });
+  audio.addEventListener('error', () => setStatus('error'));
+}
+
+function start(then?: () => void): Promise<void> {
+  if (!audio) {
+    setStatus('unavailable');
+    return Promise.resolve();
+  }
+  onEnded = then ?? null;
+  setStatus('loading');
+  return audio.play().then(
+    () => undefined,
+    () => {
+      setStatus('error');
+    },
+  );
 }
 
 export function playAudio(id: string, src: string, then?: () => void): Promise<void> {
-  if (!audio) return Promise.resolve();
-  if (currentId === id && audio.paused && audio.src) {
-    onEnded = then ?? null;
-    return audio.play();
+  if (!audio) {
+    setStatus('unavailable');
+    return Promise.resolve();
   }
+  if (currentId === id && audio.paused && audio.src && status !== 'error') return start(then);
   audio.pause();
   currentId = id;
-  onEnded = then ?? null;
   audio.src = src;
-  emit();
-  return audio.play();
+  return start(then);
 }
 
 export function pauseAudio() {
@@ -53,16 +68,27 @@ export function pauseAudio() {
   audio?.pause();
 }
 
-export function useAudioState(): { id: string | null; playing: boolean } {
+/** Continue the current recitation after a pause or a failed play. No duration is tracked. */
+export function resumeAudio() {
+  if (!audio || !currentId || !audio.src) {
+    setStatus(audio ? status : 'unavailable');
+    return;
+  }
+  void start();
+}
+
+export function useAudioState(): { id: string | null; playing: boolean; status: AudioStatus } {
   const snapshot = useSyncExternalStore(
     cb => {
       listeners.add(cb);
       return () => listeners.delete(cb);
     },
-    () => `${currentId ?? ''}|${playing}`,
+    () => `${currentId ?? ''}|${status}`,
   );
-  const [id, isPlaying] = snapshot.split('|');
-  return { id: id || null, playing: isPlaying === 'true' };
+  const splitAt = snapshot.lastIndexOf('|');
+  const id = snapshot.slice(0, splitAt);
+  const current = snapshot.slice(splitAt + 1) as AudioStatus;
+  return { id: id || null, playing: current === 'playing', status: current };
 }
 
 export function base64ToObjectUrl(base64: string, mimeType: string): string {

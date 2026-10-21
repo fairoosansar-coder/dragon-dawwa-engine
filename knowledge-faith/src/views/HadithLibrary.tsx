@@ -4,8 +4,10 @@ import type { ViewProps } from '../App.tsx';
 import { HADITH_COLLECTIONS } from '../shared/sources.ts';
 import type { Hadith, HadithSection } from '../shared/types.ts';
 import { useRemote } from '../lib/api.ts';
+import { useShell } from '../lib/shell.tsx';
 import { useApp, useStored } from '../lib/store.tsx';
 import { HadithCard } from '../components/cards.tsx';
+import { EmptyState } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, Loading, Notice, SectionTitle, TabLinks } from '../components/ui.tsx';
 
 const PAGE = 15;
@@ -108,6 +110,7 @@ export default function HadithLibrary({ sub }: ViewProps) {
 
 function CollectionBrowser() {
   const { t, lang } = useApp();
+  const { query } = useShell();
   const [collection, setCollection] = useStored<string>('kf-collection', 'bukhari');
   const [section, setSection] = useState<HadithSection | null>(null);
   const [filter, setFilter] = useState('');
@@ -115,7 +118,14 @@ function CollectionBrowser() {
     `/api/hadith/${collection}/sections?lang=${lang}`,
   );
   const info = HADITH_COLLECTIONS.find(c => c.id === collection) ?? HADITH_COLLECTIONS[0];
-  const sections = (index.data?.sections ?? []).filter(s => s.title.toLowerCase().includes(filter.trim().toLowerCase()));
+  const q = query.trim().toLowerCase();
+  const collections = HADITH_COLLECTIONS.filter(c => !q || c.name.toLowerCase().includes(q) || c.id.includes(q));
+  const collectionMatches = !q || info.name.toLowerCase().includes(q) || info.id.includes(q);
+  const sections = (index.data?.sections ?? []).filter(s => {
+    const local = s.title.toLowerCase().includes(filter.trim().toLowerCase());
+    const byShell = collectionMatches || s.title.toLowerCase().includes(q);
+    return local && byShell;
+  });
   const open = section ? (index.data?.sections.find(s => s.id === section.id) ?? section) : null;
   const publishedTamil = lang === 'ta' && info.tamil;
 
@@ -124,7 +134,7 @@ function CollectionBrowser() {
       <Card className="lg:p-4">
         <h2 className="font-display text-xl font-bold text-pine">{t.collections}</h2>
         <ul className="mt-3 space-y-1">
-          {HADITH_COLLECTIONS.map(c => (
+          {collections.map(c => (
             <li key={c.id}>
               <button
                 type="button"
@@ -168,6 +178,8 @@ function CollectionBrowser() {
             />
             {index.loading && <Loading />}
             {index.error && <ErrorNote message={index.error} onRetry={index.reload} />}
+            {!index.loading && !index.error && sections.length === 0 && <EmptyState>{t.noResults}</EmptyState>}
+            {collections.length === 0 && <EmptyState>{t.noResults}</EmptyState>}
             <ul className="grid gap-2 sm:grid-cols-2">
               {sections.map(s => (
                 <li key={s.id}>
@@ -176,7 +188,7 @@ function CollectionBrowser() {
                     onClick={() => setSection(s)}
                     className="flex w-full items-start gap-3 rounded-2xl border border-pine/10 bg-white p-3 text-left text-sm hover:border-pine/40"
                   >
-                    <span className="w-8 shrink-0 text-xs font-semibold text-gold">{s.id}</span>
+                    <span className="w-8 shrink-0 text-xs font-semibold text-pine">{s.id}</span>
                     <span className="flex-1">
                       <span className="block font-medium">{s.title}</span>
                       <span className="text-xs text-ink/50">
