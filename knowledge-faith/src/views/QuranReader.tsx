@@ -6,7 +6,7 @@ import { VerseShare } from '../components/VerseShare.tsx';
 import { playAudio, stopAudio, useAudioState } from '../lib/audio.ts';
 import { useRemote } from '../lib/api.ts';
 import { useQuranEdition } from '../lib/quranEdition.ts';
-import { ayahForLoadedSurah, clampSurah, readTextSize, useReadingPlace, type TextSize } from '../lib/readingPlace.ts';
+import { ayahForLoadedSurah, clampSurah, displaySurah, readTextSize, readingPlaceLabel, useReadingPlace, type TextSize } from '../lib/readingPlace.ts';
 import { scrollBehavior, scrollMain } from '../lib/scroll.ts';
 import { useShell } from '../lib/shell.tsx';
 import { usePronunciation, withPronunciation } from '../lib/pronunciation.ts';
@@ -233,10 +233,10 @@ function Library({
       </header>
       <Card>
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">{t.continueReading}</p>
-        <h3 className="mt-2 font-display text-2xl font-bold text-pine">{current ? current.englishName : `${t.surahs} ${surah}`}</h3>
+        <h3 className="mt-2 font-display text-2xl font-bold text-pine">{current ? current.englishName : `${t.surahs} ${displaySurah(surah)}`}</h3>
         {current && (
           <p className="mt-1 text-sm text-muted">
-            {current.number}:{ayah} · {current.englishNameTranslation} · {current.numberOfAyahs}
+            {readingPlaceLabel(surah, ayah)} · {current.englishNameTranslation} · {current.numberOfAyahs}
           </p>
         )}
         <Button className="mt-4" onClick={() => onOpen(surah, ayah, prefer)}>
@@ -568,7 +568,7 @@ function Edition({
             {t.focusReading}
           </Button>
           <span className="text-sm text-muted">
-            {surah}:{ayah >= 1 ? ayah : '…'}
+            {typeof ayah === 'number' && ayah >= 1 ? readingPlaceLabel(surah, ayah) : `${displaySurah(surah)}:…`}
           </span>
         </div>
         {(contents || q.length > 0) && <div className="mb-4 lg:hidden">{surahList}</div>}
@@ -804,7 +804,7 @@ function Edition({
             </BookPage>
           </div>
         )}
-        <p className="mt-4 text-center text-sm text-muted">{surah} / 114</p>
+        <p className="mt-4 text-center text-sm text-muted">{displaySurah(surah)} / 114</p>
       </div>
       {mode === 'book' && <div className="hidden lg:block">{surahList}</div>}
     </div>

@@ -5,7 +5,7 @@ import { TOPICS, verseOfTheDay } from '../shared/topics.ts';
 import type { AskResult, Hadith, SurahInfo, Verse } from '../shared/types.ts';
 import { postJson, useRemote } from '../lib/api.ts';
 import { useShell } from '../lib/shell.tsx';
-import { useReadingPlace } from '../lib/readingPlace.ts';
+import { displayAyah, displaySurah, useReadingPlace } from '../lib/readingPlace.ts';
 import { useQuranEdition } from '../lib/quranEdition.ts';
 import { usePronunciation, withPronunciation } from '../lib/pronunciation.ts';
 import { shownVerses, translationRequest } from '../shared/quranenc.ts';
@@ -250,10 +250,10 @@ export default function KnowledgeHub({ sub }: ViewProps) {
 
       <Card>
         <SectionTitle>{t.continueReading}</SectionTitle>
-        <p className="font-display text-2xl font-bold text-pine">{current ? current.englishName : `${surah}`}</p>
+        <p className="font-display text-2xl font-bold text-pine">{current ? current.englishName : `${displaySurah(surah)}`}</p>
         {current && (
           <p className="mt-1 text-sm text-muted">
-            {current.number}:{place.ayah} · {current.englishNameTranslation} · {current.numberOfAyahs}
+            {displaySurah(surah)}:{displayAyah(place.ayah)} · {current.englishNameTranslation} · {current.numberOfAyahs}
           </p>
         )}
         <a href="#/quran/study" className="mt-4 inline-flex items-center rounded-full bg-moss px-4 py-2 text-sm font-medium text-white">
