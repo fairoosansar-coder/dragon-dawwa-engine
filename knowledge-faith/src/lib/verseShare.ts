@@ -19,6 +19,10 @@ export interface ShareVerse {
   translationKey?: string;
   translationVersion?: string;
   translationDescription?: string;
+  /** Shown in place of the surah:ayah line when this share is not a verse. */
+  reference?: string;
+  /** Catalogue name. Verse shares stay QuranEnc when this is omitted. */
+  sourceLabel?: string;
 }
 
 export function parseReadingLink(hash: string): ReadingLink {
@@ -55,12 +59,12 @@ export function absoluteReadingUrl(hash: string): string {
 export function verseShareText(verse: ShareVerse): string {
   const parts = [verse.arabic, verse.translation];
   if (verse.footnotes) parts.push(verse.footnotes);
-  parts.push(`${verse.surahName} ${verse.surah}:${verse.ayah}`);
+  parts.push(verse.reference ?? `${verse.surahName} ${verse.surah}:${verse.ayah}`);
   if (verse.translationTitle) parts.push(verse.translationTitle);
   const identity = [verse.translationKey, verse.translationVersion].filter(Boolean).join(' · ');
   if (identity) parts.push(identity);
   if (verse.translationDescription) parts.push(verse.translationDescription);
-  parts.push('QuranEnc');
+  parts.push(verse.sourceLabel ?? 'QuranEnc');
   return parts.join('\n\n');
 }
 

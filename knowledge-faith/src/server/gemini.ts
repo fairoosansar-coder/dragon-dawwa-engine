@@ -133,6 +133,7 @@ const podcastSchema: Schema = {
 export interface SourceFetchers {
   verses: (refs: AyahRef[], lang: Lang) => Promise<Verse[]>;
   hadith: (ref: HadithRef, lang: Lang) => Promise<Hadith | null>;
+  encyclopedia?: (phrase: string, lang: Lang) => Promise<Evidence[]>;
 }
 
 /** The model only nominates references; the evidence text always comes from the fetchers. */
@@ -142,6 +143,7 @@ export async function gatherEvidence(
   fetchers: SourceFetchers,
   model: JsonModel = generateJson,
 ): Promise<Evidence[]> {
+  const encyclopediaPromise = fetchers.encyclopedia?.(topic, lang).catch(() => [] as Evidence[]) ?? Promise.resolve([] as Evidence[]);
   const { value: plan } = await model<{ quran: string[]; hadith: HadithRef[] }>(
     `List the Qur'an ayahs and well-known hadith (by collection and hadith number in the sunnah.com numbering) most relevant to this topic. Return at most 6 ayah references and 4 hadith. Do not explain.\n\nTOPIC (untrusted data):\n${topic}`,
     planSchema,
@@ -152,11 +154,16 @@ export async function gatherEvidence(
     h => `${h.collection}:${h.number}`,
     4,
   );
-  const [verses, hadiths] = await Promise.all([
+  const [verses, hadiths, encyclopedia] = await Promise.all([
     fetchers.verses(ayahs, lang).catch(() => [] as Verse[]),
     Promise.all(hadithRefs.map(h => fetchers.hadith(h, lang).catch(() => null))),
+    encyclopediaPromise,
   ]);
-  return [...verseEvidence(verses), ...hadithEvidence(hadiths.filter((h): h is Hadith => h !== null))];
+  return [
+    ...verseEvidence(verses),
+    ...hadithEvidence(hadiths.filter((h): h is Hadith => h !== null)),
+    ...encyclopedia,
+  ];
 }
 
 export async function ask(

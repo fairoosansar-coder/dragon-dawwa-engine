@@ -61,13 +61,17 @@ function element(): Playable | null {
   return media;
 }
 
+function pauseDocumentMedia(except?: EventTarget) {
+  if (typeof document === 'undefined') return;
+  document.querySelectorAll('audio, video').forEach(node => {
+    if (node !== except) (node as HTMLMediaElement).pause();
+  });
+}
+
 function stopOthers() {
   externalStop?.();
-  if (typeof document === 'undefined') return;
   // The shared recitation element is not in the document. Episode audio is stopped through externalStop.
-  document.querySelectorAll('audio, video').forEach(node => {
-    (node as HTMLMediaElement).pause();
-  });
+  pauseDocumentMedia();
 }
 
 function start(then?: () => void): Promise<void> {
@@ -107,14 +111,22 @@ export function pauseAudio() {
 }
 
 /** Stop recitation and drop any queued continuation. Used when playback is replaced. */
-export function stopAudio() {
+export function stopAudio(except?: EventTarget) {
   continuation = null;
   currentId = null;
   if (media) {
     media.pause();
     media.src = '';
   }
+  pauseDocumentMedia(except);
   setStatus(media || typeof Audio !== 'undefined' ? 'idle' : 'unavailable');
+}
+
+/** Stop recitation, generated narration, and every other visible player except `except`. */
+export function claimPlayback(except?: EventTarget) {
+  const stopEpisode = externalStop;
+  stopAudio(except);
+  stopEpisode?.();
 }
 
 /** Continue the current recitation after a pause or a failed play. Keeps the queued continuation. */

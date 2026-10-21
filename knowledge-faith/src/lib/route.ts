@@ -33,7 +33,11 @@ export function spiritualHref(segments: string[] = []): string {
 /** Shell search is shown only where the open section reads the query. */
 export function showSectionSearch(path: RouteRoot, segments: string[]): boolean {
   if (path === 'hub' || path === 'quran') return true;
-  if (path === 'hadith') return segments[0] !== 'research';
+  if (path === 'hadith') {
+    if (segments[0] === 'research') return false;
+    if (segments[0] && /^\d+$/.test(segments[0])) return false;
+    return true;
+  }
   if (path === 'studio') return segments[0] !== 'roundtable';
   if (path === 'spiritual') return segments.length === 0;
   return false;

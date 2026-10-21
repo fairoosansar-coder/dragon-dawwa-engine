@@ -3,7 +3,7 @@ import type { ViewProps } from '../App.tsx';
 import { Download, Mic, Pause, Play, Radio, Sparkles, Trash2 } from 'lucide-react';
 import type { PodcastScript, TtsResult, Verse } from '../shared/types.ts';
 import { getJson, postJson } from '../lib/api.ts';
-import { base64ToObjectUrl, stopAudio } from '../lib/audio.ts';
+import { base64ToObjectUrl, claimPlayback } from '../lib/audio.ts';
 import { scrollMain } from '../lib/scroll.ts';
 import { useShell } from '../lib/shell.tsx';
 import { useQuranEdition } from '../lib/quranEdition.ts';
@@ -19,11 +19,14 @@ function GeneratedAudio({ audio, filename }: { audio: TtsResult; filename: strin
   const url = useMemo(() => base64ToObjectUrl(audio.audioBase64, audio.mimeType), [audio]);
   useEffect(() => () => URL.revokeObjectURL(url), [url]);
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl bg-mint/60 p-3">
-      <audio controls src={url} onPlay={stopAudio} className="min-w-0 flex-1" />
+    <div className="mt-4 space-y-2 rounded-2xl bg-mint/60 p-3">
+      <p className="text-xs text-muted">{t.generatedNarration}</p>
+      <div className="flex flex-wrap items-center gap-3">
+      <audio controls src={url} onPlay={event => claimPlayback(event.currentTarget)} className="min-w-0 flex-1" />
       <a href={url} download={filename} className="inline-flex items-center gap-1 text-sm font-medium text-pine hover:underline">
         <Download className="h-4 w-4" aria-hidden /> {t.download}
       </a>
+      </div>
     </div>
   );
 }
@@ -132,6 +135,7 @@ function EpisodeBuilder() {
               <p className="mt-1 flex items-center gap-1 text-xs text-pine">
                 <Sparkles className="h-3 w-3" aria-hidden /> {t.aiGenerated}
               </p>
+              <p className="mt-1 text-xs text-muted">{t.generatedNarration}</p>
             </div>
             <div className="flex flex-wrap items-end gap-2">
               <Select label={t.hostVoice} value={hostVoice} onChange={setHostVoice} options={voices} />

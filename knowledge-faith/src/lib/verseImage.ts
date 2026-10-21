@@ -106,14 +106,14 @@ export async function renderVerseImage(
   ]);
   if (!arabicOk || !meaningOk) return { error: 'The verse image could not be drawn because a required font did not load.' };
 
-  const reference = `${verse.surahName} ${verse.surah}:${verse.ayah}`;
+  const reference = verse.reference ?? `${verse.surahName} ${verse.surah}:${verse.ayah}`;
   const header = wrapBlock(reference, 'Inter', 28, 'ltr', PINE, 18);
   const continued = wrapBlock('Continued', 'Inter', 22, 'ltr', MUTED, 16);
   const attribution = [
     verse.translationTitle,
     [verse.translationKey, verse.translationVersion].filter(Boolean).join(' · '),
     verse.translationDescription,
-    'QuranEnc',
+    verse.sourceLabel ?? 'QuranEnc',
   ]
     .filter(Boolean)
     .join('\n');
@@ -152,7 +152,7 @@ export async function renderVerseImage(
     if (!card) return { error: 'The verse image could not be drawn because a required font did not load.' };
     cards.push(card);
     index += 1;
-    if (index > 40) return { error: 'The verse image could not be drawn because a required font did not load.' };
+    if (index > 40) return { error: 'This passage is too long for one image. Copy the text for the full wording.' };
   }
   const sheet = stack(cards);
   if (!sheet) return { error: 'The verse image could not be drawn because a required font did not load.' };

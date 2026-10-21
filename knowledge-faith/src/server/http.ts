@@ -1,4 +1,12 @@
-const ALLOWED_HOSTS = new Set(['api.alquran.cloud', 'cdn.jsdelivr.net', 'api.aladhan.com', 'quranenc.com', 'd.quranenc.com']);
+const ALLOWED_HOSTS = new Set([
+  'api.alquran.cloud',
+  'cdn.jsdelivr.net',
+  'api.aladhan.com',
+  'quranenc.com',
+  'd.quranenc.com',
+  'hadeethenc.com',
+  'api3.islamhouse.com',
+]);
 
 export const SOURCE_BUSY = 'The source asked us to wait. Try again shortly.';
 export const SOURCE_TIMEOUT = 'The source took too long to respond. Try again.';
@@ -35,7 +43,11 @@ export async function fetchJson<T>(url: string, ttlMs: number, timeoutMs = 12_00
   const request = (async () => {
     let res: Response;
     try {
-      res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs), redirect: 'follow' });
+      res = await fetch(url, {
+        signal: AbortSignal.timeout(timeoutMs),
+        redirect: 'follow',
+        headers: { Accept: 'application/json', 'User-Agent': 'DragonDawwa/1.0' },
+      });
     } catch {
       throw new UpstreamError(SOURCE_TIMEOUT, 504);
     }

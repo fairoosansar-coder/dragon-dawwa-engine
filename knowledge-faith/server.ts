@@ -14,7 +14,10 @@ import { getPrayerTimes } from './src/server/prayer.ts';
 import { getHijriMonth } from './src/server/hijriMonth.ts';
 import { suggestZakahFields } from './src/server/zakahDraft.ts';
 import { UpstreamError } from './src/server/http.ts';
-import { hadithEvidence, verseEvidence } from './src/server/grounding.ts';
+import { encyclopediaEvidence, hadithEvidence, verseEvidence } from './src/server/grounding.ts';
+import { loadHadeeth, loadHadeethCategories, loadHadeethList, searchHadeeth } from './src/server/hadeethenc.ts';
+import { loadLibrary, loadLibraryItem } from './src/server/islamhouse.ts';
+import type { EncyclopediaHadith } from './src/shared/hadeethenc.ts';
 import {
   ask,
   gatherEvidence,
@@ -44,6 +47,11 @@ const isProduction = process.env.NODE_ENV === 'production';
 const fetchers: SourceFetchers = {
   verses: getVerses,
   hadith: (ref, lang) => getHadith(ref.collection, ref.number, lang),
+  encyclopedia: async (phrase, lang) => {
+    const found = await searchHadeeth(lang, phrase.slice(0, 120));
+    const records = await Promise.all(found.items.slice(0, 3).map(item => loadHadeeth(lang, item.id).catch(() => null)));
+    return encyclopediaEvidence(records.filter((item): item is EncyclopediaHadith => item !== null));
+  },
 };
 
 const app = express();
@@ -187,6 +195,39 @@ app.get(
     if (!hadith) throw new UpstreamError('Hadith not found', 404);
     res.json(hadith);
   }),
+);
+
+function pageNumber(value: unknown): number {
+  const n = Number(value);
+  return Number.isInteger(n) && n >= 1 && n <= 500 ? n : 1;
+}
+
+app.get('/api/hadeeth/categories', route(async (req, res) => res.json(await loadHadeethCategories(toLang(req.query.lang)))));
+
+app.get(
+  '/api/hadeeth/list',
+  route(async (req, res) => res.json(await loadHadeethList(toLang(req.query.lang), String(req.query.category ?? ''), pageNumber(req.query.page)))),
+);
+
+app.get(
+  '/api/hadeeth/search',
+  route(async (req, res) => {
+    const phrase = text(req.query.q, 120, 'q');
+    if (phrase.length < 2) throw new UpstreamError('q must be at least 2 characters', 400);
+    res.json(await searchHadeeth(toLang(req.query.lang), phrase));
+  }),
+);
+
+app.get('/api/hadeeth/:id', route(async (req, res) => res.json(await loadHadeeth(toLang(req.query.lang), String(req.params.id)))));
+
+app.get(
+  '/api/library/items',
+  route(async (req, res) => res.json(await loadLibrary(String(req.query.topic ?? ''), toLang(req.query.lang), pageNumber(req.query.page)))),
+);
+
+app.get(
+  '/api/library/item',
+  route(async (req, res) => res.json(await loadLibraryItem(String(req.query.id ?? ''), toLang(req.query.lang), String(req.query.topic ?? '')))),
 );
 
 app.get(

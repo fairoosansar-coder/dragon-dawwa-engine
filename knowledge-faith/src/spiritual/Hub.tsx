@@ -25,6 +25,7 @@ const TOOLS = [
   ['#/spiritual/zakah/calculator', 'toolZakah'],
   ['#/spiritual/fasting/calendar', 'toolFasting'],
   ['#/spiritual/dua-dhikr', 'toolDua'],
+  ['#/spiritual/library', 'sourceLibrary'],
   ['#/spiritual/hajj/checklist', 'toolChecklist'],
 ] as const;
 

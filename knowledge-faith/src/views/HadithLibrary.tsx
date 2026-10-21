@@ -9,6 +9,7 @@ import { useApp, useStored } from '../lib/store.tsx';
 import { HadithCard } from '../components/cards.tsx';
 import { EmptyState } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, Loading, Notice, SectionTitle, TabLinks } from '../components/ui.tsx';
+import { HadeethEncyclopedia } from './HadeethEncyclopedia.tsx';
 
 const PAGE = 15;
 
@@ -85,15 +86,17 @@ function Lookup({ collection }: { collection: string }) {
 
 const DossierWorkbench = lazy(() => import('../engine/DossierWorkbench.tsx'));
 
-export default function HadithLibrary({ sub }: ViewProps) {
+export default function HadithLibrary({ sub, segments }: ViewProps) {
   const { t } = useApp();
   const research = sub === 'research';
+  const collections = sub === 'collections';
   return (
     <>
       <TabLinks
         label={t.navHadith}
         tabs={[
-          { href: '#/hadith', label: t.browseHadith, active: !research },
+          { href: '#/hadith', label: t.encyclopedia, active: !research && !collections },
+          { href: '#/hadith/collections', label: t.collections, active: collections },
           { href: '#/hadith/research', label: t.researchHadith, active: research },
         ]}
       />
@@ -101,8 +104,10 @@ export default function HadithLibrary({ sub }: ViewProps) {
         <Suspense fallback={<Loading />}>
           <DossierWorkbench />
         </Suspense>
-      ) : (
+      ) : collections ? (
         <CollectionBrowser />
+      ) : (
+        <HadeethEncyclopedia sub={sub} segments={segments} />
       )}
     </>
   );
@@ -161,6 +166,7 @@ function CollectionBrowser() {
         ) : (
           <>
             <SectionTitle sub={index.data ? `1–${index.data.last}` : undefined}>{info.name}</SectionTitle>
+            <Notice>{t.collectionsNote}</Notice>
             {index.data && lang !== 'en' && !publishedTamil && (
               <Notice>{index.data.machineTranslation ? t.machineHadith : t.fallbackEnglish}</Notice>
             )}

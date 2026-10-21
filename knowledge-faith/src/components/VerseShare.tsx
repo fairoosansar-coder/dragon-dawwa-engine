@@ -69,7 +69,7 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
     setDrawing(false);
     if ('error' in drawn) {
       setPreview(null);
-      setNote(t.shareImageFailed);
+      setNote(drawn.error);
       return;
     }
     setPreview(drawn);

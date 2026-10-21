@@ -1,3 +1,4 @@
+import type { EncyclopediaHadith } from '../shared/hadeethenc.ts';
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
 import { withoutVanakkam } from '../engine/utils/tamilGreeting.ts';
 import type { AnswerParagraph, Evidence, Hadith, PodcastLine, Verse } from '../shared/types.ts';
@@ -18,7 +19,7 @@ export function hadithEvidence(hadiths: Hadith[]): Evidence[] {
   return hadiths.map((h, i) => ({
     id: `H${i + 1}`,
     kind: 'hadith',
-    label: `${h.collectionName} ${h.number}`,
+    label: `Hadith · ${h.collectionName} ${h.number}`,
     arabic: h.arabic,
     text: h.text,
     attribution: h.machineTranslation
@@ -27,6 +28,25 @@ export function hadithEvidence(hadiths: Hadith[]): Evidence[] {
         ? 'English translation via hadith-api (fawazahmed0)'
         : 'Tamil translation via hadith-api (fawazahmed0)',
     grades: h.grades,
+  }));
+}
+
+export function encyclopediaEvidence(records: EncyclopediaHadith[]): Evidence[] {
+  return records.map((h, i) => ({
+    id: `E${i + 1}`,
+    kind: 'hadith' as const,
+    label: `Hadith · HadeethEnc ${h.id}`,
+    arabic: h.arabic,
+    text: h.text,
+    attribution: [
+      'HadeethEnc',
+      h.grade ? `Grade: ${h.grade}` : 'HadeethEnc did not include a grade for this hadith.',
+      h.attribution,
+      h.sourceUrl,
+    ]
+      .filter(Boolean)
+      .join('. '),
+    grades: h.grade ? [{ name: 'HadeethEnc', grade: h.grade }] : [],
   }));
 }
 
