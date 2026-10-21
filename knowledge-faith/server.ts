@@ -18,6 +18,7 @@ import {
   narrateDialogue,
   VOICES,
   writePodcast,
+  generateJson,
   type SourceFetchers,
 } from './src/server/gemini.ts';
 import { executeDragonDawwaAnalysis } from './src/engine/server/hadithEngine.ts';
@@ -28,6 +29,8 @@ import { transcribeAudioWithGemini } from './src/engine/server/geminiAudioTransc
 import { ummahQuranMiddleware } from './src/engine/server/ummahQuran.ts';
 import { ummahStudyMiddleware } from './src/engine/server/ummahStudy.ts';
 import { publicAppUrl, viteDevServerOptions } from './src/server/publicUrl.ts';
+import { EditorialStore, parseEditorAccounts } from './src/server/spiritual/editorialStore.ts';
+import { spiritualRouter } from './src/server/spiritual/routes.ts';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -60,14 +63,14 @@ function text(value: unknown, max: number, field: string): string {
 
 const AI_WINDOW_MS = 15 * 60_000;
 
-function rateLimiter(limit: number) {
+function rateLimiter(limit: number, message = 'Too many AI requests. Please wait a few minutes and try again.') {
   const usage = new Map<string, number[]>();
   return (req: Request, res: Response, next: NextFunction) => {
     const key = req.ip ?? 'unknown';
     const now = Date.now();
     const recent = (usage.get(key) ?? []).filter(t => now - t < AI_WINDOW_MS);
     if (recent.length >= limit) {
-      res.status(429).json({ error: 'Too many AI requests. Please wait a few minutes and try again.' });
+      res.status(429).json({ error: message });
       return;
     }
     recent.push(now);
@@ -308,6 +311,19 @@ app.post(
     } catch (err) {
       throw engineFailure(err, 'Speech transcription failed. Please retry.');
     }
+  }),
+);
+
+const dataDir = path.resolve(process.env.KF_DATA_DIR || path.join(import.meta.dirname, '.data'));
+app.use(
+  spiritualRouter({
+    store: new EditorialStore(path.join(dataDir, 'editorial.json')),
+    accounts: parseEditorAccounts(process.env.EDITORIAL_USERS),
+    fetchers,
+    model: generateJson,
+    aiConfigured: geminiConfigured,
+    aiLimiter,
+    reportLimiter: rateLimiter(Number(process.env.REPORTS_PER_15_MIN ?? 10), 'Too many reports. Please wait a few minutes and try again.'),
   }),
 );
 

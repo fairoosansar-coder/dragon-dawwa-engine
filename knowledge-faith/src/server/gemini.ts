@@ -44,7 +44,7 @@ function isTemporary(err: unknown): boolean {
 
 export type JsonModel = <T>(prompt: string, schema: Schema) => Promise<{ value: T; model: string }>;
 
-const generateJson: JsonModel = async <T>(prompt: string, schema: Schema) => {
+export const generateJson: JsonModel = async <T>(prompt: string, schema: Schema) => {
   const ai = client();
   let lastError: unknown;
   for (const model of TEXT_MODELS) {

@@ -53,7 +53,7 @@ export interface HadithSection {
 
 export interface Evidence {
   id: string;
-  kind: 'quran' | 'hadith';
+  kind: 'quran' | 'hadith' | 'guide';
   label: string;
   arabic: string | null;
   text: string;
