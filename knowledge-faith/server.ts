@@ -42,6 +42,7 @@ import { ummahStudyMiddleware } from './src/engine/server/ummahStudy.ts';
 import { publicAppUrl, viteDevServerOptions } from './src/server/publicUrl.ts';
 import { EditorialStore, parseEditorAccounts } from './src/server/spiritual/editorialStore.ts';
 import { spiritualRouter } from './src/server/spiritual/routes.ts';
+import { studioRouter } from './src/server/studio/routes.ts';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -475,15 +476,22 @@ app.post(
 );
 
 const dataDir = path.resolve(process.env.KF_DATA_DIR || path.join(import.meta.dirname, '.data'));
+const editorAccounts = parseEditorAccounts(process.env.EDITORIAL_USERS);
 app.use(
   spiritualRouter({
     store: new EditorialStore(path.join(dataDir, 'editorial.json')),
-    accounts: parseEditorAccounts(process.env.EDITORIAL_USERS),
+    accounts: editorAccounts,
     fetchers,
     model: generateJson,
     aiConfigured: geminiConfigured,
     aiLimiter,
     reportLimiter: rateLimiter(Number(process.env.REPORTS_PER_15_MIN ?? 10), 'Too many reports. Please wait a few minutes and try again.'),
+  }),
+);
+app.use(
+  studioRouter({
+    accounts: editorAccounts,
+    aiLimiter,
   }),
 );
 
