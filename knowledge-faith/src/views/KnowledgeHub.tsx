@@ -7,6 +7,9 @@ import { postJson, useRemote } from '../lib/api.ts';
 import { useApp, useStored } from '../lib/store.tsx';
 import { CitationChips, EvidenceList, HadithCard, VerseCard } from '../components/cards.tsx';
 import { Button, Card, ErrorNote, Loading, Notice, SectionTitle } from '../components/ui.tsx';
+import { PillarIcon } from '../components/spiritual/ornaments.tsx';
+import { PILLARS } from '../shared/spiritual/catalog.ts';
+import { useSp } from '../lib/spiritualStore.ts';
 
 function VerseList({ refs }: { refs: string[] }) {
   const { lang } = useApp();
@@ -162,7 +165,7 @@ function Shortcuts() {
   const items = [
     { href: '#/quran/study', icon: BookOpen, label: t.quranStudy, hint: t.navQuran },
     { href: '#/hadith/research', icon: ShieldCheck, label: t.researchHadith, hint: t.navHadith },
-    { href: '#/prayer', icon: MoonStar, label: t.prayerTimes, hint: t.navPrayer },
+    { href: '#/spiritual/salah/times', icon: MoonStar, label: t.prayerTimes, hint: t.navPrayer },
     { href: '#/studio/roundtable', icon: Radio, label: t.roundtable, hint: t.navStudio },
   ];
   return (
@@ -183,6 +186,32 @@ function Shortcuts() {
         </a>
       ))}
     </nav>
+  );
+}
+
+function FivePillarsCard() {
+  const { s, lang } = useSp();
+  return (
+    <a href="#/spiritual" className="sp-band group relative block overflow-hidden rounded-3xl px-6 py-6 sm:px-8">
+      <span className="sp-lattice pointer-events-none absolute inset-0 opacity-60" aria-hidden />
+      <span className="relative flex flex-col gap-4 sm:flex-row sm:items-center">
+        <span className="min-w-0 flex-1">
+          <span className="block text-[11px] font-semibold uppercase tracking-[0.25em] text-gilt">
+            {s.brand} <span className="font-normal normal-case tracking-normal text-ivory/70">· {s.brandBy}</span>
+          </span>
+          <span className="mt-1 block font-display text-2xl font-bold">{s.title}</span>
+          <span className="mt-1 block text-sm text-ivory/85">{s.tagline}</span>
+        </span>
+        <span className="flex flex-wrap gap-2">
+          {PILLARS.map(p => (
+            <span key={p.id} className="flex items-center gap-1.5 rounded-full border border-gilt/40 bg-emerald-deep/40 px-3 py-1 text-xs text-ivory">
+              <PillarIcon topic={p.id} className="h-4 w-4 text-gilt" />
+              {p.title[lang]}
+            </span>
+          ))}
+        </span>
+      </span>
+    </a>
   );
 }
 
@@ -207,6 +236,8 @@ export default function KnowledgeHub({ sub }: ViewProps) {
       </div>
 
       <Shortcuts />
+
+      <FivePillarsCard />
 
       <AskPanel />
 

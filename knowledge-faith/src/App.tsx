@@ -9,7 +9,8 @@ import { DossierProvider } from './engine/DossierContext.tsx';
 const KnowledgeHub = lazy(() => import('./views/KnowledgeHub.tsx'));
 const QuranReader = lazy(() => import('./views/QuranReader.tsx'));
 const HadithLibrary = lazy(() => import('./views/HadithLibrary.tsx'));
-const PrayerSpiritual = lazy(() => import('./views/PrayerSpiritual.tsx'));
+const SpiritualSection = lazy(() => import('./views/spiritual/SpiritualSection.tsx'));
+const ReminderRunner = lazy(() => import('./components/spiritual/ReminderRunner.tsx').then(m => ({ default: m.ReminderRunner })));
 const PodcastStudio = lazy(() => import('./views/PodcastStudio.tsx'));
 
 export interface ViewProps {
@@ -27,7 +28,7 @@ const ROUTES: Route[] = [
   { path: 'hub', label: 'navHub', icon: Lightbulb, view: KnowledgeHub },
   { path: 'quran', label: 'navQuran', icon: BookOpen, view: QuranReader },
   { path: 'hadith', label: 'navHadith', icon: Library, view: HadithLibrary },
-  { path: 'prayer', label: 'navPrayer', icon: MoonStar, view: PrayerSpiritual },
+  { path: 'spiritual', label: 'navPrayer', icon: MoonStar, view: SpiritualSection },
   { path: 'studio', label: 'navStudio', icon: Mic, view: PodcastStudio },
 ];
 
@@ -36,9 +37,14 @@ const ALIASES: Record<string, string> = {
   'screen-13': 'hub',
   'screen-14': 'quran/study',
   'screen-15': 'hadith/research',
-  'screen-16': 'prayer',
   'screen-17': 'hub/scholar',
   podcasts: 'studio/roundtable',
+};
+
+/** Links to the former Prayer & Spiritual page are rewritten in place so bookmarks keep working. */
+const REDIRECTS: Record<string, string> = {
+  prayer: 'spiritual',
+  'screen-16': 'spiritual',
 };
 
 interface Location {
@@ -47,8 +53,14 @@ interface Location {
 }
 
 function currentLocation(): Location {
-  const raw = window.location.hash.replace(/^#\/?/, '');
-  const [path, sub] = (ALIASES[raw] ?? raw).split('/');
+  let raw = window.location.hash.replace(/^#\/?/, '');
+  const [head] = raw.split('/');
+  if (REDIRECTS[head]) {
+    raw = REDIRECTS[head];
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#/${raw}`);
+  }
+  const [path, ...rest] = (ALIASES[raw] ?? raw).split('/');
+  const sub = rest.join('/');
   return ROUTES.some(r => r.path === path) ? { path, sub: sub || undefined } : { path: 'hub' };
 }
 
@@ -127,6 +139,9 @@ function Shell() {
       <main id="main" className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
         <Suspense fallback={<Loading />}>
           <View sub={location.sub} />
+        </Suspense>
+        <Suspense fallback={null}>
+          <ReminderRunner />
         </Suspense>
         <footer className="mt-10 space-y-1 text-center text-xs text-ink/50">
           <p>{t.sourcesNote}</p>
