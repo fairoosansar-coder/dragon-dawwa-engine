@@ -159,13 +159,13 @@ export function FastingCalendar({ segments, mode }: { segments: string[]; mode: 
           </p>
         )}
         <div className="mt-4 flex gap-2">
-          <button type="button" className="min-h-11 rounded-full bg-white px-4" onClick={() => setCursor(stepMonth(cursor, -1))}>
+          <button type="button" className="min-h-11 rounded-full bg-white px-4" onClick={() => setCursor(current => stepMonth(current, -1))}>
             {s.prev}
           </button>
           <p className="flex items-center font-semibold">
             {cursor.year}-{String(cursor.month).padStart(2, '0')}
           </p>
-          <button type="button" className="min-h-11 rounded-full bg-white px-4" onClick={() => setCursor(stepMonth(cursor, 1))}>
+          <button type="button" className="min-h-11 rounded-full bg-white px-4" onClick={() => setCursor(current => stepMonth(current, 1))}>
             {s.next}
           </button>
         </div>

@@ -259,7 +259,21 @@ function CoordForm({ place, onApply }: { place: Place; onApply: (place: Place) =
 
 export function QiblaView({ segments }: { segments: string[] }) {
   const { s } = useSp();
-  const [place] = usePlace();
+  const [place, setPlace] = usePlace();
+  const [geoError, setGeoError] = useState<string | null>(null);
+
+  function locate() {
+    setGeoError(null);
+    if (!navigator.geolocation) {
+      setGeoError(s.qiblaBad);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => setPlace({ name: s.myLocation, lat: +pos.coords.latitude.toFixed(2), lng: +pos.coords.longitude.toFixed(2) }),
+      () => setGeoError(s.qiblaDenied),
+      { timeout: 10_000, maximumAge: 600_000 },
+    );
+  }
   const [heading, setHeading] = useState<number | null>(null);
   const [sensor, setSensor] = useState<'idle' | 'live' | 'unsupported' | 'denied' | 'unreliable'>('idle');
   const bearing = place ? qiblaBearing(place.lat, place.lng) : null;
@@ -298,6 +312,30 @@ export function QiblaView({ segments }: { segments: string[] }) {
       <PageBack segments={segments} />
       <Panel>
         <h1 className="font-display text-3xl font-bold text-dd-emerald">{s.qibla}</h1>
+        <div className="mt-4 flex flex-wrap items-end gap-3">
+          <Field label={s.city}>
+            <select
+              className={control}
+              value={place && CITIES.some(city => city.name === place.name) ? place.name : place ? '__custom' : ''}
+              onChange={event => {
+                const city = CITIES.find(item => item.name === event.target.value);
+                if (city) setPlace(city);
+              }}
+            >
+              <option value="">{s.choosePlace}</option>
+              {place && !CITIES.some(city => city.name === place.name) && <option value="__custom">{place.name}</option>}
+              {CITIES.map(city => (
+                <option key={city.name} value={city.name}>
+                  {city.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <button type="button" className="min-h-11 rounded-full bg-dd-emerald px-4 text-dd-ivory" onClick={locate}>
+            {s.useLocation}
+          </button>
+        </div>
+        {geoError && <p className="mt-3 text-sm">{geoError}</p>}
         {!place || bearing === null ? (
           <p className="mt-3">
             {s.qiblaNeed}{' '}

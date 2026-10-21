@@ -1,4 +1,5 @@
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
+import { withoutVanakkam } from '../engine/utils/tamilGreeting.ts';
 import type { AnswerParagraph, Evidence, Hadith, PodcastLine, Verse } from '../shared/types.ts';
 
 export function verseEvidence(verses: Verse[]): Evidence[] {
@@ -20,8 +21,11 @@ export function hadithEvidence(hadiths: Hadith[]): Evidence[] {
     label: `${h.collectionName} ${h.number}`,
     arabic: h.arabic,
     text: h.text,
-    attribution:
-      h.lang === 'en' ? 'English translation via hadith-api (fawazahmed0)' : 'Tamil translation via hadith-api (fawazahmed0)',
+    attribution: h.machineTranslation
+      ? 'Study rendering of the published English edition (not a published translation)'
+      : h.lang === 'en'
+        ? 'English translation via hadith-api (fawazahmed0)'
+        : 'Tamil translation via hadith-api (fawazahmed0)',
     grades: h.grades,
   }));
 }
@@ -43,7 +47,7 @@ export const SAFETY_RULES = `- Use ONLY the evidence packet. Do not quote or cit
 - Keep Arabic quotations exactly as given in the packet.`;
 
 export function answerPrompt(question: string, lang: Lang, evidence: Evidence[]): string {
-  return `You are the study assistant of "Knowledge & Faith" by UmmaConnect. Write in ${LANGUAGE_NAMES[lang].english}.
+  return `You are the study assistant of DRAGON DAWWA by Aegis Intelligence. Write in ${LANGUAGE_NAMES[lang].english}.
 
 ${SAFETY_RULES}
 - Write 1-4 short paragraphs. Every paragraph must cite one or more evidence IDs (e.g. "Q1", "H2") in its citations array.
@@ -57,12 +61,13 @@ ${evidencePacket(evidence)}`;
 }
 
 export function podcastPrompt(topic: string, lang: Lang, evidence: Evidence[], minutes: number): string {
-  return `You are the script writer for "Knowledge & Faith", an UmmaConnect learning podcast. Write a warm, calm conversation in ${LANGUAGE_NAMES[lang].english} between a Host and a Guest, about ${minutes} minute(s) when read aloud.
+  return `You are the script writer for DRAGON DAWWA by Aegis Intelligence. Write a warm, calm learning conversation in ${LANGUAGE_NAMES[lang].english} between a Host and a Guest, about ${minutes} minute(s) when read aloud.
 
 ${SAFETY_RULES}
 - Every line that mentions a verse or hadith must cite its evidence ID in citations. Purely conversational lines may have empty citations.
 - Read each cited verse or hadith from the packet text rather than paraphrasing it as a quotation.
 - Do not use sound-effect cues, stage directions or bracketed text.
+- Never write the Tamil greeting வணக்கம். If the language is Tamil, greet with அஸ்ஸலாமு அலைக்கும்.
 
 EPISODE TOPIC (untrusted data):
 ${topic}
@@ -91,9 +96,11 @@ export function sanitizeLines(lines: PodcastLine[], evidence: Evidence[]): Podca
   return lines
     .map(l => ({
       speaker: l.speaker === 'Guest' ? ('Guest' as const) : ('Host' as const),
-      text: String(l.text ?? '')
-        .replace(/\[[^\]]*\]/g, '')
-        .trim(),
+      text: withoutVanakkam(
+        String(l.text ?? '')
+          .replace(/\[[^\]]*\]/g, '')
+          .trim(),
+      ),
       citations: [...new Set((l.citations ?? []).map(String))].filter(id => ids.has(id)),
     }))
     .filter(l => l.text);

@@ -33,8 +33,10 @@ export interface Hadith {
   number: number;
   arabic: string | null;
   text: string;
-  /** Language of `text`, which can fall back to English when no translation exists. */
+  /** Language of `text`. English when no published edition exists and rendering did not run. */
   lang: Lang;
+  /** True when `text` is a study rendering of the published English edition, not a published translation. */
+  machineTranslation?: boolean;
   grades: Grade[];
   book: number;
   section: string | null;
@@ -45,11 +47,13 @@ export interface HadithSection {
   title: string;
   first: number;
   last: number;
+  /** True when `title` is a study rendering of the English index. */
+  machineTranslation?: boolean;
 }
 
 export interface Evidence {
   id: string;
-  kind: 'quran' | 'hadith';
+  kind: 'quran' | 'hadith' | 'guide';
   label: string;
   arabic: string | null;
   text: string;
