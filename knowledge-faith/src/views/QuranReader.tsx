@@ -274,6 +274,7 @@ function Edition({
     (delta: number) => {
       const count = reader.data?.info.number === surah ? reader.data.info.numberOfAyahs : 0;
       if (!count) return;
+      stopAudio();
       const next = ayah + delta;
       if (next >= 1 && next <= count) {
         setAyah(next);
