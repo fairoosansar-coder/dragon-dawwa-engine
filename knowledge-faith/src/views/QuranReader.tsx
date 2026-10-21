@@ -3,11 +3,13 @@ import { ChevronLeft, ChevronRight, List } from 'lucide-react';
 import type { ViewProps } from '../App.tsx';
 import { playAudio, stopAudio } from '../lib/audio.ts';
 import { useRemote } from '../lib/api.ts';
+import { useQuranEdition } from '../lib/quranEdition.ts';
 import { ayahForLoadedSurah, clampSurah, readTextSize, useReadingPlace, type TextSize } from '../lib/readingPlace.ts';
 import { scrollBehavior, scrollMain } from '../lib/scroll.ts';
 import { useShell } from '../lib/shell.tsx';
 import { usePronunciation, withPronunciation } from '../lib/pronunciation.ts';
 import { useApp, useStored } from '../lib/store.tsx';
+import { confirmedMeaningSrc, meaningPlaybackId, shownVerses } from '../shared/quranenc.ts';
 import { recitationUrl } from '../shared/sources.ts';
 import type { SurahInfo, Verse } from '../shared/types.ts';
 import { useReciter } from '../components/cards.tsx';
@@ -30,6 +32,9 @@ export default function QuranReader({ sub }: ViewProps) {
   const textSize = readTextSize(storedSize);
   const setTextSize = (size: TextSize) => setStoredSize(size);
   const [reciter, setReciter] = useReciter();
+  const { t } = useApp();
+  const quranEdition = useQuranEdition();
+  const editionsError = quranEdition.error ?? (!quranEdition.loading && quranEdition.editions.length === 0 ? t.quranEncMissing : null);
   const { setFocus } = useShell();
   const mode: 'library' | ReadMode = sub === 'book' ? 'book' : sub === 'study' ? 'study' : 'library';
 
@@ -73,6 +78,10 @@ export default function QuranReader({ sub }: ViewProps) {
           setReciter(id);
         }}
         onOpen={open}
+        editions={quranEdition.editions}
+        editionKey={quranEdition.edition?.key ?? ''}
+        onEdition={quranEdition.choose}
+        editionsError={editionsError}
       />
     );
   }
@@ -92,6 +101,11 @@ export default function QuranReader({ sub }: ViewProps) {
         setReciter(id);
       }}
       onMode={onMode}
+      editions={quranEdition.editions}
+      editionKey={quranEdition.edition?.key ?? ''}
+      onEdition={quranEdition.choose}
+      editionsError={editionsError}
+      onEditionsRetry={quranEdition.error ? quranEdition.reload : undefined}
     />
   );
 }
@@ -105,6 +119,10 @@ function Library({
   reciter,
   onReciter,
   onOpen,
+  editions,
+  editionKey,
+  onEdition,
+  editionsError,
 }: {
   surah: number;
   ayah: number;
@@ -114,6 +132,10 @@ function Library({
   reciter: string;
   onReciter: (id: string) => void;
   onOpen: (number: number, verse?: number, mode?: ReadMode) => void;
+  editions: ReturnType<typeof useQuranEdition>['editions'];
+  editionKey: string;
+  onEdition: (key: string) => void;
+  editionsError: string | null;
 }) {
   const { t, config, saved } = useApp();
   const { query } = useShell();
@@ -162,6 +184,10 @@ function Library({
           reciters={config?.reciters ?? [{ id: 'ar.alafasy', name: 'Mishary Rashid Alafasy' }]}
           mode={prefer}
           onMode={setPrefer}
+          editions={editions}
+          editionKey={editionKey}
+          onEdition={onEdition}
+          editionsError={editionsError}
         />
       </Card>
       <TabLinks
@@ -232,6 +258,11 @@ function Edition({
   reciter,
   onReciter,
   onMode,
+  editions,
+  editionKey,
+  onEdition,
+  editionsError,
+  onEditionsRetry,
 }: {
   mode: ReadMode;
   surah: number;
@@ -243,23 +274,30 @@ function Edition({
   reciter: string;
   onReciter: (id: string) => void;
   onMode: (mode: ReadMode) => void;
+  editions: ReturnType<typeof useQuranEdition>['editions'];
+  editionKey: string;
+  onEdition: (key: string) => void;
+  editionsError: string | null;
+  onEditionsRetry?: () => void;
 }) {
   const { t, lang, config, toggleVerse, isVerseSaved } = useApp();
   const [pronunciation] = usePronunciation();
   const { query, setFocus } = useShell();
   const [contents, setContents] = useState(false);
-  const reader = useRemote<{ info: SurahInfo; verses: Verse[] }>(withPronunciation(`/api/quran/surah/${surah}?lang=${lang}`, pronunciation));
+  const requestUrl = editionKey ? withPronunciation(`/api/quran/surah/${surah}?lang=${lang}&edition=${encodeURIComponent(editionKey)}`, pronunciation) : null;
+  const reader = useRemote<{ info: SurahInfo; verses: Verse[] }>(requestUrl);
   const surahs = useRemote<SurahInfo[]>('/api/quran/surahs');
-  const loaded = reader.data?.info.number === surah ? reader.data : null;
+  const candidate = reader.data?.info.number === surah ? reader.data : null;
+  const loaded = editionKey && candidate && shownVerses(candidate.verses, lang, editionKey) ? candidate : null;
   const verses = loaded?.verses ?? [];
   const versesRef = useRef(verses);
   versesRef.current = verses;
   const touch = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
-    const next = ayahForLoadedSurah(surah, reader.data?.info.number, reader.data?.info.numberOfAyahs, ayah);
+    const next = ayahForLoadedSurah(surah, loaded?.info.number, loaded?.info.numberOfAyahs, ayah);
     if (next != null && next !== ayah) setAyah(next);
-  }, [reader.data, ayah, surah, setAyah]);
+  }, [loaded, ayah, surah, setAyah]);
 
   const goSurah = useCallback(
     (number: number, verse = 1) => {
@@ -274,7 +312,7 @@ function Edition({
 
   const step = useCallback(
     (delta: number) => {
-      const count = reader.data?.info.number === surah ? reader.data.info.numberOfAyahs : 0;
+      const count = loaded?.info.number === surah ? loaded.info.numberOfAyahs : 0;
       if (!count) return;
       stopAudio();
       const next = ayah + delta;
@@ -285,12 +323,12 @@ function Edition({
       if (next < 1 && surah > 1) goSurah(surah - 1, 0);
       if (next > count && surah < 114) goSurah(surah + 1, 1);
     },
-    [ayah, goSurah, reader.data, setAyah, surah],
+    [ayah, goSurah, loaded, setAyah, surah],
   );
 
   const playRef = useRef<(n: number) => void>(() => undefined);
   playRef.current = (ayahNumber: number) => {
-    if (reader.data?.info.number !== surah) return;
+    if (!loaded || loaded.info.number !== surah) return;
     const list = versesRef.current;
     const verse = list.find(item => item.ayah === ayahNumber);
     if (!verse) return;
@@ -320,13 +358,15 @@ function Edition({
   }, [mode, setFocus, step]);
 
   useEffect(() => {
-    if (ayah < 1 || reader.data?.info.number !== surah) return;
+    if (ayah < 1 || loaded?.info.number !== surah) return;
     const mark = document.getElementById(mode === 'book' ? `ayah-mark-${ayah}` : `v-${surah}-${ayah}`);
     if (!mark) return;
     mark.scrollIntoView({ behavior: scrollBehavior(), block: 'center' });
-  }, [ayah, mode, surah, lang, reader.data]);
+  }, [ayah, mode, surah, lang, loaded]);
 
   const current = verses.find(item => item.ayah === ayah) ?? verses[0];
+  const meaningSrc = current ? confirmedMeaningSrc(current) : null;
+  const meaningKey = current?.translationKey;
   const savedKey = current?.key ?? '';
   const q = query.trim().toLowerCase();
   const list = (surahs.data ?? []).filter(
@@ -388,9 +428,15 @@ function Edition({
             onReciter={onReciter}
             reciters={config?.reciters ?? [{ id: 'ar.alafasy', name: 'Mishary Rashid Alafasy' }]}
             onMode={onMode}
+            editions={editions}
+            editionKey={editionKey}
+            onEdition={onEdition}
+            editionsError={editionsError}
           />
         </div>
-        {!loaded && reader.loading && <Loading />}
+        {!loaded && (reader.loading || (!editionKey && !editionsError)) && <Loading />}
+        {!loaded && !reader.loading && !reader.error && editionKey && candidate && <p className="text-sm text-muted">{t.quranEncUnread}</p>}
+        {editionsError && <ErrorNote message={editionsError} onRetry={onEditionsRetry} />}
         {reader.error && <ErrorNote message={reader.error} onRetry={reader.reload} />}
         {loaded && mode === 'study' && (
           <Card>
@@ -400,7 +446,7 @@ function Edition({
             <h2 className="font-display text-3xl font-bold text-pine">{loaded.info.englishName}</h2>
             <p className="text-sm text-muted">{loaded.info.englishNameTranslation}</p>
             <div className="mt-3 space-y-2">
-              <SourceAttribution />
+              <SourceAttribution verse={verses[0]} />
               <PronunciationStatus pronunciation={pronunciation} />
               {pronunciation === 'en' && verses.some(verse => verse.transliteration) && <p className="text-sm text-muted">{t.pronunciationSource}</p>}
               {pronunciation === 'en' && verses.length > 0 && !verses.some(verse => verse.transliteration) && (
@@ -420,6 +466,7 @@ function Edition({
                     scale={textSize}
                     selected={verse.ayah === ayah}
                     onEnded={() => playRef.current(verse.ayah + 1)}
+                    cite={false}
                   />
                 </div>
               ))}
@@ -488,8 +535,21 @@ function Edition({
                   </span>
                 ))}
               </p>
+              {verses.some(verse => verse.footnotes) && (
+                <div className={`mt-6 space-y-3 text-ink/80 ${BODY_SIZE[textSize]}`}>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted">{t.footnotes}</p>
+                  {verses
+                    .filter(verse => verse.footnotes)
+                    .map(verse => (
+                      <p key={`${verse.key}-fn`} lang={lang} className="whitespace-pre-wrap leading-relaxed">
+                        <span className="font-semibold text-pine">{verse.ayah}. </span>
+                        {verse.footnotes}
+                      </p>
+                    ))}
+                </div>
+              )}
               <div className="mt-8 space-y-3">
-                <SourceAttribution />
+                <SourceAttribution verse={verses[0]} />
                 <PronunciationStatus pronunciation={pronunciation} />
                 {pronunciation === 'en' && verses.some(verse => verse.transliteration) && <p className="text-sm text-muted">{t.pronunciationSource}</p>}
                 {pronunciation === 'en' && verses.length > 0 && !verses.some(verse => verse.transliteration) && (
@@ -498,6 +558,11 @@ function Edition({
                 <VerseActions
                   saved={savedKey ? isVerseSaved(savedKey) : false}
                   onListen={() => current && playRef.current(current.ayah)}
+                  onMeaning={
+                    meaningSrc && meaningKey && current
+                      ? () => playAudio(meaningPlaybackId(meaningKey, current.surah, current.ayah), meaningSrc)
+                      : undefined
+                  }
                   onBookmark={() => savedKey && toggleVerse(savedKey)}
                 />
                 <p className="text-sm text-muted">{t.reflowNote}</p>

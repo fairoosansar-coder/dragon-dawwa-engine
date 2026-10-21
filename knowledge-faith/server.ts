@@ -6,6 +6,8 @@ import { HADITH_COLLECTIONS, PRAYER_METHODS, RECITERS, quranPronunciationEdition
 import { dedupeRefs, parseRefs, refKey, type HadithRef } from './src/shared/refs.ts';
 import type { PodcastLine } from './src/shared/types.ts';
 import { getSurah, getVerses, listSurahs } from './src/server/quran.ts';
+import { listQuranEncEditions } from './src/server/quranenc.ts';
+import { readEditionQuery } from './src/shared/quranenc.ts';
 import { getAsma } from './src/server/asma.ts';
 import { getHadith, getSection, listSections } from './src/server/hadith.ts';
 import { getPrayerTimes } from './src/server/prayer.ts';
@@ -101,13 +103,27 @@ app.get('/api/config', (_req, res) => {
   });
 });
 
+function editionKeyFrom(value: unknown): string | undefined {
+  const requested = readEditionQuery(value);
+  if ('error' in requested) throw new UpstreamError(requested.error, 400);
+  return requested.key;
+}
+
 app.get('/api/quran/surahs', route(async (_req, res) => res.json(await listSurahs())));
+app.get('/api/quran/editions', route(async (req, res) => res.json(await listQuranEncEditions(toLang(req.query.lang)))));
 app.get('/api/asma', route(async (_req, res) => res.json(await getAsma())));
 
 app.get(
   '/api/quran/surah/:n',
   route(async (req, res) =>
-    res.json(await getSurah(Number(req.params.n), toLang(req.query.lang), quranPronunciationEdition(req.query.pronunciation))),
+    res.json(
+      await getSurah(
+        Number(req.params.n),
+        toLang(req.query.lang),
+        quranPronunciationEdition(req.query.pronunciation),
+        editionKeyFrom(req.query.edition),
+      ),
+    ),
   ),
 );
 
@@ -115,7 +131,9 @@ app.get(
   '/api/quran/verses',
   route(async (req, res) => {
     const refs = dedupeRefs(String(req.query.refs ?? '').split(',').flatMap(parseRefs), refKey, 60);
-    res.json(await getVerses(refs, toLang(req.query.lang), quranPronunciationEdition(req.query.pronunciation)));
+    res.json(
+      await getVerses(refs, toLang(req.query.lang), quranPronunciationEdition(req.query.pronunciation), editionKeyFrom(req.query.edition)),
+    );
   }),
 );
 

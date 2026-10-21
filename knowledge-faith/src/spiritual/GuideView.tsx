@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { VerseCard } from '../components/cards.tsx';
 import { PronunciationControl, PronunciationStatus } from '../components/shell/widgets.tsx';
 import { useRemote } from '../lib/api.ts';
+import { useQuranEdition } from '../lib/quranEdition.ts';
 import { usePronunciation, withPronunciation } from '../lib/pronunciation.ts';
+import { shownVerses, translationRequest } from '../shared/quranenc.ts';
 import { useStored } from '../lib/store.tsx';
 import type { Verse } from '../shared/types.ts';
 import { isScholarReviewed } from './editorial.ts';
@@ -313,10 +315,18 @@ function SectionBody({ section, english }: { section: GuideSection; english: boo
   const { lang, s } = useSp();
   const [pronunciation] = usePronunciation();
   const refs = section.verseRefs ?? [];
-  const url = refs.length
-    ? withPronunciation(`/api/quran/verses?refs=${encodeURIComponent(refs.join(','))}&lang=${english ? 'en' : lang}`, pronunciation)
-    : null;
+  const requestLang = english ? 'en' : lang;
+  const quranEdition = useQuranEdition();
+  const request = translationRequest(
+    refs.length ? `/api/quran/verses?refs=${encodeURIComponent(refs.join(','))}&lang=${requestLang}` : null,
+    requestLang,
+    lang,
+    quranEdition.edition,
+    quranEdition.loading,
+  );
+  const url = request ? withPronunciation(request.url, pronunciation) : null;
   const remote = useRemote<Verse[]>(url);
+  const verses = remote.loading || (requestLang === lang && quranEdition.loading) ? null : shownVerses(remote.data, requestLang, request?.editionKey ?? null);
   const show = (copy: Guide['title']) => (english && lang !== 'en' ? copy.en : text(copy, lang) || '');
   return (
     <div className="mt-3 space-y-3">
@@ -365,7 +375,8 @@ function SectionBody({ section, english }: { section: GuideSection; english: boo
         <div>
           <h3 className="text-sm font-semibold">{s.sources}</h3>
           <p className="text-xs text-dd-ink/60">{s.audioNotSpoken}</p>
-          {remote.loading && <p>{s.loading}</p>}
+          {(remote.loading || (quranEdition.loading && requestLang === lang)) && <p>{s.loading}</p>}
+          {requestLang === lang && quranEdition.error && <p>{quranEdition.error}</p>}
           {remote.error && (
             <p>
               {remote.error}{' '}
@@ -374,7 +385,7 @@ function SectionBody({ section, english }: { section: GuideSection; english: boo
               </button>
             </p>
           )}
-          {remote.data?.map(verse => (
+          {verses?.map(verse => (
             <VerseCard key={verse.key} verse={verse} />
           ))}
         </div>

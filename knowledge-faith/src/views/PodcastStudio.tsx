@@ -6,7 +6,9 @@ import { getJson, postJson } from '../lib/api.ts';
 import { base64ToObjectUrl, stopAudio } from '../lib/audio.ts';
 import { scrollMain } from '../lib/scroll.ts';
 import { useShell } from '../lib/shell.tsx';
+import { useQuranEdition } from '../lib/quranEdition.ts';
 import { useApp, useStored } from '../lib/store.tsx';
+import { appendEdition } from '../shared/quranenc.ts';
 import { CitationChips, EvidenceList } from '../components/cards.tsx';
 import { EmptyState } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, IconButton, Loading, Notice, SectionTitle, Select, TabLinks } from '../components/ui.tsx';
@@ -226,12 +228,23 @@ function VoiceStudio() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const disabled = !config?.ai;
+  const quranEdition = useQuranEdition();
 
   async function insert(key: string) {
     if (!key) return;
+    if (!quranEdition.edition || quranEdition.edition.languageIso !== lang) {
+      setError(quranEdition.error ?? 'QuranEnc edition is not loaded. This verse was not inserted.');
+      return;
+    }
     try {
-      const [verse] = await getJson<Verse[]>(`/api/quran/verses?refs=${encodeURIComponent(key)}&lang=${lang}`);
-      if (verse) setText(prev => `${prev ? `${prev}\n\n` : ''}${verse.translation} (Qur'an ${verse.key})`.slice(0, 3000));
+      const [verse] = await getJson<Verse[]>(
+        appendEdition(`/api/quran/verses?refs=${encodeURIComponent(key)}&lang=${lang}`, quranEdition.edition.key),
+      );
+      if (!verse || verse.translationKey !== quranEdition.edition.key || verse.lang !== lang) {
+        setError('QuranEnc did not return this edition. Nothing was inserted.');
+        return;
+      }
+      setText(prev => `${prev ? `${prev}\n\n` : ''}${verse.translation} (Qur'an ${verse.key})`.slice(0, 3000));
     } catch (err) {
       setError((err as Error).message);
     }

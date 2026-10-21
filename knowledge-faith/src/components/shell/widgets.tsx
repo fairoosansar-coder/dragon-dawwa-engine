@@ -8,20 +8,22 @@ import { useShell } from '../../lib/shell.tsx';
 import { usePronunciation, type Pronunciation } from '../../lib/pronunciation.ts';
 import { useApp, useStored } from '../../lib/store.tsx';
 import type { Strings } from '../../lib/i18n.ts';
-import { QURAN_TRANSLATIONS } from '../../shared/sources.ts';
+import type { QuranEncEdition } from '../../shared/quranenc.ts';
+import type { Verse } from '../../shared/types.ts';
 import { minutesInZone, nextPrayer } from '../../shared/spiritual.ts';
 import type { PrayerDay } from '../../shared/types.ts';
 import { applyPrayerOffsets, latitudeAdjustmentId, type PrayerOffsets } from '../../spiritual/prayerAdjust.ts';
 import { usePlace } from '../../spiritual/place.ts';
 import { Button, Loading } from '../ui.tsx';
 
-export function audioStatusLabel(t: Strings, status: AudioStatus): string {
-  if (status === 'loading') return t.audioLoading;
-  if (status === 'playing') return t.audioPlaying;
-  if (status === 'paused') return t.audioPaused;
-  if (status === 'error') return t.audioError;
-  if (status === 'unavailable') return t.audioUnavailable;
-  return t.audioIdle;
+export function audioStatusLabel(t: Strings, status: AudioStatus, id?: string | null): string {
+  const meaning = Boolean(id?.startsWith('meaning-'));
+  if (status === 'loading') return meaning ? t.meaningAudioLoading : t.audioLoading;
+  if (status === 'playing') return meaning ? t.meaningAudioPlaying : t.audioPlaying;
+  if (status === 'paused') return meaning ? t.meaningAudioPaused : t.audioPaused;
+  if (status === 'error') return meaning ? t.meaningAudioError : t.audioError;
+  if (status === 'unavailable') return meaning ? t.meaningAudioUnavailable : t.audioUnavailable;
+  return meaning ? t.listenMeaning : t.audioIdle;
 }
 
 export function SearchField({ className = '' }: { className?: string }) {
@@ -142,10 +144,12 @@ export function BookPage({ children }: { children: ReactNode }) {
 export function VerseActions({
   saved,
   onListen,
+  onMeaning,
   onBookmark,
 }: {
   saved: boolean;
   onListen: () => void;
+  onMeaning?: () => void;
   onBookmark: () => void;
 }) {
   const { t } = useApp();
@@ -155,26 +159,35 @@ export function VerseActions({
       <Button variant="soft" onClick={onListen}>
         {t.listen}
       </Button>
+      {onMeaning && (
+        <Button variant="soft" onClick={onMeaning}>
+          {t.listenMeaning}
+        </Button>
+      )}
       <Button variant="ghost" onClick={onBookmark} aria-pressed={saved}>
         {saved ? <BookmarkCheck className="h-4 w-4" aria-hidden /> : <Bookmark className="h-4 w-4" aria-hidden />}
         {saved ? t.unsave : t.save}
       </Button>
-      {audio.status !== 'idle' && <span className="text-sm text-muted">{audioStatusLabel(t, audio.status)}</span>}
+      {audio.status !== 'idle' && <span className="text-sm text-muted">{audioStatusLabel(t, audio.status, audio.id)}</span>}
     </div>
   );
 }
 
-export function SourceAttribution() {
-  const { t, lang } = useApp();
-  const edition = QURAN_TRANSLATIONS[lang];
+export function SourceAttribution({ verse }: { verse?: Verse | null }) {
+  const { t } = useApp();
+  if (!verse?.translationKey || !verse.translationVersion) {
+    return <p className="text-sm text-muted">{t.quranEncUnread}</p>;
+  }
   return (
-    <p className="text-sm text-muted">
-      {t.meaningNote} · {edition.translator}
-      <span className="sr-only">
-        {' '}
-        {t.editionLabel} {edition.edition}
-      </span>
-    </p>
+    <div className="space-y-1 text-sm text-muted">
+      <p>
+        {t.meaningNote} · {verse.translationTitle || verse.translator}
+      </p>
+      <p>
+        {verse.translationKey} · {verse.translationVersion}
+      </p>
+      {verse.translationDescription ? <p className="leading-relaxed">{verse.translationDescription}</p> : null}
+    </div>
   );
 }
 
@@ -219,6 +232,10 @@ export function ReadingSettings({
   onReciter,
   reciters,
   onMode,
+  editions,
+  editionKey,
+  onEdition,
+  editionsError,
 }: {
   mode: 'library' | 'study' | 'book';
   textSize: 'sm' | 'md' | 'lg';
@@ -227,21 +244,41 @@ export function ReadingSettings({
   onReciter: (id: string) => void;
   reciters: { id: string; name: string }[];
   onMode: (mode: 'study' | 'book') => void;
+  editions: QuranEncEdition[];
+  editionKey: string;
+  onEdition: (key: string) => void;
+  editionsError: string | null;
 }) {
-  const { t, lang } = useApp();
-  const edition = QURAN_TRANSLATIONS[lang];
+  const { t } = useApp();
+  const edition = editions.find(item => item.key === editionKey);
+  const editionReady = Boolean(edition && editions.some(item => item.key === editionKey));
   return (
     <details className="rounded-2xl border border-pine/10 bg-parchment px-4 py-3">
       <summary className="flex min-h-11 cursor-pointer list-none items-center text-sm font-semibold text-pine [&::-webkit-details-marker]:hidden">
         {t.readingSettings}
       </summary>
       <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      <p className="flex flex-col gap-1 text-xs font-medium text-muted">
-        {t.editionLabel}
-        <span className="rounded-xl border border-pine/10 bg-sand px-3 py-2 text-sm font-normal text-ink">
-          {edition.translator}
-        </span>
-      </p>
+      <div className="flex flex-col gap-1 text-xs font-medium text-muted">
+        <label className="flex flex-col gap-1">
+          {t.editionLabel}
+          {editionReady ? (
+            <select id="kf-quran-edition" value={editionKey} onChange={event => onEdition(event.target.value)} className="rounded-xl border border-pine/20 bg-parchment px-3 py-2 text-sm font-normal text-ink">
+              {editions.map(item => (
+                <option key={item.key} value={item.key}>
+                  {item.title}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="rounded-xl border border-pine/10 bg-sand px-3 py-2 text-sm font-normal text-ink">{editionsError || t.quranEncLoading}</span>
+          )}
+        </label>
+        {edition && (
+          <p className="font-normal leading-relaxed">
+            {edition.key} · {edition.version}
+          </p>
+        )}
+      </div>
       <div className="flex flex-col gap-1 text-xs font-medium text-muted">
         {t.readingMode}
         <div className="flex gap-2">
@@ -284,7 +321,7 @@ export function AudioMiniPlayer({ safe }: { safe: boolean }) {
   return (
     <div data-mini-player className={`shrink-0 border-t border-gold/50 bg-pine px-4 py-3 text-sand ${safe ? 'pb-[max(0.75rem,env(safe-area-inset-bottom))]' : ''}`}>
       <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-        <p className="text-sm">{audioStatusLabel(t, audio.status)}</p>
+        <p className="text-sm">{audioStatusLabel(t, audio.status, audio.id)}</p>
         {audio.status === 'playing' || audio.status === 'loading' ? (
           <Button variant="soft" onClick={pauseAudio}>
             {t.pause}

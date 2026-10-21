@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useRemote } from '../lib/api.ts';
+import { useQuranEdition } from '../lib/quranEdition.ts';
 import { usePronunciation, withPronunciation } from '../lib/pronunciation.ts';
+import { shownVerses, translationRequest } from '../shared/quranenc.ts';
 import { useStored } from '../lib/store.tsx';
 import { OCCASIONS, occasionById, text } from './content.ts';
 import {
@@ -307,9 +309,16 @@ export function OccasionView({ segments, id }: { segments: string[]; id: string 
   const [pronunciation] = usePronunciation();
   const occasion = occasionById(id);
   const refs = occasion?.verseRefs ?? [];
-  const remote = useRemote<Verse[]>(
-    refs.length ? withPronunciation(`/api/quran/verses?refs=${encodeURIComponent(refs.join(','))}&lang=${lang}`, pronunciation) : null,
+  const quranEdition = useQuranEdition();
+  const request = translationRequest(
+    refs.length ? `/api/quran/verses?refs=${encodeURIComponent(refs.join(','))}&lang=${lang}` : null,
+    lang,
+    lang,
+    quranEdition.edition,
+    quranEdition.loading,
   );
+  const remote = useRemote<Verse[]>(request ? withPronunciation(request.url, pronunciation) : null);
+  const verses = remote.loading || quranEdition.loading ? null : shownVerses(remote.data, lang, request?.editionKey ?? null);
   if (!occasion) {
     return (
       <Panel>
@@ -340,7 +349,10 @@ export function OccasionView({ segments, id }: { segments: string[]; id: string 
             <Prose copy={copy} />
           </section>
         ))}
-        {remote.data?.map(verse => (
+        {(remote.loading || quranEdition.loading) && <p>{s.loading}</p>}
+        {quranEdition.error && <p>{quranEdition.error}</p>}
+        {remote.error && <p>{remote.error}</p>}
+        {verses?.map(verse => (
           <VerseCard key={verse.key} verse={verse} />
         ))}
         <p className="mt-4 text-xs">{s.audioNotSpoken}</p>

@@ -6,20 +6,33 @@ import type { AskResult, Hadith, SurahInfo, Verse } from '../shared/types.ts';
 import { postJson, useRemote } from '../lib/api.ts';
 import { useShell } from '../lib/shell.tsx';
 import { useReadingPlace } from '../lib/readingPlace.ts';
+import { useQuranEdition } from '../lib/quranEdition.ts';
 import { usePronunciation, withPronunciation } from '../lib/pronunciation.ts';
+import { shownVerses, translationRequest } from '../shared/quranenc.ts';
 import { useApp, useStored } from '../lib/store.tsx';
 import { CitationChips, EvidenceList, HadithCard, VerseCard } from '../components/cards.tsx';
 import { EmptyState, FeatureCard, PrayerStrip } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, Loading, Notice, SectionTitle } from '../components/ui.tsx';
 
 function VerseList({ refs }: { refs: string[] }) {
-  const { lang } = useApp();
+  const { lang, t } = useApp();
   const [pronunciation] = usePronunciation();
-  const url = refs.length ? withPronunciation(`/api/quran/verses?refs=${encodeURIComponent(refs.join(','))}&lang=${lang}`, pronunciation) : null;
+  const quranEdition = useQuranEdition();
+  const request = translationRequest(
+    refs.length ? `/api/quran/verses?refs=${encodeURIComponent(refs.join(','))}&lang=${lang}` : null,
+    lang,
+    lang,
+    quranEdition.edition,
+    quranEdition.loading,
+  );
+  const url = request ? withPronunciation(request.url, pronunciation) : null;
   const { data, error, loading, reload } = useRemote<Verse[]>(url);
-  if (loading) return <Loading />;
+  const verses = loading || quranEdition.loading ? null : shownVerses(data, lang, request?.editionKey ?? null);
+  if (loading || quranEdition.loading || (request && data && !verses && !error)) return <Loading />;
+  if (quranEdition.error) return <ErrorNote message={quranEdition.error} onRetry={quranEdition.reload} />;
   if (error) return <ErrorNote message={error} onRetry={reload} />;
-  return <div>{data?.map(v => <VerseCard key={v.key} verse={v} compact />)}</div>;
+  if (request && data && !verses) return <p className="text-sm text-muted">{t.quranEncUnread}</p>;
+  return <div>{verses?.map(v => <VerseCard key={v.key} verse={v} compact />)}</div>;
 }
 
 function SavedHadith({ collection, number }: { collection: string; number: number }) {

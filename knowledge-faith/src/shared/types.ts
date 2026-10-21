@@ -18,6 +18,15 @@ export interface Verse {
   arabic: string;
   translation: string;
   translator: string;
+  /** QuranEnc footnote text for this ayah, kept exactly. Empty when the edition has none. */
+  footnotes?: string;
+  /** QuranEnc edition key, unchanged. */
+  translationKey?: string;
+  translationVersion?: string;
+  translationTitle?: string;
+  translationDescription?: string;
+  /** Present only when this edition's meaning audio was confirmed. */
+  meaningAudio?: string;
   lang: Lang;
   surahName: string;
   /** Pronunciation of this ayah from a checked transliteration edition. Not a translation. */

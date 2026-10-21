@@ -3,7 +3,8 @@ import { recitationUrl } from '../shared/sources.ts';
 import type { Evidence, Hadith, Verse } from '../shared/types.ts';
 import { pauseAudio, playAudio, useAudioState } from '../lib/audio.ts';
 import { useApp, useStored } from '../lib/store.tsx';
-import { IconButton } from './ui.tsx';
+import { confirmedMeaningSrc, meaningPlaybackId } from '../shared/quranenc.ts';
+import { Button, IconButton } from './ui.tsx';
 
 export function useReciter() {
   return useStored<string>('kf-reciter', 'ar.alafasy');
@@ -15,12 +16,14 @@ export function VerseCard({
   compact,
   scale = 'md',
   selected = false,
+  cite = true,
 }: {
   verse: Verse;
   onEnded?: () => void;
   compact?: boolean;
   scale?: 'sm' | 'md' | 'lg';
   selected?: boolean;
+  cite?: boolean;
 }) {
   const { t, toggleVerse, isVerseSaved } = useApp();
   const [reciter] = useReciter();
@@ -28,6 +31,7 @@ export function VerseCard({
   const id = `ayah-${verse.number}`;
   const active = audio.id === id && audio.playing;
   const saved = isVerseSaved(verse.key);
+  const meaningSrc = confirmedMeaningSrc(verse);
 
   return (
     <article
@@ -62,7 +66,26 @@ export function VerseCard({
       <p lang={verse.lang} className={`mt-2 leading-relaxed text-ink/90 ${scale === 'lg' ? 'text-xl' : scale === 'sm' ? 'text-sm' : ''}`}>
         {verse.translation}
       </p>
-      <p className="mt-1 text-xs text-ink/50">{verse.translator}</p>
+      {verse.footnotes ? (
+        <p lang={verse.lang} className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink/70">
+          {verse.footnotes}
+        </p>
+      ) : null}
+      {cite && (
+        <div className="mt-1 space-y-1 text-xs text-ink/50">
+          <p>
+            {verse.translationTitle || verse.translator}
+            {verse.translationKey ? ` · ${verse.translationKey}` : ''}
+            {verse.translationVersion ? ` · ${verse.translationVersion}` : ''}
+          </p>
+          {verse.translationDescription ? <p className="leading-relaxed">{verse.translationDescription}</p> : null}
+        </div>
+      )}
+      {meaningSrc && verse.translationKey && (
+        <Button variant="ghost" className="mt-2" onClick={() => playAudio(meaningPlaybackId(verse.translationKey!, verse.surah, verse.ayah), meaningSrc)}>
+          {t.listenMeaning}
+        </Button>
+      )}
     </article>
   );
 }

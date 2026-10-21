@@ -19,6 +19,10 @@ export interface QuranTranslation {
 
 export const QURAN_ARABIC_EDITION = 'quran-uthmani';
 
+/**
+ * AlQuran Cloud translation ids kept for reference.
+ * The reader loads translation text from QuranEnc and must not fall back to these editions.
+ */
 export const QURAN_TRANSLATIONS: Record<Lang, QuranTranslation> = {
   en: { edition: 'en.sahih', translator: 'Saheeh International' },
   ta: { edition: 'ta.tamil', translator: 'Jan Trust Foundation' },
