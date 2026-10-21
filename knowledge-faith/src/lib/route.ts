@@ -25,7 +25,3 @@ export function parseHash(hash: string): { path: RouteRoot; segments: string[] }
   if (!ROUTE_ROOTS.includes(path as RouteRoot)) return { path: 'hub', segments: [] };
   return { path: path as RouteRoot, segments: parts.slice(1) };
 }
-
-export function spiritualHref(segments: string[] = []): string {
-  return `#/spiritual${segments.length ? `/${segments.join('/')}` : ''}`;
-}
