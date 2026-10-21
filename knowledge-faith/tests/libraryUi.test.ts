@@ -5,6 +5,7 @@ import { prayerQueryDate } from '../src/lib/prayerClock.ts';
 import { ayahForLoadedSurah, migrateReadingPlace, readTextSize } from '../src/lib/readingPlace.ts';
 import { showSectionSearch } from '../src/lib/route.ts';
 import { minutesInZone, nextPrayer } from '../src/shared/spiritual.ts';
+import { STRINGS } from '../src/lib/i18n.ts';
 import { GUIDES, readingSections } from '../src/spiritual/content.ts';
 import { isoDateInZone } from '../src/spiritual/hijri.ts';
 
@@ -144,6 +145,13 @@ test('prayer date follows the saved place, including midnight and another zone',
   assert.equal(nextPrayer(timings, riyadh).name, 'Dhuhr');
   assert.equal(nextPrayer(timings, 12 * 60 - 1).name, 'Dhuhr');
   assert.equal(nextPrayer(timings, 12 * 60).name, 'Asr');
+});
+
+test('sidebar worship label stays separate from the phone prayer label', () => {
+  assert.equal(STRINGS.en.navWorship, 'Worship');
+  assert.equal(STRINGS.en.navPrayerShort, 'Prayer');
+  assert.equal(STRINGS.ta.navWorship, 'வழிபாடு');
+  assert.equal(STRINGS.si.navWorship, 'වන්දනාව');
 });
 
 test('public reading keeps published Shahadah sections and hides unpublished ones', () => {

@@ -13,6 +13,7 @@ interface NavItem {
   path: RouteRoot;
   href: string;
   short: keyof Strings;
+  side?: keyof Strings;
   icon: LucideIcon;
 }
 
@@ -20,7 +21,7 @@ const NAV: NavItem[] = [
   { path: 'hub', href: '#/hub', short: 'navKnowledge', icon: Lightbulb },
   { path: 'quran', href: '#/quran', short: 'navQuranShort', icon: BookOpen },
   { path: 'hadith', href: '#/hadith', short: 'navHadithShort', icon: Library },
-  { path: 'spiritual', href: '#/spiritual', short: 'navPrayerShort', icon: MoonStar },
+  { path: 'spiritual', href: '#/spiritual', short: 'navPrayerShort', side: 'navWorship', icon: MoonStar },
   { path: 'studio', href: '#/studio', short: 'navListen', icon: Mic },
 ];
 
@@ -52,7 +53,7 @@ export function AppFrame({ path, section, showSearch, children }: { path: RouteR
                   className={`flex items-center gap-3 rounded-xl border-l-2 px-3 py-2.5 text-sm font-medium ${active ? 'border-gold bg-moss text-sand' : 'border-transparent text-sand/80 hover:bg-white/5'}`}
                 >
                   <item.icon className="h-4 w-4" aria-hidden />
-                  {t[item.short]}
+                  {t[item.side ?? item.short]}
                 </a>
               );
             })}
