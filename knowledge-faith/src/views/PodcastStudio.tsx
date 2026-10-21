@@ -179,7 +179,11 @@ function EpisodeBuilder() {
             </ol>
             <div>
               <h4 className="mb-3 font-display text-lg font-bold text-pine">{t.sources}</h4>
-              <EvidenceList evidence={current.evidence} cited={cited} />
+              <EvidenceList
+                evidence={current.evidence}
+                cited={cited}
+                focusIds={new Set(playback.activeLines.flatMap(index => current.lines[index]?.citations ?? []))}
+              />
             </div>
           </div>
         </Card>

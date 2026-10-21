@@ -1,4 +1,5 @@
 import type { Lang } from '../shared/sources.ts';
+import { knowledgePath, type KnowledgePath } from '../shared/sourceRegistry.ts';
 import {
   ISLAMHOUSE_TTL_MS,
   parseLibraryItem,
@@ -58,6 +59,96 @@ export async function loadLibrary(topicId: string, lang: Lang, page: number, cat
   const parsed = parseLibraryPage(body, topic.id, lang, page);
   if (!parsed) throw new UpstreamError('IslamHouse returned an unreadable list', 502);
   return { ...parsed, categoryId: requested, categories };
+}
+
+export interface KnowledgeShelf {
+  id: KnowledgePath['id'];
+  title: string;
+  sourceTitle: string;
+  categoryId: number;
+  lang: Lang;
+  page: number;
+  pages: number;
+  total: number;
+  items: LibraryItem[];
+  categories: LibraryCategory[];
+}
+
+export async function loadKnowledgeShelf(pathId: string, lang: Lang, page: number, category?: string): Promise<KnowledgeShelf> {
+  const path = knowledgePath(pathId);
+  if (!path) throw new UpstreamError('Unknown knowledge path', 404);
+  const safePage = Number.isInteger(page) && page > 0 ? page : 1;
+  const node = await readSubcategories(path.categoryId);
+  const children = node?.children ?? [];
+  const requested = category && /^\d{1,12}$/.test(category) ? Number(category) : path.categoryId;
+  if (requested !== path.categoryId && !children.some(child => child.id === requested)) throw new UpstreamError('Unknown category', 404);
+  const url = `https://api3.islamhouse.com/v3/${apiKey()}/main/get-category-items/${requested}/showall/en/${lang}/${safePage}/12/json`;
+  const body = await fetchJson<unknown>(url, ISLAMHOUSE_TTL_MS);
+  const parsed = parseLibraryPage(body, 'prayer', lang, safePage);
+  if (!parsed) throw new UpstreamError('IslamHouse returned an unreadable list', 502);
+  return {
+    id: path.id,
+    title: path.title,
+    sourceTitle: path.sourceTitle,
+    categoryId: requested,
+    lang,
+    page: parsed.page,
+    pages: parsed.pages,
+    total: parsed.total,
+    items: parsed.items,
+    categories: children,
+  };
+}
+
+export interface ItemDocument {
+  id: number;
+  title: string;
+  description: string | null;
+  html: string | null;
+  language: string | null;
+  authors: string[];
+  translators: string[];
+  reviewers: string[];
+}
+
+/** get-item using the publication’s site language. An English site language is not a substitute. */
+export async function loadItemDocument(id: number, siteLang: Lang): Promise<ItemDocument | null> {
+  if (!Number.isInteger(id) || id <= 0) return null;
+  const url = `https://api3.islamhouse.com/v3/${apiKey()}/main/get-item/${id}/${siteLang}/json`;
+  let body: unknown;
+  try {
+    body = await fetchJson<unknown>(url, ISLAMHOUSE_TTL_MS);
+  } catch {
+    return null;
+  }
+  const row = body !== null && typeof body === 'object' && !Array.isArray(body) ? (body as Record<string, unknown>) : null;
+  if (!row || typeof row.error === 'string' || typeof row.title !== 'string') return null;
+  if (row.source_language && row.source_language !== siteLang) return null;
+  const authors: string[] = [];
+  const translators: string[] = [];
+  const reviewers: string[] = [];
+  if (Array.isArray(row.prepared_by)) {
+    for (const person of row.prepared_by) {
+      if (!person || typeof person !== 'object') continue;
+      const credit = person as Record<string, unknown>;
+      const name = typeof credit.title === 'string' ? credit.title : '';
+      const kind = typeof credit.kind === 'string' ? credit.kind : '';
+      if (!name) continue;
+      if (kind === 'author') authors.push(name);
+      else if (kind === 'translator') translators.push(name);
+      else if (kind === 'reviewer') reviewers.push(name);
+    }
+  }
+  return {
+    id,
+    title: row.title,
+    description: typeof row.description === 'string' ? row.description : null,
+    html: typeof row.full_description === 'string' ? row.full_description : null,
+    language: typeof row.source_language === 'string' ? row.source_language : null,
+    authors,
+    translators,
+    reviewers,
+  };
 }
 
 export async function loadLibraryItem(id: string, lang: Lang, topicId: string): Promise<{ lang: Lang; topic: string; item: LibraryItem }> {

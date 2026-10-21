@@ -18,11 +18,12 @@ import { encyclopediaEvidence, hadithEvidence, verseEvidence } from './src/serve
 import { loadHadeeth, loadHadeethCategories, loadHadeethList, searchHadeeth } from './src/server/hadeethenc.ts';
 import { pageByRelevance } from './src/shared/hadeethenc.ts';
 import { askPilot, loadPilotEpisode } from './src/server/pilot.ts';
-import { loadLibrary, loadLibraryItem } from './src/server/islamhouse.ts';
+import { loadKnowledgeShelf, loadLibrary, loadLibraryItem } from './src/server/islamhouse.ts';
+import { dossierEvidence, quoteFromEvidence, researchTopic } from './src/server/research.ts';
+import { attachVerification, verifyScript } from './src/shared/research.ts';
 import type { EncyclopediaHadith } from './src/shared/hadeethenc.ts';
 import {
   ask,
-  gatherEvidence,
   generateJson,
   geminiConfigured,
   narrate,
@@ -245,6 +246,20 @@ app.get(
   ),
 );
 
+app.get(
+  '/api/knowledge/:path',
+  route(async (req, res) =>
+    res.json(
+      await loadKnowledgeShelf(
+        String(req.params.path),
+        toLang(req.query.lang),
+        pageNumber(req.query.page),
+        typeof req.query.category === 'string' ? req.query.category : undefined,
+      ),
+    ),
+  ),
+);
+
 app.get('/api/studio/pilot', route(async (req, res) => res.json(await loadPilotEpisode(toLang(req.query.lang)))));
 
 app.post(
@@ -315,7 +330,7 @@ app.post(
     const hadithRefs: HadithRef[] = Array.isArray(req.body?.hadith)
       ? (req.body.hadith as HadithRef[]).slice(0, 4).map(h => ({ collection: String(h.collection), number: Number(h.number) }))
       : [];
-    const evidence =
+    const explicit =
       refs.length || hadithRefs.length
         ? [
             ...verseEvidence(await getVerses(refs, lang)),
@@ -325,8 +340,14 @@ app.post(
               ),
             ),
           ]
-        : await gatherEvidence(topic, lang, fetchers);
-    res.json(await writePodcast(topic, lang, minutes, evidence));
+        : [];
+    const dossier = explicit.length ? null : await researchTopic({ topic, questions: [topic], lang });
+    const evidence = explicit.length ? explicit : dossierEvidence(dossier!);
+    if (!evidence.length) {
+      throw new UpstreamError(dossier?.unanswered[0] ?? 'No sources could be retrieved for this topic.', 422);
+    }
+    const script = geminiConfigured() ? await writePodcast(topic, lang, minutes, evidence) : quoteFromEvidence(topic, lang, evidence);
+    res.json(attachVerification(script, verifyScript(script.lines, evidence), dossier?.unanswered ?? []));
   }),
 );
 

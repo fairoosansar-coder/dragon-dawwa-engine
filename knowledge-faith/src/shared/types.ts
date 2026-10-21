@@ -71,6 +71,13 @@ export interface Evidence {
   text: string;
   attribution: string;
   grades: Grade[];
+  /** Heading and paragraph, or surah:ayah, or hadith id. Absent on older evidence. */
+  locator?: string | null;
+  sourceUrl?: string | null;
+  passageLanguage?: string | null;
+  retrievedOn?: string | null;
+  itemId?: string | null;
+  limitations?: string[];
 }
 
 export interface AnswerParagraph {

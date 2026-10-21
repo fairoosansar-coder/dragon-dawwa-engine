@@ -155,25 +155,34 @@ export function HadithCard({ hadith }: { hadith: Hadith }) {
   );
 }
 
-export function EvidenceList({ evidence, cited }: { evidence: Evidence[]; cited?: Set<string> }) {
+export function EvidenceList({ evidence, cited, focusIds }: { evidence: Evidence[]; cited?: Set<string>; focusIds?: Set<string> }) {
   return (
     <ol className="space-y-3">
       {evidence.map(e => (
         <li
           key={e.id}
           id={`ev-${e.id}`}
-          className={`rounded-2xl border p-4 ${cited && !cited.has(e.id) ? 'border-pine/10 opacity-70' : 'border-pine/20 bg-white'}`}
+          data-focus={focusIds?.has(e.id) ? 'true' : undefined}
+          className={`rounded-2xl border p-4 ${focusIds?.has(e.id) ? 'border-pine bg-white ring-2 ring-pine/30' : cited && !cited.has(e.id) ? 'border-pine/10 opacity-70' : 'border-pine/20 bg-white'}`}
         >
           <p className="text-xs font-semibold text-pine">
             [{e.id}] {e.label}
           </p>
+          {e.locator && <p className="mt-1 text-xs text-muted">{e.locator}</p>}
           {e.arabic && (
             <p lang="ar" className="arabic mt-1 line-clamp-4 text-xl">
               {e.arabic}
             </p>
           )}
-          <p className="mt-1 text-sm leading-relaxed">{e.text}</p>
+          <p className="mt-1 text-sm leading-relaxed" lang={e.passageLanguage ?? undefined}>
+            {e.text}
+          </p>
           <p className="mt-1 text-xs text-ink/50">{e.attribution}</p>
+          {e.sourceUrl && (
+            <a className="mt-2 inline-block text-xs text-pine underline" href={e.sourceUrl} target="_blank" rel="noreferrer">
+              {e.sourceUrl}
+            </a>
+          )}
           {e.kind === 'hadith' && (
             <div className="mt-2">
               <GradeList grades={e.grades} />

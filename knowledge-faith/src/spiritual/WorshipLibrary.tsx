@@ -6,6 +6,7 @@ import { useRemote } from '../lib/api.ts';
 import { useApp } from '../lib/store.tsx';
 import type { ShareVerse } from '../lib/verseShare.ts';
 import { libraryShareText, WORSHIP_TOPICS, worshipTopic, type LibraryFile, type LibraryItem, type LibraryPage } from '../shared/islamhouse.ts';
+import { PRAYER_ARTICLE, PRAYER_CREDITS } from '../shared/sourceRegistry.ts';
 import type { Lang } from '../shared/sources.ts';
 import { PageBack } from './chrome.tsx';
 
@@ -262,6 +263,21 @@ function TopicList({
         </ul>
       )}
       {data && data.items.length === 0 && <p className="text-sm text-muted">{t.libraryEmpty}</p>}
+      {topicId === 'prayer' && lang === 'ta' && (
+        <article className="rounded-3xl border border-pine/10 bg-white p-4">
+          <p className="text-xs font-semibold text-pine">IslamHouse {PRAYER_ARTICLE.id}</p>
+          <h3 lang="ta" className="mt-2 font-display text-2xl font-bold text-pine">
+            {PRAYER_ARTICLE.title}
+          </h3>
+          <p className="mt-2 text-sm leading-relaxed text-muted">{t.readerPrayerNote}</p>
+          <p lang="ta" className="mt-2 text-sm text-ink">
+            {PRAYER_CREDITS.author}
+          </p>
+          <a className="mt-3 inline-block text-sm text-pine underline" href={PRAYER_ARTICLE.readerUrl} target="_blank" rel="noreferrer">
+            {t.sourcePage}
+          </a>
+        </article>
+      )}
       {data?.items.map(item => (
         <ItemBody key={item.id} item={item} topicId={topicId} topicTitle={current?.title ?? topicTitle} lang={lang} />
       ))}

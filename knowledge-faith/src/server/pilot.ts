@@ -20,6 +20,9 @@ import {
   type PilotGap,
 } from '../shared/pilot.ts';
 import type { Verse } from '../shared/types.ts';
+import { SINCERITY_BOOK, SINCERITY_CREDITS } from '../shared/sourceRegistry.ts';
+import { passageUnderHeading, paragraphLocator } from '../shared/readableText.ts';
+import { fetchReaderHtml } from './readable.ts';
 import { geminiConfigured, writeAnswer } from './gemini.ts';
 import { loadHadeeth, searchHadeeth } from './hadeethenc.ts';
 import { UpstreamError } from './http.ts';
@@ -96,6 +99,50 @@ function verseChapter(verse: Verse): PilotChapter {
   };
 }
 
+const SINCERITY_UNAVAILABLE = 'IslamHouse 735805 is a Tamil book on inner purity. No English or Sinhala edition of this item was found.';
+
+async function sincerityChapter(): Promise<PilotChapter | null> {
+  const html = await fetchReaderHtml(SINCERITY_BOOK.readerUrl);
+  const section = html ? passageUnderHeading(html, SINCERITY_BOOK.heading) : null;
+  const main = section?.paragraphs[0];
+  if (!section || !main) return null;
+  const other = section.paragraphs.find(paragraph => paragraph.id !== main.id && paragraph.text.includes('அறிஞர்கள்'));
+  const attribution = [
+    'IslamHouse',
+    String(SINCERITY_BOOK.id),
+    SINCERITY_BOOK.title,
+    `Preparation: ${SINCERITY_CREDITS.preparation}`,
+    `Tamil translation: ${SINCERITY_CREDITS.translator}`,
+    `Reviewer: ${SINCERITY_CREDITS.reviewer}`,
+    paragraphLocator(section.heading, main),
+    'Publisher’s Tamil wording. Not a translation generated here.',
+    SINCERITY_BOOK.readerUrl,
+  ].join('. ');
+  const claims: PilotClaim[] = [
+    {
+      id: 'ih735805',
+      group: 'ih735805',
+      role: 'translation',
+      label: `IslamHouse ${SINCERITY_BOOK.id}`,
+      text: main.text,
+      attribution,
+      sourceUrl: SINCERITY_BOOK.readerUrl,
+    },
+  ];
+  if (other) {
+    claims.push({
+      id: 'ih735805-other',
+      group: 'ih735805',
+      role: 'explanation',
+      label: `IslamHouse ${SINCERITY_BOOK.id}`,
+      text: other.text,
+      attribution: `${attribution} ${paragraphLocator(section.heading, other)}. The book introduces this as another scholarly wording.`,
+      sourceUrl: SINCERITY_BOOK.readerUrl,
+    });
+  }
+  return { id: 'ih735805', title: SINCERITY_BOOK.title, claims };
+}
+
 function gapMessage(err: unknown): string {
   return err instanceof UpstreamError ? err.message : 'This source could not be reached.';
 }
@@ -116,6 +163,17 @@ export async function loadPilotEpisode(lang: Lang): Promise<PilotEpisode> {
     if (!verses.length) gaps.push({ source: "Qur'an 98:5", message: 'This passage could not be retrieved.' });
   } catch (err) {
     gaps.push({ source: "Qur'an 98:5", message: gapMessage(err) });
+  }
+  if (lang === 'ta') {
+    try {
+      const chapter = await sincerityChapter();
+      if (chapter) chapters.push(chapter);
+      else gaps.push({ source: 'IslamHouse 735805', message: 'The Tamil reader passage could not be retrieved.' });
+    } catch (err) {
+      gaps.push({ source: 'IslamHouse 735805', message: gapMessage(err) });
+    }
+  } else {
+    gaps.push({ source: 'IslamHouse 735805', message: SINCERITY_UNAVAILABLE });
   }
   if (!chapters.length) throw new UpstreamError(gaps[0]?.message ?? 'This source could not be reached.', 502);
   return {

@@ -266,6 +266,17 @@ const en = {
   translator: 'Translator',
   reviewer: 'Reviewer',
   nameMissing: 'Name not supplied by the source',
+  pathsTitle: 'Paths',
+  discoverTitle: 'Discover Islam',
+  deepenTitle: 'Deepen Your Understanding',
+  prophetTitle: 'Life of the Prophet',
+  pathNote: 'Open any path. This does not ask you to declare a religion.',
+  pathSource: 'IslamHouse category',
+  pathEmpty: 'No items found in this category. An empty category is not the whole library.',
+  pathCatalogue: 'A title is a catalogue entry. The passage is on the source page.',
+  readerPrayerNote: 'This Tamil article is outside the prayer category list. An empty category is not the whole Tamil library.',
+  namesCatalogueGap:
+    'On 21 Oct 2026 an English terminology catalogue listed 98 entries for the Beautiful Names, and one English page was opened. Tamil returned 404. The Sinhala category page had no entries. No API was found, so those pages are not used here.',
 };
 
 export type Strings = typeof en;

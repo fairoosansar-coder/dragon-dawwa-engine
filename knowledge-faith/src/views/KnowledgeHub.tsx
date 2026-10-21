@@ -11,6 +11,7 @@ import { usePronunciation, withPronunciation } from '../lib/pronunciation.ts';
 import { shownVerses, translationRequest } from '../shared/quranenc.ts';
 import { useApp, useStored } from '../lib/store.tsx';
 import { CitationChips, EvidenceList, HadithCard, VerseCard } from '../components/cards.tsx';
+import { KnowledgeShelf } from './KnowledgePaths.tsx';
 import { EmptyState, FeatureCard, PrayerStrip } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, Loading, Notice, SectionTitle } from '../components/ui.tsx';
 
@@ -201,6 +202,8 @@ export default function KnowledgeHub({ sub }: ViewProps) {
     { href: '#/studio', title: t.cardListen, body: t.cardListenBody, icon: <Sparkles className="h-5 w-5" aria-hidden /> },
   ].filter(card => !q || card.title.toLowerCase().includes(q) || card.body.toLowerCase().includes(q));
 
+  if (sub === 'discover' || sub === 'deepen' || sub === 'prophet') return <KnowledgeShelf pathId={sub} />;
+
   return (
     <div className="space-y-6">
       <header>
@@ -225,6 +228,15 @@ export default function KnowledgeHub({ sub }: ViewProps) {
       </section>
 
       <PrayerStrip />
+
+      <section className="space-y-3">
+        <SectionTitle sub={t.pathNote}>{t.pathsTitle}</SectionTitle>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <FeatureCard href="#/hub/discover" title={t.discoverTitle} body={t.pathCatalogue} icon={<BookOpen className="h-5 w-5" aria-hidden />} />
+          <FeatureCard href="#/hub/deepen" title={t.deepenTitle} body={t.pathCatalogue} icon={<Library className="h-5 w-5" aria-hidden />} />
+          <FeatureCard href="#/hub/prophet" title={t.prophetTitle} body={t.pathCatalogue} icon={<MoonStar className="h-5 w-5" aria-hidden />} />
+        </div>
+      </section>
 
       {cards.length === 0 ? (
         <EmptyState>{t.noResults}</EmptyState>

@@ -10,6 +10,8 @@ export const LIBRARY_CATEGORY_EMPTY = 'No items found in this category.';
  * Parent item lists do not include child items. Tamil and Sinhala prayer parents return
  * HTTP 200 code 204, while child 192815 has Tamil book 373 and children 430287 and 732298
  * each have Sinhala item 427. English prayer page 2 is a real later page, not an empty language.
+ * An empty Tamil prayer category is not the whole Tamil library. Reader item 475013,
+ * “தொழுகையின் முக்கியத்துவம்”, has full Tamil text. See sourceRegistry.ts.
  */
 export const RELATED_WORSHIP_CATEGORIES = {
   purification: [],

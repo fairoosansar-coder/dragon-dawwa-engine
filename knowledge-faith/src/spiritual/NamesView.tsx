@@ -13,6 +13,7 @@ export function NamesView({ segments }: { segments: string[] }) {
         <h1 className="mt-4 font-display text-4xl font-bold text-dd-emerald sm:text-5xl">{t.namesTitle}</h1>
         <p className="mt-4 max-w-2xl text-lg leading-relaxed">{t.namesLede}</p>
         {lang !== 'en' && <p className="mt-4 max-w-2xl text-sm leading-relaxed text-dd-ink/70">{t.namesEnglishOnly}</p>}
+        <p className="mt-4 max-w-2xl text-sm leading-relaxed text-dd-ink/70">{t.namesCatalogueGap}</p>
         <p className="mt-4 max-w-2xl text-sm leading-relaxed text-dd-ink/70">{t.namesScriptUnavailable}</p>
         {remote.loading && <p className="mt-8">{s.loading}</p>}
         {remote.error && (
