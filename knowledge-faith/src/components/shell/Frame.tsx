@@ -29,28 +29,12 @@ export function AppFrame({ path, section, children }: { path: RouteRoot; section
   const { focus, setFocus } = useShell();
   const audio = useAudioState();
   const player = Boolean(audio.id) && audio.status !== 'idle';
-  const pad = focus
-    ? player
-      ? 'pb-28'
-      : 'pb-8'
-    : player
-      ? 'pb-[calc(10.5rem+env(safe-area-inset-bottom))] lg:pb-28'
-      : 'pb-[calc(5.75rem+env(safe-area-inset-bottom))] lg:pb-10';
 
   return (
-    <div className={`min-h-dvh overflow-x-clip bg-sand text-ink ${pad}`}>
+    <div className="flex h-dvh overflow-hidden bg-sand text-ink">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-parchment focus:px-3 focus:py-2">
         Skip to content
       </a>
-      {focus && (
-        <button
-          type="button"
-          onClick={() => setFocus(false)}
-          className="fixed left-4 top-4 z-50 rounded-full bg-pine px-4 py-2 text-sm font-medium text-sand shadow-lg"
-        >
-          {t.exitFocus}
-        </button>
-      )}
       {!focus && (
         <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-gold/50 bg-pine text-sand lg:flex">
           <div className="px-4 pt-5">
@@ -84,9 +68,16 @@ export function AppFrame({ path, section, children }: { path: RouteRoot; section
         </aside>
       )}
 
-      <div className={focus ? '' : 'lg:pl-64'}>
+      <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${focus ? '' : 'lg:pl-64'}`}>
+        {focus && (
+          <div className="shrink-0 border-b border-pine/10 bg-sand px-4 py-3">
+            <button type="button" onClick={() => setFocus(false)} className="rounded-full bg-pine px-4 py-2 text-sm font-medium text-sand">
+              {t.exitFocus}
+            </button>
+          </div>
+        )}
         {!focus && (
-          <header className="border-b border-pine/10 bg-sand lg:hidden">
+          <header className="shrink-0 border-b border-pine/10 bg-sand lg:hidden">
             <div className="flex items-center justify-between gap-3 px-4 py-3">
               <BrandLockup />
               <label className="shrink-0 text-xs text-muted">
@@ -106,7 +97,7 @@ export function AppFrame({ path, section, children }: { path: RouteRoot; section
           </header>
         )}
         {!focus && (
-          <div className="sticky top-0 z-20 hidden items-center gap-4 border-b border-pine/10 bg-sand/95 px-6 py-3 backdrop-blur lg:flex">
+          <div className="hidden shrink-0 items-center gap-4 border-b border-pine/10 bg-sand px-6 py-3 lg:flex">
             <p className="shrink-0 font-display text-lg font-bold text-pine">{section}</p>
             <div className="h-6 w-px bg-gold/70" aria-hidden />
             <SearchField className="max-w-md flex-1" />
@@ -122,15 +113,12 @@ export function AppFrame({ path, section, children }: { path: RouteRoot; section
             </label>
           </div>
         )}
-        <main id="main" className={focus ? 'px-4 py-16 sm:px-6' : 'mx-auto max-w-6xl px-4 py-6 sm:px-6'}>
-          {children}
+        <main id="main" className="min-h-0 flex-1 overflow-x-clip overflow-y-auto px-4 py-6 sm:px-6">
+          <div className="mx-auto max-w-6xl">{children}</div>
         </main>
-      </div>
-
-      <AudioMiniPlayer aboveNav={!focus} />
-
-      {!focus && (
-        <nav aria-label="Sections" className="fixed inset-x-0 bottom-0 z-30 border-t border-gold/40 bg-pine pb-[env(safe-area-inset-bottom)] lg:hidden">
+        {player && <AudioMiniPlayer safe={focus} />}
+        {!focus && (
+          <nav aria-label="Sections" className="shrink-0 border-t border-gold/40 bg-pine pb-[env(safe-area-inset-bottom)] lg:hidden">
           <ul className="grid grid-cols-5">
             {NAV.map(item => {
               const active = item.path === path;
@@ -149,7 +137,8 @@ export function AppFrame({ path, section, children }: { path: RouteRoot; section
             })}
           </ul>
         </nav>
-      )}
+        )}
+      </div>
     </div>
   );
 }

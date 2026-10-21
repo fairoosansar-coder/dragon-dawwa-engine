@@ -232,15 +232,12 @@ export function ReadingSettings({
   );
 }
 
-export function AudioMiniPlayer({ aboveNav }: { aboveNav: boolean }) {
+export function AudioMiniPlayer({ safe }: { safe: boolean }) {
   const { t } = useApp();
   const audio = useAudioState();
   if (!audio.id || audio.status === 'idle') return null;
-  const dock = aboveNav
-    ? 'bottom-[calc(4.75rem+env(safe-area-inset-bottom))] lg:bottom-0 lg:left-64'
-    : 'bottom-[env(safe-area-inset-bottom)] lg:left-0';
   return (
-    <div className={`fixed inset-x-0 z-40 border-t border-gold/50 bg-pine px-4 py-3 text-sand ${dock}`}>
+    <div data-mini-player className={`shrink-0 border-t border-gold/50 bg-pine px-4 py-3 text-sand ${safe ? 'pb-[max(0.75rem,env(safe-area-inset-bottom))]' : ''}`}>
       <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
         <p className="text-sm">{audioStatusLabel(t, audio.status)}</p>
         {audio.status === 'playing' || audio.status === 'loading' ? (

@@ -47,7 +47,9 @@ function useHashRoute(): Location {
     const onChange = () => {
       const next = currentLocation();
       setLocation(prev => {
-        if (prev.path !== next.path || prev.segments.join('/') !== next.segments.join('/')) window.scrollTo({ top: 0 });
+        if (prev.path !== next.path || prev.segments.join('/') !== next.segments.join('/')) {
+          document.getElementById('main')?.scrollTo({ top: 0 });
+        }
         return next;
       });
     };
