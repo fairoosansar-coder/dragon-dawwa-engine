@@ -9,7 +9,7 @@ A standalone UmmaConnect app for learning from primary Islamic sources in **Engl
 | **Knowledge Hub** | Verse of the day, eight study themes, saved verses/hadith, and *Ask*: a question is answered only from verses and hadith the server retrieves and displays, with per-paragraph citations | AlQuran Cloud, hadith-api, Gemini |
 | **Quran Reader** | 114 surahs, Uthmani Arabic + named translation (Saheeh International / Jan Trust Foundation / Naseem Ismail), per-ayah and continuous recitation (Alafasy, Husary, Minshawi), bookmarks, last surah remembered | AlQuran Cloud, islamic.network CDN |
 | **Hadith Library** | Nine collections, browse by book or jump to a number, Arabic text, grades exactly as supplied by the source (named grader), Tamil for Bukhari and Muslim, otherwise an explicit English fallback notice | hadith-api (fawazahmed0) |
-| **Prayer & Spiritual** | Daily prayer times by city or device location, method and Asr school, next-prayer countdown in the location's timezone, Hijri date, Qibla bearing, tasbih counter | Aladhan |
+| **Five Pillars & Spiritual Life** | Dragon Dawwa hub for Shahadah, Salah, Zakah, fasting, Hajj, and Umrah. Book and plain reading, bookmarks, prayer times, a bearing-based Qibla (live compass only when the device reports true north), a versioned educational zakah preview, and a provisional Hijri calendar with a private fasting planner. `#/prayer` still opens this section. Detailed rulings stay unpublished until a recorded review exists. | AlQuran Cloud for cited verses; Aladhan for calculated times and a calculated Hijri month; on-device tabular Hijri. No metals or FX feed. |
 | **Podcasts & Voice Studio** | Two-voice learning episodes scripted from retrieved sources (or your saved items) with citations, Gemini multi-speaker audio, local episode library, and single-voice narration of any text | Gemini text + TTS |
 
 ### Source integrity
@@ -62,8 +62,10 @@ npm run build
 
 ## Privacy
 
-There are no accounts. Bookmarks, episodes, tasbih count, language and location live in the browser's `localStorage`. Coordinates are rounded to two decimals (about 1 km) before prayer times are requested. Upstream calls go only to a fixed allowlist of hosts and are cached in memory.
+There are no accounts. Bookmarks, episodes, tasbih count, language, location, reading progress, fasting notes, and zakah calculations live in the browser's `localStorage`. Coordinates are rounded to two decimals (about 1 km) before prayer times are requested. Upstream calls go only to a fixed allowlist of hosts and are cached in memory. Financial amounts are not written to server logs; the zakah draft endpoint keeps only category names and follow-up questions.
 
 ## API
 
-`GET /api/health`, `/api/config`, `/api/quran/surahs`, `/api/quran/surah/:n?lang=`, `/api/quran/verses?refs=2:153,96:1-5&lang=`, `/api/hadith/:collection/sections`, `/api/hadith/:collection/section/:n?lang=`, `/api/hadith/:collection/:number?lang=`, `/api/prayer?lat=&lng=&method=&school=`; `POST /api/ask`, `/api/podcast/script`, `/api/voice/narrate`, `/api/voice/dialogue`, `/api/tts`.
+`GET /api/health`, `/api/config`, `/api/quran/surahs`, `/api/quran/surah/:n?lang=`, `/api/quran/verses?refs=2:153,96:1-5&lang=`, `/api/hadith/:collection/sections`, `/api/hadith/:collection/section/:n?lang=`, `/api/hadith/:collection/:number?lang=`, `/api/prayer?lat=&lng=&method=&school=&date=&latAdj=`, `/api/hijri-month?year=&month=`; `POST /api/ask`, `/api/spiritual/zakah-draft`, `/api/podcast/script`, `/api/voice/narrate`, `/api/voice/dialogue`, `/api/tts`.
+
+`/api/spiritual/zakah-draft` only suggests calculator fields. It strips amounts and does not return a zakah figure. Saved calculations stay in `localStorage` and are not posted to the server. The wealth profile shipped with the app is an unreviewed educational draft (`dd-wealth-educational` 1.0.0).

@@ -7,11 +7,14 @@ import type { PodcastLine } from './src/shared/types.ts';
 import { getSurah, getVerses, listSurahs } from './src/server/quran.ts';
 import { getHadith, getSection, listSections } from './src/server/hadith.ts';
 import { getPrayerTimes } from './src/server/prayer.ts';
+import { getHijriMonth } from './src/server/hijriMonth.ts';
+import { suggestZakahFields } from './src/server/zakahDraft.ts';
 import { UpstreamError } from './src/server/http.ts';
 import { hadithEvidence, verseEvidence } from './src/server/grounding.ts';
 import {
   ask,
   gatherEvidence,
+  generateJson,
   geminiConfigured,
   narrate,
   narrateDialogue,
@@ -139,9 +142,25 @@ app.get(
         Number(req.query.method),
         Number(req.query.school),
         typeof req.query.date === 'string' && req.query.date ? req.query.date : undefined,
+        Number(req.query.latAdj),
       ),
     ),
   ),
+);
+
+app.get(
+  '/api/hijri-month',
+  route(async (req, res) => res.json(await getHijriMonth(Number(req.query.year), Number(req.query.month)))),
+);
+
+app.post(
+  '/api/spiritual/zakah-draft',
+  aiLimiter,
+  route(async (req, res) => {
+    requireAi();
+    const description = text(req.body?.description, 1000, 'description');
+    res.json(await suggestZakahFields(description, generateJson));
+  }),
 );
 
 app.post(

@@ -91,6 +91,8 @@ export interface PrayerDay {
   timings: Record<'Fajr' | 'Sunrise' | 'Dhuhr' | 'Asr' | 'Maghrib' | 'Isha', string>;
   timezone: string;
   method: string;
+  /** Null when the provider default was left unchanged. */
+  latitudeAdjustment?: number | null;
   hijri: { day: string; month: string; monthArabic: string; year: string };
   gregorian: string;
 }

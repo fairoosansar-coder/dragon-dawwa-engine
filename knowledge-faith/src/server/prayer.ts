@@ -32,15 +32,17 @@ export async function getPrayerTimes(
   method: number,
   school: number,
   date?: string,
+  latitudeAdjustment = 0,
 ): Promise<PrayerDay> {
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
     throw new UpstreamError('Latitude/longitude out of range', 400);
   }
   const methodId = PRAYER_METHODS.some(m => m.id === method) ? method : 3;
   const schoolId = school === 1 ? 1 : 0;
+  const latAdj = latitudeAdjustment === 1 || latitudeAdjustment === 2 || latitudeAdjustment === 3 ? latitudeAdjustment : 0;
   const day = aladhanDate(date);
   // Coordinates are rounded to ~1 km so the cache is shared and precise locations are not forwarded.
-  const query = `latitude=${lat.toFixed(2)}&longitude=${lng.toFixed(2)}&method=${methodId}&school=${schoolId}`;
+  const query = `latitude=${lat.toFixed(2)}&longitude=${lng.toFixed(2)}&method=${methodId}&school=${schoolId}${latAdj ? `&latitudeAdjustmentMethod=${latAdj}` : ''}`;
   const url = `https://api.aladhan.com/v1/timings${day ? `/${day}` : ''}?${query}`;
   const { data } = await fetchJson<RawTimings>(url, HOUR);
   if (day && data.date.gregorian.date !== day) throw new UpstreamError('Prayer provider returned a different date', 502);
@@ -49,6 +51,7 @@ export async function getPrayerTimes(
     timings,
     timezone: data.meta.timezone,
     method: data.meta.method.name,
+    latitudeAdjustment: latAdj || null,
     hijri: {
       day: data.date.hijri.day,
       month: data.date.hijri.month.en,
