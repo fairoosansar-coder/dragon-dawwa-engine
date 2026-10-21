@@ -6,7 +6,8 @@ import { ayahForLoadedSurah, migrateReadingPlace, readTextSize } from '../src/li
 import { showSectionSearch } from '../src/lib/route.ts';
 import { minutesInZone, nextPrayer } from '../src/shared/spiritual.ts';
 import { STRINGS } from '../src/lib/i18n.ts';
-import { GUIDES, readingSections } from '../src/spiritual/content.ts';
+import { GUIDES, readingSections, text } from '../src/spiritual/content.ts';
+import { SP, slotLabel } from '../src/spiritual/i18n.ts';
 import { isoDateInZone } from '../src/spiritual/hijri.ts';
 
 class FakeMedia {
@@ -145,6 +146,19 @@ test('prayer date follows the saved place, including midnight and another zone',
   assert.equal(nextPrayer(timings, riyadh).name, 'Dhuhr');
   assert.equal(nextPrayer(timings, 12 * 60 - 1).name, 'Dhuhr');
   assert.equal(nextPrayer(timings, 12 * 60).name, 'Asr');
+});
+
+test('content language changes readings while the interface stays English', () => {
+  assert.equal(STRINGS.en.language, 'Content language');
+  assert.equal(STRINGS.en.navWorship, 'Worship');
+  assert.equal(slotLabel('en', 'overview'), 'Overview');
+  assert.equal(SP.en.contents, 'Contents');
+  const shahadah = GUIDES.find(guide => guide.id === 'shahadah');
+  const meaning = shahadah?.sections.find(section => section.id === 'meaning');
+  assert.ok(meaning?.meanings);
+  assert.notEqual(text(meaning.meanings, 'ta'), text(meaning.meanings, 'en'));
+  assert.equal(meaning.arabic?.includes('أَشْهَدُ'), true);
+  assert.notEqual(SP.ta.shahadahLede, SP.en.shahadahLede);
 });
 
 test('sidebar worship label stays separate from the phone prayer label', () => {

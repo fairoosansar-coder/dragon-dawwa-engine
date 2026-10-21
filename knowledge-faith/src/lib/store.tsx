@@ -57,8 +57,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { data: config } = useRemote<AppConfig>('/api/config');
 
   useEffect(() => {
-    document.documentElement.lang = lang;
-  }, [lang]);
+    document.documentElement.lang = 'en';
+  }, []);
 
   const toggleVerse = useCallback(
     (key: string) =>
@@ -84,7 +84,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => ({
       lang,
       setLang,
-      t: STRINGS[lang],
+      t: STRINGS.en,
       config,
       saved,
       toggleVerse,

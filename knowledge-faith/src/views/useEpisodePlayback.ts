@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { Lang } from '../shared/sources.ts';
 import type { PodcastLine, TtsResult } from '../shared/types.ts';
 import { postJson } from '../lib/api.ts';
 import { base64ToObjectUrl, bindExternalStop, stopAudio } from '../lib/audio.ts';
@@ -6,12 +7,14 @@ import { chunkEpisodeLines } from '../engine/utils/episodeChunks.ts';
 
 export type PlaybackPhase = 'idle' | 'loading' | 'playing';
 
-export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, guestVoice: string, resetKey: string) {
+export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, guestVoice: string, resetKey: string, scriptLang: Lang) {
   const chunks = useMemo(() => chunkEpisodeLines(lines), [lines]);
   const chunksRef = useRef(chunks);
   const voicesRef = useRef({ hostVoice, guestVoice });
+  const langRef = useRef(scriptLang);
   chunksRef.current = chunks;
   voicesRef.current = { hostVoice, guestVoice };
+  langRef.current = scriptLang;
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urls = useRef<Map<number, string>>(new Map());
@@ -51,7 +54,7 @@ export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, gues
     setIndex(-1);
     setPhase('idle');
     setError(null);
-  }, [resetKey, hostVoice, guestVoice]);
+  }, [resetKey, hostVoice, guestVoice, scriptLang]);
 
   function load(i: number): Promise<string | null> {
     const chunk = chunksRef.current[i];
@@ -64,6 +67,7 @@ export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, gues
     const task = postJson<TtsResult>('/api/voice/narrate', {
       text: chunk.text,
       voice,
+      lang: langRef.current,
     })
       .then(result => {
         const url = base64ToObjectUrl(result.audioBase64, result.mimeType || 'audio/wav');

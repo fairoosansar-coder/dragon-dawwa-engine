@@ -115,7 +115,7 @@ function CollectionBrowser() {
   const [section, setSection] = useState<HadithSection | null>(null);
   const [filter, setFilter] = useState('');
   const index = useRemote<{ sections: HadithSection[]; last: number; machineTranslation?: boolean }>(
-    `/api/hadith/${collection}/sections?lang=${lang}`,
+    `/api/hadith/${collection}/sections?lang=en`,
   );
   const info = HADITH_COLLECTIONS.find(c => c.id === collection) ?? HADITH_COLLECTIONS[0];
   const q = query.trim().toLowerCase();

@@ -6,7 +6,7 @@ import { spiritualHref } from '../lib/route.ts';
 
 export function useSp() {
   const app = useApp();
-  return { ...app, s: SP[app.lang] };
+  return { ...app, s: SP.en };
 }
 
 export function PageBack({ segments }: { segments: string[] }) {

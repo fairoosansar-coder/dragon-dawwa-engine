@@ -86,7 +86,7 @@ export function AppFrame({ path, section, showSearch, children }: { path: RouteR
                 <select value={lang} onChange={event => setLang(toLang(event.target.value))} className="rounded-full border border-pine/20 bg-parchment px-3 py-1.5 text-sm text-ink">
                   {LANGS.map(code => (
                     <option key={code} value={code}>
-                      {LANGUAGE_NAMES[code].native}
+                      {LANGUAGE_NAMES[code].english}
                     </option>
                   ))}
                 </select>
@@ -113,7 +113,7 @@ export function AppFrame({ path, section, showSearch, children }: { path: RouteR
               <select value={lang} onChange={event => setLang(toLang(event.target.value))} className="rounded-full border border-pine/20 bg-parchment px-3 py-1.5 text-sm text-ink">
                 {LANGS.map(code => (
                   <option key={code} value={code}>
-                    {LANGUAGE_NAMES[code].native}
+                    {LANGUAGE_NAMES[code].english}
                   </option>
                 ))}
               </select>

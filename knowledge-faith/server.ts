@@ -212,7 +212,7 @@ app.post(
   route(async (req, res) => {
     const body = text(req.body?.text, 3000, 'text');
     const style = typeof req.body?.style === 'string' ? req.body.style : '';
-    res.json(await narrate(body, req.body?.voice, style));
+    res.json(await narrate(body, req.body?.voice, style, toLang(req.body?.lang)));
   }),
 );
 

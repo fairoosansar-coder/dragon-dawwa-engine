@@ -7,7 +7,7 @@ import { pauseAudio, resumeAudio, useAudioState, type AudioStatus } from '../../
 import { useShell } from '../../lib/shell.tsx';
 import { useApp, useStored } from '../../lib/store.tsx';
 import type { Strings } from '../../lib/i18n.ts';
-import { LANGUAGE_NAMES, LANGS, QURAN_TRANSLATIONS, toLang } from '../../shared/sources.ts';
+import { QURAN_TRANSLATIONS } from '../../shared/sources.ts';
 import { minutesInZone, nextPrayer } from '../../shared/spiritual.ts';
 import type { PrayerDay } from '../../shared/types.ts';
 import { applyPrayerOffsets, latitudeAdjustmentId, type PrayerOffsets } from '../../spiritual/prayerAdjust.ts';
@@ -194,20 +194,10 @@ export function ReadingSettings({
   reciters: { id: string; name: string }[];
   onMode: (mode: 'study' | 'book') => void;
 }) {
-  const { t, lang, setLang } = useApp();
+  const { t, lang } = useApp();
   const edition = QURAN_TRANSLATIONS[lang];
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      <label className="flex flex-col gap-1 text-xs font-medium text-muted">
-        {t.language}
-        <select value={lang} onChange={event => setLang(toLang(event.target.value))} className="rounded-xl border border-pine/20 bg-parchment px-3 py-2 text-sm text-ink">
-          {LANGS.map(code => (
-            <option key={code} value={code}>
-              {LANGUAGE_NAMES[code].native}
-            </option>
-          ))}
-        </select>
-      </label>
       <p className="flex flex-col gap-1 text-xs font-medium text-muted">
         {t.editionLabel}
         <span className="rounded-xl border border-pine/10 bg-sand px-3 py-2 text-sm font-normal text-ink">

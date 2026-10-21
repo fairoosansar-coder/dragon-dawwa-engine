@@ -5,7 +5,7 @@ import { useStored } from '../lib/store.tsx';
 import type { Verse } from '../shared/types.ts';
 import { isScholarReviewed } from './editorial.ts';
 import { findGuide, guideById, readingSections, text, type Copy, type Guide, type GuideSection } from './content.ts';
-import { slotLabel } from './i18n.ts';
+import { SP, slotLabel } from './i18n.ts';
 import { PageBack, Panel, Prose, control, useSp } from './chrome.tsx';
 
 interface ReadingPrefs {
@@ -79,7 +79,7 @@ export function GuideView({ segments, anchor }: { segments: string[]; anchor?: s
   const visible = published.filter(section => {
     if (hasDetailed && beginner && !BEGINNER.has(section.id)) return false;
     if (!needle) return true;
-    return `${slotLabel(lang, section.id)} ${sectionBlob(section, lang)}`.toLowerCase().includes(needle);
+    return `${slotLabel('en', section.id)} ${sectionBlob(section, lang)}`.toLowerCase().includes(needle);
   });
   const testimony = guide.id === 'shahadah' ? visible.find(section => section.id === 'meaning') : undefined;
   const flow = testimony ? visible.filter(section => section.id !== 'meaning') : visible;
@@ -102,7 +102,7 @@ export function GuideView({ segments, anchor }: { segments: string[]; anchor?: s
       {guide.meta.languageReview === 'pending' && <p className="mt-2 text-sm text-dd-ink/70">{s.languagePending}</p>}
       <h1 className="mt-4 font-display text-4xl font-bold text-dd-emerald sm:text-5xl">{text(guide.title, lang) || guide.title.en}</h1>
       {guide.id === 'shahadah' ? (
-        <p className="mt-4 max-w-xl text-lg leading-relaxed">{s.shahadahLede}</p>
+        <p lang={lang} className="mt-4 max-w-xl text-lg leading-relaxed">{SP[lang].shahadahLede}</p>
       ) : (
         <div className="mt-4 max-w-xl">
           <Prose copy={guide.summary} />
@@ -116,13 +116,13 @@ export function GuideView({ segments, anchor }: { segments: string[]; anchor?: s
         <nav aria-label={s.toc} className="mt-3 flex flex-col rounded-2xl border border-dd-emerald/10 bg-white p-2">
           {visible.map(section => (
             <a key={section.id} href={`#/spiritual/${guide.path.join('/')}/${section.id}`} className="rounded-xl px-3 py-2 text-sm text-dd-emerald hover:bg-dd-gold/15">
-              {slotLabel(lang, section.id)}
+              {slotLabel('en', section.id)}
             </a>
           ))}
           {guide.links.length > 0 && <p className="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-[0.16em] text-dd-ink/50">{s.related}</p>}
           {guide.links.map(link => (
             <a key={link.href} href={link.href} className="rounded-xl px-3 py-2 text-sm text-dd-emerald hover:bg-dd-gold/15">
-              {text(link.label, lang) || link.label.en}
+              {text(link.label, 'en') || link.label.en}
             </a>
           ))}
         </nav>
@@ -141,7 +141,7 @@ export function GuideView({ segments, anchor }: { segments: string[]; anchor?: s
         {flow.length === 0 && needle && <p>{s.searchEmpty}</p>}
         {flow.map(section => (
           <section key={section.id} id={section.id === testimony?.id ? undefined : `sec-${section.id}`} className="scroll-mt-28">
-            <h2 className="font-display text-2xl font-bold text-dd-emerald">{slotLabel(lang, section.id)}</h2>
+            <h2 className="font-display text-2xl font-bold text-dd-emerald">{slotLabel('en', section.id)}</h2>
             <SectionBody section={section} english={english} />
           </section>
         ))}
@@ -377,7 +377,7 @@ export function BookmarkList() {
         return (
           <li key={`${item.guideId}-${item.section}`}>
             <a className="font-medium text-dd-emerald underline" href={href}>
-              {title} · {slotLabel(lang, item.section)}
+              {title} · {slotLabel('en', item.section)}
             </a>
           </li>
         );

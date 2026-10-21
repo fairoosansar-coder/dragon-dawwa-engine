@@ -14,7 +14,7 @@ import {
 import { toWavBase64 } from './wav.ts';
 import { UpstreamError } from './http.ts';
 import { hasGeminiApiKey } from './loadEnv.ts';
-import { spokenTranscript } from './spokenLine.ts';
+import { narrationDirection, spokenTranscript } from './spokenLine.ts';
 
 const TEXT_MODELS = (process.env.GEMINI_TEXT_MODELS ?? 'gemini-3.8-flash,gemini-flash-latest,gemini-2.5-flash')
   .split(',')
@@ -245,10 +245,10 @@ function voice(name: unknown, fallback: (typeof VOICES)[number]) {
   return VOICES.includes(name as (typeof VOICES)[number]) ? (name as string) : fallback;
 }
 
-export async function narrate(text: string, voiceName: unknown, style: string): Promise<TtsResult> {
+export async function narrate(text: string, voiceName: unknown, style: string, lang: Lang = 'en'): Promise<TtsResult> {
   const spoken = spokenTranscript(text, style);
   const name = voice(voiceName, 'Kore');
-  const direction = style.trim().slice(0, 200);
+  const direction = narrationDirection(style, lang);
   if (direction) {
     const directed = await speakWithDirection(spoken, name, direction);
     if (directed) return directed;

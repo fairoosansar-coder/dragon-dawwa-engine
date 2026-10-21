@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { SP } from './i18n.ts';
-import { useSp } from './chrome.tsx';
 import { Hub } from './Hub.tsx';
 import { GuideView } from './GuideView.tsx';
 import { PrayerTimesView, QiblaView } from './PrayerQibla.tsx';
@@ -14,11 +13,10 @@ function isSlot(value: string | undefined): value is SlotId {
 }
 
 export default function SpiritualSection({ segments = [] }: { segments?: string[] }) {
-  const { lang } = useSp();
   const [root, a, b] = segments;
   useEffect(() => {
-    document.title = `${SP[lang].title} · ${SP[lang].brand}`;
-  }, [lang]);
+    document.title = `${SP.en.title} · ${SP.en.brand}`;
+  }, []);
 
   let view = <Hub />;
   if (root === 'shahadah') view = <GuideView segments={['shahadah']} anchor={isSlot(a) ? a : undefined} />;

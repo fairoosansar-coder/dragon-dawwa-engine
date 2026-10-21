@@ -44,7 +44,7 @@ function EpisodeBuilder() {
   const [current, setCurrent] = useState<PodcastScript | null>(null);
   const [busy, setBusy] = useState<'script' | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const playback = useEpisodePlayback(current?.lines ?? [], hostVoice, guestVoice, current?.id ?? '');
+  const playback = useEpisodePlayback(current?.lines ?? [], hostVoice, guestVoice, current?.id ?? '', current?.lang ?? lang);
   const disabled = config ? !config.ai : false;
   const hasSaved = saved.verses.length + saved.hadith.length > 0;
 
@@ -246,7 +246,7 @@ function VoiceStudio() {
       if (!config?.ai) {
         throw new Error(t.browserVoice);
       }
-      setAudio(await postJson<TtsResult>('/api/voice/narrate', { text, voice, style }));
+      setAudio(await postJson<TtsResult>('/api/voice/narrate', { text, voice, style, lang }));
     } catch (err) {
       setError((err as Error).message);
     } finally {
