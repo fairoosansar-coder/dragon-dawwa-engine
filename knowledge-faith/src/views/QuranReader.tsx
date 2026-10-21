@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, List } from 'lucide-react';
 import type { ViewProps } from '../App.tsx';
-import { playAudio, stopAudio } from '../lib/audio.ts';
+import { playAudio, stopAudio, useAudioState } from '../lib/audio.ts';
 import { useRemote } from '../lib/api.ts';
 import { useQuranEdition } from '../lib/quranEdition.ts';
 import { ayahForLoadedSurah, clampSurah, readTextSize, useReadingPlace, type TextSize } from '../lib/readingPlace.ts';
@@ -9,12 +9,19 @@ import { scrollBehavior, scrollMain } from '../lib/scroll.ts';
 import { useShell } from '../lib/shell.tsx';
 import { usePronunciation, withPronunciation } from '../lib/pronunciation.ts';
 import { useApp, useStored } from '../lib/store.tsx';
-import { confirmedMeaningSrc, meaningPlaybackId, shownVerses } from '../shared/quranenc.ts';
+import {
+  coverageFromPayload,
+  listedMeaningUrl,
+  meaningPlaybackId,
+  nextListedMeaning,
+  shownVerses,
+  type AudioCoverage,
+} from '../shared/quranenc.ts';
 import { recitationUrl } from '../shared/sources.ts';
 import type { SurahInfo, Verse } from '../shared/types.ts';
 import { useReciter } from '../components/cards.tsx';
 import { VerseCard } from '../components/cards.tsx';
-import { BookPage, EmptyState, PronunciationStatus, ReadingSettings, SourceAttribution, VerseActions } from '../components/shell/widgets.tsx';
+import { audioStatusLabel, BookPage, EmptyState, PronunciationStatus, ReadingSettings, SourceAttribution, VerseActions } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, IconButton, Loading, TabLinks } from '../components/ui.tsx';
 
 const BISMILLAH = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ';
@@ -286,6 +293,12 @@ function Edition({
   const [contents, setContents] = useState(false);
   const requestUrl = editionKey ? withPronunciation(`/api/quran/surah/${surah}?lang=${lang}&edition=${encodeURIComponent(editionKey)}`, pronunciation) : null;
   const reader = useRemote<{ info: SurahInfo; verses: Verse[] }>(requestUrl);
+  const manifestRemote = useRemote<unknown>(editionKey ? `/api/quran/audio-manifest?edition=${encodeURIComponent(editionKey)}` : null);
+  const coverage = useMemo<AudioCoverage | null>(() => {
+    if (!editionKey || manifestRemote.error || !manifestRemote.data) return null;
+    const parsed = coverageFromPayload(manifestRemote.data);
+    return parsed && parsed.translation === editionKey ? parsed : null;
+  }, [editionKey, manifestRemote.data, manifestRemote.error]);
   const surahs = useRemote<SurahInfo[]>('/api/quran/surahs');
   const candidate = reader.data?.info.number === surah ? reader.data : null;
   const loaded = editionKey && candidate && shownVerses(candidate.verses, lang, editionKey) ? candidate : null;
@@ -293,15 +306,29 @@ function Edition({
   const versesRef = useRef(verses);
   versesRef.current = verses;
   const touch = useRef({ x: 0, y: 0 });
+  const pendingMeaning = useRef<{ key: string; surah: number; ayah: number } | null>(null);
+  const [meaningNote, setMeaningNote] = useState<string | null>(null);
+  const audio = useAudioState();
+  const coverageRef = useRef(coverage);
+  coverageRef.current = coverage;
 
   useEffect(() => {
     const next = ayahForLoadedSurah(surah, loaded?.info.number, loaded?.info.numberOfAyahs, ayah);
     if (next != null && next !== ayah) setAyah(next);
   }, [loaded, ayah, surah, setAyah]);
 
+  useEffect(() => {
+    pendingMeaning.current = null;
+    setMeaningNote(null);
+  }, [editionKey, lang, reciter]);
+
   const goSurah = useCallback(
-    (number: number, verse = 1) => {
-      stopAudio();
+    (number: number, verse = 1, keepMeaning = false) => {
+      if (!keepMeaning) {
+        pendingMeaning.current = null;
+        setMeaningNote(null);
+        stopAudio();
+      }
       setSurah(number);
       setAyah(verse);
       setContents(false);
@@ -314,6 +341,8 @@ function Edition({
     (delta: number) => {
       const count = loaded?.info.number === surah ? loaded.info.numberOfAyahs : 0;
       if (!count) return;
+      pendingMeaning.current = null;
+      setMeaningNote(null);
       stopAudio();
       const next = ayah + delta;
       if (next >= 1 && next <= count) {
@@ -325,6 +354,42 @@ function Edition({
     },
     [ayah, goSurah, loaded, setAyah, surah],
   );
+
+  const playMeaningRef = useRef<(surahNumber: number, ayahNumber: number) => void>(() => undefined);
+  playMeaningRef.current = (surahNumber: number, ayahNumber: number) => {
+    const key = editionKey;
+    const src = coverageRef.current && key ? listedMeaningUrl(coverageRef.current, key, surahNumber, ayahNumber) : null;
+    if (!key || !src) {
+      setMeaningNote(t.meaningAudioNotListedVerse);
+      return;
+    }
+    setMeaningNote(null);
+    setAyah(ayahNumber);
+    const info = loaded?.info.number === surahNumber ? loaded.info : null;
+    const count = info?.numberOfAyahs ?? 0;
+    void playAudio(meaningPlaybackId(key, surahNumber, ayahNumber), src, () => {
+      const next = nextListedMeaning(coverageRef.current, key, surahNumber, ayahNumber, count);
+      if (next.kind === 'play' && next.surah === surahNumber) {
+        playMeaningRef.current(next.surah, next.ayah);
+        return;
+      }
+      if (next.kind === 'play') {
+        pendingMeaning.current = { key, surah: next.surah, ayah: next.ayah };
+        goSurah(next.surah, next.ayah, true);
+        return;
+      }
+      stopAudio();
+      if (next.kind === 'missing') setMeaningNote(t.meaningAudioNextMissing);
+    });
+  };
+
+  useEffect(() => {
+    const pending = pendingMeaning.current;
+    if (!pending || !loaded || !coverage) return;
+    if (pending.key !== editionKey || loaded.info.number !== pending.surah) return;
+    pendingMeaning.current = null;
+    playMeaningRef.current(pending.surah, pending.ayah);
+  }, [coverage, editionKey, loaded]);
 
   const playRef = useRef<(n: number) => void>(() => undefined);
   playRef.current = (ayahNumber: number) => {
@@ -365,9 +430,26 @@ function Edition({
   }, [ayah, mode, surah, lang, loaded]);
 
   const current = verses.find(item => item.ayah === ayah) ?? verses[0];
-  const meaningSrc = current ? confirmedMeaningSrc(current) : null;
-  const meaningKey = current?.translationKey;
   const savedKey = current?.key ?? '';
+  const manifestUnreadable = Boolean(editionKey && manifestRemote.data && !manifestRemote.loading && !manifestRemote.error && !coverage);
+  const editionNotice = !editionKey
+    ? null
+    : manifestRemote.loading && !coverage
+      ? null
+      : manifestRemote.error
+        ? manifestRemote.error
+        : manifestUnreadable
+          ? t.meaningAudioListFailed
+          : coverage && coverage.count === 0
+            ? t.meaningAudioNotListed
+            : null;
+  const meaningFor = (verse: Verse | undefined): { action: (() => void) | null; note: string | null } => {
+    if (!verse || !coverage || editionNotice) return { action: null, note: null };
+    if (!listedMeaningUrl(coverage, editionKey, verse.surah, verse.ayah)) return { action: null, note: t.meaningAudioNotListedVerse };
+    return { action: () => playMeaningRef.current(verse.surah, verse.ayah), note: null };
+  };
+  const bookMeaning = meaningFor(current);
+  const meaningStatus = audio.id?.startsWith('meaning-') && audio.status !== 'idle' ? audioStatusLabel(t, audio.status, audio.id) : null;
   const q = query.trim().toLowerCase();
   const list = (surahs.data ?? []).filter(
     item => !q || String(item.number) === q || item.englishName.toLowerCase().includes(q) || item.name.includes(query.trim()),
@@ -447,6 +529,17 @@ function Edition({
             <p className="text-sm text-muted">{loaded.info.englishNameTranslation}</p>
             <div className="mt-3 space-y-2">
               <SourceAttribution verse={verses[0]} />
+              {editionNotice && (
+                <p className="text-sm text-muted" role="status">
+                  {editionNotice}
+                </p>
+              )}
+              {meaningNote && (
+                <p className="text-sm text-muted" role="status">
+                  {meaningNote}
+                </p>
+              )}
+              {meaningStatus && <p className="text-sm text-muted">{meaningStatus}</p>}
               <PronunciationStatus pronunciation={pronunciation} />
               {pronunciation === 'en' && verses.some(verse => verse.transliteration) && <p className="text-sm text-muted">{t.pronunciationSource}</p>}
               {pronunciation === 'en' && verses.length > 0 && !verses.some(verse => verse.transliteration) && (
@@ -459,17 +552,22 @@ function Edition({
               </p>
             )}
             <div className={ARABIC_SIZE[textSize]}>
-              {verses.map(verse => (
-                <div key={verse.key} className={BODY_SIZE[textSize]}>
-                  <VerseCard
-                    verse={verse}
-                    scale={textSize}
-                    selected={verse.ayah === ayah}
-                    onEnded={() => playRef.current(verse.ayah + 1)}
-                    cite={false}
-                  />
-                </div>
-              ))}
+              {verses.map(verse => {
+                const meaning = meaningFor(verse);
+                return (
+                  <div key={verse.key} className={BODY_SIZE[textSize]}>
+                    <VerseCard
+                      verse={verse}
+                      scale={textSize}
+                      selected={verse.ayah === ayah}
+                      onEnded={() => playRef.current(verse.ayah + 1)}
+                      cite={false}
+                      onMeaning={meaning.action}
+                      meaningNote={meaning.note}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </Card>
         )}
@@ -558,13 +656,24 @@ function Edition({
                 <VerseActions
                   saved={savedKey ? isVerseSaved(savedKey) : false}
                   onListen={() => current && playRef.current(current.ayah)}
-                  onMeaning={
-                    meaningSrc && meaningKey && current
-                      ? () => playAudio(meaningPlaybackId(meaningKey, current.surah, current.ayah), meaningSrc)
-                      : undefined
-                  }
+                  onMeaning={bookMeaning.action ?? undefined}
                   onBookmark={() => savedKey && toggleVerse(savedKey)}
                 />
+                {editionNotice && (
+                  <p className="text-sm text-muted" role="status">
+                    {editionNotice}
+                  </p>
+                )}
+                {!editionNotice && bookMeaning.note && (
+                  <p className="text-sm text-muted" role="status">
+                    {bookMeaning.note}
+                  </p>
+                )}
+                {meaningNote && (
+                  <p className="text-sm text-muted" role="status">
+                    {meaningNote}
+                  </p>
+                )}
                 <p className="text-sm text-muted">{t.reflowNote}</p>
               </div>
             </BookPage>

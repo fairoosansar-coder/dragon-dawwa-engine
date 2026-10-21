@@ -1,4 +1,10 @@
 import type { Lang } from '../shared/sources.ts';
+import {
+  MEANING_AUDIO_LIST_FAILED,
+  MEANING_AUDIO_NEXT_MISSING,
+  MEANING_AUDIO_NOT_LISTED,
+  MEANING_AUDIO_NOT_LISTED_VERSE,
+} from '../shared/quranenc.ts';
 
 const en = {
   brandSub: 'By Aegis Intelligence',
@@ -179,6 +185,10 @@ const en = {
   meaningAudioPaused: 'Meaning audio is paused',
   meaningAudioError: 'Meaning audio for this edition could not be played.',
   meaningAudioUnavailable: 'Meaning audio is unavailable for this edition.',
+  meaningAudioNotListed: MEANING_AUDIO_NOT_LISTED,
+  meaningAudioNotListedVerse: MEANING_AUDIO_NOT_LISTED_VERSE,
+  meaningAudioListFailed: MEANING_AUDIO_LIST_FAILED,
+  meaningAudioNextMissing: MEANING_AUDIO_NEXT_MISSING,
   quranEncLoading: 'Loading the QuranEnc edition…',
   quranEncMissing: 'QuranEnc has no edition for this language. No other translation was substituted.',
   quranEncUnread: 'This passage is not the selected QuranEnc edition, so it was not shown.',

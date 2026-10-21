@@ -17,6 +17,8 @@ export function VerseCard({
   scale = 'md',
   selected = false,
   cite = true,
+  onMeaning,
+  meaningNote,
 }: {
   verse: Verse;
   onEnded?: () => void;
@@ -24,6 +26,9 @@ export function VerseCard({
   scale?: 'sm' | 'md' | 'lg';
   selected?: boolean;
   cite?: boolean;
+  /** A function plays this edition's listed file. Null hides the control. Omit to use the verse payload. */
+  onMeaning?: (() => void) | null;
+  meaningNote?: string | null;
 }) {
   const { t, toggleVerse, isVerseSaved } = useApp();
   const [reciter] = useReciter();
@@ -32,6 +37,8 @@ export function VerseCard({
   const active = audio.id === id && audio.playing;
   const saved = isVerseSaved(verse.key);
   const meaningSrc = confirmedMeaningSrc(verse);
+  const meaningKey = verse.translationKey;
+  const meaningAction = onMeaning === undefined ? (meaningSrc && meaningKey ? () => playAudio(meaningPlaybackId(meaningKey, verse.surah, verse.ayah), meaningSrc) : null) : onMeaning;
 
   return (
     <article
@@ -81,11 +88,16 @@ export function VerseCard({
           {verse.translationDescription ? <p className="leading-relaxed">{verse.translationDescription}</p> : null}
         </div>
       )}
-      {meaningSrc && verse.translationKey && (
-        <Button variant="ghost" className="mt-2" onClick={() => playAudio(meaningPlaybackId(verse.translationKey!, verse.surah, verse.ayah), meaningSrc)}>
+      {meaningAction && (
+        <Button variant="ghost" className="mt-2" onClick={meaningAction}>
           {t.listenMeaning}
         </Button>
       )}
+      {meaningNote ? (
+        <p className="mt-2 text-sm text-muted" role="status">
+          {meaningNote}
+        </p>
+      ) : null}
     </article>
   );
 }

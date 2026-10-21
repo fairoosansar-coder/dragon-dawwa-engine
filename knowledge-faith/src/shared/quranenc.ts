@@ -3,17 +3,10 @@ import type { Lang } from './sources.ts';
 /** Successful QuranEnc responses are reused only for this long. Failures are not stored. */
 export const QURANENC_TTL_MS = 10 * 60 * 1000;
 
-/**
- * Meaning audio confirmed by a direct request on 2026-10-21.
- * english_rwwad, tamil_omar_brief, and sinhalese_mahir returned audio/mpeg.
- * english_saheeh and tamil_omar returned 404. The other English and Tamil
- * editions are not in QuranEnc's audio list, so they stay text-only.
- */
-export const CONFIRMED_MEANING_AUDIO = ['english_rwwad', 'tamil_omar_brief', 'sinhalese_mahir'] as const;
-
-export const TEXT_ONLY_EDITION_KEYS = ['english_saheeh', 'english_hilali_khan', 'tamil_omar', 'tamil_baqavi'] as const;
-
-const AUDIO_KEYS = new Set<string>(CONFIRMED_MEANING_AUDIO);
+export const MEANING_AUDIO_NOT_LISTED = 'Meaning audio is not listed for this edition.';
+export const MEANING_AUDIO_NOT_LISTED_VERSE = 'Meaning audio is not listed for this verse.';
+export const MEANING_AUDIO_LIST_FAILED = 'The meaning audio list for this edition could not be loaded.';
+export const MEANING_AUDIO_NEXT_MISSING = 'Meaning audio is not listed for the next verse. Playback stopped.';
 
 export const DEFAULT_EDITION_KEY: Record<Lang, string> = {
   en: 'english_saheeh',
@@ -27,8 +20,19 @@ export interface QuranEncEdition {
   title: string;
   description: string;
   languageIso: string;
-  audio: boolean;
 }
+
+/** Files named by one edition's QuranEnc `files.json`. The count is the size of `files`. */
+export interface AudioCoverage {
+  translation: string;
+  count: number;
+  files: ReadonlySet<string>;
+}
+
+export type NextMeaning =
+  | { kind: 'play'; surah: number; ayah: number; src: string }
+  | { kind: 'missing'; surah: number; ayah: number }
+  | { kind: 'end' };
 
 export interface QuranEncAyah {
   sura: number;
@@ -67,12 +71,97 @@ function wholeNumber(value: unknown): number | null {
   return null;
 }
 
-export function meaningAudioUrl(key: string, sura: number, aya: number): string | null {
-  if (!AUDIO_KEYS.has(key)) return null;
+const AUDIO_FILE = /^(\d{3})(\d{3})\.mp3$/;
+
+export function audioFileName(sura: number, aya: number): string | null {
   if (!Number.isInteger(sura) || sura < 1 || sura > 114) return null;
   if (!Number.isInteger(aya) || aya < 1 || aya > 286) return null;
-  const pad = (value: number) => String(value).padStart(3, '0');
-  return `https://d.quranenc.com/data/audio/${key}/${pad(sura)}${pad(aya)}.mp3`;
+  return `${String(sura).padStart(3, '0')}${String(aya).padStart(3, '0')}.mp3`;
+}
+
+export function audioManifestUrl(key: string): string | null {
+  if (!/^[a-z0-9_]+$/.test(key)) return null;
+  return `https://d.quranenc.com/data/audio/${key}/files.json`;
+}
+
+export function documentedMeaningUrl(key: string, sura: number, aya: number): string | null {
+  const name = audioFileName(sura, aya);
+  if (!name || !/^[a-z0-9_]+$/.test(key)) return null;
+  return `https://d.quranenc.com/data/audio/${key}/${name}`;
+}
+
+function validAudioFile(name: string): boolean {
+  const match = AUDIO_FILE.exec(name);
+  if (!match) return false;
+  const sura = Number(match[1]);
+  const aya = Number(match[2]);
+  return sura >= 1 && sura <= 114 && aya >= 1 && aya <= 286;
+}
+
+/** Build coverage from a file list. The count is the number of accepted names, never a declared total. */
+export function coverageFromFiles(translation: string, files: readonly string[]): AudioCoverage | null {
+  if (!/^[a-z0-9_]+$/.test(translation)) return null;
+  const set = new Set<string>();
+  for (const item of files) {
+    if (!validAudioFile(item) || set.has(item)) return null;
+    set.add(item);
+  }
+  return { translation, count: set.size, files: set };
+}
+
+export function parseAudioManifest(body: unknown, expectedKey: string): AudioCoverage | null {
+  const row = record(body);
+  if (!row || !/^[a-z0-9_]+$/.test(expectedKey)) return null;
+  if (exactString(row.translation) !== expectedKey) return null;
+  if (exactString(row.base_url) !== `https://d.quranenc.com/data/audio/${expectedKey}/`) return null;
+  if (!Array.isArray(row.files) || row.files.some(item => typeof item !== 'string')) return null;
+  return coverageFromFiles(expectedKey, row.files as string[]);
+}
+
+export function coverageFromPayload(body: unknown): AudioCoverage | null {
+  const row = record(body);
+  if (!row) return null;
+  const translation = exactString(row.translation);
+  const count = wholeNumber(row.count);
+  if (!translation || count === null || !Array.isArray(row.files) || row.files.some(item => typeof item !== 'string')) return null;
+  const coverage = coverageFromFiles(translation, row.files as string[]);
+  if (!coverage || coverage.count !== count) return null;
+  return coverage;
+}
+
+export function listedMeaningUrl(manifest: AudioCoverage | null, key: string, sura: number, aya: number): string | null {
+  if (!manifest || manifest.translation !== key) return null;
+  const name = audioFileName(sura, aya);
+  if (!name || !manifest.files.has(name)) return null;
+  return documentedMeaningUrl(key, sura, aya);
+}
+
+/**
+ * The next meaning file is the following ayah, or ayah 1 of the next surah when this ayah is the last.
+ * A gap stops playback. Nothing is skipped, and another edition is never chosen.
+ */
+export function nextListedMeaning(
+  manifest: AudioCoverage | null,
+  key: string,
+  sura: number,
+  aya: number,
+  ayahsInSurah: number,
+): NextMeaning {
+  if (!manifest || manifest.translation !== key) return { kind: 'missing', surah: sura, ayah: aya };
+  if (!Number.isInteger(sura) || sura < 1 || sura > 114 || !Number.isInteger(aya) || aya < 1) {
+    return { kind: 'missing', surah: sura, ayah: aya };
+  }
+  if (!Number.isInteger(ayahsInSurah) || ayahsInSurah < 1 || aya > ayahsInSurah) {
+    return { kind: 'missing', surah: sura, ayah: aya };
+  }
+  if (aya < ayahsInSurah) {
+    const nextAya = aya + 1;
+    const src = listedMeaningUrl(manifest, key, sura, nextAya);
+    return src ? { kind: 'play', surah: sura, ayah: nextAya, src } : { kind: 'missing', surah: sura, ayah: nextAya };
+  }
+  if (sura === 114) return { kind: 'end' };
+  const src = listedMeaningUrl(manifest, key, sura + 1, 1);
+  return src ? { kind: 'play', surah: sura + 1, ayah: 1, src } : { kind: 'missing', surah: sura + 1, ayah: 1 };
 }
 
 export function confirmedMeaningSrc(verse: {
@@ -82,7 +171,7 @@ export function confirmedMeaningSrc(verse: {
   meaningAudio?: string;
 }): string | null {
   if (!verse.translationKey || !verse.meaningAudio) return null;
-  const src = meaningAudioUrl(verse.translationKey, verse.surah, verse.ayah);
+  const src = documentedMeaningUrl(verse.translationKey, verse.surah, verse.ayah);
   return src === verse.meaningAudio ? src : null;
 }
 
@@ -114,7 +203,6 @@ export function parseEditionList(body: unknown, lang: Lang): QuranEncEdition[] |
       title,
       description,
       languageIso,
-      audio: AUDIO_KEYS.has(key),
     });
   }
   return editions.length ? editions : null;
@@ -179,6 +267,7 @@ export function attachQuranEnc<T extends { ayah: number }>(
   verses: T[],
   edition: QuranEncEdition,
   rows: QuranEncAyah[] | null,
+  manifest: AudioCoverage | null = null,
 ): (T & AttachedMeaning)[] | null {
   const aligned = alignTranslation(
     verses.map(verse => verse.ayah),
@@ -187,7 +276,7 @@ export function attachQuranEnc<T extends { ayah: number }>(
   if (!aligned) return null;
   return verses.map((verse, index) => {
     const row = aligned[index];
-    const meaningAudio = meaningAudioUrl(edition.key, row.sura, row.aya);
+    const meaningAudio = listedMeaningUrl(manifest, edition.key, row.sura, row.aya);
     return {
       ...verse,
       translation: row.translation,

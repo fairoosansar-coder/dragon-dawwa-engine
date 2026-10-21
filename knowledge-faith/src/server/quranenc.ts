@@ -1,13 +1,18 @@
 import { fetchJsonFresh, UpstreamError } from './http.ts';
 import type { Lang } from '../shared/sources.ts';
 import {
+  audioManifestUrl,
   cacheParsed,
+  MEANING_AUDIO_LIST_FAILED,
+  MEANING_AUDIO_NOT_LISTED,
+  parseAudioManifest,
   parseAyaTranslation,
   parseEditionList,
   parseSuraTranslation,
   QURANENC_TTL_MS,
   readCached,
   selectEdition,
+  type AudioCoverage,
   type QuranEncAyah,
   type QuranEncEdition,
 } from '../shared/quranenc.ts';
@@ -74,6 +79,57 @@ export async function quranEncSura(edition: QuranEncEdition, sura: number): Prom
     'QuranEnc has no text for this edition and surah. No other translation was substituted.',
   );
 }
+
+/**
+ * Load one edition's files.json. A 404 is cached as absence. Network failures and unreadable
+ * manifests are not stored, and a missing list is never replaced with another edition.
+ */
+export async function loadAudioManifest(key: string): Promise<AudioCoverage | null> {
+  const url = audioManifestUrl(key);
+  if (!url) throw new UpstreamError(MEANING_AUDIO_LIST_FAILED, 400);
+  const cacheKey = `audio:${key}`;
+  const hit = readCached<AudioCoverage | { absent: true }>(memory as Map<string, { value: AudioCoverage | { absent: true }; expires: number }>, cacheKey, Date.now());
+  if (hit) return 'absent' in hit ? null : hit;
+  const pending = inflight.get(cacheKey);
+  if (pending) return pending as Promise<AudioCoverage | null>;
+
+  const request = (async () => {
+    let body: unknown;
+    try {
+      body = await fetchJsonFresh(url);
+    } catch (err) {
+      const status = err instanceof UpstreamError ? err.status : 504;
+      if (status === 404) {
+        cacheParsed(memory as Map<string, { value: { absent: true }; expires: number }>, cacheKey, { absent: true }, Date.now(), QURANENC_TTL_MS);
+        return null;
+      }
+      throw new UpstreamError(MEANING_AUDIO_LIST_FAILED, status === 504 ? 504 : 502);
+    }
+    const parsed = parseAudioManifest(body, key);
+    if (!parsed) throw new UpstreamError(MEANING_AUDIO_LIST_FAILED, 502);
+    cacheParsed(memory as Map<string, { value: AudioCoverage; expires: number }>, cacheKey, parsed, Date.now(), QURANENC_TTL_MS);
+    return parsed;
+  })();
+
+  inflight.set(cacheKey, request);
+  try {
+    return await request;
+  } finally {
+    inflight.delete(cacheKey);
+  }
+}
+
+/** Meaning coverage for a text response. A failed list leaves the translation in place and omits audio. */
+export async function meaningCoverage(key: string): Promise<AudioCoverage | null> {
+  try {
+    return await loadAudioManifest(key);
+  } catch (err) {
+    if (err instanceof UpstreamError) return null;
+    throw err;
+  }
+}
+
+export { MEANING_AUDIO_NOT_LISTED };
 
 export async function quranEncAya(edition: QuranEncEdition, sura: number, aya: number): Promise<QuranEncAyah> {
   return loadCached(

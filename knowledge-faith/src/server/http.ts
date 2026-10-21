@@ -1,4 +1,4 @@
-const ALLOWED_HOSTS = new Set(['api.alquran.cloud', 'cdn.jsdelivr.net', 'api.aladhan.com', 'quranenc.com']);
+const ALLOWED_HOSTS = new Set(['api.alquran.cloud', 'cdn.jsdelivr.net', 'api.aladhan.com', 'quranenc.com', 'd.quranenc.com']);
 const MAX_ENTRIES = 500;
 
 interface Entry {
@@ -67,8 +67,10 @@ export async function fetchJsonFresh<T>(url: string, timeoutMs = 12_000): Promis
     throw new UpstreamError(`${host} did not respond`, 504);
   }
   const finalHost = new URL(res.url).hostname;
-  if (!ALLOWED_HOSTS.has(finalHost)) throw new UpstreamError(`Upstream host not allowed: ${finalHost}`, 502);
+  // A missing QuranEnc audio list answers 404 and redirects to an error page on another host.
+  // That is absence. Do not read the error page, and do not treat it as a failed list.
   if (res.status === 404) throw new UpstreamError('Not found at source', 404);
+  if (!ALLOWED_HOSTS.has(finalHost)) throw new UpstreamError(`Upstream host not allowed: ${finalHost}`, 502);
   if (!res.ok) throw new UpstreamError(`${host} returned ${res.status}`);
   return (await res.json()) as T;
 }

@@ -3,7 +3,7 @@ import { attachQuranEnc } from '../shared/quranenc.ts';
 import { QURAN_ARABIC_EDITION, type Lang } from '../shared/sources.ts';
 import { isValidRef, refKey, type AyahRef } from '../shared/refs.ts';
 import type { SurahInfo, Verse } from '../shared/types.ts';
-import { quranEncAya, quranEncSura, requireEdition } from './quranenc.ts';
+import { meaningCoverage, quranEncAya, quranEncSura, requireEdition } from './quranenc.ts';
 import { cleanAyahText, pairTransliteration } from './transliteration.ts';
 
 const BASE = 'https://api.alquran.cloud/v1';
@@ -86,7 +86,7 @@ export async function getSurah(
   }
   const translitEdition = translitRes ? editionList(translitRes.data)[0] : undefined;
   const paired = translitEdition ? pairTransliteration(arabic.ayahs, translitEdition.ayahs) : null;
-  const rows = await quranEncSura(edition, surah);
+  const [rows, manifest] = await Promise.all([quranEncSura(edition, surah), meaningCoverage(edition.key)]);
   const verses = attachQuranEnc(
     arabic.ayahs.map(a => ({
       key: `${surah}:${a.numberInSurah}`,
@@ -100,6 +100,7 @@ export async function getSurah(
     })),
     edition,
     rows,
+    manifest,
   );
   if (!verses) throw new UpstreamError('QuranEnc text does not match this surah. No other translation was substituted.', 502);
   return { info, verses };
@@ -115,6 +116,7 @@ export async function getVerses(
   const valid = refs.filter(r => isValidRef(r, counts));
   if (!valid.length) return [];
   const edition = await requireEdition(lang, editionKey);
+  const manifest = await meaningCoverage(edition.key);
   const surahs = await listSurahs();
   const editions = [QURAN_ARABIC_EDITION, pronunciationEdition].filter(Boolean).join(',');
   return Promise.all(
@@ -144,6 +146,7 @@ export async function getVerses(
         ],
         edition,
         [row],
+        manifest,
       );
       if (!attached) throw new UpstreamError('QuranEnc text does not match this verse. No other translation was substituted.', 502);
       return attached[0];

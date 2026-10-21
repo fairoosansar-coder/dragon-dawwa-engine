@@ -114,7 +114,7 @@ export function stopAudio() {
     media.pause();
     media.src = '';
   }
-  setStatus(media ? 'idle' : 'unavailable');
+  setStatus(media || typeof Audio !== 'undefined' ? 'idle' : 'unavailable');
 }
 
 /** Continue the current recitation after a pause or a failed play. Keeps the queued continuation. */
