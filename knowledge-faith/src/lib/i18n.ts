@@ -1,7 +1,7 @@
 import type { Lang } from '../shared/sources.ts';
 
 const en = {
-  brandSub: 'by UmmaConnect',
+  brandSub: 'By Aegis Intelligence',
   tagline: 'Learn from the sources, with clarity and humility.',
   navHub: 'Knowledge Hub',
   navQuran: 'Quran Reader',
@@ -123,7 +123,7 @@ export type Strings = typeof en;
 
 const ta: Strings = {
   ...en,
-  brandSub: 'UmmaConnect வழங்கும்',
+  brandSub: 'By Aegis Intelligence',
   tagline: 'மூலங்களிலிருந்து தெளிவுடனும் பணிவுடனும் கற்போம்.',
   navHub: 'அறிவு மையம்',
   navQuran: 'குர்ஆன் வாசிப்பு',
@@ -209,7 +209,7 @@ const ta: Strings = {
 
 const si: Strings = {
   ...en,
-  brandSub: 'UmmaConnect විසින්',
+  brandSub: 'By Aegis Intelligence',
   tagline: 'මූලාශ්‍රවලින් පැහැදිලිව හා නිහතමානීව ඉගෙන ගනිමු.',
   navHub: 'දැනුම් මධ්‍යස්ථානය',
   navQuran: 'කුර්ආන් කියවීම',

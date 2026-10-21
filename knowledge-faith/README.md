@@ -1,6 +1,8 @@
-# Knowledge & Faith · UmmaConnect
+# DRAGON DAWWA
 
-A standalone UmmaConnect app for learning from primary Islamic sources in **English, Tamil and Sinhala**. It is self-contained in this folder (own `package.json`, server and build) so it can be moved into its own repository without changes.
+*By Aegis Intelligence*
+
+A standalone learning platform for primary Islamic sources in **English, Tamil and Sinhala**. It has its own `package.json`, server and build, separate from the rest of this repository.
 
 ## Sections
 

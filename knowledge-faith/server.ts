@@ -82,7 +82,7 @@ const aiLimiter = rateLimiter(Number(process.env.AI_REQUESTS_PER_15_MIN ?? 30));
 const ttsLimiter = rateLimiter(Number(process.env.TTS_REQUESTS_PER_15_MIN ?? 240));
 
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', app: 'UmmaConnect Knowledge & Faith', ai: geminiConfigured() });
+  res.json({ status: 'ok', app: 'DRAGON DAWWA', ai: geminiConfigured() });
 });
 
 app.get('/api/config', (_req, res) => {
@@ -341,6 +341,6 @@ if (isProduction) {
 
 httpServer.listen(PORT, HOST, () => {
   console.log(
-    `Knowledge & Faith running on ${publicAppUrl(PORT)} (${isProduction ? 'production' : 'development'}); Gemini neural TTS ${geminiConfigured() ? 'on' : 'off'}`,
+    `DRAGON DAWWA running on ${publicAppUrl(PORT)} (${isProduction ? 'production' : 'development'}); Gemini neural TTS ${geminiConfigured() ? 'on' : 'off'}`,
   );
 });

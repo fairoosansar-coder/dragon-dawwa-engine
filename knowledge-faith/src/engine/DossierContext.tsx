@@ -36,11 +36,11 @@ const BENCHMARK_ALIASES: Record<string, string> = {
 const READER: UserAccount = {
   user_id: 'kf-reader',
   email: '',
-  display_name: 'Knowledge & Faith reader',
+  display_name: 'DRAGON DAWWA reader',
   profile_pic: '',
   preferred_language: 'en',
   created_at: new Date(0).toISOString(),
-  badge: 'UmmaConnect · Knowledge & Faith',
+  badge: 'DRAGON DAWWA · Aegis Intelligence',
 };
 
 async function waitForResearch(id: string, signal: AbortSignal): Promise<DragonDawwaAnalysis> {
@@ -232,7 +232,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
     const s = analysis.agent_6_synthesis;
     const quote = analysis.query_hadith.length > 140 ? `${analysis.query_hadith.slice(0, 140)}…` : analysis.query_hadith;
     const data = {
-      title: `Knowledge & Faith: ${s.final_status} (${s.purity_confidence_score}%)`,
+      title: `DRAGON DAWWA: ${s.final_status} (${s.purity_confidence_score}%)`,
       text: `Hadith research report\nAuthenticity: ${s.final_status}\nPurity score: ${s.purity_confidence_score}%\n\n"${quote}"`,
       url: url.toString(),
     };
@@ -250,7 +250,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
   const copyReport = useCallback(async () => {
     const s = analysis.agent_6_synthesis;
     const text = [
-      '# HADITH RESEARCH REPORT · Knowledge & Faith',
+      '# HADITH RESEARCH REPORT · DRAGON DAWWA',
       `Status: ${s.final_status}`,
       `Purity confidence score: ${s.purity_confidence_score}%`,
       '',

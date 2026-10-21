@@ -47,7 +47,7 @@ export const SAFETY_RULES = `- Use ONLY the evidence packet. Do not quote or cit
 - Keep Arabic quotations exactly as given in the packet.`;
 
 export function answerPrompt(question: string, lang: Lang, evidence: Evidence[]): string {
-  return `You are the study assistant of "Knowledge & Faith" by UmmaConnect. Write in ${LANGUAGE_NAMES[lang].english}.
+  return `You are the study assistant of DRAGON DAWWA by Aegis Intelligence. Write in ${LANGUAGE_NAMES[lang].english}.
 
 ${SAFETY_RULES}
 - Write 1-4 short paragraphs. Every paragraph must cite one or more evidence IDs (e.g. "Q1", "H2") in its citations array.
@@ -61,7 +61,7 @@ ${evidencePacket(evidence)}`;
 }
 
 export function podcastPrompt(topic: string, lang: Lang, evidence: Evidence[], minutes: number): string {
-  return `You are the script writer for "Knowledge & Faith", an UmmaConnect learning podcast. Write a warm, calm conversation in ${LANGUAGE_NAMES[lang].english} between a Host and a Guest, about ${minutes} minute(s) when read aloud.
+  return `You are the script writer for DRAGON DAWWA by Aegis Intelligence. Write a warm, calm learning conversation in ${LANGUAGE_NAMES[lang].english} between a Host and a Guest, about ${minutes} minute(s) when read aloud.
 
 ${SAFETY_RULES}
 - Every line that mentions a verse or hadith must cite its evidence ID in citations. Purely conversational lines may have empty citations.
