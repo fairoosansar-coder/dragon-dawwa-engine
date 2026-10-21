@@ -67,7 +67,7 @@ export function EditorialProductionDesk({
       setDossierNotes(res.dossierSummary);
       onEpisodeUpdated(res.episode);
       setActionNotice(
-        `Pipeline complete: assembled ${res.episode.segments.length} segments from ${res.episode.passages.length} retrieved passage(s). Episode is in "${res.episode.editorialState}" state (never auto-published).`,
+        `Pipeline complete: assembled ${res.episode.segments.length} segments from ${res.episode.references.length} retrieved reference(s). Episode is in "${res.episode.editorialState}" state (never auto-published).`,
       );
     } catch (err) {
       setPipelineError(err instanceof Error ? err.message : 'Production pipeline failed.');
@@ -158,11 +158,11 @@ export function EditorialProductionDesk({
           Topic Brief → Dossier → Outline → Script → Verification → Editorial Review
         </h3>
         <p className="mt-1 max-w-3xl text-xs leading-relaxed text-muted">
-          Every episode is built from retrieved evidence passages. Generated episodes are never published automatically, and editing any script line after approval immediately invalidates prior approval and narration.
+          Word/token overlap is never treated as proof of claim support: any paraphrase that is not established verbatim in the cited passage stays unverified (`supported: false`) for human editorial review.
         </p>
       </div>
 
-      {/* Current Episode Editorial Status & 7-Point Verification Matrix */}
+      {/* Current Episode Editorial Status & Verification Matrix */}
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-pine/15 bg-sand/60 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -202,7 +202,6 @@ export function EditorialProductionDesk({
             </div>
           </dl>
 
-          {/* Editorial transition controls */}
           <div className="mt-4 space-y-2 border-t border-pine/10 pt-3">
             <p className="text-xs font-semibold text-pine">Editorial Actions</p>
             <div className="flex flex-wrap gap-2">
@@ -262,10 +261,10 @@ export function EditorialProductionDesk({
             <span
               data-testid="verification-supported-badge"
               className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                v.supported ? 'bg-mint text-pine' : 'bg-red-100 text-red-900'
+                v.supported ? 'bg-mint text-pine' : 'bg-amber-100 text-amber-950'
               }`}
             >
-              {v.supported ? 'All Checks Passed' : 'Attention Needed'}
+              {v.supported ? 'All Lines Established' : 'Requires Editorial Review'}
             </span>
           </div>
 
@@ -273,7 +272,7 @@ export function EditorialProductionDesk({
             {[
               { label: 'Every citation resolves to retrieved material', ok: v.allCitationsResolve },
               { label: 'Quotations match the cited edition verbatim', ok: v.quotationsMatchEdition },
-              { label: 'Claims are supported by cited passage wording', ok: v.claimsSupported },
+              { label: 'Substantive lines established in cited passage (paraphrases stay unverified)', ok: v.unverified.length === 0 },
               { label: 'Translation edition and source language identified', ok: v.languagesIdentified },
               { label: 'Published hadith grades and attributions preserved', ok: v.gradesPreserved },
               { label: 'Scientific limitations represented where applicable', ok: v.scientificLimitationsRepresented },
@@ -359,7 +358,7 @@ export function EditorialProductionDesk({
                       type="text"
                       value={changeNote}
                       onChange={e => setChangeNote(e.target.value)}
-                      placeholder="Revision note (e.g. Refined opening reflection)"
+                      placeholder="Revision note (e.g. Refined opening quotation)"
                       className="w-full rounded-xl border border-pine/20 bg-white px-2.5 py-1.5 text-xs text-ink"
                     />
                     <div className="flex gap-2">
@@ -436,7 +435,7 @@ export function EditorialProductionDesk({
             >
               {PROGRAMME_FAMILIES.map(f => (
                 <option key={f.id} value={f.id}>
-                  {f.channelNumber} · {f.title}
+                  {f.channelNumber} · {f.title} ({f.status === 'active_release_slice' ? 'Active' : 'In preparation'})
                 </option>
               ))}
             </select>
@@ -448,8 +447,8 @@ export function EditorialProductionDesk({
               onChange={e => setFormat(e.target.value as PresentationFormat)}
               className="min-h-10 rounded-xl border border-pine/20 bg-sand/50 px-3 py-2 text-sm font-normal text-ink"
             >
-              <option value="single_presenter">Single Presenter (Sakinah)</option>
-              <option value="explanatory_dialogue">Explanatory Dialogue (Sakinah & Tariq)</option>
+              <option value="single_presenter">Single Presenter</option>
+              <option value="explanatory_dialogue">Explanatory Dialogue</option>
               <option value="introduced_recording">Introduction Around Original Recording</option>
             </select>
           </label>

@@ -1,143 +1,43 @@
 import type { Lang } from '../sources.ts';
-import type { Evidence } from '../types.ts';
-import type { ResearchDossier, ResearchReference, ScriptVerification } from '../research.ts';
-import type { Role } from '../spiritual/governance.ts';
+import type { Evidence, PodcastLine } from '../types.ts';
+import {
+  referenceEvidence,
+  type ResearchDossier,
+  type ResearchReference,
+  type ScriptVerification,
+} from '../research.ts';
+import type {
+  PilotAnswer,
+  PilotChapter,
+  PilotClaim,
+  PilotEpisode,
+  PilotGap,
+  PilotParagraph,
+} from '../pilot.ts';
+import type { EditorUser, Role } from '../spiritual/governance.ts';
 
 /**
- * Shared Contract Version between Dragon Dawwa Studio and the Master Knowledge/Research Engine.
- * Kept in `src/shared/studio/contracts.ts` to preserve clean file ownership boundaries.
+ * Re-export the actual committed shared contracts from `src/shared/research.ts`,
+ * `src/shared/types.ts`, `src/shared/pilot.ts`, and `src/shared/spiritual/governance.ts`.
+ * Do not recreate uncommitted contract schemas from transcript descriptions.
  */
-export const SHARED_CONTRACT_VERSION = 'dragon-dawwa-shared-contracts/v1' as const;
+export type {
+  Evidence,
+  PodcastLine,
+  ResearchDossier,
+  ResearchReference,
+  ScriptVerification,
+  PilotClaim,
+  PilotChapter,
+  PilotGap,
+  PilotEpisode,
+  PilotParagraph,
+  PilotAnswer,
+  EditorUser,
+  Role,
+};
 
-export type SourceProviderId = 'QuranEnc' | 'HadeethEnc' | 'IslamHouse' | 'AlQuranCloud' | 'Aladhan' | 'HadithApi' | 'SciencePrimary';
-
-export type SourceContentType = 'ayah' | 'hadith' | 'book_section' | 'article_passage' | 'audio_recording' | 'name_of_allah' | 'scientific_publication';
-
-export interface SourceCredit {
-  role: 'author' | 'translator' | 'reviewer' | 'reciter' | 'speaker' | 'publisher' | 'collector';
-  name: string;
-}
-
-export interface SourceRightsMetadata {
-  tier: 'open_api_display' | 'in_app_attributed' | 'source_link_only';
-  attributionRequired: boolean;
-  redistributionAllowed: boolean;
-  modificationAllowed: boolean;
-  licenseNote: string;
-}
-
-/**
- * Shared Contract: SourceRecord
- * Identity, provider, language, edition/version, title, credits, canonical URL, content type, rights metadata, retrieval time.
- */
-export interface SourceRecord {
-  contractVersion: typeof SHARED_CONTRACT_VERSION;
-  id: string;
-  provider: SourceProviderId;
-  itemId: string;
-  language: Lang | 'ar';
-  edition: string | null;
-  version: string | null;
-  title: string;
-  credits: SourceCredit[];
-  canonicalUrl: string | null;
-  contentType: SourceContentType;
-  rights: SourceRightsMetadata;
-  retrievedAt: string;
-}
-
-/**
- * Shared Contract: EvidencePassage
- * Source identity, exact text, original language, locator such as ayah/hadith/page/section, surrounding context, internal reader route.
- */
-export interface EvidencePassage {
-  contractVersion: typeof SHARED_CONTRACT_VERSION;
-  id: string;
-  sourceId: string;
-  source: SourceRecord;
-  exactText: string;
-  passageLanguage: Lang | 'ar';
-  arabicText: string | null;
-  originalLanguage: 'ar' | Lang;
-  locator: string;
-  surah: number | null;
-  ayah: number | null;
-  hadithId: string | null;
-  collection: string | null;
-  grade: string | null;
-   grader: string | null;
-  surroundingContext: string[];
-  limitations: string[];
-  internalReaderRoute: string;
-  audioUrl?: string | null;
-  audioKind?: AudioStreamKind | null;
-}
-
-export type ResearchOutcomeKind =
-  | 'evidence_found'
-  | 'no_relevant_evidence'
-  | 'source_unavailable'
-  | 'language_unavailable'
-  | 'budget_exhausted'
-  | 'conflicting_evidence'
-  | 'scholarly_review_required';
-
-/**
- * Shared Contract: ResearchJob
- * Question, language, subquestions, status, progress, cancellation, coverage and errors.
- */
-export interface ResearchJobContract {
-  contractVersion: typeof SHARED_CONTRACT_VERSION;
-  id: string;
-  question: string;
-  lang: Lang;
-  subquestions: string[];
-  status: 'queued' | 'running' | 'completed' | 'cancelled' | 'error';
-  progress: {
-    step: 'decomposing' | 'retrieving_quran' | 'retrieving_hadith' | 'retrieving_library' | 'verifying' | 'complete';
-    completedSteps: number;
-    totalSteps: number;
-    message: string;
-  };
-  cancellable: boolean;
-  cancelledAt: string | null;
-  coverage: {
-    examined: string[];
-    notExamined: string[];
-  };
-  errors: string[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ClaimEvidenceMapping {
-  claimId: string;
-  claimText: string;
-  statementKind: StatementKind;
-  citationIds: string[];
-  status: 'supported' | 'unverified' | 'unfaithful' | 'missing_citation';
-  note: string;
-}
-
-/**
- * Shared Contract: ResearchDossier
- * Passages, claim-evidence mappings, unresolved questions, disagreements and verification status.
- */
-export interface ResearchDossierContract {
-  contractVersion: typeof SHARED_CONTRACT_VERSION;
-  topic: string;
-  questions: string[];
-  lang: Lang;
-  outcome: ResearchOutcomeKind;
-  passages: EvidencePassage[];
-  claimMappings: ClaimEvidenceMapping[];
-  unresolvedQuestions: string[];
-  disagreements: string[];
-  examined: string[];
-  notExamined: string[];
-  verification: ScriptVerification;
-  retrievedAt: string;
-}
+export { referenceEvidence };
 
 /* ---------- Studio Audio & Statement Taxonomy ---------- */
 
@@ -180,8 +80,6 @@ export type ContentOriginBadge =
   | 'Dragon Dawwa generated material'
   | 'Scientific publication';
 
-/* ---------- Programme Families & Episode Contracts ---------- */
-
 export type ProgrammeFamilyId =
   | 'daily-reflection'
   | 'bayan-lessons'
@@ -215,10 +113,10 @@ export type StudioEditorialState =
   | 'withdrawn';
 
 export interface PresenterIdentity {
-  id: 'sakinah' | 'tariq';
+  id: 'presenter' | 'researcher';
   name: string;
   roleTitle: string;
-  voiceName: 'Kore' | 'Charon' | 'Aoede' | 'Puck' | 'Orus';
+  voiceName: 'Kore' | 'Charon';
   isGenerated: true;
   disclosure: string;
   traits: string[];
@@ -236,6 +134,7 @@ export interface ProgrammeFamily {
   cadenceLabel: string;
   ornamentTheme: 'emerald' | 'gold' | 'lapis' | 'ivory';
   editorialPolicy: string;
+  status: 'active_release_slice' | 'in_preparation';
 }
 
 export interface StudioSegment {
@@ -243,7 +142,7 @@ export interface StudioSegment {
   index: number;
   section: ScriptSectionKind;
   sectionLabel: string;
-  speakerId: 'sakinah' | 'tariq' | 'reciter' | 'original_speaker';
+  speakerId: 'presenter' | 'researcher' | 'reciter' | 'original_speaker';
   speakerName: string;
   speakerRoleLabel: string;
   isGeneratedSpeaker: boolean;
@@ -305,23 +204,25 @@ export interface StudioRevisionSnapshot {
   verificationSupported: boolean;
 }
 
-export interface StudioVerificationReport {
-  supported: boolean;
+/**
+ * Wraps the committed `ScriptVerification` from `src/shared/research.ts` (`verifyScript`)
+ * with Studio metadata checks (edition language tags, grade preservation, narration revision match).
+ * Word/token overlap is NEVER used as proof of claim support: any paraphrase that is not
+ * established verbatim by the cited passage stays in `unverified` (`supported: false`).
+ */
+export interface StudioVerificationReport extends ScriptVerification {
   allCitationsResolve: boolean;
   quotationsMatchEdition: boolean;
-  claimsSupported: boolean;
   languagesIdentified: boolean;
   gradesPreserved: boolean;
   scientificLimitationsRepresented: boolean;
   narrationMatchesApprovedRevision: boolean;
-  missingCitations: string[];
-  unfaithfulQuotations: string[];
-  unsupportedClaims: string[];
   unresolvedCitationIds: string[];
-  review: 'editorial';
-  note: string;
 }
 
+/**
+ * StudioEpisode consumes the committed `ResearchReference[]` and `Evidence[]` shapes directly.
+ */
 export interface StudioEpisode {
   id: string;
   slug: string;
@@ -345,8 +246,11 @@ export interface StudioEpisode {
   brief: TopicBrief;
   outline: EpisodeOutlineItem[];
   segments: StudioSegment[];
-  passages: EvidencePassage[];
-  gaps: { source: string; message: string }[];
+  /** Committed ResearchReference records from src/shared/research.ts */
+  references: ResearchReference[];
+  /** Committed Evidence records produced via referenceEvidence() from src/shared/research.ts */
+  evidence: Evidence[];
+  gaps: PilotGap[];
   disagreements: string[];
   verification: StudioVerificationReport;
   reviews: StudioReviewEntry[];
@@ -354,6 +258,11 @@ export interface StudioEpisode {
   createdAt: string;
   updatedAt: string;
 }
+
+export type StudioAnswerOutcome =
+  | 'quotation'
+  | 'synthesis'
+  | 'limitation';
 
 export interface StudioAskRequest {
   episodeId: string;
@@ -372,15 +281,18 @@ export interface StudioAskAnswer {
   visibility: 'private_session';
   review: 'unreviewed';
   originBadge: 'Dragon Dawwa generated material';
-  outcome: ResearchOutcomeKind;
-  statusNote: string;
+  kind: StudioAnswerOutcome;
+  note: string;
   paragraphs: {
     text: string;
     citations: string[];
+    role: 'quotation' | 'synthesis' | 'limitation';
     statementKind: StatementKind;
   }[];
-  passages: EvidencePassage[];
-  relatedSuggestedPassages: EvidencePassage[];
+  /** Supporting ResearchReference items from the committed contract */
+  references: ResearchReference[];
+  /** Related ResearchReference items from the current programme offered when a question is unsupported */
+  relatedReferences: ResearchReference[];
   arabicTermExplanation?: {
     term: string;
     arabic: string;
@@ -392,28 +304,31 @@ export interface StudioAskAnswer {
   answeredAt: string;
 }
 
+/**
+ * Factual Voice & Audio Capability Report based strictly on runtime checks in this environment.
+ */
 export interface VoiceCapabilityReport {
-  provider: 'Google Gemini Neural TTS';
+  checkedOn: string;
+  provider: 'Google Gemini TTS (/api/voice/narrate)';
   configured: boolean;
+  narrateHttpStatus: 200 | 503;
   blocker: string | null;
-  models: string[];
-  voices: readonly string[];
+  envModelsConfigured: string[];
+  envVoicesConfigured: readonly string[];
   languages: Record<Lang, {
-    supported: boolean;
-    directionMode: string;
+    scriptAndSourcesVerified: boolean;
+    quranMeaningAudioEdition: string;
+    geminiTtsVerifiedInThisEnv: boolean;
     note: string;
   }>;
   streaming: {
-    supported: boolean;
+    supported: false;
     mode: string;
   };
-  voiceConsistency: string;
   interruptions: string;
   audioFormats: string[];
   separationPolicy: Record<AudioStreamKind, string>;
 }
-
-/* ---------- Conversion Helpers from Shared Research Engine ---------- */
 
 export function internalReaderRouteForReference(ref: ResearchReference): string {
   if (ref.provider === 'QuranEnc' && ref.surah && ref.ayah) {
@@ -426,195 +341,4 @@ export function internalReaderRouteForReference(ref: ResearchReference): string 
     return `#/spiritual/library/prayer?lang=${ref.passageLanguage}&item=${ref.itemId}`;
   }
   return '#/hub';
-}
-
-export function referenceToPassage(ref: ResearchReference): EvidencePassage {
-  const lang = (ref.passageLanguage === 'ta' || ref.passageLanguage === 'si' ? ref.passageLanguage : 'en') as Lang;
-  const credits: SourceCredit[] = [
-    ...ref.authors.map(name => ({ role: 'author' as const, name })),
-    ...ref.translators.map(name => ({ role: 'translator' as const, name })),
-  ];
-  const contentType: SourceContentType =
-    ref.provider === 'QuranEnc'
-      ? 'ayah'
-      : ref.provider === 'HadeethEnc'
-        ? 'hadith'
-        : 'article_passage';
-
-  const source: SourceRecord = {
-    contractVersion: SHARED_CONTRACT_VERSION,
-    id: `src-${ref.id}`,
-    provider: ref.provider,
-    itemId: ref.itemId,
-    language: lang,
-    edition: ref.provider === 'QuranEnc' ? ref.itemId.split(' ')[0] ?? null : null,
-    version: ref.version,
-    title: ref.title,
-    credits,
-    canonicalUrl: ref.url || null,
-    contentType,
-    rights: {
-      tier: ref.provider === 'IslamHouse' ? 'in_app_attributed' : 'open_api_display',
-      attributionRequired: true,
-      redistributionAllowed: ref.provider !== 'IslamHouse',
-      modificationAllowed: false,
-      licenseNote:
-        ref.provider === 'IslamHouse'
-          ? 'Read on demand with author, translator, and reviewer attribution preserved.'
-          : `${ref.provider} public API passage with edition and version preserved unchanged.`,
-    },
-    retrievedAt: ref.retrievedOn,
-  };
-
-  return {
-    contractVersion: SHARED_CONTRACT_VERSION,
-    id: ref.id,
-    sourceId: source.id,
-    source,
-    exactText: ref.passage,
-    passageLanguage: lang,
-    arabicText: ref.arabic,
-    originalLanguage: ref.arabic ? 'ar' : lang,
-    locator: ref.locator,
-    surah: ref.surah,
-    ayah: ref.ayah,
-    hadithId: ref.hadithId,
-    collection: ref.collection,
-    grade: ref.grade,
-    grader: ref.grade ? ref.provider : null,
-    surroundingContext: ref.limitations.filter(l => l.startsWith('Surrounding') || l.startsWith('Following')),
-    limitations: ref.limitations,
-    internalReaderRoute: internalReaderRouteForReference(ref),
-  };
-}
-
-export function evidenceToPassage(ev: Evidence, defaultLang: Lang = 'en'): EvidencePassage {
-  const lang = (ev.passageLanguage === 'ta' || ev.passageLanguage === 'si' ? ev.passageLanguage : defaultLang) as Lang;
-  const surahMatch = ev.label.match(/(\d+):(\d+)/);
-  const surah = surahMatch ? Number(surahMatch[1]) : null;
-  const ayah = surahMatch ? Number(surahMatch[2]) : null;
-  const hadithMatch = ev.label.match(/HadeethEnc\s+(\d+)/i);
-  const hadithId = hadithMatch ? hadithMatch[1] : ev.kind === 'hadith' ? ev.itemId ?? null : null;
-  const provider: SourceProviderId =
-    ev.kind === 'quran'
-      ? 'QuranEnc'
-      : ev.label.includes('HadeethEnc')
-        ? 'HadeethEnc'
-        : ev.kind === 'hadith'
-          ? 'HadithApi'
-          : 'IslamHouse';
-
-  const internalReaderRoute =
-    surah && ayah
-      ? `#/quran?surah=${surah}&ayah=${ayah}&lang=${lang}`
-      : hadithId
-        ? `#/hadith/${hadithId}?lang=${lang}`
-        : ev.itemId
-          ? `#/spiritual/library/prayer?lang=${lang}&item=${ev.itemId}`
-          : '#/hub';
-
-  const source: SourceRecord = {
-    contractVersion: SHARED_CONTRACT_VERSION,
-    id: `src-${ev.id}`,
-    provider,
-    itemId: ev.itemId ?? ev.id,
-    language: lang,
-    edition: null,
-    version: null,
-    title: ev.label,
-    credits: [{ role: 'publisher', name: ev.attribution }],
-    canonicalUrl: ev.sourceUrl ?? null,
-    contentType: ev.kind === 'quran' ? 'ayah' : ev.kind === 'hadith' ? 'hadith' : 'article_passage',
-    rights: {
-      tier: 'open_api_display',
-      attributionRequired: true,
-      redistributionAllowed: true,
-      modificationAllowed: false,
-      licenseNote: ev.attribution,
-    },
-    retrievedAt: ev.retrievedOn ?? new Date().toISOString(),
-  };
-
-  return {
-    contractVersion: SHARED_CONTRACT_VERSION,
-    id: ev.id,
-    sourceId: source.id,
-    source,
-    exactText: ev.text,
-    passageLanguage: lang,
-    arabicText: ev.arabic,
-    originalLanguage: ev.arabic ? 'ar' : lang,
-    locator: ev.locator ?? ev.label,
-    surah,
-    ayah,
-    hadithId,
-    collection: ev.kind === 'hadith' ? ev.label : null,
-    grade: ev.grades[0]?.grade ?? null,
-    grader: ev.grades[0]?.name ?? null,
-    surroundingContext: [],
-    limitations: ev.limitations ?? [],
-    internalReaderRoute,
-  };
-}
-
-export function passageToEvidence(p: EvidencePassage): Evidence {
-  return {
-    id: p.id,
-    kind: p.source.contentType === 'ayah' ? 'quran' : p.source.contentType === 'hadith' ? 'hadith' : 'guide',
-    label: p.source.title,
-    arabic: p.arabicText,
-    text: p.exactText,
-    attribution: [
-      p.source.title,
-      ...p.source.credits.map(c => `${c.role}: ${c.name}`),
-      p.locator,
-      p.grade ? `Grade: ${p.grade}` : '',
-    ]
-      .filter(Boolean)
-      .join(' · '),
-    grades: p.grade ? [{ name: p.grader ?? p.source.provider, grade: p.grade }] : [],
-    locator: p.locator,
-    sourceUrl: p.source.canonicalUrl,
-    passageLanguage: p.passageLanguage,
-    retrievedOn: p.source.retrievedAt,
-    itemId: p.source.itemId,
-    limitations: p.limitations,
-  };
-}
-
-export function dossierToContract(dossier: ResearchDossier, verification: ScriptVerification): ResearchDossierContract {
-  const passages = dossier.references.map(referenceToPassage);
-  const outcome: ResearchOutcomeKind =
-    passages.length > 0
-      ? dossier.disagreements.length > 0
-        ? 'conflicting_evidence'
-        : 'evidence_found'
-      : dossier.unanswered.some(u => /not available in|no .* edition/i.test(u))
-        ? 'language_unavailable'
-        : dossier.unanswered.some(u => /did not respond|could not be read|did not return/i.test(u))
-          ? 'source_unavailable'
-          : 'no_relevant_evidence';
-
-  return {
-    contractVersion: SHARED_CONTRACT_VERSION,
-    topic: dossier.topic,
-    questions: dossier.questions,
-    lang: dossier.lang,
-    outcome,
-    passages,
-    claimMappings: passages.map(p => ({
-      claimId: `claim-${p.id}`,
-      claimText: p.exactText,
-      statementKind: p.source.contentType === 'ayah' || p.source.contentType === 'hadith' ? 'published_translation' : 'exact_quotation',
-      citationIds: [p.id],
-      status: 'supported',
-      note: `Verified against ${p.source.provider} (${p.locator}).`,
-    })),
-    unresolvedQuestions: dossier.unanswered,
-    disagreements: dossier.disagreements,
-    examined: dossier.examined,
-    notExamined: dossier.notExamined,
-    verification,
-    retrievedAt: dossier.references[0]?.retrievedOn ?? new Date().toISOString(),
-  };
 }

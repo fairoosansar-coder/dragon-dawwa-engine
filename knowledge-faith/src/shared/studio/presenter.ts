@@ -3,30 +3,30 @@ import type { PresenterIdentity, VoiceCapabilityReport } from './contracts.ts';
 
 /**
  * Dragon Dawwa Studio Presenter Identities.
- * Clearly identified as generated presenters; never impersonate a real scholar or qualified mufti.
+ * Clearly identified as generated roles; never use human scholar names or titles such as Ustadh, Sheikh, Mufti, Imam, or Dr.
  */
-export const STUDIO_PRESENTERS: Record<'sakinah' | 'tariq', PresenterIdentity> = {
-  sakinah: {
-    id: 'sakinah',
-    name: 'Sakinah',
-    roleTitle: 'Dragon Dawwa Studio Presenter (Generated AI Host)',
+export const STUDIO_PRESENTERS: Record<'presenter' | 'researcher', PresenterIdentity> = {
+  presenter: {
+    id: 'presenter',
+    name: 'Dragon Dawwa Presenter',
+    roleTitle: 'Generated Studio Presenter · Not a scholar or mufti',
     voiceName: 'Kore',
     isGenerated: true,
     disclosure:
-      'Generated presenter by Dragon Dawwa Studio. Sakinah is an AI study companion — not a human scholar, imam, or qualified mufti.',
+      'Generated presenter by Dragon Dawwa Studio. This is an AI study companion — not a human scholar, imam, or qualified mufti.',
     traits: ['Warm', 'Attentive', 'Calm', 'Curious', 'Respectful', 'Clear rather than theatrical', 'Comfortable acknowledging uncertainty'],
-    speakingStyle: 'Calm, welcoming classic radio presenter who reads sources faithfully and invites reflection without issuing personal fatwas.',
+    speakingStyle: 'Calm, welcoming classic radio presenter that reads verified passages faithfully and invites reflection without issuing personal fatwas.',
   },
-  tariq: {
-    id: 'tariq',
-    name: 'Tariq',
-    roleTitle: 'Dragon Dawwa Research Companion (Generated AI Researcher)',
+  researcher: {
+    id: 'researcher',
+    name: 'Dragon Dawwa Research Desk',
+    roleTitle: 'Generated Research Companion · Not a scholar or mufti',
     voiceName: 'Charon',
     isGenerated: true,
     disclosure:
-      'Generated research companion by Dragon Dawwa Studio. Tariq presents retrieved textual evidence and published gradings — not a human scholar or mufti.',
+      'Generated research companion by Dragon Dawwa Studio. Presents retrieved textual evidence and published gradings — not a human scholar or mufti.',
     traits: ['Methodical', 'Respectful', 'Clear', 'Text-faithful', 'Humble about source limits'],
-    speakingStyle: 'Measured research desk voice that distinguishes Arabic text, published translation, scholarly explanation, and unverified gaps.',
+    speakingStyle: 'Measured research desk companion that distinguishes Arabic text, published translation, scholarly explanation, and unverified gaps.',
   },
 };
 
@@ -89,9 +89,6 @@ export const DEFAULT_LISTENER_PREFERENCES: StudioListenerPreferences = {
   savedPoints: [],
 };
 
-/**
- * Forbidden sensitive judgment terms that must never be stored in topics, goals, or preferences.
- */
 const FORBIDDEN_SENSITIVE_PATTERN =
   /\b(sect|sectarian|sunni|shia|salafi|sufi|barelvi|deobandi|wahhabi|devotion|piety|pious|sinful|sinner|spiritual worth|righteousness score|religiosity|takfir|heretic|munafiq|kafir)\b/i;
 
@@ -99,12 +96,6 @@ export function containsSensitiveJudgment(text: string): boolean {
   return FORBIDDEN_SENSITIVE_PATTERN.test(text);
 }
 
-/**
- * Sanitizes listener preferences from untrusted storage or input:
- * - Drops any fields not in the explicit schema (such as sect, devotion, piety, spiritualScore).
- * - Filters out any topic or goal containing sensitive personal/sectarian judgments.
- * - When `optIn` is false, clears persisted personal memory fields back to defaults.
- */
 export function sanitizeListenerPreferences(raw: unknown): StudioListenerPreferences {
   if (!raw || typeof raw !== 'object') {
     return { ...DEFAULT_LISTENER_PREFERENCES };
@@ -188,7 +179,7 @@ export function sanitizeListenerPreferences(raw: unknown): StudioListenerPrefere
 
 /**
  * Generates a calm, respectful session greeting in the selected content language.
- * Never pretends to know personal details not supplied by the user.
+ * Never pretends to know personal details not supplied by the user, and never uses scholarly titles.
  * Never uses "வணக்கம்" in Tamil; greets with "அஸ்ஸலாமு அலைக்கும்".
  */
 export function buildPresenterGreeting(lang: Lang, prefs?: StudioListenerPreferences): string {
@@ -202,64 +193,77 @@ export function buildPresenterGreeting(lang: Lang, prefs?: StudioListenerPrefere
       : '';
 
   if (lang === 'ta') {
-    return `அஸ்ஸலாமு அலைக்கும். Dragon Dawwa Studio-விற்கு வரவேற்கிறோம். நான் சகீனா — உருவாக்கப்பட்ட AI நிகழ்ச்சித் தொகுப்பாளர். குர்ஆன், ஹதீஸ் மற்றும் சரிபார்க்கப்பட்ட நூலக மூலங்களிலிருந்து அமைதியாகக் கேட்டுச் சிந்திப்போம்.${goalNote}`;
+    return `அஸ்ஸலாமு அலைக்கும். Dragon Dawwa Studio-விற்கு வரவேற்கிறோம். இது உருவாக்கப்பட்ட AI நிகழ்ச்சித் தொகுப்பாளர் — ஓர் அறிஞரோ முஃப்தியோ அல்ல. குர்ஆன் மற்றும் ஹதீஸ் ஆதாரங்களை நேரடியாகக் கேட்டுச் சிந்திப்போம்.${goalNote}`;
   }
   if (lang === 'si') {
-    return `අස්සලාමු අලයිකුම්. Dragon Dawwa Studio වෙත සාදරයෙන් පිළිගනිමු. මම සකීනා — AI මගින් ජනනය කළ වැඩසටහන් ඉදිරිපත් කරන්නියයි. කුර්ආනය, හදීස් සහ සත්‍යාපිත මූලාශ්‍රවලින් සන්සුන්ව සවන් දී මෙනෙහි කරමු.${goalNote}`;
+    return `අස්සලාමු අලයිකුම්. Dragon Dawwa Studio වෙත සාදරයෙන් පිළිගනිමු. මෙය ජනනය කළ AI ඉදිරිපත් කිරීමකි — විද්වතෙකු හෝ මුෆ්තිවරයෙකු නොවේ. කුර්ආනය සහ හදීස් මූලාශ්‍රවලට සන්සුන්ව සවන් දී මෙනෙහි කරමු.${goalNote}`;
   }
-  return `Assalamu Alaikum, and welcome to Dragon Dawwa Studio. I am Sakinah, your generated AI studio presenter. Take your time to listen, inspect every cited passage, and pause whenever a question comes to mind.${goalNote}`;
+  return `Assalamu Alaikum, and welcome to Dragon Dawwa Studio. This is a generated AI studio presenter — not a human scholar or mufti. Listen to the retrieved passages, inspect every source, and pause whenever you wish to ask a question.${goalNote}`;
 }
 
+/**
+ * Reports only what has actually been checked in this environment.
+ * When GEMINI_API_KEY is missing, geminiTtsVerifiedInThisEnv is false for all languages.
+ */
 export function buildVoiceCapabilityReport(
   configured: boolean,
   models: string[] = ['gemini-3.8-flash-tts', 'gemini-2.5-flash-preview-tts'],
   voices: readonly string[] = ['Kore', 'Puck', 'Charon', 'Aoede', 'Zephyr', 'Fenrir', 'Orus'],
 ): VoiceCapabilityReport {
-  const langs: Record<Lang, { supported: boolean; directionMode: string; note: string }> = {
-    en: {
-      supported: true,
-      directionMode: 'Direct English transcript with optional speech_metadata style annotation',
-      note: 'Supported by Gemini TTS models (Kore/Charon/Puck voices) when GEMINI_API_KEY is configured.',
-    },
-    ta: {
-      supported: true,
-      directionMode: 'Tamil Unicode script with speech_metadata direction "Speak in Tamil."',
-      note: 'Supported by Gemini multilingual TTS; Tamil greeting enforces Assalamu Alaikum without Vanakkam.',
-    },
-    si: {
-      supported: true,
-      directionMode: 'Sinhala Unicode script with speech_metadata direction "Speak in Sinhala."',
-      note: 'Supported by Gemini multilingual TTS when GEMINI_API_KEY is configured.',
-    },
-  };
   void LANGS;
+  const ttsNote = configured
+    ? 'GEMINI_API_KEY is present; live TTS synthesis is enabled via /api/voice/narrate.'
+    : 'Not verified in this environment: GEMINI_API_KEY is missing (/api/health reports "ai": false and POST /api/voice/narrate returned HTTP 503). Only script/source retrieval and QuranEnc meaning audio manifests were verified.';
+
   return {
-    provider: 'Google Gemini Neural TTS',
+    checkedOn: '2026-10-21',
+    provider: 'Google Gemini TTS (/api/voice/narrate)',
     configured,
+    narrateHttpStatus: configured ? 200 : 503,
     blocker: configured
       ? null
-      : 'GEMINI_API_KEY is not configured in this server environment (/api/health reports "ai": false). Live presenter speech synthesis is paused; full scripts, synchronized segment transcripts, live source research, and original Qur’an/meaning/scholar audio remain active.',
-    models,
-    voices,
-    languages: langs,
+      : 'GEMINI_API_KEY is not configured on this server (POST /api/voice/narrate returns HTTP 503). Live generated presenter speech was not verified and is not mocked. Direct Qur’an Arabic recitation (AlQuran Cloud) and QuranEnc meaning audio manifests remain playable.',
+    envModelsConfigured: models,
+    envVoicesConfigured: voices,
+    languages: {
+      en: {
+        scriptAndSourcesVerified: true,
+        quranMeaningAudioEdition: 'english_rwwad (manifest verified HTTP 200)',
+        geminiTtsVerifiedInThisEnv: configured,
+        note: ttsNote,
+      },
+      ta: {
+        scriptAndSourcesVerified: true,
+        quranMeaningAudioEdition: 'tamil_omar_brief (manifest verified HTTP 200)',
+        geminiTtsVerifiedInThisEnv: configured,
+        note: ttsNote,
+      },
+      si: {
+        scriptAndSourcesVerified: true,
+        quranMeaningAudioEdition: 'sinhalese_mahir (manifest verified HTTP 200)',
+        geminiTtsVerifiedInThisEnv: configured,
+        note: ttsNote,
+      },
+    },
     streaming: {
       supported: false,
-      mode: 'Sentence-chunked WAV synthesis (up to 3 sentences per chunk) with 2-chunk lookahead prefetch. Raw WebSocket audio streaming is not used.',
+      mode: 'Code requests full WAV responses per chunk via generateContent / interactions; streaming audio is not implemented.',
     },
-    voiceConsistency:
-      'Consistent prebuilt voice assignment per presenter persona (Sakinah -> Kore, Tariq -> Charon) with in-memory WAV caching.',
     interruptions:
-      'Immediate pause and monotonic run-token cancellation via the shared audio manager (src/lib/audio.ts); starting an answer or recitation stops active episode narration immediately.',
-    audioFormats: ['audio/wav (24kHz 16-bit mono PCM wrapped in RIFF WAV)', 'audio/mpeg (external QuranEnc & AlQuran Cloud recitations and IslamHouse recordings)'],
+      'Verified in client state machine and shared audio manager (src/lib/audio.ts): pausing, asking a question, or starting another audio source immediately stops active playback.',
+    audioFormats: [
+      'audio/mpeg (verified for AlQuran Cloud ar.alafasy recitation and QuranEnc meaning audio files)',
+      'audio/wav (24kHz 16-bit mono PCM wrapper in src/server/wav.ts; live Gemini TTS output not verified without GEMINI_API_KEY)',
+    ],
     separationPolicy: {
       quran_recitation:
-        'Played directly from verified qari recordings (AlQuran Cloud ar.alafasy / ar.husary / ar.minshawi). Never synthesized by presenter TTS.',
+        'Played directly from AlQuran Cloud (cdn.islamic.network/quran/audio/128/ar.alafasy). Never sent to presenter TTS.',
       meaning_audio:
         'Played only from QuranEnc verified edition audio manifests (english_rwwad, tamil_omar_brief, sinhalese_mahir) matching the exact translation edition.',
       original_recording:
-        'Played directly from original scholar recordings on IslamHouse (d1.islamhouse.com) with speaker attribution. Generated intros/follow-ups are separate segments.',
+        'Played directly from IslamHouse d1.islamhouse.com MP3 URLs with source attribution. Generated introductions stay in separate segments.',
       presenter_narration:
-        'Synthesized only for generated presenter segments via approved Google/Gemini neural TTS (/api/voice/narrate) and clearly badged as generated narration.',
+        'Calls POST /api/voice/narrate only when GEMINI_API_KEY is configured; otherwise reports the exact HTTP 503 blocker without substituting browser voices or mocked audio.',
     },
   };
 }

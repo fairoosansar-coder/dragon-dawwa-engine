@@ -222,7 +222,7 @@ export function useStudioOrchestrator(episode: StudioEpisode | null, lang: Lang,
         );
       }
 
-      const voice = segment.speakerId === 'tariq' ? 'Charon' : 'Kore';
+      const voice = segment.speakerId === 'researcher' ? 'Charon' : 'Kore';
       const cacheKey = `${voice}:${episodeLang}:${segment.text}`;
       const cached = ttsCacheRef.current.get(cacheKey);
       if (cached) return cached;

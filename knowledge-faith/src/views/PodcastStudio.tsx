@@ -26,7 +26,6 @@ import { LANGS, LANGUAGE_NAMES, toLang, type Lang } from '../shared/sources.ts';
 import { PROGRAMME_FAMILIES, STUDIO_EPISODE_BLUEPRINTS } from '../shared/studio/catalogue.ts';
 import type {
   AudioStreamKind,
-  ProgrammeFamilyId,
   StatementKind,
   StudioEpisode,
   VoiceCapabilityReport,
@@ -35,7 +34,7 @@ import { buildPresenterGreeting, STUDIO_PRESENTERS } from '../shared/studio/pres
 import { EditorialProductionDesk } from '../studio/EditorialProductionDesk.tsx';
 import { ListenerPreferencesDrawer } from '../studio/ListenerPreferencesDrawer.tsx';
 import { SourceReaderPanel } from '../studio/SourceReaderPanel.tsx';
-import { ProgrammeMedallion, RadioDialTuner } from '../studio/StudioArtwork.tsx';
+import { ProgrammeMedallion } from '../studio/StudioArtwork.tsx';
 import { useStudioOrchestrator } from '../studio/useStudioOrchestrator.ts';
 
 const Roundtable = lazy(() => import('../engine/Roundtable.tsx'));
@@ -160,7 +159,6 @@ function DragonDawwaRadioStudio() {
     );
   }, [lang, query]);
 
-  // Auto-scroll active segment into view during playback
   useEffect(() => {
     if (session.phase !== 'playing_programme') return;
     document.getElementById(`studio-seg-${session.segmentIndex}`)?.scrollIntoView({
@@ -168,14 +166,6 @@ function DragonDawwaRadioStudio() {
       behavior: 'smooth',
     });
   }, [session.phase, session.segmentIndex]);
-
-  function handleSelectFamily(familyId: ProgrammeFamilyId) {
-    const matched = STUDIO_EPISODE_BLUEPRINTS.find(b => b.familyId === familyId);
-    if (matched) {
-      setSelectedEpisodeId(matched.id);
-      setCustomEpisode(null);
-    }
-  }
 
   function handleNextProgramme() {
     const currentIndex = STUDIO_EPISODE_BLUEPRINTS.findIndex(b => b.id === selectedEpisodeId);
@@ -235,11 +225,11 @@ function DragonDawwaRadioStudio() {
       data-broadcast-badge={broadcastBadge}
       data-active-segment={session.segmentIndex}
     >
-      {/* 1. Studio Masthead & Classic Radio Dial */}
-      <header className="rounded-3xl border border-gold/60 bg-gradient-to-br from-[#064936] via-[#07533f] to-[#172720] p-5 text-sand shadow-sm sm:p-7">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex flex-wrap items-center gap-2.5">
+      {/* 1. Studio Masthead — Calm Classic Radio & Library Identity */}
+      <header className="rounded-3xl border border-gold/60 bg-gradient-to-br from-[#064936] via-[#07533f] to-[#172720] p-5 text-sand shadow-sm sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/60 bg-black/20 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-gold">
                 <Radio className="h-3.5 w-3.5" aria-hidden="true" />
                 DRAGON DAWWA STUDIO
@@ -262,16 +252,12 @@ function DragonDawwaRadioStudio() {
                 {broadcastBadge}
               </span>
             </div>
-            <h1 className="mt-3 font-display text-2xl font-bold tracking-tight text-sand sm:text-4xl">
-              Classic Islamic Radio & Interactive Study Studio
-            </h1>
-            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-sand/85">
-              Listen to sourced programmes, inspect every Qur’anic verse and Prophetic narration in the internal reader, and pause at any moment to ask a question.
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-sand/85">
+              Listen to a sourced programme, follow the segment-linked transcript, pause to ask a question, and inspect every cited verse and narration inside Dragon Dawwa.
             </p>
           </div>
 
-          {/* Content Language Selector in Studio Console (Interface stays English) */}
-          <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-2 rounded-full border border-gold/50 bg-[#07533f] px-3.5 py-1.5 text-xs font-semibold text-sand">
               <span className="text-gold">Spoken & Script Language:</span>
               <select
@@ -288,40 +274,19 @@ function DragonDawwaRadioStudio() {
                 ))}
               </select>
             </label>
-            <div className="flex flex-wrap gap-2 text-[11px]">
-              <button
-                type="button"
-                data-testid="toggle-preferences-btn"
-                onClick={() => setShowPreferences(v => !v)}
-                className="rounded-full border border-gold/40 bg-white/10 px-3 py-1 font-medium text-sand hover:bg-white/20"
-              >
-                <Settings2 className="mr-1 inline h-3 w-3 text-gold" aria-hidden="true" />
-                Listener Memory {prefs.optIn ? '(Opted In)' : '(Off)'}
-              </button>
-              <button
-                type="button"
-                data-testid="toggle-editorial-desk-btn"
-                onClick={() => setShowEditorialDesk(v => !v)}
-                className="rounded-full border border-gold/40 bg-white/10 px-3 py-1 font-medium text-sand hover:bg-white/20"
-              >
-                <Sparkles className="mr-1 inline h-3 w-3 text-gold" aria-hidden="true" />
-                Production & Editorial Desk
-              </button>
-            </div>
+            <button
+              type="button"
+              data-testid="toggle-preferences-btn"
+              onClick={() => setShowPreferences(v => !v)}
+              className="rounded-full border border-gold/40 bg-white/10 px-3 py-1.5 text-xs font-medium text-sand hover:bg-white/20"
+            >
+              <Settings2 className="mr-1 inline h-3.5 w-3.5 text-gold" aria-hidden="true" />
+              Preferences {prefs.optIn ? '(On)' : ''}
+            </button>
           </div>
-        </div>
-
-        {/* Classic 7-Channel Radio Dial */}
-        <div className="mt-5">
-          <RadioDialTuner
-            families={PROGRAMME_FAMILIES}
-            activeFamilyId={activeFamily.id}
-            onSelectFamily={handleSelectFamily}
-          />
         </div>
       </header>
 
-      {/* Expandable Listener Memory Drawer */}
       {showPreferences && (
         <ListenerPreferencesDrawer
           prefs={prefs}
@@ -344,8 +309,7 @@ function DragonDawwaRadioStudio() {
         />
       )}
 
-      {/* Loading & Error states */}
-      {remoteEpisode.loading && !episode && <Loading label="Tuning programme & retrieving verified sources…" />}
+      {remoteEpisode.loading && !episode && <Loading label="Loading programme & retrieving verified sources…" />}
       {remoteEpisode.error && !episode && <ErrorNote message={remoteEpisode.error} onRetry={remoteEpisode.reload} />}
 
       {/* 2. Featured Programme Console & Primary Actions (LISTEN · ASK · EXPLORE) */}
@@ -366,13 +330,10 @@ function DragonDawwaRadioStudio() {
             <div className="min-w-0 flex-1 space-y-3">
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <span className="rounded-full bg-pine px-3 py-0.5 font-semibold text-gold">
-                  {episode.featuredTonight ? 'Tonight at Dragon Dawwa · Featured' : activeFamily.title}
+                  {episode.featuredTonight ? 'Tonight at Dragon Dawwa · Featured Programme' : activeFamily.title}
                 </span>
                 <span className="rounded-full border border-pine/20 bg-white px-3 py-0.5 font-medium text-pine">
-                  {activeFamily.channelNumber} · {activeFamily.dialFrequency} MHz
-                </span>
-                <span className="rounded-full border border-pine/20 bg-white px-3 py-0.5 font-medium text-ink/80">
-                  State: {episode.editorialState} (Rev #{episode.currentRevision})
+                  {activeFamily.channelNumber} · {activeFamily.dialFrequency} MHz · {activeFamily.title}
                 </span>
                 <span
                   data-testid="session-phase-indicator"
@@ -382,13 +343,13 @@ function DragonDawwaRadioStudio() {
                 </span>
               </div>
 
-              <h2
+              <h1
                 lang={episode.lang}
                 data-testid="current-episode-title"
                 className="font-display text-2xl font-bold leading-snug text-pine sm:text-3xl"
               >
                 {episode.title}
-              </h2>
+              </h1>
               <p lang={episode.lang} className="text-sm font-medium text-ink/85">
                 {episode.subtitle}
               </p>
@@ -396,7 +357,7 @@ function DragonDawwaRadioStudio() {
                 {episode.summary}
               </p>
 
-              {/* Presenter Identity Card */}
+              {/* Presenter Identity Card — No scholarly titles */}
               <div
                 data-testid="presenter-identity-card"
                 className="rounded-2xl border border-gold/50 bg-sand/90 p-3.5 text-xs"
@@ -404,14 +365,14 @@ function DragonDawwaRadioStudio() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-display text-sm font-bold text-pine">
-                      Presenter: {episode.presenters.map(p => p.name).join(' & ')}
+                      {episode.presenters.map(p => p.name).join(' & ')}
                     </span>
                     <span className="rounded-full bg-gold/25 px-2.5 py-0.5 text-[11px] font-semibold text-ink">
                       Generated AI Presenter · Not a human scholar or mufti
                     </span>
                   </div>
                   <span className="text-[11px] text-muted">
-                    Voice: {STUDIO_PRESENTERS.sakinah.voiceName} (Gemini Neural)
+                    Configured voice: {STUDIO_PRESENTERS.presenter.voiceName}
                   </span>
                 </div>
                 <p lang={lang} className="mt-1.5 leading-relaxed text-ink/90">
@@ -467,10 +428,9 @@ function DragonDawwaRadioStudio() {
                     }`}
                   >
                     <Compass className="h-4 w-4" aria-hidden="true" />
-                    EXPLORE ({episode.passages.length})
+                    EXPLORE ({episode.references.length})
                   </button>
 
-                  {/* Resume from saved position shortcut when paused/ready */}
                   {(session.phase === 'ready_to_resume' ||
                     session.phase === 'paused' ||
                     (savedPosition && savedPosition.episodeId === episode.id)) && (
@@ -572,7 +532,6 @@ function DragonDawwaRadioStudio() {
                     </div>
                   </div>
 
-                  {/* Segment & Offset Seek Bar */}
                   <div className="mt-3 flex items-center gap-3">
                     <span className="w-12 text-right font-mono text-[11px] text-muted">
                       Seg {session.segmentIndex + 1}/{episode.segments.length}
@@ -604,7 +563,6 @@ function DragonDawwaRadioStudio() {
                 </p>
               )}
 
-              {/* Honest Voice Capability Notice when GEMINI_API_KEY is not configured */}
               {!aiConfigured && remoteVoiceStatus.data && (
                 <div
                   role="status"
@@ -613,7 +571,7 @@ function DragonDawwaRadioStudio() {
                 >
                   <p className="font-semibold text-pine">
                     <Volume2 className="mr-1.5 inline h-4 w-4 text-gold" aria-hidden="true" />
-                    Voice Provider Status: {remoteVoiceStatus.data.provider} (Not Configured)
+                    Voice Provider Status: {remoteVoiceStatus.data.provider} (HTTP {remoteVoiceStatus.data.narrateHttpStatus})
                   </p>
                   <p className="mt-1 text-ink/80">{remoteVoiceStatus.data.blocker}</p>
                 </div>
@@ -645,13 +603,13 @@ function DragonDawwaRadioStudio() {
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-pine">
                 Interactive Studio Companion · Programme Paused at Seg #{(session.resumePoint?.segmentIndex ?? session.segmentIndex) + 1}
               </p>
-              <h3 className="mt-1 font-display text-xl font-bold text-pine">
+              <h2 className="mt-1 font-display text-xl font-bold text-pine">
                 Ask About This Segment or Programme
-              </h3>
+              </h2>
               {activeSegment && (
                 <p className="mt-1 text-xs text-muted">
                   Active context: <span className="font-medium text-ink">{activeSegment.sectionLabel}</span> · Citations:{' '}
-                  {activeSegment.citations.map(c => `[${c}]`).join(', ') || 'Opening context'}
+                  {activeSegment.citations.map(c => `[${c}]`).join(', ') || 'None'}
                 </p>
               )}
             </div>
@@ -676,7 +634,6 @@ function DragonDawwaRadioStudio() {
             </div>
           </div>
 
-          {/* Listener Quick-Ask Chips */}
           <div className="mt-3">
             <p className="mb-2 text-xs font-semibold text-pine">Quick questions while listening:</p>
             <div className="flex flex-wrap gap-2">
@@ -702,7 +659,6 @@ function DragonDawwaRadioStudio() {
             </div>
           </div>
 
-          {/* Question Input & Microphone Control */}
           <form onSubmit={handleSubmitQuestion} className="mt-4 flex flex-wrap gap-2">
             <label htmlFor="studio-question-input" className="sr-only">
               Ask a question about this programme
@@ -777,11 +733,10 @@ function DragonDawwaRadioStudio() {
             </div>
           )}
 
-          {/* Cited Answer Display */}
           {answer && (
             <div
               data-testid="studio-ask-answer"
-              data-outcome={answer.outcome}
+              data-kind={answer.kind}
               className="mt-4 space-y-3 rounded-2xl border border-gold/60 bg-sand/70 p-4 sm:p-5"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -790,9 +745,9 @@ function DragonDawwaRadioStudio() {
                     {answer.originBadge}
                   </span>
                   <span className="rounded-full border border-pine/25 bg-white px-2.5 py-0.5 text-[11px] font-semibold text-pine">
-                    Private Session Answer · Unreviewed
+                    Live answer · Not reviewed
                   </span>
-                  <span className="text-xs text-muted">{answer.statusNote}</span>
+                  <span className="text-xs text-muted">{answer.note}</span>
                 </div>
 
                 {aiConfigured && answer.paragraphs.length > 0 && (
@@ -845,21 +800,20 @@ function DragonDawwaRadioStudio() {
                 ))}
               </div>
 
-              {/* When question is unsupported, offer relevant sourced material from the current programme */}
-              {answer.outcome === 'no_relevant_evidence' && answer.relatedSuggestedPassages.length > 0 && (
+              {answer.kind === 'limitation' && answer.relatedReferences.length > 0 && (
                 <div className="rounded-xl border border-pine/15 bg-white p-3 text-xs">
                   <p className="font-semibold text-pine">
                     Relevant Sourced Material Available in This Programme:
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {answer.relatedSuggestedPassages.map(sp => (
+                    {answer.relatedReferences.map(sr => (
                       <button
-                        key={sp.id}
+                        key={sr.id}
                         type="button"
-                        onClick={() => handleOpenExplore(sp.id)}
+                        onClick={() => handleOpenExplore(sr.id)}
                         className="rounded-full border border-pine/25 bg-sand px-3 py-1 font-semibold text-pine hover:bg-mint"
                       >
-                        [{sp.id}] {sp.source.title}
+                        [{sr.id}] {sr.title}
                       </button>
                     ))}
                   </div>
@@ -893,7 +847,7 @@ function DragonDawwaRadioStudio() {
       <div id="studio-explore-anchor">
         {episode && (activeDrawer === 'explore' || activeDrawer === 'both') && (
           <SourceReaderPanel
-            passages={episode.passages}
+            references={episode.references}
             selectedId={selectedCitationId}
             onSelectId={setSelectedCitationId}
             gaps={episode.gaps}
@@ -903,10 +857,9 @@ function DragonDawwaRadioStudio() {
         )}
       </div>
 
-      {/* 5. Main Studio Columns: Synchronized Segment Transcript (Left) + Editorial Schedule & Sources (Right) */}
+      {/* 5. Main Studio Columns: Synchronized Segment Transcript (Left) + Up Next Schedule & Sources (Right) */}
       {episode && (
         <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
-          {/* Synchronized 6-Part Episode Transcript */}
           <section
             aria-label="Synchronized programme transcript"
             data-testid="studio-transcript-section"
@@ -917,9 +870,9 @@ function DragonDawwaRadioStudio() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-pine">
                   Synchronized Segment Transcript
                 </p>
-                <h3 className="mt-0.5 font-display text-xl font-bold text-pine">
+                <h2 className="mt-0.5 font-display text-xl font-bold text-pine">
                   Programme Script & Citation Links ({episode.segments.length} Segments)
-                </h3>
+                </h2>
               </div>
               <span className="text-xs text-muted">
                 Click any citation chip to inspect the source
@@ -998,13 +951,6 @@ function DragonDawwaRadioStudio() {
                       {seg.text}
                     </p>
 
-                    {seg.scientificLimitation && (
-                      <p className="mt-2 rounded-lg bg-amber-50 px-3 py-1.5 text-xs text-amber-950">
-                        Scope Note: {seg.scientificLimitation}
-                      </p>
-                    )}
-
-                    {/* Inline Citation Chips */}
                     {seg.citations.length > 0 && (
                       <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-pine/10 pt-2.5">
                         <span className="text-[11px] font-semibold text-muted">Citations:</span>
@@ -1033,21 +979,20 @@ function DragonDawwaRadioStudio() {
             </ol>
           </section>
 
-          {/* Right Column: Editorial Programme Schedule ("Up Next") & Quick Sources */}
+          {/* Right Column: Up Next Schedule & Episode Sources */}
           <aside className="space-y-6" aria-label="Programme schedule and sources">
-            {/* Editorial Playlist / Up Next Schedule */}
             <section
               data-testid="studio-schedule-panel"
               className="rounded-3xl border border-pine/15 bg-white p-5"
             >
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-pine">
-                Editorial Programme Schedule · Up Next
+                Editorial Schedule · Up Next
               </p>
-              <h3 className="mt-0.5 font-display text-xl font-bold text-pine">
-                7 Programme Families
-              </h3>
+              <h2 className="mt-0.5 font-display text-xl font-bold text-pine">
+                Sourced Programmes
+              </h2>
               <p className="mt-1 text-xs text-muted">
-                Recorded & on-demand editorial programmes across all seven Dragon Dawwa Studio families.
+                Recorded & on-demand programmes hydrated from live QuranEnc, HadeethEnc, and IslamHouse passages.
               </p>
 
               <ul className="mt-4 space-y-2.5">
@@ -1082,7 +1027,7 @@ function DragonDawwaRadioStudio() {
                             <span className="text-muted">{item.broadcastLabel}</span>
                             {isCurrent && (
                               <span className="rounded-full bg-pine px-2 py-0.5 text-[10px] text-gold">
-                                Selected
+                                Active
                               </span>
                             )}
                           </div>
@@ -1098,14 +1043,33 @@ function DragonDawwaRadioStudio() {
                   );
                 })}
               </ul>
+
+              {/* Reusable Programme Families in preparation */}
+              <details className="mt-4 rounded-2xl border border-pine/10 bg-sand/50 px-3.5 py-2.5 text-xs">
+                <summary className="cursor-pointer font-semibold text-pine">
+                  All 7 Programme Families (Reusable Studio System)
+                </summary>
+                <ul className="mt-2 space-y-1.5 text-ink/85">
+                  {PROGRAMME_FAMILIES.map(f => (
+                    <li key={f.id} className="flex items-center justify-between gap-2 py-0.5">
+                      <span>
+                        <span className="font-mono text-[11px] text-pine">{f.channelNumber}</span> · {f.title}
+                      </span>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-muted">
+                        {f.status === 'active_release_slice' ? 'Active slice' : 'In preparation'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
             </section>
 
             {/* Compact Source List Card */}
             <section className="rounded-3xl border border-pine/15 bg-white p-5">
               <div className="flex items-center justify-between gap-2">
-                <h3 className="font-display text-lg font-bold text-pine">
-                  Episode Evidence ({episode.passages.length})
-                </h3>
+                <h2 className="font-display text-lg font-bold text-pine">
+                  Episode Evidence ({episode.references.length})
+                </h2>
                 <button
                   type="button"
                   onClick={() => handleOpenExplore(null)}
@@ -1115,22 +1079,22 @@ function DragonDawwaRadioStudio() {
                 </button>
               </div>
               <ul className="mt-3 space-y-2 text-xs">
-                {episode.passages.map(p => (
-                  <li key={p.id}>
+                {episode.references.map(ref => (
+                  <li key={ref.id}>
                     <button
                       type="button"
-                      data-testid={`sidebar-source-${p.id}`}
-                      onClick={() => handleOpenExplore(p.id)}
+                      data-testid={`sidebar-source-${ref.id}`}
+                      onClick={() => handleOpenExplore(ref.id)}
                       className="flex w-full items-start justify-between gap-2 rounded-xl border border-pine/10 bg-sand/50 p-2.5 text-left hover:border-gold"
                     >
                       <div className="min-w-0 flex-1">
-                        <span className="font-bold text-pine">[{p.id}]</span>{' '}
-                        <span className="font-medium text-ink">{p.source.title}</span>
-                        <p className="mt-0.5 truncate text-muted">{p.locator}</p>
+                        <span className="font-bold text-pine">[{ref.id}]</span>{' '}
+                        <span className="font-medium text-ink">{ref.title}</span>
+                        <p className="mt-0.5 truncate text-muted">{ref.locator}</p>
                       </div>
-                      {p.grade && (
+                      {ref.grade && (
                         <span className="shrink-0 rounded-full bg-gold/25 px-2 py-0.5 text-[10px] font-semibold text-ink">
-                          {p.grade}
+                          {ref.grade}
                         </span>
                       )}
                     </button>
@@ -1139,7 +1103,6 @@ function DragonDawwaRadioStudio() {
               </ul>
             </section>
 
-            {/* Measured Session Timings */}
             {(timings.lastProgrammeStartMs !== null ||
               timings.lastQuestionResearchMs !== null ||
               timings.lastResumePlaybackMs !== null ||

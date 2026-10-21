@@ -1,7 +1,11 @@
-import { contentTokens, passageSupportsTopic, VERIFICATION_NOTE } from '../research.ts';
+import {
+  referenceEvidence,
+  verifyScript,
+  type ResearchReference,
+} from '../research.ts';
 import { EditorialError, hasRole, type EditorUser, type Role } from '../spiritual/governance.ts';
+import type { PodcastLine } from '../types.ts';
 import type {
-  EvidencePassage,
   StudioAskAnswer,
   StudioEditorialState,
   StudioEpisode,
@@ -20,11 +24,17 @@ const QUOTE_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ['‘', '’'],
 ];
 
+const FRAMING_WORDS = new Set([
+  'the', 'book', 'says', 'said', 'say', 'in', 'this', 'section', 'passage', 'source', 'according', 'to', 'here',
+  'we', 'read', 'that', 'a', 'an', 'of', 'and', 'its', 'it', 'is', 'as', 'for', 'from', 'on', 'by', 'host',
+  'records', 'recorded', 'writes', 'wrote', 'states', 'stated', 'under', 'heading', 'verse', 'ayah', 'hadith',
+]);
+
 function compact(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
 }
 
-export function extractQuotations(text: string): string[] {
+function extractQuotations(text: string): string[] {
   const found: string[] = [];
   for (const [open, close] of QUOTE_PAIRS) {
     let from = 0;
@@ -41,6 +51,30 @@ export function extractQuotations(text: string): string[] {
   return found;
 }
 
+function isFramingOnly(text: string): boolean {
+  const tokens = text.toLocaleLowerCase('en').split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  return tokens.length === 0 || tokens.every(token => FRAMING_WORDS.has(token));
+}
+
+/**
+ * Checks if a line that quotes a passage also appends unverified commentary or paraphrase outside the quotation.
+ */
+function hasUnverifiedResidueOutsideQuotes(text: string, passages: string[]): boolean {
+  const compactLine = compact(text);
+  if (!compactLine) return false;
+  // If the entire line is inside a cited passage, there is no outside residue
+  if (passages.some(p => p.includes(compactLine))) return false;
+
+  let residue = text;
+  for (const quote of extractQuotations(text)) {
+    residue = residue.replace(quote, ' ');
+  }
+  residue = residue.replace(/[“”«»「」『』„"‘’]/g, ' ');
+  const compactResidue = compact(residue);
+  if (!compactResidue || isFramingOnly(compactResidue)) return false;
+  return !passages.some(p => p.includes(compactResidue));
+}
+
 export function computeSegmentsHash(segments: StudioSegment[]): string {
   const payload = segments
     .map(s => `${s.id}|${s.speakerId}|${s.statementKind}|${s.audioKind}|${s.text}|${s.arabicText ?? ''}|${s.citations.join(',')}`)
@@ -54,89 +88,47 @@ export function computeSegmentsHash(segments: StudioSegment[]): string {
 }
 
 /**
- * Checks whether a segment's claim is genuinely supported by its cited passages.
- * A valid citation ID alone NEVER validates an unrelated or contradictory claim.
- */
-export function segmentClaimSupportedByPassages(segment: StudioSegment, citedPassages: EvidencePassage[]): boolean {
-  if (!citedPassages.length) return false;
-  const line = compact(segment.text);
-  const passageTexts = citedPassages.map(p =>
-    compact(`${p.exactText} ${p.arabicText ?? ''} ${p.surroundingContext.join(' ')} ${p.source.title}`),
-  );
-
-  // 1. Direct inclusion or exact quotation match
-  if (passageTexts.some(pt => pt.toLowerCase().includes(line.toLowerCase()) || line.toLowerCase().includes(pt.toLowerCase()))) {
-    return true;
-  }
-
-  // 2. Check contradiction patterns (e.g., "optional" vs "obligatory", "praise of people" vs "Allah alone")
-  const lowerLine = line.toLowerCase();
-  const combinedPassages = passageTexts.join(' ').toLowerCase();
-  if (
-    (/\boptional\b/.test(lowerLine) && !/\boptional\b/.test(combinedPassages)) ||
-    (/\bother people will notice and praise\b/.test(lowerLine) && /\ballah alone\b|அல்லாஹ்வுக்காக மட்டுமே/.test(combinedPassages)) ||
-    (/\bscientific proof\b|\bscience proves\b/.test(lowerLine) && segment.statementKind !== 'scientific_evidence')
-  ) {
-    return false;
-  }
-
-  // 3. Token overlap check: the claim must share substantive content tokens with the cited passages
-  // (or, for cross-language explanations where segment is in English/Tamil/Sinhala and passage is in the same language,
-  // share topical terms or reference the cited locator/title).
-  const tokens = contentTokens(line);
-  if (tokens.length === 0) return true;
-
-  // Reject unrelated claims carrying a valid citation (e.g., "moon landing", "population of Tokyo", "stock market")
-  const matchedTokens = tokens.filter(token => combinedPassages.includes(token));
-  if (matchedTokens.length > 0) {
-    // Require at least 20% of distinctive tokens or at least 2 content tokens (or 1 if total tokens <= 3) to appear in the cited passage
-    const required = tokens.length <= 3 ? 1 : Math.min(2, Math.ceil(tokens.length * 0.2));
-    return matchedTokens.length >= required;
-  }
-
-  // Also check passageSupportsTopic helper
-  return citedPassages.some(p => passageSupportsTopic(line, p.exactText));
-}
-
-/**
- * Full 7-point verification of a StudioEpisode against its retrieved EvidencePassages:
- * 1. Every citation resolves to retrieved material.
- * 2. Quotations match the cited edition.
- * 3. Claims are actually supported (an unrelated claim carrying a valid citation is rejected).
- * 4. Translation and source language are identified.
- * 5. Source grades and scholarly attributions are preserved.
- * 6. Scientific limitations are represented.
- * 7. Narration corresponds to the approved script version.
+ * Verifies a Studio episode script using the committed `verifyScript()` from `src/shared/research.ts`
+ * plus strict residue checking so appended paraphrases outside quotation marks are never auto-certified.
+ *
+ * CRITICAL RULE:
+ * - Word/token overlap is a retrieval relevance signal, NEVER proof of claim support.
+ * - Any paraphrase — whether sharing words with the passage, appended after a valid quotation,
+ *   unrelated, or contradictory — remains in `unverified` (`supported: false`, `review: 'editorial'`).
  */
 export function verifyStudioEpisode(
   segments: StudioSegment[],
-  passages: EvidencePassage[],
+  references: ResearchReference[],
   meta?: {
     currentRevision?: number;
     approvedRevision?: number | null;
     narratedRevision?: number | null;
-    familyId?: string;
   },
 ): StudioVerificationReport {
-  const byId = new Map(passages.map(p => [p.id, p]));
-  const missingCitations: string[] = [];
-  const unfaithfulQuotations: string[] = [];
-  const unsupportedClaims: string[] = [];
-  const unresolvedCitationIds: string[] = [];
+  const evidence = references.map(referenceEvidence);
+  const byId = new Map(evidence.map(e => [e.id, e]));
 
+  const lines: PodcastLine[] = segments.map(seg => ({
+    speaker: seg.speakerId === 'researcher' ? 'Guest' : 'Host',
+    text: seg.text,
+    citations: seg.citations,
+  }));
+
+  const baseVerification = verifyScript(lines, evidence);
+  const unverifiedSet = new Set(baseVerification.unverified);
+
+  const unresolvedCitationIds: string[] = [];
   let languagesIdentified = true;
   let gradesPreserved = true;
   let scientificLimitationsRepresented = true;
 
-  // Check passages for language & grade preservation
-  for (const passage of passages) {
-    if (!passage.passageLanguage || !passage.originalLanguage) {
+  for (const ref of references) {
+    if (!ref.passageLanguage) {
       languagesIdentified = false;
     }
-    if (passage.source.contentType === 'hadith') {
-      // HadeethEnc or HadithApi must preserve either the source's grade or an explicit limitation that the source had no grade
-      const hasGrade = Boolean(passage.grade && passage.grade.trim());
-      const hasNoGradeNote = passage.limitations.some(l => /did not include a grade|no grading/i.test(l));
+    if (ref.provider === 'HadeethEnc') {
+      const hasGrade = Boolean(ref.grade && ref.grade.trim());
+      const hasNoGradeNote = ref.limitations.some(l => /did not include a grade|no grading/i.test(l));
       if (!hasGrade && !hasNoGradeNote) {
         gradesPreserved = false;
       }
@@ -144,69 +136,38 @@ export function verifyStudioEpisode(
   }
 
   segments.forEach((segment, idx) => {
-    const label = `Segment ${idx + 1} (${segment.section})`;
+    const label = `Line ${idx + 1}`;
     if (!segment.sourceLanguage) {
       languagesIdentified = false;
     }
     if (segment.statementKind === 'published_translation' && !segment.translationEdition) {
       languagesIdentified = false;
     }
-
-    // Check unresolved citations
     for (const cid of segment.citations) {
       if (!byId.has(cid)) {
         unresolvedCitationIds.push(`${label}: ${cid}`);
       }
     }
-
-    const resolvedCitations = segment.citations.map(cid => byId.get(cid)).filter((p): p is EvidencePassage => Boolean(p));
-
-    // Substantive segments require citations
-    const requiresCitation =
-      segment.statementKind === 'exact_quotation' ||
-      segment.statementKind === 'published_translation' ||
-      segment.statementKind === 'faithful_paraphrase' ||
-      segment.statementKind === 'scholarly_interpretation' ||
-      segment.statementKind === 'scientific_evidence' ||
-      segment.section === 'evidence';
-
-    if (requiresCitation && resolvedCitations.length === 0) {
-      missingCitations.push(label);
-      return;
-    }
-
-    if (resolvedCitations.length > 0) {
-      // Check quotations match the cited edition
-      const quotes = extractQuotations(segment.text);
-      const passageCorpus = resolvedCitations.map(p =>
-        compact(`${p.exactText} ${p.arabicText ?? ''} ${p.surroundingContext.join(' ')}`),
-      );
-      const quoteMismatch = quotes.some(q => !passageCorpus.some(corpus => corpus.includes(q)));
-      if (quoteMismatch) {
-        unfaithfulQuotations.push(label);
-      }
-
-      // Check that the claim is genuinely supported by the cited passage (rejects unrelated claim with valid citation)
-      if (!quoteMismatch && !segmentClaimSupportedByPassages(segment, resolvedCitations)) {
-        unsupportedClaims.push(label);
+    const passages = segment.citations.map(cid => compact(byId.get(cid)?.text ?? '')).filter(Boolean);
+    if (passages.length > 0 && !baseVerification.unfaithful.includes(label)) {
+      if (hasUnverifiedResidueOutsideQuotes(segment.text, passages)) {
+        unverifiedSet.add(label);
       }
     }
-
-    // Check scientific limitations when science is discussed
-    if (segment.statementKind === 'scientific_evidence' || /\b(scientific|physics|biology|cosmology|embryology|empirical)\b/i.test(segment.text)) {
+    if (segment.statementKind === 'scientific_evidence' || /\b(scientific proof|science proves|physics|biology|chemistry|medicine)\b/i.test(segment.text)) {
       const hasLimitOnSegment = Boolean(segment.scientificLimitation && segment.scientificLimitation.trim());
-      const hasLimitOnPassage = resolvedCitations.some(p =>
-        p.limitations.some(l => /scientific|empirical|provisional|not scientific proof/i.test(l)),
-      );
-      if (!hasLimitOnSegment && !hasLimitOnPassage) {
+      const hasLimitOnRef = references
+        .filter(r => segment.citations.includes(r.id))
+        .some(r => r.limitations.some(l => /scientific|empirical|provisional|not scientific evidence/i.test(l)));
+      if (!hasLimitOnSegment && !hasLimitOnRef) {
         scientificLimitationsRepresented = false;
       }
     }
   });
 
-  const allCitationsResolve = unresolvedCitationIds.length === 0 && missingCitations.length === 0;
-  const quotationsMatchEdition = unfaithfulQuotations.length === 0;
-  const claimsSupported = unsupportedClaims.length === 0;
+  const unverified = [...unverifiedSet];
+  const allCitationsResolve = unresolvedCitationIds.length === 0 && baseVerification.missingCitations.length === 0;
+  const quotationsMatchEdition = baseVerification.unfaithful.length === 0;
 
   const curRev = meta?.currentRevision ?? 1;
   const appRev = meta?.approvedRevision ?? null;
@@ -215,37 +176,29 @@ export function verifyStudioEpisode(
     narRev === null ? true : appRev !== null && narRev === curRev && appRev === curRev;
 
   const supported =
+    baseVerification.missingCitations.length === 0 &&
+    baseVerification.unfaithful.length === 0 &&
+    unverified.length === 0 &&
     allCitationsResolve &&
     quotationsMatchEdition &&
-    claimsSupported &&
     languagesIdentified &&
     gradesPreserved &&
     scientificLimitationsRepresented;
 
   return {
+    ...baseVerification,
+    unverified,
     supported,
     allCitationsResolve,
     quotationsMatchEdition,
-    claimsSupported,
     languagesIdentified,
     gradesPreserved,
     scientificLimitationsRepresented,
     narrationMatchesApprovedRevision,
-    missingCitations,
-    unfaithfulQuotations,
-    unsupportedClaims,
     unresolvedCitationIds,
-    review: 'editorial',
-    note: VERIFICATION_NOTE,
   };
 }
 
-/**
- * Applies a script revision edit to a StudioEpisode.
- * CRITICAL RULE: Changing script content after approval or narration immediately invalidates
- * the affected approval and narration, increments currentRevision, and transitions the episode
- * back to 'needs-review' (or 'scripted').
- */
 export function applyEpisodeScriptEdit(
   episode: StudioEpisode,
   newSegments: StudioSegment[],
@@ -274,15 +227,12 @@ export function applyEpisodeScriptEdit(
         ? 'scripted'
         : episode.editorialState;
 
-  const verification = verifyStudioEpisode(newSegments, episode.passages, {
+  const verification = verifyStudioEpisode(newSegments, episode.references, {
     currentRevision: nextRevision,
     approvedRevision: episode.approvedRevision,
     narratedRevision: episode.narratedRevision,
-    familyId: episode.familyId,
   });
 
-  // Because currentRevision increased while approvedRevision and narratedRevision remain on the old revision,
-  // approvalValid and narrationValid become false, and narrationMatchesApprovedRevision is false if narratedRevision was set.
   const updatedVerification: StudioVerificationReport = {
     ...verification,
     narrationMatchesApprovedRevision: false,
@@ -331,10 +281,6 @@ const TRANSITION_ROLES: Record<StudioTransitionAction, Role[]> = {
   'return-to-draft': ['author', 'source-checker', 'religious-reviewer', 'language-reviewer', 'publisher'],
 };
 
-/**
- * Transitions a StudioEpisode through editorial states using existing Dragon Dawwa editorial roles.
- * Never automatically publishes generated episodes.
- */
 export function transitionStudioEpisode(
   episode: StudioEpisode,
   action: StudioTransitionAction,
@@ -347,11 +293,10 @@ export function transitionStudioEpisode(
     throw new EditorialError(`This Studio action (${action}) requires role: ${requiredRoles?.join(' or ')}.`, 403);
   }
 
-  const verification = verifyStudioEpisode(episode.segments, episode.passages, {
+  const verification = verifyStudioEpisode(episode.segments, episode.references, {
     currentRevision: episode.currentRevision,
     approvedRevision: episode.approvedRevision,
     narratedRevision: episode.narratedRevision,
-    familyId: episode.familyId,
   });
 
   if (action === 'submit-for-review') {
@@ -380,10 +325,10 @@ export function transitionStudioEpisode(
   if (action === 'approve-script') {
     if (!verification.supported) {
       throw new EditorialError(
-        `Cannot approve script while automated verification reports issues: ${[
+        `Cannot approve script while automated verification reports unverified or unsupported lines: ${[
           ...verification.missingCitations.map(m => `missing citation on ${m}`),
-          ...verification.unfaithfulQuotations.map(u => `unfaithful quotation on ${u}`),
-          ...verification.unsupportedClaims.map(c => `unsupported claim on ${c}`),
+          ...verification.unfaithful.map(u => `unfaithful quotation on ${u}`),
+          ...verification.unverified.map(c => `unverified claim/paraphrase on ${c}`),
           ...verification.unresolvedCitationIds.map(id => `unresolved citation ${id}`),
         ].join('; ')}`,
         409,
@@ -393,7 +338,7 @@ export function transitionStudioEpisode(
       id: `rev-${episode.currentRevision}-${episode.reviews.length + 1}`,
       reviewerId: user.id,
       reviewerName: user.name,
-      role: user.roles[0] ?? 'religious-reviewer',
+      role: user.roles[0] ?? 'source-checker',
       decision: 'approved',
       notes: notes || 'Verified citations, quotations, and source attributions.',
       createdAt: now,
@@ -516,7 +461,6 @@ export function transitionStudioEpisode(
     };
   }
 
-  // return-to-draft
   const nextState: StudioEditorialState = 'draft';
   return {
     ...episode,
@@ -541,9 +485,6 @@ export function transitionStudioEpisode(
   };
 }
 
-/**
- * Enforces that a listener's private generated answer can never become a public episode.
- */
 export function assertNotPrivateAnswerForPublication(item: unknown): void {
   if (item && typeof item === 'object' && (item as Partial<StudioAskAnswer>).visibility === 'private_session') {
     throw new EditorialError('Private listener answers are session-scoped and cannot be promoted or published as public episodes.', 403);
