@@ -21,8 +21,11 @@ export function hadithEvidence(hadiths: Hadith[]): Evidence[] {
     label: `${h.collectionName} ${h.number}`,
     arabic: h.arabic,
     text: h.text,
-    attribution:
-      h.lang === 'en' ? 'English translation via hadith-api (fawazahmed0)' : 'Tamil translation via hadith-api (fawazahmed0)',
+    attribution: h.machineTranslation
+      ? 'Study rendering of the published English edition (not a published translation)'
+      : h.lang === 'en'
+        ? 'English translation via hadith-api (fawazahmed0)'
+        : 'Tamil translation via hadith-api (fawazahmed0)',
     grades: h.grades,
   }));
 }

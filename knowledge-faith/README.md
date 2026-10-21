@@ -8,13 +8,14 @@ A standalone UmmaConnect app for learning from primary Islamic sources in **Engl
 |---|---|---|
 | **Knowledge Hub** | Verse of the day, eight study themes, saved verses/hadith, and *Ask*: a question is answered only from verses and hadith the server retrieves and displays, with per-paragraph citations | AlQuran Cloud, hadith-api, Gemini |
 | **Quran Reader** | 114 surahs, Uthmani Arabic + named translation (Saheeh International / Jan Trust Foundation / Naseem Ismail), per-ayah and continuous recitation (Alafasy, Husary, Minshawi), bookmarks, last surah remembered | AlQuran Cloud, islamic.network CDN |
-| **Hadith Library** | Nine collections, browse by book or jump to a number, Arabic text, grades exactly as supplied by the source (named grader), Tamil for Bukhari and Muslim, otherwise an explicit English fallback notice | hadith-api (fawazahmed0) |
+| **Hadith Library** | Nine collections, browse by book or jump to a number, Arabic text, grades exactly as supplied by the source (named grader). Published Tamil for Bukhari and Muslim. Other collections, and every collection in Sinhala, show a labeled study rendering of the English edition when Gemini is configured; otherwise the English text and a fallback notice | hadith-api (fawazahmed0), Gemini |
 | **Prayer & Spiritual** | Daily prayer times by city or device location, method and Asr school, next-prayer countdown in the location's timezone, Hijri date, Qibla bearing, tasbih counter | Aladhan |
 | **Podcasts & Voice Studio** | Two-voice learning episodes scripted from retrieved sources (or your saved items) with citations. Play speaks the first few lines immediately and loads the next speaker while those play. Local episode library, and single-voice narration of any text | Gemini text + TTS |
 
 ### Source integrity
 
-- The AI never supplies verse or hadith text. For *Ask* and podcasts the model only nominates references; the server fetches those references from the sources above, discards anything invalid, and passes the fetched text back as a numbered evidence packet.
+- The AI never supplies verse text, and it does not invent hadith for *Ask* or podcasts. The model only nominates references; the server fetches those references from the sources above, discards anything invalid, and passes the fetched text back as a numbered evidence packet.
+- Where no published Tamil or Sinhala hadith edition exists, the library can render the fetched English into that language. That rendering is labeled as a study aid. Arabic and grades stay exactly as the source supplied them. Bukhari and Muslim keep their published Tamil editions. If Gemini is not configured, the English text and the fallback notice stay.
 - Citations that do not resolve to retrieved evidence are removed, and uncited paragraphs are dropped (`src/server/grounding.ts`, covered by `tests/grounding.test.ts`).
 - Prompts instruct the model not to give fatwas, not to invent gradings, and to treat user text as untrusted data. AI output is labelled as AI-generated.
 - Tamil and Sinhala **interface labels** have not been professionally reviewed; the app says so in the footer. Scripture translations are the named published translations.

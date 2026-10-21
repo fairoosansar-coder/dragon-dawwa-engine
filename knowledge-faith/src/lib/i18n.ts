@@ -41,6 +41,10 @@ const en = {
   grades: 'Grades',
   noGrades: 'No grading supplied by the source for this narration.',
   fallbackEnglish: 'No translation in your language is available for this collection; showing English.',
+  machineHadith:
+    'This is a rendering of the published English edition. It is a study aid, not a published translation. Arabic and the grades are unchanged.',
+  machineHadithShort: 'Study rendering of the English edition.',
+  machineTitles: 'Book titles are a rendering of the English index. Hadith text in this collection uses the published Tamil edition.',
   prayerTimes: 'Prayer times',
   useLocation: 'Use my location',
   locationHint: 'Your location is kept on this device only and rounded to about 1 km before times are looked up.',
@@ -157,6 +161,10 @@ const ta: Strings = {
   go: 'செல்',
   grades: 'தரம்',
   fallbackEnglish: 'இந்தத் தொகுப்புக்கு உங்கள் மொழியில் மொழிபெயர்ப்பு இல்லை; ஆங்கிலத்தில் காட்டப்படுகிறது.',
+  machineHadith:
+    'இந்த உரை வெளியிடப்பட்ட ஆங்கிலப் பதிப்பின் தமிழ் வழங்கல். இது படிப்பு உதவி மட்டுமே; வெளியிடப்பட்ட மொழிபெயர்ப்பு அல்ல. அரபு உரையும் தரப்படுத்தலும் மாற்றப்படவில்லை.',
+  machineHadithShort: 'ஆங்கிலப் பதிப்பின் படிப்பு வழங்கல்.',
+  machineTitles: 'பாடத் தலைப்புகள் ஆங்கில அட்டவணையின் தமிழ் வழங்கல். இந்தத் தொகுப்பின் ஹதீஸ் உரை வெளியிடப்பட்ட தமிழ் பதிப்பு.',
   prayerTimes: 'தொழுகை நேரங்கள்',
   useLocation: 'என் இருப்பிடத்தைப் பயன்படுத்து',
   nextPrayer: 'அடுத்த தொழுகை',
@@ -239,6 +247,10 @@ const si: Strings = {
   go: 'යන්න',
   grades: 'ශ්‍රේණි',
   fallbackEnglish: 'මෙම එකතුවට සිංහල පරිවර්තනයක් නොමැත; ඉංග්‍රීසියෙන් පෙන්වයි.',
+  machineHadith:
+    'මෙම පාඨය ප්‍රකාශිත ඉංග්‍රීසි සංස්කරණයේ සිංහල ඉදිරිපත් කිරීමකි. මෙය අධ්‍යයන ආධාරකයක් පමණි; ප්‍රකාශිත පරිවර්තනයක් නොවේ. අරාබි පෙළ සහ ශ්‍රේණිගත කිරීම් වෙනස් නොවේ.',
+  machineHadithShort: 'ඉංග්‍රීසි සංස්කරණයේ අධ්‍යයන ඉදිරිපත් කිරීමකි.',
+  machineTitles: 'පොත් මාතෘකා ඉංග්‍රීසි දර්ශකයේ ඉදිරිපත් කිරීමකි. මෙම එකතුවේ හදීස් පාඨය ප්‍රකාශිත දෙමළ සංස්කරණයයි.',
   prayerTimes: 'සලාත වේලාවන්',
   useLocation: 'මගේ ස්ථානය භාවිතා කරන්න',
   nextPrayer: 'ඊළඟ සලාතය',

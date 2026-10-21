@@ -69,6 +69,11 @@ const generateJson: JsonModel = async <T>(prompt: string, schema: Schema) => {
   throw new UpstreamError('The AI service is busy or unavailable. Please try again shortly.', 503);
 };
 
+export async function completeJson<T>(prompt: string, schema: Schema): Promise<T> {
+  const { value } = await generateJson<T>(prompt, schema);
+  return value;
+}
+
 const planSchema: Schema = {
   type: Type.OBJECT,
   properties: {

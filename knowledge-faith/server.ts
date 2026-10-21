@@ -112,14 +112,16 @@ app.get(
 
 app.get(
   '/api/hadith/:collection/sections',
-  route(async (req, res) => res.json(await listSections(String(req.params.collection)))),
+  route(async (req, res) => res.json(await listSections(String(req.params.collection), toLang(req.query.lang)))),
 );
 
 app.get(
   '/api/hadith/:collection/section/:n',
-  route(async (req, res) =>
-    res.json(await getSection(String(req.params.collection), Number(req.params.n), toLang(req.query.lang))),
-  ),
+  route(async (req, res) => {
+    const raw = Number(req.query.limit);
+    const limit = Number.isInteger(raw) && raw > 0 ? raw : undefined;
+    res.json(await getSection(String(req.params.collection), Number(req.params.n), toLang(req.query.lang), limit));
+  }),
 );
 
 app.get(
