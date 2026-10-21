@@ -151,6 +151,58 @@ export async function loadItemDocument(id: number, siteLang: Lang): Promise<Item
   };
 }
 
+export interface ItemPayload {
+  id: number;
+  title: string;
+  type: string;
+  description: string | null;
+  html: string | null;
+  language: string | null;
+  added: string | null;
+  updated: string | null;
+  authors: string[];
+  translators: string[];
+  reviewers: string[];
+  files: LibraryItem['files'];
+  sourceUrl: string | null;
+}
+
+export type ItemLookup =
+  | { ok: true; item: ItemPayload }
+  | { ok: false; reason: 'missing' | 'language'; language: string | null };
+
+/** get-item in the requested language. A different language is not returned in its place. */
+export async function loadItemPayload(id: number, siteLang: Lang): Promise<ItemLookup> {
+  if (!Number.isInteger(id) || id <= 0) return { ok: false, reason: 'missing', language: null };
+  const url = `https://api3.islamhouse.com/v3/${apiKey()}/main/get-item/${id}/${siteLang}/json`;
+  const body = await fetchJson<unknown>(url, ISLAMHOUSE_TTL_MS);
+  const row = body !== null && typeof body === 'object' && !Array.isArray(body) ? (body as Record<string, unknown>) : null;
+  if (!row || typeof row.error === 'string' || typeof row.title !== 'string') return { ok: false, reason: 'missing', language: null };
+  const parsed = parseLibraryItem(body, siteLang);
+  if (!parsed) return { ok: false, reason: 'missing', language: null };
+  if (parsed.language && parsed.language !== siteLang) return { ok: false, reason: 'language', language: parsed.language };
+  const names = (kind: string) =>
+    parsed.credits.filter(credit => credit.kind === kind).map(credit => credit.name).filter((name): name is string => Boolean(name));
+  return {
+    ok: true,
+    item: {
+      id: parsed.id,
+      title: parsed.title,
+      type: parsed.type,
+      description: parsed.description,
+      html: typeof row.full_description === 'string' ? row.full_description : null,
+      language: parsed.language,
+      added: parsed.added,
+      updated: parsed.updated,
+      authors: names('author'),
+      translators: names('translator'),
+      reviewers: names('reviewer'),
+      files: parsed.files,
+      sourceUrl: parsed.sourceUrl,
+    },
+  };
+}
+
 export async function loadLibraryItem(id: string, lang: Lang, topicId: string): Promise<{ lang: Lang; topic: string; item: LibraryItem }> {
   const topic = worshipTopic(topicId);
   if (!topic || !/^\d{1,12}$/.test(id)) throw new UpstreamError('This item is not available in the selected language.', 404);

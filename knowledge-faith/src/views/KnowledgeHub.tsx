@@ -12,6 +12,7 @@ import { shownVerses, translationRequest } from '../shared/quranenc.ts';
 import { useApp, useStored } from '../lib/store.tsx';
 import { CitationChips, EvidenceList, HadithCard, VerseCard } from '../components/cards.tsx';
 import { KnowledgeShelf } from './KnowledgePaths.tsx';
+import { LibraryReader } from './LibraryReader.tsx';
 import { EmptyState, FeatureCard, PrayerStrip } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, Loading, Notice, SectionTitle } from '../components/ui.tsx';
 
@@ -176,7 +177,7 @@ function ScholarDraft({ focus }: { focus: boolean }) {
   );
 }
 
-export default function KnowledgeHub({ sub }: ViewProps) {
+export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
   const { t, lang, saved } = useApp();
   const { query } = useShell();
   const [place] = useReadingPlace();
@@ -202,6 +203,9 @@ export default function KnowledgeHub({ sub }: ViewProps) {
     { href: '#/studio', title: t.cardListen, body: t.cardListenBody, icon: <Sparkles className="h-5 w-5" aria-hidden /> },
   ].filter(card => !q || card.title.toLowerCase().includes(q) || card.body.toLowerCase().includes(q));
 
+  if ((sub === 'discover' || sub === 'deepen' || sub === 'prophet') && segments[1] === 'item' && /^\d{1,12}$/.test(segments[2] ?? '')) {
+    return <LibraryReader itemId={Number(segments[2])} backHref={`#/hub/${sub}`} />;
+  }
   if (sub === 'discover' || sub === 'deepen' || sub === 'prophet') return <KnowledgeShelf pathId={sub} />;
 
   return (

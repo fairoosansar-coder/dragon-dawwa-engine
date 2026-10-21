@@ -77,6 +77,31 @@ export function htmlParagraphs(html: string): ReaderParagraph[] {
     .filter(paragraph => paragraph.text);
 }
 
+export interface ArticleBlock {
+  id: string;
+  kind: 'heading' | 'paragraph' | 'footnote';
+  text: string;
+}
+
+/** Headings and paragraphs in document order. Scripts and tags are not kept. */
+export function articleBlocks(html: string): ArticleBlock[] {
+  const blocks: ArticleBlock[] = [];
+  const pattern = /<(h[1-3]|p)\b([^>]*)>([\s\S]*?)<\/\1>/gi;
+  let match: RegExpExecArray | null;
+  let count = 0;
+  while ((match = pattern.exec(html))) {
+    const tag = match[1].toLowerCase();
+    const attrs = match[2] ?? '';
+    const text = visibleText(match[3] ?? '');
+    if (!text) continue;
+    count += 1;
+    const id = /\bid="([^"]+)"/i.exec(attrs)?.[1] || `b${count}`;
+    const footnote = /footnote/i.test(attrs) || /^\[\d+\]/.test(text);
+    blocks.push({ id, kind: tag === 'p' ? (footnote ? 'footnote' : 'paragraph') : 'heading', text });
+  }
+  return blocks;
+}
+
 /** The first paragraph whose own text matches, plus the paragraphs on either side. */
 export function paragraphContext(html: string, matches: (text: string) => boolean): ParagraphContext | null {
   const headings = [...html.matchAll(/<h2\b[^>]*>([\s\S]*?)<\/h2>/gi)];

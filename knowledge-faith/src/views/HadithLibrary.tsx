@@ -10,6 +10,7 @@ import { HadithCard } from '../components/cards.tsx';
 import { EmptyState } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, Loading, Notice, SectionTitle, TabLinks } from '../components/ui.tsx';
 import { HadeethEncyclopedia } from './HadeethEncyclopedia.tsx';
+import { SourceResearch } from './SourceResearch.tsx';
 
 const PAGE = 15;
 
@@ -101,9 +102,20 @@ export default function HadithLibrary({ sub, segments }: ViewProps) {
         ]}
       />
       {research ? (
-        <Suspense fallback={<Loading />}>
-          <DossierWorkbench />
-        </Suspense>
+        <>
+          <SourceResearch />
+          <details className="mt-10 rounded-3xl border border-pine/15 bg-white/60 p-4">
+            <summary className="cursor-pointer text-sm font-semibold text-pine">Generated report</summary>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink/70">
+              This workbench is separate from the retrieved passages above. A score shown here is not a published source grade, and it does not mean a library or an answer is sahih.
+            </p>
+            <div className="mt-4">
+              <Suspense fallback={<Loading />}>
+                <DossierWorkbench />
+              </Suspense>
+            </div>
+          </details>
+        </>
       ) : collections ? (
         <CollectionBrowser />
       ) : (
