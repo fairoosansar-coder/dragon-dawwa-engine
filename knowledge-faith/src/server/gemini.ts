@@ -14,6 +14,7 @@ import {
 import { toWavBase64 } from './wav.ts';
 import { UpstreamError } from './http.ts';
 import { hasGeminiApiKey } from './loadEnv.ts';
+import { spokenTranscript } from './spokenLine.ts';
 
 const TEXT_MODELS = (process.env.GEMINI_TEXT_MODELS ?? 'gemini-3.8-flash,gemini-flash-latest,gemini-2.5-flash')
   .split(',')
@@ -68,6 +69,11 @@ const generateJson: JsonModel = async <T>(prompt: string, schema: Schema) => {
   console.error('Gemini text generation failed:', (lastError as Error)?.message);
   throw new UpstreamError('The AI service is busy or unavailable. Please try again shortly.', 503);
 };
+
+export async function completeJson<T>(prompt: string, schema: Schema): Promise<T> {
+  const { value } = await generateJson<T>(prompt, schema);
+  return value;
+}
 
 const planSchema: Schema = {
   type: Type.OBJECT,
@@ -239,14 +245,56 @@ function voice(name: unknown, fallback: (typeof VOICES)[number]) {
   return VOICES.includes(name as (typeof VOICES)[number]) ? (name as string) : fallback;
 }
 
-export function narrate(text: string, voiceName: unknown, style: string): Promise<TtsResult> {
-  const prompt = style.trim() ? `${style.trim().slice(0, 200)}:\n${text}` : text;
-  return generateSpeech(prompt, { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice(voiceName, 'Kore') } } });
+export async function narrate(text: string, voiceName: unknown, style: string): Promise<TtsResult> {
+  const spoken = spokenTranscript(text, style);
+  const name = voice(voiceName, 'Kore');
+  const direction = style.trim().slice(0, 200);
+  if (direction) {
+    const directed = await speakWithDirection(spoken, name, direction);
+    if (directed) return directed;
+  }
+  return generateSpeech(spoken, { voiceConfig: { prebuiltVoiceConfig: { voiceName: name } } });
+}
+
+/** Style is a speech_metadata annotation. It is never written into the spoken transcript. */
+async function speakWithDirection(text: string, voiceName: string, style: string): Promise<TtsResult | null> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const model = TTS_MODELS[0];
+  if (!text || !model || !hasGeminiApiKey(apiKey)) return null;
+  try {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey.trim() },
+      signal: AbortSignal.timeout(20_000),
+      body: JSON.stringify({
+        model,
+        input: [{
+          type: 'user_input',
+          content: [{ type: 'text', text, annotations: [{ type: 'speech_metadata', style }] }],
+        }],
+        response_format: { type: 'audio' },
+        generation_config: { speech_config: [{ voice: voiceName }] },
+      }),
+    });
+    if (!response.ok) return null;
+    const payload = await response.json() as {
+      steps?: { type?: string; content?: { type?: string; data?: string }[] }[];
+    };
+    const audio = (payload.steps ?? [])
+      .filter(step => step.type === 'model_output')
+      .flatMap(step => step.content ?? [])
+      .filter(part => part.type === 'audio')
+      .at(-1)?.data;
+    if (!audio) return null;
+    return { audioBase64: toWavBase64(audio, 'audio/wav'), mimeType: 'audio/wav', model };
+  } catch {
+    return null;
+  }
 }
 
 export function narrateDialogue(lines: PodcastLine[], hostVoice: unknown, guestVoice: unknown): Promise<TtsResult> {
   const script = lines.map(l => `${l.speaker}: ${l.text}`).join('\n');
-  return generateSpeech(`Read this calm, warm learning podcast conversation:\n${script}`, {
+  return generateSpeech(script, {
     multiSpeakerVoiceConfig: {
       speakerVoiceConfigs: [
         { speaker: 'Host', voiceConfig: { prebuiltVoiceConfig: { voiceName: voice(hostVoice, 'Kore') } } },

@@ -1,7 +1,7 @@
 import type { Lang } from '../shared/sources.ts';
 
 const en = {
-  brandSub: 'by UmmaConnect',
+  brandSub: 'By Aegis Intelligence',
   tagline: 'Learn from the sources, with clarity and humility.',
   navHub: 'Knowledge Hub',
   navQuran: 'Quran Reader',
@@ -41,6 +41,10 @@ const en = {
   grades: 'Grades',
   noGrades: 'No grading supplied by the source for this narration.',
   fallbackEnglish: 'No translation in your language is available for this collection; showing English.',
+  machineHadith:
+    'This is a rendering of the published English edition. It is a study aid, not a published translation. Arabic and the grades are unchanged.',
+  machineHadithShort: 'Study rendering of the English edition.',
+  machineTitles: 'Book titles are a rendering of the English index. Hadith text in this collection uses the published Tamil edition.',
   prayerTimes: 'Prayer times',
   useLocation: 'Use my location',
   locationHint: 'Your location is kept on this device only and rounded to about 1 km before times are looked up.',
@@ -59,7 +63,8 @@ const en = {
   target: 'Target',
   hijri: 'Hijri date',
   studioTitle: 'Podcast studio',
-  studioHint: 'Build a short learning episode from retrieved sources. Scripts cite every verse and hadith they mention.',
+  studioHint:
+    'Build a short learning episode from retrieved sources. Scripts cite every verse and hadith they mention. Play starts with the first few lines; the next speaker loads while those play.',
   topic: 'Episode topic',
   useSaved: 'Use my saved verses and hadith as the sources',
   length: 'Length (minutes)',
@@ -67,6 +72,10 @@ const en = {
   writing: 'Writing script…',
   generateAudio: 'Generate audio',
   generating: 'Generating audio…',
+  playEpisode: 'Play episode',
+  pauseEpisode: 'Pause',
+  loadingFirstLines: 'Loading the first lines…',
+  loadingNextLines: 'Next speaker is loading and will play when this one ends.',
   hostVoice: 'Host voice',
   guestVoice: 'Guest voice',
   episodes: 'My episodes',
@@ -114,7 +123,7 @@ export type Strings = typeof en;
 
 const ta: Strings = {
   ...en,
-  brandSub: 'UmmaConnect வழங்கும்',
+  brandSub: 'By Aegis Intelligence',
   tagline: 'மூலங்களிலிருந்து தெளிவுடனும் பணிவுடனும் கற்போம்.',
   navHub: 'அறிவு மையம்',
   navQuran: 'குர்ஆன் வாசிப்பு',
@@ -152,6 +161,10 @@ const ta: Strings = {
   go: 'செல்',
   grades: 'தரம்',
   fallbackEnglish: 'இந்தத் தொகுப்புக்கு உங்கள் மொழியில் மொழிபெயர்ப்பு இல்லை; ஆங்கிலத்தில் காட்டப்படுகிறது.',
+  machineHadith:
+    'இந்த உரை வெளியிடப்பட்ட ஆங்கிலப் பதிப்பின் தமிழ் வழங்கல். இது படிப்பு உதவி மட்டுமே; வெளியிடப்பட்ட மொழிபெயர்ப்பு அல்ல. அரபு உரையும் தரப்படுத்தலும் மாற்றப்படவில்லை.',
+  machineHadithShort: 'ஆங்கிலப் பதிப்பின் படிப்பு வழங்கல்.',
+  machineTitles: 'பாடத் தலைப்புகள் ஆங்கில அட்டவணையின் தமிழ் வழங்கல். இந்தத் தொகுப்பின் ஹதீஸ் உரை வெளியிடப்பட்ட தமிழ் பதிப்பு.',
   prayerTimes: 'தொழுகை நேரங்கள்',
   useLocation: 'என் இருப்பிடத்தைப் பயன்படுத்து',
   nextPrayer: 'அடுத்த தொழுகை',
@@ -164,6 +177,10 @@ const ta: Strings = {
   topic: 'தலைப்பு',
   writeScript: 'ஸ்கிரிப்ட் எழுது',
   generateAudio: 'ஒலியை உருவாக்கு',
+  playEpisode: 'அத்தியாயத்தை இயக்கு',
+  pauseEpisode: 'இடைநிறுத்து',
+  loadingFirstLines: 'முதல் வரிகள் ஏற்றப்படுகின்றன…',
+  loadingNextLines: 'அடுத்த பேச்சாளர் ஏற்றப்படுகிறார். இது முடிந்ததும் ஒலிக்கும்.',
   episodes: 'என் அத்தியாயங்கள்',
   delete: 'நீக்கு',
   voiceStudio: 'குரல் ஸ்டுடியோ',
@@ -192,7 +209,7 @@ const ta: Strings = {
 
 const si: Strings = {
   ...en,
-  brandSub: 'UmmaConnect විසින්',
+  brandSub: 'By Aegis Intelligence',
   tagline: 'මූලාශ්‍රවලින් පැහැදිලිව හා නිහතමානීව ඉගෙන ගනිමු.',
   navHub: 'දැනුම් මධ්‍යස්ථානය',
   navQuran: 'කුර්ආන් කියවීම',
@@ -230,6 +247,10 @@ const si: Strings = {
   go: 'යන්න',
   grades: 'ශ්‍රේණි',
   fallbackEnglish: 'මෙම එකතුවට සිංහල පරිවර්තනයක් නොමැත; ඉංග්‍රීසියෙන් පෙන්වයි.',
+  machineHadith:
+    'මෙම පාඨය ප්‍රකාශිත ඉංග්‍රීසි සංස්කරණයේ සිංහල ඉදිරිපත් කිරීමකි. මෙය අධ්‍යයන ආධාරකයක් පමණි; ප්‍රකාශිත පරිවර්තනයක් නොවේ. අරාබි පෙළ සහ ශ්‍රේණිගත කිරීම් වෙනස් නොවේ.',
+  machineHadithShort: 'ඉංග්‍රීසි සංස්කරණයේ අධ්‍යයන ඉදිරිපත් කිරීමකි.',
+  machineTitles: 'පොත් මාතෘකා ඉංග්‍රීසි දර්ශකයේ ඉදිරිපත් කිරීමකි. මෙම එකතුවේ හදීස් පාඨය ප්‍රකාශිත දෙමළ සංස්කරණයයි.',
   prayerTimes: 'සලාත වේලාවන්',
   useLocation: 'මගේ ස්ථානය භාවිතා කරන්න',
   nextPrayer: 'ඊළඟ සලාතය',
@@ -242,6 +263,10 @@ const si: Strings = {
   topic: 'මාතෘකාව',
   writeScript: 'පිටපත ලියන්න',
   generateAudio: 'ශ්‍රව්‍ය සාදන්න',
+  playEpisode: 'කථාංගය වාදනය',
+  pauseEpisode: 'විරාමය',
+  loadingFirstLines: 'පළමු පේළි පූරණය වෙමින්…',
+  loadingNextLines: 'ඊළඟ කථිකයා පූරණය වෙමින්. මෙය අවසන් වූ විගස වාදනය වේ.',
   episodes: 'මගේ කථාංග',
   delete: 'මකන්න',
   voiceStudio: 'හඬ ස්ටුඩියෝව',

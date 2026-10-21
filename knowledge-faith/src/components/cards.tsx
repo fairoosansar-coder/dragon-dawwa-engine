@@ -85,7 +85,8 @@ export function HadithCard({ hadith }: { hadith: Hadith }) {
       <p lang={hadith.lang} className="leading-relaxed text-ink/90">
         {hadith.text}
       </p>
-      {hadith.lang !== lang && <p className="mt-1 text-xs text-gold">{t.fallbackEnglish}</p>}
+      {hadith.machineTranslation && <p className="mt-1 text-xs text-gold">{t.machineHadithShort}</p>}
+      {!hadith.machineTranslation && hadith.lang !== lang && <p className="mt-1 text-xs text-gold">{t.fallbackEnglish}</p>}
       <div className="mt-3">
         <GradeList grades={hadith.grades} />
       </div>

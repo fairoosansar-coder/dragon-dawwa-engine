@@ -365,7 +365,7 @@ export async function synthesizeRoundtableVoice(
       customVoice && validVoices.includes(customVoice as PrebuiltVoiceName)
         ? (customVoice as PrebuiltVoiceName)
         : profile.voiceName;
-    const generated = await narrate(text, voiceName, profile.style);
+    const generated = await narrate(text, voiceName, '');
     return {
       audioBase64: generated.audioBase64,
       mimeType: generated.mimeType || 'audio/wav',

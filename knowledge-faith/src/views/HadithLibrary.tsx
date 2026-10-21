@@ -13,7 +13,10 @@ const PAGE = 15;
 function SectionReader({ collection, section, onBack }: { collection: string; section: HadithSection; onBack: () => void }) {
   const { t, lang } = useApp();
   const [shown, setShown] = useState(PAGE);
-  const { data, error, loading, reload } = useRemote<Hadith[]>(`/api/hadith/${collection}/section/${section.id}?lang=${lang}`);
+  const { data, error, loading, reload } = useRemote<{ items: Hadith[]; total: number }>(
+    `/api/hadith/${collection}/section/${section.id}?lang=${lang}&limit=${shown}`,
+  );
+  const rendered = data?.items.some(h => h.machineTranslation);
   return (
     <>
       <Button variant="ghost" onClick={onBack} className="-ml-3 mb-2">
@@ -22,13 +25,14 @@ function SectionReader({ collection, section, onBack }: { collection: string; se
       <SectionTitle sub={`${section.first}–${section.last}`}>
         {section.id}. {section.title}
       </SectionTitle>
+      {rendered && <Notice>{t.machineHadith}</Notice>}
       {loading && <Loading />}
       {error && <ErrorNote message={error} onRetry={reload} />}
-      {data?.slice(0, shown).map(h => <HadithCard key={h.number} hadith={h} />)}
-      {data && shown < data.length && (
+      {data?.items.map(h => <HadithCard key={h.number} hadith={h} />)}
+      {data && shown < data.total && (
         <div className="mt-4 text-center">
           <Button variant="soft" onClick={() => setShown(s => s + PAGE)}>
-            {data.length - shown} more
+            {data.total - shown} more
           </Button>
         </div>
       )}
@@ -107,9 +111,13 @@ function CollectionBrowser() {
   const [collection, setCollection] = useStored<string>('kf-collection', 'bukhari');
   const [section, setSection] = useState<HadithSection | null>(null);
   const [filter, setFilter] = useState('');
-  const index = useRemote<{ sections: HadithSection[]; last: number }>(`/api/hadith/${collection}/sections`);
+  const index = useRemote<{ sections: HadithSection[]; last: number; machineTranslation?: boolean }>(
+    `/api/hadith/${collection}/sections?lang=${lang}`,
+  );
   const info = HADITH_COLLECTIONS.find(c => c.id === collection) ?? HADITH_COLLECTIONS[0];
   const sections = (index.data?.sections ?? []).filter(s => s.title.toLowerCase().includes(filter.trim().toLowerCase()));
+  const open = section ? (index.data?.sections.find(s => s.id === section.id) ?? section) : null;
+  const publishedTamil = lang === 'ta' && info.tamil;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
@@ -137,12 +145,15 @@ function CollectionBrowser() {
       </Card>
 
       <Card>
-        {section ? (
-          <SectionReader collection={collection} section={section} onBack={() => setSection(null)} />
+        {open ? (
+          <SectionReader collection={collection} section={open} onBack={() => setSection(null)} />
         ) : (
           <>
             <SectionTitle sub={index.data ? `1–${index.data.last}` : undefined}>{info.name}</SectionTitle>
-            {lang !== 'en' && !(lang === 'ta' && info.tamil) && <Notice>{t.fallbackEnglish}</Notice>}
+            {index.data && lang !== 'en' && !publishedTamil && (
+              <Notice>{index.data.machineTranslation ? t.machineHadith : t.fallbackEnglish}</Notice>
+            )}
+            {publishedTamil && index.data?.machineTranslation && <Notice>{t.machineTitles}</Notice>}
             <div className="mt-4">
               <Lookup key={collection} collection={collection} />
             </div>

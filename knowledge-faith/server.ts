@@ -1,5 +1,6 @@
 import './src/server/loadEnv.ts';
 import express, { type NextFunction, type Request, type Response } from 'express';
+import http from 'node:http';
 import path from 'node:path';
 import { HADITH_COLLECTIONS, PRAYER_METHODS, RECITERS, toLang } from './src/shared/sources.ts';
 import { dedupeRefs, parseRefs, refKey, type HadithRef } from './src/shared/refs.ts';
@@ -20,6 +21,7 @@ import {
   type SourceFetchers,
 } from './src/server/gemini.ts';
 import { executeDragonDawwaAnalysis } from './src/engine/server/hadithEngine.ts';
+import { getResearchJob, startResearchJob } from './src/engine/server/researchJobs.ts';
 import { synthesizeRoundtableVoice } from './src/engine/server/geminiTtsService.ts';
 import { extractHadithFromMedia } from './src/engine/server/hadithOcrService.ts';
 import { transcribeAudioWithGemini } from './src/engine/server/geminiAudioTranscribe.ts';
@@ -80,7 +82,7 @@ const aiLimiter = rateLimiter(Number(process.env.AI_REQUESTS_PER_15_MIN ?? 30));
 const ttsLimiter = rateLimiter(Number(process.env.TTS_REQUESTS_PER_15_MIN ?? 240));
 
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', app: 'UmmaConnect Knowledge & Faith', ai: geminiConfigured() });
+  res.json({ status: 'ok', app: 'DRAGON DAWWA', ai: geminiConfigured() });
 });
 
 app.get('/api/config', (_req, res) => {
@@ -110,14 +112,16 @@ app.get(
 
 app.get(
   '/api/hadith/:collection/sections',
-  route(async (req, res) => res.json(await listSections(String(req.params.collection)))),
+  route(async (req, res) => res.json(await listSections(String(req.params.collection), toLang(req.query.lang)))),
 );
 
 app.get(
   '/api/hadith/:collection/section/:n',
-  route(async (req, res) =>
-    res.json(await getSection(String(req.params.collection), Number(req.params.n), toLang(req.query.lang))),
-  ),
+  route(async (req, res) => {
+    const raw = Number(req.query.limit);
+    const limit = Number.isInteger(raw) && raw > 0 ? raw : undefined;
+    res.json(await getSection(String(req.params.collection), Number(req.params.n), toLang(req.query.lang), limit));
+  }),
 );
 
 app.get(
@@ -227,11 +231,23 @@ app.post(
     const hadith = text(req.body?.hadith_input, 4000, 'hadith_input');
     const isnad = typeof req.body?.isnad_input === 'string' ? req.body.isnad_input.slice(0, 2000) : '';
     requireAi();
-    try {
-      res.json(await executeDragonDawwaAnalysis(hadith, isnad, toLang(req.body?.preferred_language)));
-    } catch (err) {
-      throw engineFailure(err, 'The hadith research engine could not complete this request. Please retry.');
-    }
+    const id = startResearchJob(
+      () => executeDragonDawwaAnalysis(hadith, isnad, toLang(req.body?.preferred_language)),
+      err => engineFailure(err, 'The hadith research engine could not complete this request. Please retry.').message,
+    );
+    res.status(202).json({ id, status: 'running' });
+  }),
+);
+
+app.get(
+  '/api/analyze/:id',
+  route(async (req, res) => {
+    const job = getResearchJob(String(req.params.id));
+    if (!job) throw new UpstreamError('Research job not found. Please run it again.', 404);
+    res.set('Cache-Control', 'no-store');
+    if (job.status === 'done') return res.json({ id: job.id, status: 'done', analysis: job.result });
+    if (job.status === 'error') return res.json({ id: job.id, status: 'error', error: job.error });
+    res.json({ id: job.id, status: 'running' });
   }),
 );
 
@@ -308,6 +324,8 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(status).json({ error: message });
 });
 
+const httpServer = http.createServer(app);
+
 if (isProduction) {
   const dist = path.resolve(import.meta.dirname, 'dist');
   app.use(express.static(dist, { index: false, maxAge: '1h' }));
@@ -315,14 +333,14 @@ if (isProduction) {
 } else {
   const { createServer } = await import('vite');
   const vite = await createServer({
-    server: { middlewareMode: true, ...viteDevServerOptions(PORT) },
+    server: { middlewareMode: true, ...viteDevServerOptions(PORT, httpServer) },
     appType: 'spa',
   });
   app.use(vite.middlewares);
 }
 
-app.listen(PORT, HOST, () => {
+httpServer.listen(PORT, HOST, () => {
   console.log(
-    `Knowledge & Faith running on ${publicAppUrl(PORT)} (${isProduction ? 'production' : 'development'}); Gemini neural TTS ${geminiConfigured() ? 'on' : 'off'}`,
+    `DRAGON DAWWA running on ${publicAppUrl(PORT)} (${isProduction ? 'production' : 'development'}); Gemini neural TTS ${geminiConfigured() ? 'on' : 'off'}`,
   );
 });

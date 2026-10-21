@@ -59,6 +59,7 @@ PODCAST SCRIPT REQUIREMENTS ("DRAGON DAWWA LIVE"):
 - Studio Director Mandate: Act as the "Dragon Dawwa Podcast Studio Director" for Prime Dragon Technologies.
 - Format: Real radio studio multi-person broadcast featuring Host Brother Feroz and all 5 specialist scholarly agents (Dr. Tariq, Dr. Layla, Sheikh Imran, Dr. Zainab, Sheikh Yusuf).
 - Language: When ${langName} is active, all spoken dialogue lines MUST be in fluent ${langName} script!
+- GREETING BAN: The Tamil word வணக்கம் is forbidden in every field (podcast_script, reports, notes, translations). Never translate Hello, Hi, Greetings, or Welcome into வணக்கம். When a speaker greets anyone in Tamil, the only greeting is அஸ்ஸலாமு அலைக்கும்.
 - MANDATORY EPISODE STRUCTURE:
   1. EXPLICIT STUDIO PANEL INTRODUCTIONS (AT EPISODE START):
      - Host Brother Feroz welcomes listeners to Dragon Dawwa Live.
@@ -242,7 +243,7 @@ export async function executeDragonDawwaAnalysis(
 
   // Language instructions for descriptions while preserving sacred Arabic script
   const langPromptGuidance = preferredLanguage === 'ta'
-    ? "IMPORTANT TRANSLATION REQUIREMENT: Provide the explanatory commentary, executive report descriptions, and translations in Tamil (தமிழ்), while keeping all original Arabic Hadith text and Quranic verses in sacred Arabic script (عربي). UI headings remain standard."
+    ? "IMPORTANT TRANSLATION REQUIREMENT: Provide the explanatory commentary, executive report descriptions, and translations in Tamil (தமிழ்), while keeping all original Arabic Hadith text and Quranic verses in sacred Arabic script (عربي). UI headings remain standard. STRICT: never write வணக்கம். Greet only with அஸ்ஸலாமு அலைக்கும்."
     : preferredLanguage === 'si'
     ? "IMPORTANT TRANSLATION REQUIREMENT: Provide the explanatory commentary, executive report descriptions, and translations in Sinhala (සිංහල), while keeping all original Arabic Hadith text and Quranic verses in sacred Arabic script (عربي). UI headings remain standard."
     : "Provide descriptions and commentary in English, while keeping all original Arabic Hadith text and Quranic verses in sacred Arabic script (عربي).";
@@ -251,7 +252,7 @@ export async function executeDragonDawwaAnalysis(
     const ai = new GoogleGenAI({
       apiKey,
       httpOptions: {
-        timeout: 60000,
+        timeout: 180000,
         headers: {
           "User-Agent": "aistudio-build",
         },
