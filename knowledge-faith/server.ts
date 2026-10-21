@@ -16,6 +16,8 @@ import { suggestZakahFields } from './src/server/zakahDraft.ts';
 import { UpstreamError } from './src/server/http.ts';
 import { encyclopediaEvidence, hadithEvidence, verseEvidence } from './src/server/grounding.ts';
 import { loadHadeeth, loadHadeethCategories, loadHadeethList, searchHadeeth } from './src/server/hadeethenc.ts';
+import { pageByRelevance } from './src/shared/hadeethenc.ts';
+import { askPilot, loadPilotEpisode } from './src/server/pilot.ts';
 import { loadLibrary, loadLibraryItem } from './src/server/islamhouse.ts';
 import type { EncyclopediaHadith } from './src/shared/hadeethenc.ts';
 import {
@@ -47,10 +49,14 @@ const isProduction = process.env.NODE_ENV === 'production';
 const fetchers: SourceFetchers = {
   verses: getVerses,
   hadith: (ref, lang) => getHadith(ref.collection, ref.number, lang),
-  encyclopedia: async (phrase, lang) => {
+  encyclopedia: async (phrase, lang, offset = 0) => {
     const found = await searchHadeeth(lang, phrase.slice(0, 120));
-    const records = await Promise.all(found.items.slice(0, 3).map(item => loadHadeeth(lang, item.id).catch(() => null)));
-    return encyclopediaEvidence(records.filter((item): item is EncyclopediaHadith => item !== null));
+    const page = pageByRelevance(found.items, offset);
+    const records = await Promise.all(page.map(item => loadHadeeth(lang, item.id).catch(() => null)));
+    return encyclopediaEvidence(
+      records.filter((item): item is EncyclopediaHadith => item !== null),
+      offset,
+    );
   },
 };
 
@@ -202,7 +208,12 @@ function pageNumber(value: unknown): number {
   return Number.isInteger(n) && n >= 1 && n <= 500 ? n : 1;
 }
 
-app.get('/api/hadeeth/categories', route(async (req, res) => res.json(await loadHadeethCategories(toLang(req.query.lang)))));
+app.get(
+  '/api/hadeeth/categories',
+  route(async (req, res) =>
+    res.json(await loadHadeethCategories(toLang(req.query.lang), typeof req.query.parent === 'string' ? req.query.parent : undefined)),
+  ),
+);
 
 app.get(
   '/api/hadeeth/list',
@@ -222,7 +233,28 @@ app.get('/api/hadeeth/:id', route(async (req, res) => res.json(await loadHadeeth
 
 app.get(
   '/api/library/items',
-  route(async (req, res) => res.json(await loadLibrary(String(req.query.topic ?? ''), toLang(req.query.lang), pageNumber(req.query.page)))),
+  route(async (req, res) =>
+    res.json(
+      await loadLibrary(
+        String(req.query.topic ?? ''),
+        toLang(req.query.lang),
+        pageNumber(req.query.page),
+        typeof req.query.category === 'string' ? req.query.category : undefined,
+      ),
+    ),
+  ),
+);
+
+app.get('/api/studio/pilot', route(async (req, res) => res.json(await loadPilotEpisode(toLang(req.query.lang)))));
+
+app.post(
+  '/api/studio/pilot/ask',
+  aiLimiter,
+  route(async (req, res) => {
+    const question = text(req.body?.question, 500, 'question');
+    const chapter = typeof req.body?.chapterId === 'string' ? req.body.chapterId : '';
+    res.json(await askPilot(question, toLang(req.body?.lang), chapter));
+  }),
 );
 
 app.get(

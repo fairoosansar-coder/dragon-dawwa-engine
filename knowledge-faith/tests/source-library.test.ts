@@ -1,17 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { encyclopediaEvidence } from '../src/server/grounding.ts';
+import { encyclopediaEvidence, mergeFurtherEvidence } from '../src/server/grounding.ts';
 import {
+  categoriesForParent,
+  ENCYCLOPEDIA_EVIDENCE_LIMIT,
   HADEETH_UNAVAILABLE,
+  HADEETHENC_CATEGORY_LIST,
   hadeethShareText,
+  pageByRelevance,
   parseCategories,
   parseHadeeth,
   parseHadeethList,
   parseHadeethSearch,
   textBeyondIntro,
 } from '../src/shared/hadeethenc.ts';
-import { islamHousePage, parseLibraryItem, parseLibraryPage, WORSHIP_TOPICS } from '../src/shared/islamhouse.ts';
+import { islamHousePage, LIBRARY_CATEGORY_EMPTY, parseLibraryItem, parseLibraryPage, parseSubcategories, WORSHIP_TOPICS } from '../src/shared/islamhouse.ts';
 import { showSectionSearch } from '../src/lib/route.ts';
+import { STRINGS } from '../src/lib/i18n.ts';
 
 const hadeeth = {
   id: '5907',
@@ -65,8 +70,19 @@ test('a missing HadeethEnc translation is not filled from another language', () 
 });
 
 test('HadeethEnc categories and paged lists use the source fields', () => {
-  const categories = parseCategories([{ id: '4', title: 'Jurisprudence', hadeeths_count: '1150', parent_id: null }]);
-  assert.deepEqual(categories, [{ id: '4', title: 'Jurisprudence', count: 1150 }]);
+  assert.equal(HADEETHENC_CATEGORY_LIST, 'https://hadeethenc.com/api/v1/categories/list/');
+  const recorded = [
+    { id: '1', title: "The Noble Qur'an and Qur'anic Sciences", hadeeths_count: '81', parent_id: null },
+    { id: '738', title: 'Interpretation of verses', hadeeths_count: '13', parent_id: '10' },
+  ];
+  const categories = parseCategories(recorded);
+  assert.deepEqual(categories, [
+    { id: '1', title: "The Noble Qur'an and Qur'anic Sciences", count: 81, parentId: null },
+    { id: '738', title: 'Interpretation of verses', count: 13, parentId: '10' },
+  ]);
+  assert.deepEqual(categoriesForParent(categories ?? [], null).map(category => category.id), ['1']);
+  assert.deepEqual(categoriesForParent(categories ?? [], '10').map(category => category.id), ['738']);
+  assert.equal(parseCategories([{ id: '4', title: 'Jurisprudence', hadeeths_count: '1150', parent_id: null }])?.[0].parentId, null);
   const page = parseHadeethList(
     {
       data: [{ id: '66510', title: 'A Tamil title', translations: ['ar', 'ta'] }],
@@ -150,4 +166,23 @@ test('IslamHouse worship topics stay on verified categories and empty languages 
   assert.equal(audio?.files[0].play, 'audio');
   assert.equal(showSectionSearch('hadith', ['5907']), false);
   assert.equal(showSectionSearch('hadith', ['collections']), true);
+  assert.equal(showSectionSearch('studio', ['pilot']), false);
+  assert.equal(STRINGS.en.libraryEmpty, LIBRARY_CATEGORY_EMPTY);
+  assert.equal(LIBRARY_CATEGORY_EMPTY, 'No items found in this category.');
+  const children = parseSubcategories({
+    id: '192812',
+    title: 'Prayer',
+    sub_categories: [{ id: 192815, title: 'Supererogatory Prayers', category_items: 'https://api3.islamhouse.com/v3/secret-key/main/get-category-items/192815/showall/en/en/1/25/json' }],
+  });
+  assert.deepEqual(children, { id: 192812, title: 'Prayer', children: [{ id: 192815, title: 'Supererogatory Prayers' }] });
+  assert.equal(JSON.stringify(children).includes('secret-key'), false);
+  assert.equal(ENCYCLOPEDIA_EVIDENCE_LIMIT, 3);
+  const ranked = ['58215', '4560', '65085', '65037', '11272', '5907'];
+  assert.deepEqual(pageByRelevance(ranked), ['58215', '4560', '65085']);
+  assert.deepEqual(pageByRelevance(ranked, ENCYCLOPEDIA_EVIDENCE_LIMIT), ['65037', '11272', '5907']);
+  const first = encyclopediaEvidence([{ ...parseHadeeth(hadeeth, 'en')!, id: '58215' }]);
+  const next = encyclopediaEvidence([{ ...parseHadeeth(hadeeth, 'en')!, id: '4560' }], ENCYCLOPEDIA_EVIDENCE_LIMIT);
+  assert.equal(next[0].id, 'E4');
+  assert.equal(mergeFurtherEvidence(first, next)?.map(item => item.id).join(','), 'E1,E4');
+  assert.equal(mergeFurtherEvidence(first, first), null);
 });

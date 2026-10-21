@@ -3,6 +3,7 @@ import type { Lang } from '../shared/sources.ts';
 import type { PodcastLine, TtsResult } from '../shared/types.ts';
 import { postJson } from '../lib/api.ts';
 import { base64ToObjectUrl, bindExternalStop, stopAudio } from '../lib/audio.ts';
+import { keepPlaybackPosition } from '../lib/playbackPosition.ts';
 import { chunkEpisodeLines } from '../engine/utils/episodeChunks.ts';
 
 export type PlaybackPhase = 'idle' | 'loading' | 'playing';
@@ -23,6 +24,7 @@ export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, gues
   const [index, setIndex] = useState(-1);
   const [phase, setPhase] = useState<PlaybackPhase>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [position, setPosition] = useState(0);
 
   const clearCache = () => {
     for (const url of urls.current.values()) URL.revokeObjectURL(url);
@@ -114,7 +116,15 @@ export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, gues
     if (!el) return;
     prefetchAhead(i, run);
     setPhase('playing');
-    el.src = url;
+    const kept = keepPlaybackPosition(el.src, url, el.currentTime);
+    if (el.src !== kept.src) el.src = kept.src;
+    if (kept.time > 0) {
+      const restore = () => {
+        if (Math.abs(el.currentTime - kept.time) > 0.25) el.currentTime = kept.time;
+      };
+      if (el.readyState >= 1) restore();
+      else el.addEventListener('loadedmetadata', restore, { once: true });
+    }
     el.onended = () => {
       if (run === token.current) void playAt(i + 1, run);
     };
@@ -133,11 +143,20 @@ export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, gues
     }
   }
 
-  function toggle() {
+  function hold() {
+    const at = audioRef.current?.currentTime ?? 0;
     if (phase !== 'idle') {
       token.current += 1;
       audioRef.current?.pause();
       setPhase('idle');
+    }
+    setPosition(at);
+    return at;
+  }
+
+  function toggle() {
+    if (phase !== 'idle') {
+      hold();
       return;
     }
     setError(null);
@@ -149,5 +168,5 @@ export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, gues
 
   const activeLines = index >= 0 ? (chunks[index]?.lineIndexes ?? []) : [];
 
-  return { phase, index, activeLines, error, toggle, chunkCount: chunks.length };
+  return { phase, index, position, activeLines, error, toggle, hold, chunkCount: chunks.length };
 }

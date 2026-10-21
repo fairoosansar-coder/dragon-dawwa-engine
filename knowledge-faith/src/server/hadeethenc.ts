@@ -1,6 +1,8 @@
 import type { Lang } from '../shared/sources.ts';
 import {
+  categoriesForParent,
   HADEETH_UNAVAILABLE,
+  HADEETHENC_CATEGORY_LIST,
   HADEETHENC_TTL_MS,
   parseCategories,
   parseHadeeth,
@@ -15,11 +17,16 @@ import { fetchJson, UpstreamError } from './http.ts';
 
 const ROOT = 'https://hadeethenc.com/api/v1';
 
-export async function loadHadeethCategories(lang: Lang): Promise<{ lang: Lang; categories: HadeethCategory[] }> {
-  const body = await fetchJson<unknown>(`${ROOT}/categories/roots/?language=${lang}`, HADEETHENC_TTL_MS);
+export async function loadHadeethCategories(
+  lang: Lang,
+  parent?: string,
+): Promise<{ lang: Lang; parentId: string | null; categories: HadeethCategory[] }> {
+  if (parent && !/^\d{1,8}$/.test(parent)) throw new UpstreamError('Unknown category', 404);
+  const body = await fetchJson<unknown>(`${HADEETHENC_CATEGORY_LIST}?language=${lang}`, HADEETHENC_TTL_MS);
   const categories = parseCategories(body);
   if (!categories) throw new UpstreamError('HadeethEnc returned an unreadable category list', 502);
-  return { lang, categories };
+  const parentId = parent ?? null;
+  return { lang, parentId, categories: categoriesForParent(categories, parentId) };
 }
 
 export async function loadHadeethList(lang: Lang, categoryId: string, page: number): Promise<HadeethListPage> {

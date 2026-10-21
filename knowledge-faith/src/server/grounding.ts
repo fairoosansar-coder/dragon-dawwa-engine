@@ -31,9 +31,10 @@ export function hadithEvidence(hadiths: Hadith[]): Evidence[] {
   }));
 }
 
-export function encyclopediaEvidence(records: EncyclopediaHadith[]): Evidence[] {
+export function encyclopediaEvidence(records: EncyclopediaHadith[], start = 0): Evidence[] {
+  const origin = Number.isInteger(start) && start > 0 ? start : 0;
   return records.map((h, i) => ({
-    id: `E${i + 1}`,
+    id: `E${origin + i + 1}`,
     kind: 'hadith' as const,
     label: `Hadith · HadeethEnc ${h.id}`,
     arabic: h.arabic,
@@ -94,6 +95,14 @@ ${topic}
 
 EVIDENCE PACKET:
 ${evidencePacket(evidence)}`;
+}
+
+/** Appends a later relevance page. Returns null when that page adds nothing new. */
+export function mergeFurtherEvidence(current: Evidence[], more: Evidence[]): Evidence[] | null {
+  const seen = new Set(current.map(item => item.label));
+  const extra = more.filter(item => !seen.has(item.label));
+  if (!extra.length) return null;
+  return [...current, ...extra];
 }
 
 /** Drops citations that do not resolve to retrieved evidence and paragraphs left unsupported. */

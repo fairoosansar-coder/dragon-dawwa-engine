@@ -328,9 +328,17 @@ function VoiceStudio() {
 }
 
 const Roundtable = lazy(() => import('../engine/Roundtable.tsx'));
+const LivingPilot = lazy(() => import('./LivingPilot.tsx'));
 
 export default function PodcastStudio({ sub }: ViewProps) {
   const { t } = useApp();
+  if (sub === 'pilot') {
+    return (
+      <Suspense fallback={<Loading />}>
+        <LivingPilot />
+      </Suspense>
+    );
+  }
   const roundtable = sub === 'roundtable';
   return (
     <>

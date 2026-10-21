@@ -182,7 +182,7 @@ export function WorshipLibrary({ topicId }: { topicId?: string }) {
       {itemId ? (
         <OneItem topicId={topic.id} topicTitle={topic.title} itemId={itemId} lang={lang} />
       ) : (
-        <TopicList topicId={topic.id} topicTitle={topic.title} lang={lang} page={page} />
+        <TopicList topicId={topic.id} topicTitle={topic.title} categoryId={topic.categoryId} lang={lang} page={page} category={params.get('category') ?? ''} />
       )}
     </div>
   );
@@ -206,27 +206,74 @@ function OneItem({ topicId, topicTitle, itemId, lang }: { topicId: string; topic
   );
 }
 
-function TopicList({ topicId, topicTitle, lang, page }: { topicId: string; topicTitle: string; lang: Lang; page: number }) {
+function TopicList({
+  topicId,
+  topicTitle,
+  categoryId,
+  lang,
+  page,
+  category,
+}: {
+  topicId: string;
+  topicTitle: string;
+  categoryId: number;
+  lang: Lang;
+  page: number;
+  category: string;
+}) {
   const { t } = useApp();
-  const remote = useRemote<LibraryPage>(`/api/library/items?topic=${topicId}&lang=${lang}&page=${page}`);
-  const data = remote.data && remote.data.lang === lang && remote.data.topic === topicId && remote.data.page === page ? remote.data : null;
+  const remote = useRemote<LibraryPage>(`/api/library/items?topic=${topicId}&lang=${lang}&page=${page}${category ? `&category=${category}` : ''}`);
+  const selected = category ? Number(category) : categoryId;
+  const data =
+    remote.data && remote.data.lang === lang && remote.data.topic === topicId && remote.data.page === page && remote.data.categoryId === selected
+      ? remote.data
+      : null;
+  const current = data?.categories?.find(item => item.id === data.categoryId);
+  const query = data?.categoryId && data.categoryId !== categoryId ? `&category=${data.categoryId}` : '';
   return (
     <div className="space-y-3">
       {remote.loading && !data && <Loading />}
       {remote.error && <ErrorNote message={remote.error} onRetry={remote.reload} />}
+      {data && data.categoryId !== categoryId && (
+        <p className="text-sm">
+          <a className="font-semibold text-pine underline" href={`#/spiritual/library/${topicId}?lang=${lang}`}>
+            {topicTitle}
+          </a>
+        </p>
+      )}
+      {current && data?.categoryId !== categoryId && (
+        <h3 className="font-display text-xl font-bold text-pine" lang="en">
+          {current.title}
+        </h3>
+      )}
+      {data && (data.categories?.length ?? 0) > 0 && (
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {data.categories?.map(item => (
+            <li key={item.id}>
+              <a
+                href={`#/spiritual/library/${topicId}?lang=${lang}&category=${item.id}`}
+                aria-current={item.id === data.categoryId ? 'page' : undefined}
+                className={`block min-h-11 rounded-2xl border px-4 py-3 text-sm font-medium ${item.id === data.categoryId ? 'border-pine bg-pine text-white' : 'border-pine/10 bg-white text-pine hover:border-gold'}`}
+              >
+                {item.title}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
       {data && data.items.length === 0 && <p className="text-sm text-muted">{t.libraryEmpty}</p>}
       {data?.items.map(item => (
-        <ItemBody key={item.id} item={item} topicId={topicId} topicTitle={topicTitle} lang={lang} />
+        <ItemBody key={item.id} item={item} topicId={topicId} topicTitle={current?.title ?? topicTitle} lang={lang} />
       ))}
       {data && data.pages > 1 && (
         <div className="flex gap-4 text-sm">
           {page > 1 && (
-            <a className="font-semibold text-pine underline" href={`#/spiritual/library/${topicId}?lang=${lang}&page=${page - 1}`}>
+            <a className="inline-flex min-h-11 items-center font-semibold text-pine underline" href={`#/spiritual/library/${topicId}?lang=${lang}${query}&page=${page - 1}`}>
               {t.previous}
             </a>
           )}
           {page < data.pages && (
-            <a className="font-semibold text-pine underline" href={`#/spiritual/library/${topicId}?lang=${lang}&page=${page + 1}`}>
+            <a className="inline-flex min-h-11 items-center font-semibold text-pine underline" href={`#/spiritual/library/${topicId}?lang=${lang}${query}&page=${page + 1}`}>
               {t.next}
             </a>
           )}

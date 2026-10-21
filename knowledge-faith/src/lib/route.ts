@@ -38,7 +38,7 @@ export function showSectionSearch(path: RouteRoot, segments: string[]): boolean 
     if (segments[0] && /^\d+$/.test(segments[0])) return false;
     return true;
   }
-  if (path === 'studio') return segments[0] !== 'roundtable';
+  if (path === 'studio') return segments[0] !== 'roundtable' && segments[0] !== 'pilot';
   if (path === 'spiritual') return segments.length === 0;
   return false;
 }

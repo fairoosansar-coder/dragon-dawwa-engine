@@ -1,6 +1,24 @@
 import type { Lang } from './sources.ts';
 
 export const ISLAMHOUSE_TTL_MS = 10 * 60_000;
+export const LIBRARY_CATEGORY_EMPTY = 'No items found in this category.';
+
+/**
+ * Categories that hold worship material outside the topic's own children.
+ * Recorded 2026-10-21 from get-item-tree: 732301 "Prayer of the Sick" is a sibling of
+ * Prayer (192812), not one of its children. Tamil item 1174 is filed there.
+ * Parent item lists do not include child items. Tamil and Sinhala prayer parents return
+ * HTTP 200 code 204, while child 192815 has Tamil book 373 and children 430287 and 732298
+ * each have Sinhala item 427. English prayer page 2 is a real later page, not an empty language.
+ */
+export const RELATED_WORSHIP_CATEGORIES = {
+  purification: [],
+  prayer: [732301],
+  fasting: [],
+  zakah: [],
+  hajj: [],
+  dhikr: [],
+} as const;
 
 /** Category ids confirmed from IslamHouse `get-sub-categories` / the classification tree on 2026-10-21. */
 export const WORSHIP_TOPICS = [
@@ -42,6 +60,11 @@ export interface LibraryItem {
   sourceUrl: string | null;
 }
 
+export interface LibraryCategory {
+  id: number;
+  title: string;
+}
+
 export interface LibraryPage {
   topic: WorshipTopicId;
   lang: Lang;
@@ -49,6 +72,8 @@ export interface LibraryPage {
   pages: number;
   total: number;
   items: LibraryItem[];
+  categoryId?: number;
+  categories?: LibraryCategory[];
 }
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -140,6 +165,32 @@ export function parseLibraryItem(value: unknown, lang: Lang): LibraryItem | null
     files,
     sourceUrl: islamHousePage(lang, type, id),
   };
+}
+
+function positiveInt(value: unknown): number | null {
+  const n = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : NaN;
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+/** Child categories from get-sub-categories. Attachment URLs in that payload are dropped. */
+export function parseSubcategories(body: unknown): { id: number; title: string; children: LibraryCategory[] } | null {
+  const row = record(body);
+  if (!row) return null;
+  const id = positiveInt(row.id) ?? positiveInt(row.source_id);
+  const title = exactString(row.title);
+  if (!id || !title || !title.trim()) return null;
+  const children: LibraryCategory[] = [];
+  if (Array.isArray(row.sub_categories)) {
+    for (const item of row.sub_categories) {
+      const child = record(item);
+      if (!child) continue;
+      const childId = positiveInt(child.id) ?? positiveInt(child.source_id);
+      const childTitle = exactString(child.title);
+      if (!childId || !childTitle || !childTitle.trim()) continue;
+      children.push({ id: childId, title: childTitle });
+    }
+  }
+  return { id, title, children };
 }
 
 export function parseLibraryPage(body: unknown, topic: WorshipTopicId, lang: Lang, page: number): LibraryPage | null {

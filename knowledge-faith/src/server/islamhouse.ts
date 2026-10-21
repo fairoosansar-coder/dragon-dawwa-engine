@@ -1,5 +1,15 @@
 import type { Lang } from '../shared/sources.ts';
-import { ISLAMHOUSE_TTL_MS, parseLibraryItem, parseLibraryPage, worshipTopic, type LibraryItem, type LibraryPage } from '../shared/islamhouse.ts';
+import {
+  ISLAMHOUSE_TTL_MS,
+  parseLibraryItem,
+  parseLibraryPage,
+  parseSubcategories,
+  RELATED_WORSHIP_CATEGORIES,
+  worshipTopic,
+  type LibraryCategory,
+  type LibraryItem,
+  type LibraryPage,
+} from '../shared/islamhouse.ts';
 import { fetchJson, UpstreamError } from './http.ts';
 
 /** Published in IslamHouse’s own API examples. Override with ISLAMHOUSE_API_KEY. Never send this to the browser. */
@@ -10,14 +20,44 @@ function apiKey(): string {
   return configured || PUBLISHED_EXAMPLE_KEY;
 }
 
-export async function loadLibrary(topicId: string, lang: Lang, page: number): Promise<LibraryPage> {
+function subcategoriesUrl(categoryId: number): string {
+  return `https://api3.islamhouse.com/v3/${apiKey()}/main/get-sub-categories/${categoryId}/en/json`;
+}
+
+async function readSubcategories(categoryId: number) {
+  try {
+    return parseSubcategories(await fetchJson<unknown>(subcategoriesUrl(categoryId), ISLAMHOUSE_TTL_MS));
+  } catch {
+    return null;
+  }
+}
+
+async function topicCategories(topicId: string, parentId: number): Promise<LibraryCategory[]> {
+  const topic = worshipTopic(topicId);
+  if (!topic) return [];
+  const parent = await readSubcategories(parentId);
+  const children = parent?.children ?? [];
+  const related: LibraryCategory[] = [];
+  for (const id of RELATED_WORSHIP_CATEGORIES[topic.id]) {
+    if (id === parentId || children.some(child => child.id === id)) continue;
+    const node = await readSubcategories(id);
+    if (node) related.push({ id: node.id, title: node.title });
+  }
+  return [...children, ...related];
+}
+
+export async function loadLibrary(topicId: string, lang: Lang, page: number, category?: string): Promise<LibraryPage> {
   const topic = worshipTopic(topicId);
   if (!topic) throw new UpstreamError('Unknown worship topic', 404);
-  const url = `https://api3.islamhouse.com/v3/${apiKey()}/main/get-category-items/${topic.categoryId}/showall/en/${lang}/${page}/12/json`;
+  const categories = await topicCategories(topic.id, topic.categoryId);
+  const requested = category && /^\d{1,12}$/.test(category) ? Number(category) : topic.categoryId;
+  const known = new Set<number>([topic.categoryId, ...categories.map(item => item.id)]);
+  if (!known.has(requested)) throw new UpstreamError('Unknown category', 404);
+  const url = `https://api3.islamhouse.com/v3/${apiKey()}/main/get-category-items/${requested}/showall/en/${lang}/${page}/12/json`;
   const body = await fetchJson<unknown>(url, ISLAMHOUSE_TTL_MS);
   const parsed = parseLibraryPage(body, topic.id, lang, page);
   if (!parsed) throw new UpstreamError('IslamHouse returned an unreadable list', 502);
-  return parsed;
+  return { ...parsed, categoryId: requested, categories };
 }
 
 export async function loadLibraryItem(id: string, lang: Lang, topicId: string): Promise<{ lang: Lang; topic: string; item: LibraryItem }> {

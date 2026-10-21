@@ -3,9 +3,11 @@ import { randomUUID } from 'node:crypto';
 import { HADITH_COLLECTIONS, type Lang } from '../shared/sources.ts';
 import { dedupeRefs, parseRefs, refKey, type AyahRef, type HadithRef } from '../shared/refs.ts';
 import type { AnswerParagraph, AskResult, Evidence, Hadith, PodcastLine, PodcastScript, TtsResult, Verse } from '../shared/types.ts';
+import { ENCYCLOPEDIA_EVIDENCE_LIMIT } from '../shared/hadeethenc.ts';
 import {
   answerPrompt,
   hadithEvidence,
+  mergeFurtherEvidence,
   podcastPrompt,
   sanitizeLines,
   sanitizeParagraphs,
@@ -133,7 +135,7 @@ const podcastSchema: Schema = {
 export interface SourceFetchers {
   verses: (refs: AyahRef[], lang: Lang) => Promise<Verse[]>;
   hadith: (ref: HadithRef, lang: Lang) => Promise<Hadith | null>;
-  encyclopedia?: (phrase: string, lang: Lang) => Promise<Evidence[]>;
+  encyclopedia?: (phrase: string, lang: Lang, offset?: number) => Promise<Evidence[]>;
 }
 
 /** The model only nominates references; the evidence text always comes from the fetchers. */
@@ -166,13 +168,21 @@ export async function gatherEvidence(
   ];
 }
 
-export async function ask(
+export async function writeAnswer(
   question: string,
   lang: Lang,
-  fetchers: SourceFetchers,
+  evidence: Evidence[],
   model: JsonModel = generateJson,
 ): Promise<AskResult> {
-  const evidence = await gatherEvidence(question, lang, fetchers, model);
+  return composeAnswer(question, lang, evidence, model);
+}
+
+async function composeAnswer(
+  question: string,
+  lang: Lang,
+  evidence: Evidence[],
+  model: JsonModel,
+): Promise<AskResult> {
   if (evidence.length === 0) {
     return { question, lang, paragraphs: [], evidence, insufficientEvidence: true, model: 'none' };
   }
@@ -190,6 +200,21 @@ export async function ask(
     insufficientEvidence: insufficient || paragraphs.length === 0,
     model: used,
   };
+}
+
+export async function ask(
+  question: string,
+  lang: Lang,
+  fetchers: SourceFetchers,
+  model: JsonModel = generateJson,
+): Promise<AskResult> {
+  const evidence = await gatherEvidence(question, lang, fetchers, model);
+  const first = await composeAnswer(question, lang, evidence, model);
+  if (!first.insufficientEvidence || !fetchers.encyclopedia) return first;
+  const more = await fetchers.encyclopedia(question, lang, ENCYCLOPEDIA_EVIDENCE_LIMIT).catch(() => [] as Evidence[]);
+  const merged = mergeFurtherEvidence(first.evidence, more);
+  if (!merged) return first;
+  return composeAnswer(question, lang, merged, model);
 }
 
 export async function writePodcast(

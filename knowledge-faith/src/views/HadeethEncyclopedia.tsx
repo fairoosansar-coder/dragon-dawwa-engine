@@ -156,10 +156,11 @@ function CategoryList({ categoryId }: { categoryId: string }) {
     <Card>
       {remote.loading && !data && <Loading />}
       {remote.error && <ErrorNote message={remote.error} onRetry={remote.reload} />}
+      {data && data.items.length === 0 && <EmptyState>{t.libraryEmpty}</EmptyState>}
       <ul className="space-y-2">
         {data?.items.map(item => (
           <li key={item.id}>
-            <a href={`#/hadith/${item.id}?lang=${lang}`} className="block rounded-2xl border border-pine/10 bg-white px-4 py-3 text-sm hover:border-pine/40" lang={lang}>
+            <a href={`#/hadith/${item.id}?lang=${lang}`} className="block min-h-11 rounded-2xl border border-pine/10 bg-white px-4 py-3 text-sm hover:border-pine/40" lang={lang}>
               {item.title}
             </a>
           </li>
@@ -226,7 +227,10 @@ export function HadeethEncyclopedia({ sub, segments = [] }: ViewProps) {
       {phrase.length >= 2 ? (
         <SearchResults phrase={phrase} />
       ) : categoryId ? (
-        <CategoryList categoryId={categoryId} />
+        <>
+          <ChildCategories categoryId={categoryId} />
+          <CategoryList categoryId={categoryId} />
+        </>
       ) : (
         <Categories />
       )}
@@ -238,6 +242,32 @@ export function HadeethEncyclopedia({ sub, segments = [] }: ViewProps) {
         </p>
       )}
     </div>
+  );
+}
+
+function ChildCategories({ categoryId }: { categoryId: string }) {
+  const { t, lang } = useApp();
+  const remote = useRemote<{ lang: Lang; parentId: string | null; categories: HadeethCategory[] }>(
+    `/api/hadeeth/categories?lang=${lang}&parent=${categoryId}`,
+  );
+  const data = remote.data && remote.data.lang === lang && remote.data.parentId === categoryId ? remote.data : null;
+  if (!data?.categories.length) return null;
+  return (
+    <Card>
+      <h3 className="mb-3 text-sm font-semibold text-pine">{t.childCategories}</h3>
+      <ul className="grid gap-2 sm:grid-cols-2">
+        {data.categories.map(category => (
+          <li key={category.id}>
+            <a href={`#/hadith/category/${category.id}?lang=${lang}`} className="block min-h-11 rounded-2xl border border-pine/10 bg-white px-4 py-3 hover:border-pine/40">
+              <span className="block font-medium text-pine" lang={lang}>
+                {category.title}
+              </span>
+              <span className="text-xs text-muted">{category.count}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }
 

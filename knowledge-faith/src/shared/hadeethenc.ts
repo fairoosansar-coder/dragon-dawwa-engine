@@ -4,10 +4,29 @@ export const HADEETHENC_TTL_MS = 10 * 60_000;
 export const HADEETH_UNAVAILABLE = 'This hadith is not available in the selected language.';
 export const HADEETHENC_SOURCE = 'HadeethEnc';
 
+/**
+ * Documented category method, recorded 2026-10-21.
+ * Request: GET https://hadeethenc.com/api/v1/categories/list/?language=en
+ * Response: HTTP 200, 39,978 bytes, 452 objects with id, title, hadeeths_count, parent_id.
+ * Roots use parent_id null. A child looks like {"id":"738","title":"Interpretation of verses","hadeeths_count":"13","parent_id":"10"}.
+ * Tamil returned 296 categories. Sinhala returned 366 (7 roots, 359 children).
+ * The collection has no categories/children method. An undocumented GET categories/children answered HTTP 405;
+ * that status is not evidence that child categories are missing. hadeeths/list accepts a child category_id.
+ */
+export const HADEETHENC_CATEGORY_LIST = 'https://hadeethenc.com/api/v1/categories/list/';
+
+/**
+ * Research reads this many HadeethEnc records at a time, in the search response's relevance order.
+ * The first row is not always the narration a question names: English "intentions" ranks id 58215
+ * ahead of the niyyah hadith 4560. A caller that still lacks support requests the next page once.
+ */
+export const ENCYCLOPEDIA_EVIDENCE_LIMIT = 3;
+
 export interface HadeethCategory {
   id: string;
   title: string;
   count: number;
+  parentId: string | null;
 }
 
 export interface HadeethListItem {
@@ -97,6 +116,11 @@ export function hadeethSourceUrl(lang: Lang, id: string): string {
   return `https://hadeethenc.com/${lang}/browse/hadith/${id}`;
 }
 
+function parentIdOf(row: Record<string, unknown>): string | null | undefined {
+  if (!('parent_id' in row) || row.parent_id === null || row.parent_id === '') return null;
+  return idString(row.parent_id) ?? undefined;
+}
+
 export function parseCategories(body: unknown): HadeethCategory[] | null {
   if (!Array.isArray(body)) return null;
   const rows: HadeethCategory[] = [];
@@ -106,10 +130,20 @@ export function parseCategories(body: unknown): HadeethCategory[] | null {
     const id = idString(row.id);
     const title = textOrNull(row.title);
     const count = countOf(row.hadeeths_count);
-    if (!id || !title || count === null) return null;
-    rows.push({ id, title, count });
+    const parentId = parentIdOf(row);
+    if (!id || !title || count === null || parentId === undefined) return null;
+    rows.push({ id, title, count, parentId });
   }
   return rows;
+}
+
+export function categoriesForParent(categories: HadeethCategory[], parentId: string | null): HadeethCategory[] {
+  return categories.filter(category => category.parentId === parentId);
+}
+
+export function pageByRelevance<T>(items: readonly T[], offset = 0): T[] {
+  const start = Number.isInteger(offset) && offset > 0 ? offset : 0;
+  return items.slice(start, start + ENCYCLOPEDIA_EVIDENCE_LIMIT);
 }
 
 export function parseHadeethList(body: unknown, lang: Lang, categoryId: string): HadeethListPage | null {
