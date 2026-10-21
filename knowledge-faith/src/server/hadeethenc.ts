@@ -40,9 +40,14 @@ export async function loadHadeethList(lang: Lang, categoryId: string, page: numb
   return parsed;
 }
 
-export async function searchHadeeth(lang: Lang, phrase: string): Promise<{ lang: Lang; phrase: string; items: HadeethSearchHit[] }> {
+export async function searchHadeeth(
+  lang: Lang,
+  phrase: string,
+  page = 1,
+): Promise<{ lang: Lang; phrase: string; items: HadeethSearchHit[] }> {
+  const safePage = Number.isInteger(page) && page >= 1 && page <= 5 ? page : 1;
   const body = await fetchJson<unknown>(
-    `${ROOT}/hadeeths/search/?language=${lang}&phrase=${encodeURIComponent(phrase)}&page=1&per_page=20`,
+    `${ROOT}/hadeeths/search/?language=${lang}&phrase=${encodeURIComponent(phrase)}&page=${safePage}&per_page=20`,
     HADEETHENC_TTL_MS,
   );
   const items = parseHadeethSearch(body);

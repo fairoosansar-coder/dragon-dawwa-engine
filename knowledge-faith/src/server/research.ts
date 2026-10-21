@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { EncyclopediaHadith } from '../shared/hadeethenc.ts';
-import { ENCYCLOPEDIA_EVIDENCE_LIMIT } from '../shared/hadeethenc.ts';
+import { islamHousePage, type LibraryItem } from '../shared/islamhouse.ts';
 import { TOPICS } from '../shared/topics.ts';
 import type { Lang } from '../shared/sources.ts';
 import type { Evidence, PodcastScript, Verse } from '../shared/types.ts';
@@ -9,18 +9,22 @@ import { parseRefs } from '../shared/refs.ts';
 import {
   asksForScience,
   ayahsMentioned,
-  checkedOn,
   emptyDossier,
   isIntentionTopic,
   isPrayerTopic,
+  claimAddressed,
+  contentTokens,
+  passageSupportsTopic,
+  planResearch,
   referenceEvidence,
-  sameAyahDisagreements,
+  RESEARCH_BUDGET,
+  retrievalTimestamp,
   SEARCH_RANK_LIMIT,
   searchHitSupports,
   type ResearchDossier,
   type ResearchReference,
 } from '../shared/research.ts';
-import { firstLongParagraph, passageUnderHeading, paragraphLocator } from '../shared/readableText.ts';
+import { firstLongParagraph, htmlParagraphs, paragraphContext, passageUnderHeading, paragraphLocator } from '../shared/readableText.ts';
 import {
   PRAYER_ARTICLE,
   PRAYER_CREDITS,
@@ -30,7 +34,7 @@ import {
   SOURCE_CHECK_DATE,
 } from '../shared/sourceRegistry.ts';
 import { loadHadeeth, searchHadeeth } from './hadeethenc.ts';
-import { loadItemDocument } from './islamhouse.ts';
+import { loadItemDocument, loadKnowledgeShelf, loadLibrary } from './islamhouse.ts';
 import { fetchReaderHtml } from './readable.ts';
 import { getVerses } from './quran.ts';
 
@@ -40,12 +44,15 @@ export interface ResearchRequest {
   lang: Lang;
 }
 
-function reference(partial: Omit<ResearchReference, 'printedPage' | 'pdfPage' | 'retrievedOn'> & { retrievedOn?: string }): ResearchReference {
-  return { ...partial, printedPage: null, pdfPage: null, retrievedOn: partial.retrievedOn ?? SOURCE_CHECK_DATE };
+function reference(
+  retrievedOn: string,
+  partial: Omit<ResearchReference, 'printedPage' | 'pdfPage' | 'retrievedOn'>,
+): ResearchReference {
+  return { ...partial, printedPage: null, pdfPage: null, retrievedOn };
 }
 
-function verseReference(verse: Verse, claim: string): ResearchReference {
-  return reference({
+function verseReference(verse: Verse, claim: string, retrievedOn: string, role: 'named' | 'surrounding'): ResearchReference {
+  return reference(retrievedOn, {
     id: `Q${verse.surah}-${verse.ayah}`,
     provider: 'QuranEnc',
     itemId: verse.translationKey ? `${verse.translationKey} ${verse.key}` : verse.key,
@@ -65,13 +72,14 @@ function verseReference(verse: Verse, claim: string): ResearchReference {
     url: verse.translationKey
       ? `https://quranenc.com/api/v1/translation/aya/${encodeURIComponent(verse.translationKey)}/${verse.surah}/${verse.ayah}`
       : 'https://quranenc.com/api/v1/translation/aya',
-    claim,
-    limitations: [],
+    claim: role === 'surrounding' ? `Surrounding ayah for context. ${claim}` : claim,
+    limitations: role === 'surrounding' ? ['This ayah was retrieved beside a named ayah. It is not a separate answer.'] : [],
   });
 }
 
-function hadeethReference(hadith: EncyclopediaHadith, claim: string, limitations: string[]): ResearchReference {
-  return reference({
+function hadeethReference(hadith: EncyclopediaHadith, claim: string, limitations: string[], retrievedOn: string): ResearchReference {
+  const explanation = hadith.explanation?.trim();
+  return reference(retrievedOn, {
     id: `E${hadith.id}`,
     provider: 'HadeethEnc',
     itemId: hadith.id,
@@ -93,6 +101,9 @@ function hadeethReference(hadith: EncyclopediaHadith, claim: string, limitations
     limitations: [
       ...limitations,
       hadith.grade ? '' : 'HadeethEnc did not include a grade for this hadith.',
+      explanation
+        ? `HadeethEnc explanation on this same record: ${explanation}`
+        : 'HadeethEnc did not include an explanation on this record.',
     ].filter(Boolean),
   });
 }
@@ -101,17 +112,109 @@ async function openReader(url: string): Promise<string | null> {
   return fetchReaderHtml(url);
 }
 
+/** Adjacent reader paragraphs, recorded as context and not as a second quotation. */
+function neighborTexts(html: string, paragraphId: string): string[] {
+  const paragraphs = htmlParagraphs(html);
+  const index = paragraphs.findIndex(paragraph => paragraph.id === paragraphId);
+  if (index < 0) return ['The cited paragraph was not found again among the reader paragraphs, so adjacent text was not added.'];
+  const surrounding = [paragraphs[index - 1]?.text, paragraphs[index + 1]?.text].filter((text): text is string => Boolean(text));
+  return [
+    surrounding.length
+      ? `Surrounding paragraphs: ${surrounding.join(' / ')}`
+      : 'No adjacent paragraph was present beside this one.',
+  ];
+}
+
 /**
  * Religious-source research for one episode.
  * Searches only the approved hosts, and only the catalogues named below.
  * A title or a search row is not added as support until its passage has been read.
  */
+function withNeighbors(ayahs: { surah: number; ayah: number }[]): { surah: number; ayah: number; role: 'named' | 'surrounding' }[] {
+  const named = [...new Map(ayahs.map(ayah => [`${ayah.surah}:${ayah.ayah}`, ayah])).values()];
+  const requested: { surah: number; ayah: number; role: 'named' | 'surrounding' }[] = named.map(ayah => ({ ...ayah, role: 'named' }));
+  for (const ayah of named) {
+    for (const neighbor of [ayah.ayah - 1, ayah.ayah + 1]) {
+      if (requested.length >= RESEARCH_BUDGET.ayahs) return requested;
+      if (neighbor < 1 || neighbor > 286) continue;
+      const key = `${ayah.surah}:${neighbor}`;
+      if (requested.some(item => `${item.surah}:${item.ayah}` === key)) continue;
+      requested.push({ surah: ayah.surah, ayah: neighbor, role: 'surrounding' });
+    }
+  }
+  return requested.slice(0, RESEARCH_BUDGET.ayahs);
+}
+
+async function citeShelfItem(
+  dossier: ResearchDossier,
+  item: LibraryItem,
+  lang: ResearchRequest['lang'],
+  blob: string,
+  retrievedOn: string,
+): Promise<void> {
+  if (item.id === PRAYER_ARTICLE.id || item.id === SINCERITY_BOOK.id) return;
+  const document = await loadItemDocument(item.id, lang);
+  const url = item.sourceUrl ?? islamHousePage(lang, item.type, item.id);
+  if (!document || document.language !== lang || !document.html || !url) {
+    dossier.retrievedNotCited.push({
+      itemId: String(item.id),
+      title: document?.title || item.title,
+      reason: 'The catalogue listed this item. Full text in the selected language was not in the item API, or no stable public URL was available. A reader URL was not guessed. The title is not evidence.',
+    });
+    return;
+  }
+  const context = paragraphContext(document.html, text => passageSupportsTopic(blob, text));
+  if (!context) {
+    dossier.retrievedNotCited.push({
+      itemId: String(document.id),
+      title: document.title,
+      reason: 'The full text was opened. No paragraph contained a content term from the question, so the item is not cited. The title is not evidence.',
+    });
+    return;
+  }
+  const surrounding = [context.before?.text, context.after?.text].filter((text): text is string => Boolean(text));
+  dossier.references.push(
+    reference(retrievedOn, {
+      id: `IH${document.id}`,
+      provider: 'IslamHouse',
+      itemId: String(document.id),
+      title: document.title,
+      authors: document.authors,
+      translators: document.translators,
+      version: null,
+      passage: context.paragraph.text,
+      passageLanguage: lang,
+      arabic: null,
+      locator: context.heading ? paragraphLocator(context.heading, context.paragraph) : `Paragraph ${context.paragraph.id}`,
+      surah: null,
+      ayah: null,
+      hadithId: null,
+      collection: null,
+      grade: null,
+      url,
+      claim: `${claimAddressed(dossier.questions, dossier.topic, context.paragraph.text)} The catalogue title was not used as evidence.`,
+      limitations: [
+        surrounding.length ? `Surrounding paragraphs: ${surrounding.join(' / ')}` : 'No adjacent paragraph was present beside this one.',
+        document.reviewers.length ? `Reviewer: ${document.reviewers.join('; ')}` : '',
+      ].filter(Boolean),
+    }),
+  );
+}
+
 export async function researchTopic(request: ResearchRequest): Promise<ResearchDossier> {
   const topic = request.topic.trim();
   const questions = request.questions.map(question => question.trim()).filter(Boolean);
   const dossier = emptyDossier(topic, questions, request.lang);
   const blob = [topic, ...questions].join('\n');
-  dossier.examined.push(`Selected language: ${request.lang}. Retrieval date for the registry checks: ${checkedOn()}.`);
+  const retrievedOn = retrievalTimestamp();
+  const plan = planResearch(topic, questions);
+  dossier.examined.push(
+    `Selected language: ${request.lang}. This retrieval: ${retrievedOn}. Registry notes were checked on ${SOURCE_CHECK_DATE} and are not this retrieval.`,
+  );
+  dossier.examined.push(
+    `Budget: ${RESEARCH_BUDGET.ayahs} ayahs, ${RESEARCH_BUDGET.hadeethPages} HadeethEnc search pages, ${RESEARCH_BUDGET.hadeethOpensPerPage} hadiths opened per page, ${RESEARCH_BUDGET.categories} IslamHouse categories, ${RESEARCH_BUDGET.islamhousePages} page each, ${RESEARCH_BUDGET.islamhouseOpens} items opened.`,
+  );
+  dossier.notExamined.push(...plan.notExamined);
 
   if (asksForScience(blob)) {
     dossier.unanswered.push('This researcher supplies religious-source research only. A scientific claim needs a separate science-research workflow. An IslamHouse article is not scientific evidence.');
@@ -132,7 +235,7 @@ export async function researchTopic(request: ResearchRequest): Promise<ResearchD
         dossier.references.push(
           hadeethReference(hadith, 'Retrieved for the intention and habit topic by item id.', [
             'This id was requested directly. The surrounding chapter of the collection was not read.',
-          ]),
+          ], retrievedOn),
         );
       } catch {
         dossier.unanswered.push(`HadeethEnc ${id} was not available in ${request.lang}.`);
@@ -140,22 +243,38 @@ export async function researchTopic(request: ResearchRequest): Promise<ResearchD
     }
   }
 
-  const uniqueAyahs = [...new Map(ayahs.map(ayah => [`${ayah.surah}:${ayah.ayah}`, ayah])).values()];
-  if (uniqueAyahs.length) {
+  const requestedAyahs = asksForScience(blob) && !ayahsMentioned(blob).length && !theme ? [] : withNeighbors(ayahs);
+  if (requestedAyahs.length) {
+    const named = requestedAyahs.filter(ayah => ayah.role === 'named');
+    const surrounding = requestedAyahs.filter(ayah => ayah.role === 'surrounding');
     try {
-      const verses = await getVerses(uniqueAyahs, request.lang);
-      const found = new Set(verses.map(verse => `${verse.surah}:${verse.ayah}`));
-      for (const verse of verses) {
-        dossier.references.push(verseReference(verse, `Qur’an ${verse.key} in the selected QuranEnc edition.`));
+      const verses = await getVerses(named.map(({ surah, ayah }) => ({ surah, ayah })), request.lang);
+      const found = new Map(verses.map(verse => [`${verse.surah}:${verse.ayah}`, verse]));
+      for (const ayah of named) {
+        const verse = found.get(`${ayah.surah}:${ayah.ayah}`);
+        if (!verse) {
+          dossier.unanswered.push(`Qur’an ${ayah.surah}:${ayah.ayah} was not in the QuranEnc response for ${request.lang}.`);
+          continue;
+        }
+        dossier.references.push(verseReference(verse, claimAddressed(questions, topic, verse.translation), retrievedOn, 'named'));
       }
-      for (const ayah of uniqueAyahs) {
-        if (!found.has(`${ayah.surah}:${ayah.ayah}`)) dossier.unanswered.push(`Qur’an ${ayah.surah}:${ayah.ayah} was not in the QuranEnc response for ${request.lang}.`);
-      }
-      dossier.examined.push(`QuranEnc ayahs requested: ${uniqueAyahs.map(ayah => `${ayah.surah}:${ayah.ayah}`).join(', ') || 'none'}.`);
     } catch {
       dossier.unanswered.push('QuranEnc did not return the requested ayahs.');
     }
-  } else {
+    if (surrounding.length) {
+      try {
+        const verses = await getVerses(surrounding.map(({ surah, ayah }) => ({ surah, ayah })), request.lang);
+        for (const verse of verses) {
+          dossier.references.push(verseReference(verse, claimAddressed(questions, topic, verse.translation), retrievedOn, 'surrounding'));
+        }
+      } catch {
+        dossier.examined.push('Surrounding ayahs were requested and QuranEnc did not return them. The named ayahs were kept.');
+      }
+    }
+    dossier.examined.push(
+      `QuranEnc ayahs requested: ${named.map(ayah => `${ayah.surah}:${ayah.ayah}`).join(', ') || 'none'}. Surrounding ayahs requested: ${surrounding.map(ayah => `${ayah.surah}:${ayah.ayah}`).join(', ') || 'none'}. Other ayahs were not requested.`,
+    );
+  } else if (!asksForScience(blob)) {
     dossier.notExamined.push('No surah:ayah was named, and no curated theme matched, so QuranEnc was not queried.');
   }
 
@@ -172,7 +291,7 @@ export async function researchTopic(request: ResearchRequest): Promise<ResearchD
         dossier.unanswered.push('IslamHouse 475013 did not return Tamil text for the Tamil site language.');
       } else {
         dossier.references.push(
-          reference({
+          reference(retrievedOn, {
             id: 'IH475013',
             provider: 'IslamHouse',
             itemId: '475013',
@@ -195,6 +314,7 @@ export async function researchTopic(request: ResearchRequest): Promise<ResearchD
               `Reader byline: ${PRAYER_CREDITS.readerByline}. Reviewer: ${PRAYER_CREDITS.reviewer}.`,
               'The first passage longer than 40 characters is quoted. The rest of the article was not quoted.',
               'get-item with site language en returned no data for this item. The text was read with site language ta.',
+              ...neighborTexts(item.html ?? '', paragraph.id),
             ],
           }),
         );
@@ -215,7 +335,7 @@ export async function researchTopic(request: ResearchRequest): Promise<ResearchD
       } else {
         const [main, ...rest] = section.paragraphs;
         dossier.references.push(
-          reference({
+          reference(retrievedOn, {
             id: 'IH735805',
             provider: 'IslamHouse',
             itemId: '735805',
@@ -238,13 +358,14 @@ export async function researchTopic(request: ResearchRequest): Promise<ResearchD
               'The item API description is shorter and full_description is empty. This passage is from the official reader.',
               `Reviewer recorded on the item: ${SINCERITY_CREDITS.reviewer}.`,
               'A generated translation was not added.',
+              rest[0] ? `Following paragraph in this section: ${rest[0].text}` : 'No following paragraph was present under this heading.',
             ],
           }),
         );
         const other = rest.find(paragraph => paragraph.text.includes('அறிஞர்கள்'));
         if (other) {
           dossier.references.push(
-            reference({
+            reference(retrievedOn, {
               id: 'IH735805-other',
               provider: 'IslamHouse',
               itemId: '735805',
@@ -266,7 +387,7 @@ export async function researchTopic(request: ResearchRequest): Promise<ResearchD
               limitations: ['This does not cancel the preceding wording. Both are the book’s text.'],
             }),
           );
-          dossier.disagreements.push('IslamHouse 735805 gives more than one wording for inner purity in the same section.');
+          dossier.disagreements.push('IslamHouse 735805 itself reports another scholarly wording in this section. A difference between two published translations is not treated as disagreement.');
         }
         const bookAyah = quranSection?.paragraphs.find(paragraph => paragraph.text.includes('பய்யினா'));
         const bookArabic = quranSection?.paragraphs.find(
@@ -274,7 +395,7 @@ export async function researchTopic(request: ResearchRequest): Promise<ResearchD
         );
         if (bookAyah) {
           dossier.references.push(
-            reference({
+            reference(retrievedOn, {
               id: 'IH735805-98-5',
               provider: 'IslamHouse',
               itemId: '735805',
@@ -301,45 +422,107 @@ export async function researchTopic(request: ResearchRequest): Promise<ResearchD
     }
   }
 
-  const phrase = topic.slice(0, 120);
-  if (phrase.length >= 2) {
-    try {
-      const found = await searchHadeeth(request.lang, phrase);
-      const page = found.items.slice(0, ENCYCLOPEDIA_EVIDENCE_LIMIT);
-      dossier.examined.push(
-        `HadeethEnc search for the topic returned ${found.items.length} rows. The first ${page.length} were opened. Later rows were not read. Search rank is not proof of the topic.`,
-      );
-      for (const row of page) {
-        if (dossier.references.some(item => item.provider === 'HadeethEnc' && item.itemId === row.id)) continue;
-        try {
-          const hadith = await loadHadeeth(request.lang, row.id);
-          if (searchHitSupports(topic, hadith.title, hadith.text)) {
-            dossier.references.push(
-              hadeethReference(hadith, 'Opened from the first HadeethEnc search page because its text contains a word from the topic.', [
-                SEARCH_RANK_LIMIT,
-              ]),
-            );
-          } else {
-            dossier.retrievedNotCited.push({
-              itemId: row.id,
-              title: hadith.title,
-              reason: 'Opened from the first search page. Its text did not contain a topic word long enough to cite, so it is not evidence for the topic.',
-            });
+  const phrase = plan.searchPhrase;
+  if (!phrase) {
+    dossier.notExamined.push('No distinctive search terms remained after generic words were removed, so HadeethEnc search was not called.');
+  } else if (!asksForScience(blob) || ayahsMentioned(blob).length || isIntentionTopic(blob) || isPrayerTopic(blob)) {
+    const seen = new Set<string>();
+    let citedFromSearch = 0;
+    for (let pageNumber = 1; pageNumber <= RESEARCH_BUDGET.hadeethPages && citedFromSearch === 0; pageNumber += 1) {
+      try {
+        const found = await searchHadeeth(request.lang, phrase, pageNumber);
+        const rows = found.items.slice(0, RESEARCH_BUDGET.hadeethOpensPerPage);
+        dossier.examined.push(
+          `HadeethEnc search page ${pageNumber} for “${phrase}” returned ${found.items.length} rows. ${rows.length} were opened. Other rows on this page were not opened. Search rank is not proof of the topic.`,
+        );
+        if (!rows.length) break;
+        let fresh = 0;
+        for (const row of rows) {
+          if (seen.has(row.id)) continue;
+          seen.add(row.id);
+          fresh += 1;
+          if (dossier.references.some(item => item.provider === 'HadeethEnc' && item.itemId === row.id)) continue;
+          try {
+            const hadith = await loadHadeeth(request.lang, row.id);
+            if (searchHitSupports(blob, hadith.title, hadith.text)) {
+              citedFromSearch += 1;
+              dossier.references.push(
+                hadeethReference(hadith, `${claimAddressed(questions, topic, hadith.text)} The hadith text, not the search title, contains a content term.`, [
+                  SEARCH_RANK_LIMIT,
+                ], retrievedOn),
+              );
+            } else {
+              dossier.retrievedNotCited.push({
+                itemId: row.id,
+                title: hadith.title,
+                reason: 'The hadith was opened. Its text did not contain a content term from the question, so it is not evidence. The title was not used.',
+              });
+            }
+          } catch {
+            dossier.retrievedNotCited.push({ itemId: row.id, title: row.title, reason: 'The search row could not be opened in the selected language.' });
           }
-        } catch {
-          dossier.retrievedNotCited.push({ itemId: row.id, title: row.title, reason: 'The search row could not be opened in the selected language.' });
         }
+        if (!fresh) {
+          dossier.examined.push('The next HadeethEnc search page repeated ids already seen, so pagination stopped.');
+          break;
+        }
+      } catch {
+        dossier.unanswered.push(`HadeethEnc search page ${pageNumber} did not respond. Later pages were not requested.`);
+        break;
       }
-    } catch {
-      dossier.unanswered.push('HadeethEnc search did not respond. The encyclopedia was not read beyond that failed request.');
     }
   }
 
-  dossier.disagreements.push(...sameAyahDisagreements(dossier.references));
+  let islamhouseOpens = 0;
+  for (const category of plan.categories) {
+    if (islamhouseOpens >= RESEARCH_BUDGET.islamhouseOpens) break;
+    for (let pageNumber = 1; pageNumber <= RESEARCH_BUDGET.islamhousePages && islamhouseOpens < RESEARCH_BUDGET.islamhouseOpens; pageNumber += 1) {
+      try {
+        const shelf = category.kind === 'knowledge'
+          ? await loadKnowledgeShelf(category.id, request.lang, pageNumber)
+          : await loadLibrary(category.id, request.lang, pageNumber);
+        const items = shelf.items.filter(item => item.language === request.lang);
+        dossier.examined.push(
+          `${category.reason} Retrieved page ${shelf.page} of ${shelf.pages} in ${request.lang}: ${items.length} items on this page. A title match only chooses what to open.`,
+        );
+        const candidates = items.filter(item => passageSupportsTopic(blob, item.title));
+        if (!candidates.length) {
+          dossier.examined.push('No title on this page shared a content term, so no item on it was opened. An unmatched page is not the whole library, and a title is not evidence.');
+          if (shelf.page >= shelf.pages) break;
+          continue;
+        }
+        for (const item of candidates) {
+          if (islamhouseOpens >= RESEARCH_BUDGET.islamhouseOpens) break;
+          islamhouseOpens += 1;
+          await citeShelfItem(dossier, item, request.lang, blob, retrievedOn);
+        }
+        dossier.notExamined.push(`IslamHouse ${category.id}: items whose titles did not share a content term were not opened. A relevant passage inside them would have been missed.`);
+        break;
+      } catch {
+        dossier.unanswered.push(`IslamHouse category “${category.id}” page ${pageNumber} could not be read in ${request.lang}.`);
+        break;
+      }
+    }
+  }
+
+  if (asksForScience(blob)) {
+    for (const item of dossier.references) {
+      item.limitations.push('This religious passage is not scientific evidence.');
+    }
+  }
+  for (const question of questions) {
+    if (asksForScience(question)) continue;
+    if (!contentTokens(question).length) {
+      dossier.unanswered.push(`No distinctive terms remained in this question, so no passage was matched to it: ${question}`);
+      continue;
+    }
+    const supported = dossier.references.some(item => passageSupportsTopic(question, item.passage));
+    if (!supported) dossier.unanswered.push(`No opened passage contained a content term from this question: ${question}`);
+  }
   if (!dossier.references.length) {
     dossier.unanswered.push('No passage was retrieved for this topic in the selected language from the catalogues that were opened.');
   }
-  dossier.notExamined.push('The rest of IslamHouse, QuranEnc and HadeethEnc was not searched.');
+  dossier.notExamined.push('The rest of IslamHouse, QuranEnc and HadeethEnc was not searched. This run did not read those libraries in full.');
   return dossier;
 }
 

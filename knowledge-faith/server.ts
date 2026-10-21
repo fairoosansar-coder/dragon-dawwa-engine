@@ -6,7 +6,7 @@ import { HADITH_COLLECTIONS, PRAYER_METHODS, RECITERS, quranPronunciationEdition
 import { dedupeRefs, parseRefs, refKey, type HadithRef } from './src/shared/refs.ts';
 import type { PodcastLine } from './src/shared/types.ts';
 import { getSurah, getSurahArabic, getSurahMeaning, getVerses, listSurahs } from './src/server/quran.ts';
-import { listQuranEncEditions, loadAudioManifest, loadMukhtasar, MEANING_AUDIO_NOT_LISTED } from './src/server/quranenc.ts';
+import { audioManifestEdition, listQuranEncEditions, loadAudioManifest, loadMukhtasar, MEANING_AUDIO_NOT_LISTED } from './src/server/quranenc.ts';
 import { readEditionQuery } from './src/shared/quranenc.ts';
 import { getAsma } from './src/server/asma.ts';
 import { getHadith, getSection, listSections } from './src/server/hadith.ts';
@@ -129,10 +129,7 @@ app.get('/api/quran/editions', route(async (req, res) => res.json(await listQura
 app.get(
   '/api/quran/audio-manifest',
   route(async (req, res) => {
-    const requested = readEditionQuery(req.query.edition);
-    if ('error' in requested) throw new UpstreamError(requested.error, 400);
-    if (!requested.key) throw new UpstreamError('Choose one QuranEnc edition. No other translation was substituted.', 400);
-    const manifest = await loadAudioManifest(requested.key);
+    const manifest = await loadAudioManifest(audioManifestEdition(req.query.edition));
     if (!manifest) throw new UpstreamError(MEANING_AUDIO_NOT_LISTED, 404);
     res.json({ translation: manifest.translation, count: manifest.count, files: [...manifest.files] });
   }),

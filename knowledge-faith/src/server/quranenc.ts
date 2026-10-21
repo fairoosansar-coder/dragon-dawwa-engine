@@ -1,10 +1,15 @@
 import { fetchJsonFresh, UpstreamError } from './http.ts';
 import type { Lang } from '../shared/sources.ts';
 import {
+  acceptAudioEditionKey,
+  AUDIO_EDITION_KEY_MAX,
   audioManifestUrl,
   cacheParsed,
   describeMukhtasar,
+  evictExpired,
   groupSameCommentary,
+  MANIFEST_CACHE_MAX,
+  MANIFEST_INFLIGHT_MAX,
   MEANING_AUDIO_LIST_FAILED,
   MEANING_AUDIO_NOT_LISTED,
   MUKHTASAR_KEY,
@@ -16,6 +21,8 @@ import {
   parseTafsirSura,
   QURANENC_TTL_MS,
   readCached,
+  readEditionQuery,
+  rememberBounded,
   selectEdition,
   TAFSIR_VERSION_NOTE,
   type AudioCoverage,
@@ -31,6 +38,71 @@ const TAFSIR_LIST = 'https://quranenc.com/api/v1/tafsirs/list';
 
 const memory = new Map<string, { value: unknown; expires: number }>();
 const inflight = new Map<string, Promise<unknown>>();
+const manifestCache = new Map<string, { value: AudioCoverage | { absent: true }; expires: number }>();
+const manifestInflight = new Map<string, Promise<AudioCoverage | null>>();
+let manifestSlots = 0;
+const manifestWaiters: Array<() => void> = [];
+
+function cachedEditionKeys(): Set<string> {
+  const keys = new Set<string>();
+  const now = Date.now();
+  for (const lang of ['en', 'ta', 'si'] as const) {
+    const list = readCached(memory as Map<string, { value: QuranEncEdition[]; expires: number }>, `list:${lang}`, now);
+    if (!list) continue;
+    for (const edition of list) keys.add(edition.key);
+  }
+  return keys;
+}
+
+function takeManifestSlot(): Promise<void> {
+  if (manifestSlots < MANIFEST_INFLIGHT_MAX) {
+    manifestSlots += 1;
+    return Promise.resolve();
+  }
+  return new Promise(resolve => {
+    manifestWaiters.push(() => {
+      manifestSlots += 1;
+      resolve();
+    });
+  });
+}
+
+function releaseManifestSlot(): void {
+  manifestSlots -= 1;
+  const next = manifestWaiters.shift();
+  if (next) next();
+  else if (manifestSlots < 0) manifestSlots = 0;
+}
+
+/** Refuse a key that is too long, malformed, or outside the approved audio editions and the cached catalogue. */
+export function audioManifestEdition(value: unknown, catalogue?: ReadonlySet<string>): string {
+  if (typeof value !== 'string' || value.length < 1 || value.length > AUDIO_EDITION_KEY_MAX) {
+    throw new UpstreamError('That QuranEnc edition key cannot be used. No other translation was substituted.', 400);
+  }
+  const requested = readEditionQuery(value);
+  if ('error' in requested || !requested.key) {
+    throw new UpstreamError(
+      'error' in requested ? requested.error : 'Choose one QuranEnc edition. No other translation was substituted.',
+      400,
+    );
+  }
+  if (!acceptAudioEditionKey(requested.key, catalogue ?? cachedEditionKeys())) {
+    throw new UpstreamError('That QuranEnc edition is not an approved audio edition. No list was requested.', 400);
+  }
+  return requested.key;
+}
+
+export function audioManifestCacheSize(): number {
+  evictExpired(manifestCache, Date.now());
+  return manifestCache.size;
+}
+
+export function resetAudioManifestCacheForTests(): void {
+  manifestCache.clear();
+  manifestInflight.clear();
+  manifestWaiters.length = 0;
+  manifestSlots = 0;
+}
 
 const UNREADABLE = 'QuranEnc returned a translation that could not be read. No other translation was substituted.';
 const NO_RESPONSE = 'QuranEnc did not respond. This translation was not loaded.';
@@ -93,38 +165,47 @@ export async function quranEncSura(edition: QuranEncEdition, sura: number): Prom
  * Load one edition's files.json. A 404 is cached as absence. Network failures and unreadable
  * manifests are not stored, and a missing list is never replaced with another edition.
  */
-export async function loadAudioManifest(key: string): Promise<AudioCoverage | null> {
-  const url = audioManifestUrl(key);
+export async function loadAudioManifest(key: string, catalogue?: ReadonlySet<string>): Promise<AudioCoverage | null> {
+  const edition = audioManifestEdition(key, catalogue);
+  const url = audioManifestUrl(edition);
   if (!url) throw new UpstreamError(MEANING_AUDIO_LIST_FAILED, 400);
-  const cacheKey = `audio:${key}`;
-  const hit = readCached<AudioCoverage | { absent: true }>(memory as Map<string, { value: AudioCoverage | { absent: true }; expires: number }>, cacheKey, Date.now());
+  const now = Date.now();
+  evictExpired(manifestCache, now);
+  const hit = readCached(manifestCache, edition, now);
   if (hit) return 'absent' in hit ? null : hit;
-  const pending = inflight.get(cacheKey);
-  if (pending) return pending as Promise<AudioCoverage | null>;
+  const pending = manifestInflight.get(edition);
+  if (pending) return pending;
 
   const request = (async () => {
-    let body: unknown;
+    await takeManifestSlot();
     try {
-      body = await fetchJsonFresh(url);
-    } catch (err) {
-      const status = err instanceof UpstreamError ? err.status : 504;
-      if (status === 404) {
-        cacheParsed(memory as Map<string, { value: { absent: true }; expires: number }>, cacheKey, { absent: true }, Date.now(), QURANENC_TTL_MS);
-        return null;
+      const again = readCached(manifestCache, edition, Date.now());
+      if (again) return 'absent' in again ? null : again;
+      let body: unknown;
+      try {
+        body = await fetchJsonFresh(url);
+      } catch (err) {
+        const status = err instanceof UpstreamError ? err.status : 504;
+        if (status === 404) {
+          rememberBounded(manifestCache, edition, { absent: true }, Date.now(), QURANENC_TTL_MS, MANIFEST_CACHE_MAX);
+          return null;
+        }
+        throw new UpstreamError(MEANING_AUDIO_LIST_FAILED, status === 504 ? 504 : 502);
       }
-      throw new UpstreamError(MEANING_AUDIO_LIST_FAILED, status === 504 ? 504 : 502);
+      const parsed = parseAudioManifest(body, edition);
+      if (!parsed) throw new UpstreamError(MEANING_AUDIO_LIST_FAILED, 502);
+      rememberBounded(manifestCache, edition, parsed, Date.now(), QURANENC_TTL_MS, MANIFEST_CACHE_MAX);
+      return parsed;
+    } finally {
+      releaseManifestSlot();
     }
-    const parsed = parseAudioManifest(body, key);
-    if (!parsed) throw new UpstreamError(MEANING_AUDIO_LIST_FAILED, 502);
-    cacheParsed(memory as Map<string, { value: AudioCoverage; expires: number }>, cacheKey, parsed, Date.now(), QURANENC_TTL_MS);
-    return parsed;
   })();
 
-  inflight.set(cacheKey, request);
+  manifestInflight.set(edition, request);
   try {
     return await request;
   } finally {
-    inflight.delete(cacheKey);
+    manifestInflight.delete(edition);
   }
 }
 

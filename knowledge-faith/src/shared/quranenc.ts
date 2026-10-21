@@ -89,7 +89,31 @@ export function audioFileName(sura: number, aya: number): string | null {
   return `${String(sura).padStart(3, '0')}${String(aya).padStart(3, '0')}.mp3`;
 }
 
+/** Edition keys longer than this are refused before a pattern check or any upstream request. */
+export const AUDIO_EDITION_KEY_MAX = 64;
+
+/**
+ * Meaning-audio editions whose files.json was read on 2026-10-21.
+ * A key outside this set is fetched only when it is already in the QuranEnc catalogue cached for this process.
+ */
+export const APPROVED_AUDIO_EDITIONS = ['english_rwwad', 'tamil_omar_brief', 'sinhalese_mahir'] as const;
+
+const APPROVED_AUDIO_EDITION_SET = new Set<string>(APPROVED_AUDIO_EDITIONS);
+
+/** Parsed manifests and cached absences share this ceiling. */
+export const MANIFEST_CACHE_MAX = 8;
+
+/** Distinct upstream manifest requests allowed at once. The same key still shares one request. */
+export const MANIFEST_INFLIGHT_MAX = 2;
+
+export function acceptAudioEditionKey(key: string, catalogue: ReadonlySet<string> = new Set()): boolean {
+  if (typeof key !== 'string' || key.length < 1 || key.length > AUDIO_EDITION_KEY_MAX) return false;
+  if (!/^[a-z0-9_]+$/.test(key)) return false;
+  return APPROVED_AUDIO_EDITION_SET.has(key) || catalogue.has(key);
+}
+
 export function audioManifestUrl(key: string): string | null {
+  if (typeof key !== 'string' || key.length < 1 || key.length > AUDIO_EDITION_KEY_MAX) return null;
   if (!/^[a-z0-9_]+$/.test(key)) return null;
   return `https://d.quranenc.com/data/audio/${key}/files.json`;
 }
@@ -332,9 +356,32 @@ export function cacheParsed<T>(store: Map<string, CacheSlot<T>>, key: string, pa
   return parsed;
 }
 
+export function evictExpired<T>(store: Map<string, CacheSlot<T>>, now: number): void {
+  for (const [key, slot] of store) {
+    if (slot.expires <= now) store.delete(key);
+  }
+}
+
+/** Insert one entry, drop expired slots, and keep the map at `max` by removing the oldest. */
+export function rememberBounded<T>(store: Map<string, CacheSlot<T>>, key: string, value: T, now: number, ttl: number, max: number): void {
+  evictExpired(store, now);
+  store.delete(key);
+  store.set(key, { value, expires: now + ttl });
+  while (store.size > max) {
+    const oldest = store.keys().next().value;
+    if (oldest === undefined) break;
+    store.delete(oldest);
+  }
+}
+
 export function readCached<T>(store: Map<string, CacheSlot<T>>, key: string, now: number): T | undefined {
   const slot = store.get(key);
-  if (!slot || slot.expires <= now) return undefined;
+  if (!slot || slot.expires <= now) {
+    if (slot) store.delete(key);
+    return undefined;
+  }
+  store.delete(key);
+  store.set(key, slot);
   return slot.value;
 }
 

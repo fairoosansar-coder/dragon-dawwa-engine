@@ -59,3 +59,45 @@ export function firstLongParagraph(html: string, min = 40): ReaderParagraph | nu
 export function paragraphLocator(heading: string, paragraph: ReaderParagraph): string {
   return paragraph.id ? `Heading “${heading}”, paragraph ${paragraph.id}` : `Heading “${heading}”`;
 }
+
+export interface ParagraphContext {
+  heading: string;
+  paragraph: ReaderParagraph;
+  before: ReaderParagraph | null;
+  after: ReaderParagraph | null;
+}
+
+/** All readable paragraphs, including ones the reader did not number. */
+export function htmlParagraphs(html: string): ReaderParagraph[] {
+  return [...html.matchAll(/<p\b([^>]*)>([\s\S]*?)<\/p>/gi)]
+    .map((match, index) => ({
+      id: /\bid="([^"]+)"/i.exec(match[1] ?? '')?.[1] || String(index + 1),
+      text: visibleText(match[2] ?? ''),
+    }))
+    .filter(paragraph => paragraph.text);
+}
+
+/** The first paragraph whose own text matches, plus the paragraphs on either side. */
+export function paragraphContext(html: string, matches: (text: string) => boolean): ParagraphContext | null {
+  const headings = [...html.matchAll(/<h2\b[^>]*>([\s\S]*?)<\/h2>/gi)];
+  const sections: { heading: string; html: string }[] = [];
+  const firstHeading = headings[0]?.index ?? html.length;
+  if (!headings.length || firstHeading > 0) sections.push({ heading: '', html: html.slice(0, firstHeading) });
+  headings.forEach((heading, index) => {
+    const start = (heading.index ?? 0) + heading[0].length;
+    const end = index + 1 < headings.length ? (headings[index + 1].index ?? html.length) : html.length;
+    sections.push({ heading: visibleText(heading[1] ?? ''), html: html.slice(start, end) });
+  });
+  for (const section of sections) {
+    const paragraphs = htmlParagraphs(section.html);
+    const index = paragraphs.findIndex(paragraph => matches(paragraph.text));
+    if (index < 0) continue;
+    return {
+      heading: section.heading,
+      paragraph: paragraphs[index],
+      before: index > 0 ? paragraphs[index - 1] : null,
+      after: index + 1 < paragraphs.length ? paragraphs[index + 1] : null,
+    };
+  }
+  return null;
+}

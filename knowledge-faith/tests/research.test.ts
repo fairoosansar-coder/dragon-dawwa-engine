@@ -1,12 +1,18 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { passageUnderHeading } from '../src/shared/readableText.ts';
+import { paragraphContext, passageUnderHeading } from '../src/shared/readableText.ts';
 import {
   asksForScience,
+  claimAddressed,
+  contentTokens,
+  passageSupportsTopic,
+  planResearch,
+  RESEARCH_BUDGET,
   sameAyahDisagreements,
   SEARCH_RANK_LIMIT,
   searchHitSupports,
   verifyScript,
+  VERIFICATION_NOTE,
   type ResearchReference,
 } from '../src/shared/research.ts';
 import { KNOWLEDGE_PATHS, PRAYER_ARTICLE, SINCERITY_BOOK, SOURCE_FINDINGS } from '../src/shared/sourceRegistry.ts';
@@ -93,9 +99,48 @@ describe('citation checks', () => {
       [passage],
     );
     assert.deepEqual(result.unfaithful, ['Line 1']);
+    assert.equal(result.supported, false);
   });
 
-  it('keeps two wordings of one ayah distinct', () => {
+  it('does not treat a valid citation as support for an unrelated paraphrase', () => {
+    const result = verifyScript(
+      [{ speaker: 'Host', text: 'The moon landing happened in the summer of that year according to this page.', citations: ['IH735805'] }],
+      [passage],
+    );
+    assert.deepEqual(result.unverified, ['Line 1']);
+    assert.equal(result.supported, false);
+    assert.equal(result.review, 'editorial');
+    assert.equal(result.note, VERIFICATION_NOTE);
+  });
+
+  it('does not certify a contradictory paraphrase', () => {
+    const result = verifyScript(
+      [{ speaker: 'Host', text: 'Inner purity means acting so that other people will notice and praise the deed.', citations: ['IH735805'] }],
+      [passage],
+    );
+    assert.equal(result.supported, false);
+    assert.deepEqual(result.unverified, ['Line 1']);
+  });
+
+  it('checks a short false statement', () => {
+    const uncited = verifyScript([{ speaker: 'Host', text: 'Prayer is optional.', citations: [] }], [passage]);
+    assert.deepEqual(uncited.missingCitations, ['Line 1']);
+    assert.equal(uncited.supported, false);
+    const cited = verifyScript([{ speaker: 'Host', text: 'Prayer is optional.', citations: ['IH735805'] }], [passage]);
+    assert.deepEqual(cited.unverified, ['Line 1']);
+    assert.equal(cited.supported, false);
+  });
+
+  it('accepts a quotation in other quote marks when the words are in the passage', () => {
+    const result = verifyScript(
+      [{ speaker: 'Host', text: 'The book says «அல்லாஹ்வுக்காக மட்டுமே செய்கிறேன்» in this section.', citations: ['IH735805'] }],
+      [passage],
+    );
+    assert.equal(result.supported, true);
+    assert.deepEqual(result.unverified, []);
+  });
+
+  it('keeps two wordings of one ayah distinct without calling that a disagreement', () => {
     const quran: ResearchReference = {
       id: 'Q98-5',
       provider: 'QuranEnc',
@@ -121,15 +166,33 @@ describe('citation checks', () => {
       limitations: [],
     };
     const book: ResearchReference = { ...quran, id: 'IH735805-98-5', provider: 'IslamHouse', itemId: '735805', passage: 'Book wording of the ayah.', passageLanguage: 'ta' };
-    const notes = sameAyahDisagreements([quran, book]);
-    assert.match(notes[0], /98:5/);
+    assert.deepEqual(sameAyahDisagreements([quran, book]), []);
     assert.notEqual(referenceEvidence(quran).text, referenceEvidence(book).text);
   });
 
-  it('does not cite a search row that lacks the topic word', () => {
+  it('does not cite a search row from a generic word or from the title alone', () => {
+    assert.equal(searchHitSupports('What is sincerity?', 'Sincerity in the title', 'A ruling about killing and compensation.'), false);
     assert.equal(searchHitSupports('intentions', 'Blood money', 'A ruling about killing and compensation.'), false);
-    assert.equal(searchHitSupports('intentions', 'Actions are by intentions', 'Actions are by intentions.'), true);
+    assert.equal(searchHitSupports('intentions', 'Actions are by intentions', 'The opened text does not repeat that theme.'), false);
+    assert.equal(searchHitSupports('intentions', 'Another title', 'Actions are by intentions.'), true);
+    assert.equal(passageSupportsTopic('உளத்தூய்மை என்றால் என்ன?', 'உளத்தூய்மை என்பது தூய எண்ணம்.'), true);
+    assert.equal(passageSupportsTopic('නිය්යතය කුමක්ද?', 'නිය්යතය යනු අදහසයි.'), true);
+    assert.equal(contentTokens('What is sincerity?').includes('what'), false);
     assert.match(SEARCH_RANK_LIMIT, /4560/);
+    const plan = planResearch('Intention, habit and everyday life.', ['What is sincerity?']);
+    assert.match(plan.searchPhrase, /intention/);
+    assert.equal(plan.searchPhrase.includes('what'), false);
+    assert.ok(plan.categories.length <= RESEARCH_BUDGET.categories);
+    assert.equal(RESEARCH_BUDGET.islamhousePages, 2);
+    assert.equal(RESEARCH_BUDGET.hadeethPages, 2);
+    const science = planResearch('Does physics prove this verse?', []);
+    assert.equal(science.science, true);
+    assert.deepEqual(science.categories, []);
+    assert.match(claimAddressed(['What is sincerity?'], 'Intention', 'Sincerity is to worship Allah alone.'), /What is sincerity/);
+    assert.match(claimAddressed(['What is sincerity?'], 'Intention', 'A ruling about blood money.'), /Intention/);
+    const context = paragraphContext(FIXTURE, text => text.includes('அல்லாஹ்வுக்காக மட்டுமே'));
+    assert.equal(context?.paragraph.id, 'p40');
+    assert.match(context?.after?.text ?? '', /அறிஞர்கள்/);
   });
 
   it('does not treat a science question as religious proof', () => {
@@ -161,6 +224,11 @@ describe('live catalogues', () => {
     const quran = tamil.references.find(item => item.provider === 'QuranEnc' && item.surah === 98 && item.ayah === 5);
     const bookAyah = tamil.references.find(item => item.id === 'IH735805-98-5');
     assert.ok(quran && bookAyah);
-    if (quran.passage !== bookAyah.passage) assert.ok(tamil.disagreements.some(note => note.includes('98:5')));
+    if (quran.passage !== bookAyah.passage) {
+      assert.equal(tamil.disagreements.some(note => note.includes('98:5')), false);
+    }
+    assert.match(book?.retrievedOn ?? '', /^\d{4}-\d{2}-\d{2}T/);
+    assert.match(tamil.examined.join('\n'), /Budget:/);
+    assert.match(tamil.notExamined.join('\n'), /not searched|not read those libraries/i);
   });
 });
