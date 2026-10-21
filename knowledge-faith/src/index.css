@@ -12,6 +12,98 @@
   --color-sand: #f7f2e8;
   --color-parchment: #fffdf8;
   --color-gold: #b8862f;
+
+  /* Five Pillars & Spiritual Life (Dragon Dawwa). Gilt is decorative only; it fails contrast as text on ivory. */
+  --color-emerald: #064936;
+  --color-emerald-deep: #04362a;
+  --color-ivory: #faf6ec;
+  --color-vellum: #f3ecdb;
+  --color-gilt: #c9a14e;
+  --color-gilt-deep: #8a6a24;
+  --color-lapis: #23407e;
+  --font-book: 'Fraunces', 'Noto Serif Tamil', 'Noto Serif Sinhala', Georgia, serif;
+}
+
+.sp-band {
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgb(201 161 78 / 0.18), transparent 55%),
+    linear-gradient(135deg, var(--color-emerald-deep), var(--color-emerald) 60%, #0a5a43);
+  color: var(--color-ivory);
+}
+
+.sp-lattice {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cg fill='none' stroke='%23c9a14e' stroke-opacity='.22' stroke-width='1'%3E%3Cpath d='M24 2l6.5 15.5L46 24l-15.5 6.5L24 46l-6.5-15.5L2 24l15.5-6.5z'/%3E%3Ccircle cx='24' cy='24' r='5'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+.sp-surface-book {
+  background:
+    radial-gradient(140% 90% at 50% 0%, rgb(255 255 255 / 0.55), transparent 70%),
+    var(--color-ivory);
+  color: #1b2620;
+  font-family: var(--font-book);
+  font-variation-settings: 'opsz' 14;
+}
+
+.sp-surface-plain {
+  background: #fff;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+.sp-prose {
+  font-size: var(--sp-size, 1.075rem);
+  line-height: 1.85;
+  max-width: 68ch;
+}
+
+.sp-prose p + p {
+  margin-top: 0.9em;
+}
+
+.sp-surface-book .sp-prose h2 {
+  font-family: var(--font-display);
+}
+
+.sp-frame {
+  position: relative;
+  border: 1px solid rgb(201 161 78 / 0.7);
+  outline: 1px solid rgb(201 161 78 / 0.45);
+  outline-offset: -8px;
+}
+
+.sp-corner {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  color: var(--color-gilt);
+  pointer-events: none;
+}
+
+mark[data-sp-match] {
+  background: rgb(201 161 78 / 0.35);
+  color: inherit;
+  border-radius: 2px;
+}
+
+mark[data-sp-match][data-current='true'] {
+  background: var(--color-gilt);
+  outline: 2px solid var(--color-emerald);
+}
+
+@media print {
+  header,
+  nav,
+  footer,
+  .sp-no-print {
+    display: none !important;
+  }
+  .sp-print-only {
+    display: block !important;
+  }
+  html,
+  body {
+    background: #fff;
+  }
 }
 
 html {
