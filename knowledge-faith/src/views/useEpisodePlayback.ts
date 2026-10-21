@@ -58,7 +58,6 @@ export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, gues
     const task = postJson<TtsResult>('/api/voice/narrate', {
       text: chunk.text,
       voice,
-      style: 'Read calmly and warmly, like a learning podcast.',
     })
       .then(result => {
         const url = base64ToObjectUrl(result.audioBase64, result.mimeType || 'audio/wav');

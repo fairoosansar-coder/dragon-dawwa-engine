@@ -9,6 +9,7 @@ import { aladhanDate } from '../src/server/prayer.ts';
 import { SAMPLE_HADITHS } from '../src/engine/data/sampleHadiths.ts';
 import { browserSpeechAvailable, speakInBrowser } from '../src/engine/utils/browserVoice.ts';
 import { hasGeminiApiKey } from '../src/server/loadEnv.ts';
+import { spokenTranscript } from '../src/server/spokenLine.ts';
 import { publicAppUrl, viteDevServerOptions } from '../src/server/publicUrl.ts';
 
 test('parseRefs handles single ayahs, ranges and rejects nonsense', () => {
@@ -123,4 +124,11 @@ test('publicAppUrl uses the Codespaces forwarded host instead of localhost', () 
     if (domain === undefined) delete process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN;
     else process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN = domain;
   }
+});
+
+test('a delivery note is not left on the words that will be spoken', () => {
+  const note = 'Read calmly and warmly, like a learning podcast.';
+  assert.equal(spokenTranscript('Peace be upon you.', note), 'Peace be upon you.');
+  assert.equal(spokenTranscript(`${note}\nPeace be upon you.`, note), 'Peace be upon you.');
+  assert.equal(spokenTranscript(`${note}: Peace be upon you.`, note), 'Peace be upon you.');
 });
