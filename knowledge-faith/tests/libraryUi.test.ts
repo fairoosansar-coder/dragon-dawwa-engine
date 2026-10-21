@@ -5,6 +5,7 @@ import { prayerQueryDate } from '../src/lib/prayerClock.ts';
 import { ayahForLoadedSurah, migrateReadingPlace, readTextSize } from '../src/lib/readingPlace.ts';
 import { showSectionSearch } from '../src/lib/route.ts';
 import { minutesInZone, nextPrayer } from '../src/shared/spiritual.ts';
+import { GUIDES, readingSections } from '../src/spiritual/content.ts';
 import { isoDateInZone } from '../src/spiritual/hijri.ts';
 
 class FakeMedia {
@@ -143,4 +144,13 @@ test('prayer date follows the saved place, including midnight and another zone',
   assert.equal(nextPrayer(timings, riyadh).name, 'Dhuhr');
   assert.equal(nextPrayer(timings, 12 * 60 - 1).name, 'Dhuhr');
   assert.equal(nextPrayer(timings, 12 * 60).name, 'Asr');
+});
+
+test('public reading keeps published Shahadah sections and hides unpublished ones', () => {
+  const shahadah = GUIDES.find(guide => guide.id === 'shahadah');
+  assert.ok(shahadah);
+  const ids = readingSections(shahadah.sections).map(section => section.id);
+  assert.deepEqual(ids, ['overview', 'meaning', 'terms', 'who', 'preparation', 'steps', 'sources', 'tools']);
+  assert.equal(shahadah.sections.some(section => section.status === 'withheld' && !ids.includes(section.id)), true);
+  assert.equal(ids.includes('review'), false);
 });

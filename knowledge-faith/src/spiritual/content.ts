@@ -42,6 +42,11 @@ export interface GuideSection {
   steps?: Copy[];
 }
 
+/** Published learning sections. Review notes and unpublished slots stay out of the reading column. */
+export function readingSections(sections: GuideSection[]): GuideSection[] {
+  return sections.filter(section => section.status === 'published' && section.id !== 'review');
+}
+
 export interface GuideLink {
   href: string;
   label: Copy;
@@ -227,9 +232,9 @@ export const GUIDES: Guide[] = [
     path: ['salah', 'learn'],
     title: c('Learning prayer', 'தொழுகை கற்றல்', 'සලාතය ඉගෙනීම'),
     summary: c(
-      'Beginner view and detailed view. Postures and the full sequence are waiting for review.',
-      'தொடக்கப் பார்வையும் விரிவான பார்வையும். நிலைகளும் முழு வரிசையும் ஆய்வுக்காகக் காத்திருக்கின்றன.',
-      'ආරම්භක දසුන සහ විස්තර දසුන. ඉරියව් සහ සම්පූර්ණ අනුපිළිවෙල සමාලෝචනය බලාපොරොත්තුවෙන් ඇත.',
+      'Postures and the full sequence are waiting for review. Unpublished sections stay off this page.',
+      'நிலைகளும் முழு வரிசையும் ஆய்வுக்காகக் காத்திருக்கின்றன. வெளியிடப்படாத பகுதிகள் இந்தப் பக்கத்தில் இல்லை.',
+      'ඉරියව් සහ සම්පූර්ණ අනුපිළිවෙල සමාලෝචනය බලාපොරොත්තුවෙන් ඇත. පළ නොකළ කොටස් මෙම පිටුවේ නැත.',
     ),
     links: [
       { href: '#/spiritual/salah/times', label: c('Prayer times', 'தொழுகை நேரம்', 'සලාත වේලා') },
@@ -241,9 +246,9 @@ export const GUIDES: Guide[] = [
         status: 'published',
         paragraphs: [
           c(
-            'Beginner view keeps the retrieved text of al-Fatiha and the tools. Detailed view also shows the headings that are not yet published, so the gaps stay visible. Audio on al-Fatiha is Arabic recitation, not a spoken translation.',
-            'தொடக்கப் பார்வை அல்-ஃபாத்திஹாவின் பெறப்பட்ட உரையையும் கருவிகளையும் வைக்கிறது. அல்-ஃபாத்திஹா ஒலி அரபு ஓதல்; பேசும் மொழிபெயர்ப்பு அல்ல.',
-            'ආරම්භක දසුන අල්-ෆාතිහාගේ ලබාගත් පාඨය සහ මෙවලම් තබයි. ශ්‍රව්‍යය අරාබි පාරායනයයි; කථන පරිවර්තනයක් නොවේ.',
+            'The retrieved text of al-Fatiha and the tools stay on this page. Sections that are not published stay off it. Audio on al-Fatiha is Arabic recitation, not a spoken translation.',
+            'அல்-ஃபாத்திஹாவின் பெறப்பட்ட உரையும் கருவிகளும் இந்தப் பக்கத்தில் இருக்கும். வெளியிடப்படாத பகுதிகள் இங்கு இல்லை. அல்-ஃபாத்திஹா ஒலி அரபு ஓதல்; பேசும் மொழிபெயர்ப்பு அல்ல.',
+            'අල්-ෆාතිහාගේ ලබාගත් පාඨය සහ මෙවලම් මෙම පිටුවේ තබයි. පළ නොකළ කොටස් මෙහි නැත. ශ්‍රව්‍යය අරාබි පාරායනයයි; කථන පරිවර්තනයක් නොවේ.',
           ),
         ],
       }),

@@ -4,9 +4,9 @@ import { useRemote } from '../lib/api.ts';
 import { useStored } from '../lib/store.tsx';
 import type { Verse } from '../shared/types.ts';
 import { isScholarReviewed } from './editorial.ts';
-import { findGuide, guideById, text, type Guide, type GuideSection } from './content.ts';
+import { findGuide, guideById, readingSections, text, type Copy, type Guide, type GuideSection } from './content.ts';
 import { slotLabel } from './i18n.ts';
-import { Banner, PageBack, Panel, Prose, control, useSp } from './chrome.tsx';
+import { PageBack, Panel, Prose, control, useSp } from './chrome.tsx';
 
 interface ReadingPrefs {
   mode: 'book' | 'plain';
@@ -20,7 +20,7 @@ interface Mark {
 }
 
 const FONTS = [1, 1.125, 1.3, 1.5];
-const BEGINNER = new Set(['overview', 'meaning', 'preparation', 'sources', 'tools', 'review']);
+const BEGINNER = new Set(['overview', 'meaning', 'preparation', 'sources', 'tools']);
 
 function sectionBlob(section: GuideSection, lang: 'en' | 'ta' | 'si'): string {
   return [
@@ -50,7 +50,14 @@ export function GuideView({ segments, anchor }: { segments: string[]; anchor?: s
   const [reported, setReported] = useState(false);
 
   useEffect(() => {
-    if (!anchor) return;
+    if (anchor !== 'review') return;
+    const panel = document.getElementById('about-page');
+    if (panel instanceof HTMLDetailsElement) panel.open = true;
+    panel?.scrollIntoView({ block: 'start' });
+  }, [anchor, lang]);
+
+  useEffect(() => {
+    if (!anchor || anchor === 'review') return;
     document.getElementById(`sec-${anchor}`)?.scrollIntoView({ block: 'start' });
   }, [anchor, lang]);
 
@@ -64,11 +71,18 @@ export function GuideView({ segments, anchor }: { segments: string[]; anchor?: s
   }
 
   const reviewed = isScholarReviewed(guide.meta);
-  const visible = guide.sections.filter(section => {
-    if (guide.id === 'salah-learn' && beginner && !BEGINNER.has(section.id)) return false;
-    if (!query.trim()) return true;
-    return `${slotLabel(lang, section.id)} ${sectionBlob(section, lang)}`.toLowerCase().includes(query.trim().toLowerCase());
+  const withheld = guide.sections.some(section => section.status === 'withheld');
+  const review = guide.sections.find(section => section.id === 'review' && section.status === 'published');
+  const published = readingSections(guide.sections);
+  const hasDetailed = guide.id === 'salah-learn' && published.some(section => !BEGINNER.has(section.id));
+  const needle = query.trim().toLowerCase();
+  const visible = published.filter(section => {
+    if (hasDetailed && beginner && !BEGINNER.has(section.id)) return false;
+    if (!needle) return true;
+    return `${slotLabel(lang, section.id)} ${sectionBlob(section, lang)}`.toLowerCase().includes(needle);
   });
+  const testimony = guide.id === 'shahadah' ? visible.find(section => section.id === 'meaning') : undefined;
+  const flow = testimony ? visible.filter(section => section.id !== 'meaning') : visible;
   const saved = bookmarks.some(item => item.guideId === guide.id);
 
   const copyRef = async () => {
@@ -81,19 +95,40 @@ export function GuideView({ segments, anchor }: { segments: string[]; anchor?: s
     }
   };
 
+  const showCopy = (copy: Copy) => (english && lang !== 'en' ? copy.en : text(copy, lang) || '');
   const body = (
     <article className={prefs.mode === 'book' ? (prefs.border ? 'dd-book dd-illuminated' : 'dd-book') : 'dd-plain'} style={{ ['--dd-font' as string]: `${FONTS[prefs.font] ?? 1.125}rem` }}>
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-dd-emerald">{reviewed ? s.reviewer : s.notReviewed}</p>
-      <h1 className="mt-2 font-display text-3xl font-bold text-dd-emerald sm:text-4xl">{text(guide.title, lang) || guide.title.en}</h1>
-      <Prose copy={guide.summary} />
-      <p className="mt-3 text-sm text-dd-ink/70">
-        {s.updated} {guide.meta.updated} · {s.author}: {guide.meta.author}
-      </p>
-      <Banner>
-        {s.incomplete} {s.languagePending}
-      </Banner>
-      {guide.id === 'salah-learn' && (
-        <div className="mt-4 flex flex-wrap gap-2">
+      {guide.meta.languageReview === 'pending' && <p className="mt-2 text-sm text-dd-ink/70">{s.languagePending}</p>}
+      <h1 className="mt-4 font-display text-4xl font-bold text-dd-emerald sm:text-5xl">{text(guide.title, lang) || guide.title.en}</h1>
+      {guide.id === 'shahadah' ? (
+        <p className="mt-4 max-w-xl text-lg leading-relaxed">{s.shahadahLede}</p>
+      ) : (
+        <div className="mt-4 max-w-xl">
+          <Prose copy={guide.summary} />
+        </div>
+      )}
+      {testimony && <Testimony section={testimony} english={english} show={showCopy} />}
+      <details className="mt-12">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center rounded-full border border-dd-emerald/20 bg-white px-4 text-sm font-semibold text-dd-emerald [&::-webkit-details-marker]:hidden">
+          {s.contents}
+        </summary>
+        <nav aria-label={s.toc} className="mt-3 flex flex-col rounded-2xl border border-dd-emerald/10 bg-white p-2">
+          {visible.map(section => (
+            <a key={section.id} href={`#/spiritual/${guide.path.join('/')}/${section.id}`} className="rounded-xl px-3 py-2 text-sm text-dd-emerald hover:bg-dd-gold/15">
+              {slotLabel(lang, section.id)}
+            </a>
+          ))}
+          {guide.links.length > 0 && <p className="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-[0.16em] text-dd-ink/50">{s.related}</p>}
+          {guide.links.map(link => (
+            <a key={link.href} href={link.href} className="rounded-xl px-3 py-2 text-sm text-dd-emerald hover:bg-dd-gold/15">
+              {text(link.label, lang) || link.label.en}
+            </a>
+          ))}
+        </nav>
+      </details>
+      {hasDetailed && (
+        <div className="mt-6 flex flex-wrap gap-2">
           <button type="button" className={`min-h-11 rounded-full px-4 ${beginner ? 'bg-dd-emerald text-dd-ivory' : 'bg-white'}`} onClick={() => setBeginner(true)}>
             {s.beginner}
           </button>
@@ -102,102 +137,93 @@ export function GuideView({ segments, anchor }: { segments: string[]; anchor?: s
           </button>
         </div>
       )}
-      <div className="mt-4 flex flex-wrap gap-2">
-        {(['book', 'plain'] as const).map(mode => (
-          <button key={mode} type="button" className={`min-h-11 rounded-full px-4 ${prefs.mode === mode ? 'bg-dd-emerald text-dd-ivory' : 'bg-white'}`} onClick={() => setPrefs({ ...prefs, mode })}>
-            {s[mode]}
-          </button>
-        ))}
-        <button type="button" className="min-h-11 rounded-full bg-white px-4" onClick={() => setPrefs({ ...prefs, font: (prefs.font + 1) % FONTS.length })} aria-label={s.font}>
-          {s.font}
-        </button>
-        {prefs.mode === 'book' && (
-          <button type="button" className="min-h-11 rounded-full bg-white px-4" aria-pressed={prefs.border} onClick={() => setPrefs({ ...prefs, border: !prefs.border })}>
-            {s.illuminated}
-          </button>
-        )}
-        <button type="button" className="min-h-11 rounded-full bg-white px-4" onClick={() => setFocus(true)}>
-          {s.focus}
-        </button>
-      </div>
-      <label className="mt-4 block text-sm">
-        {s.inArticle}
-        <input value={query} onChange={event => setQuery(event.target.value)} className={`${control} mt-1 w-full`} />
-      </label>
-      <nav aria-label={s.toc} className="mt-4 flex flex-wrap gap-2">
-        {visible.map(section => (
-          <a key={section.id} href={`#/spiritual/${guide.path.join('/')}/${section.id}`} className="min-h-11 rounded-full bg-white px-3 py-2 text-sm text-dd-emerald">
-            {slotLabel(lang, section.id)}
-            {section.status === 'withheld' ? ` · ${s.withheld}` : ''}
-          </a>
-        ))}
-      </nav>
-      <div className="mt-6 space-y-8">
-        {visible.map(section => (
-          <section key={section.id} id={`sec-${section.id}`} className="scroll-mt-28">
+      <div className="mt-12 space-y-14">
+        {flow.length === 0 && needle && <p>{s.searchEmpty}</p>}
+        {flow.map(section => (
+          <section key={section.id} id={section.id === testimony?.id ? undefined : `sec-${section.id}`} className="scroll-mt-28">
             <h2 className="font-display text-2xl font-bold text-dd-emerald">{slotLabel(lang, section.id)}</h2>
-            {section.status === 'withheld' ? (
-              <p className="mt-2 rounded-2xl border border-dashed border-dd-lapis/40 p-4 text-sm">{s.withheldBody}</p>
-            ) : (
-              <SectionBody section={section} english={english} />
-            )}
+            <SectionBody section={section} english={english} />
           </section>
         ))}
       </div>
-      {guide.id === 'shahadah' && <p className="mt-6 text-sm">{s.audioMissing}</p>}
-      <div className="mt-6 flex flex-wrap gap-2">
-        <button
-          type="button"
-          className="min-h-11 rounded-full bg-dd-emerald px-4 text-dd-ivory"
-          onClick={() => setBookmarks(items => (saved ? items.filter(item => item.guideId !== guide.id) : [{ guideId: guide.id, section: anchor || 'overview' }, ...items]))}
-        >
-          {saved ? s.bookmarked : s.bookmark}
-        </button>
-        <button
-          type="button"
-          className="min-h-11 rounded-full bg-white px-4"
-          onClick={() => setProgress(items => (items.some(item => item.guideId === guide.id) ? items : [{ guideId: guide.id, section: anchor || 'overview' }, ...items]))}
-        >
-          {progress.some(item => item.guideId === guide.id) ? s.markedRead : s.markRead}
-        </button>
-        <button type="button" className="min-h-11 rounded-full bg-white px-4" onClick={() => void copyRef()}>
-          {copied ? s.copied : s.copyRef}
-        </button>
-        <button type="button" className="min-h-11 rounded-full bg-white px-4" onClick={() => setEnglish(value => !value)}>
-          {s.showEnglish}
-        </button>
-      </div>
-      {guide.links.length > 0 && (
-        <ul className="mt-4 flex flex-wrap gap-2">
-          {guide.links.map(link => (
-            <li key={link.href}>
-              <a href={link.href} className="inline-flex min-h-11 items-center rounded-full bg-dd-gold/20 px-4 text-sm font-medium text-dd-emerald">
-                {text(link.label, lang) || link.label.en}
-              </a>
-            </li>
+      <details id="about-page" className="mt-16 rounded-2xl border border-dd-emerald/15 bg-white/70 px-4 py-3">
+        <summary id="sec-review" className="flex min-h-11 cursor-pointer list-none items-center text-sm font-semibold text-dd-emerald [&::-webkit-details-marker]:hidden">
+          {s.aboutPage}
+        </summary>
+        <div className="mt-4 space-y-4 text-sm leading-relaxed">
+          {guide.id === 'shahadah' && <Prose copy={guide.summary} />}
+          <p>
+            {s.updated} {guide.meta.updated} · {s.author}: {guide.meta.author}
+          </p>
+          {withheld && <p>{s.incomplete}</p>}
+          {review?.paragraphs?.map((copy, index) => (
+            <p key={index}>{showCopy(copy) || s.missingLang}</p>
           ))}
-        </ul>
-      )}
-      <form
-        className="mt-6"
-        onSubmit={event => {
-          event.preventDefault();
-          if (!report.trim()) return;
-          setReports(items => [{ guideId: guide.id, note: report.trim().slice(0, 500), at: new Date().toISOString() }, ...items].slice(0, 30));
-          setReport('');
-          setReported(true);
-        }}
-      >
-        <label className="block text-sm">
-          {s.report}
-          <textarea value={report} onChange={event => setReport(event.target.value)} rows={3} className={`${control} mt-1 w-full`} />
-        </label>
-        <p className="mt-1 text-xs text-dd-ink/60">{s.reportHint}</p>
-        <button type="submit" className="mt-2 min-h-11 rounded-full bg-white px-4 text-sm">
-          {s.save}
-        </button>
-        {reported && <p className="mt-2 text-sm">{s.reportSaved}</p>}
-      </form>
+          <div className="flex flex-wrap gap-2">
+            {(['book', 'plain'] as const).map(mode => (
+              <button key={mode} type="button" className={`min-h-11 rounded-full px-4 ${prefs.mode === mode ? 'bg-dd-emerald text-dd-ivory' : 'bg-white'}`} onClick={() => setPrefs({ ...prefs, mode })}>
+                {s[mode]}
+              </button>
+            ))}
+            <button type="button" className="min-h-11 rounded-full bg-white px-4" onClick={() => setPrefs({ ...prefs, font: (prefs.font + 1) % FONTS.length })} aria-label={s.font}>
+              {s.font}
+            </button>
+            {prefs.mode === 'book' && (
+              <button type="button" className="min-h-11 rounded-full bg-white px-4" aria-pressed={prefs.border} onClick={() => setPrefs({ ...prefs, border: !prefs.border })}>
+                {s.illuminated}
+              </button>
+            )}
+            <button type="button" className="min-h-11 rounded-full bg-white px-4" onClick={() => setFocus(true)}>
+              {s.focus}
+            </button>
+            <button type="button" className="min-h-11 rounded-full bg-white px-4" aria-pressed={english} onClick={() => setEnglish(value => !value)}>
+              {s.showEnglish}
+            </button>
+          </div>
+          <label className="block">
+            {s.inArticle}
+            <input value={query} onChange={event => setQuery(event.target.value)} className={`${control} mt-1 w-full`} />
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="min-h-11 rounded-full bg-dd-emerald px-4 text-dd-ivory"
+              onClick={() => setBookmarks(items => (saved ? items.filter(item => item.guideId !== guide.id) : [{ guideId: guide.id, section: anchor || 'overview' }, ...items]))}
+            >
+              {saved ? s.bookmarked : s.bookmark}
+            </button>
+            <button
+              type="button"
+              className="min-h-11 rounded-full bg-white px-4"
+              onClick={() => setProgress(items => (items.some(item => item.guideId === guide.id) ? items : [{ guideId: guide.id, section: anchor || 'overview' }, ...items]))}
+            >
+              {progress.some(item => item.guideId === guide.id) ? s.markedRead : s.markRead}
+            </button>
+            <button type="button" className="min-h-11 rounded-full bg-white px-4" onClick={() => void copyRef()}>
+              {copied ? s.copied : s.copyRef}
+            </button>
+          </div>
+          <form
+            onSubmit={event => {
+              event.preventDefault();
+              if (!report.trim()) return;
+              setReports(items => [{ guideId: guide.id, note: report.trim().slice(0, 500), at: new Date().toISOString() }, ...items].slice(0, 30));
+              setReport('');
+              setReported(true);
+            }}
+          >
+            <label className="block">
+              {s.report}
+              <textarea value={report} onChange={event => setReport(event.target.value)} rows={3} className={`${control} mt-1 w-full`} />
+            </label>
+            <p className="mt-1 text-xs text-dd-ink/60">{s.reportHint}</p>
+            <button type="submit" className="mt-2 min-h-11 rounded-full bg-white px-4">
+              {s.save}
+            </button>
+            {reported && <p className="mt-2">{s.reportSaved}</p>}
+          </form>
+        </div>
+      </details>
     </article>
   );
 
@@ -213,6 +239,46 @@ export function GuideView({ segments, anchor }: { segments: string[]; anchor?: s
         </div>
       ) : (
         body
+      )}
+    </div>
+  );
+}
+
+function Testimony({ section, english, show }: { section: GuideSection; english: boolean; show: (copy: Copy) => string }) {
+  const { lang, s } = useSp();
+  return (
+    <div id="sec-meaning" className="scroll-mt-28">
+      <div className="mt-14 space-y-14 sm:mt-20 sm:space-y-20">
+        {section.arabic && (
+          <p lang="ar" className="text-center text-4xl leading-[2.6] text-dd-ink sm:text-5xl">
+            {section.arabic}
+          </p>
+        )}
+        {section.transliteration && (
+          <p className="mx-auto max-w-xl text-center text-lg leading-relaxed">
+            <span className="mb-4 block text-xs font-semibold uppercase tracking-[0.18em] text-dd-ink/60">{s.translitLabel}</span>
+            {section.transliteration}
+          </p>
+        )}
+        {section.meanings && (
+          <div className="mx-auto max-w-xl text-center">
+            <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-dd-ink/60">{s.meaningLabel}</h2>
+            <p lang={english && lang !== 'en' ? 'en' : lang} className="mt-6 text-xl leading-relaxed">
+              {show(section.meanings) || s.missingLang}
+            </p>
+            <p className="mt-8 text-sm text-dd-ink/60">{s.editionUnset}</p>
+            <p className="mt-2 text-sm text-dd-ink/60">{s.audioMissing}</p>
+          </div>
+        )}
+      </div>
+      {section.paragraphs && section.paragraphs.length > 0 && (
+        <div className="mx-auto mt-12 max-w-xl space-y-4">
+          {section.paragraphs.map((copy, index) => (
+            <p key={index} className="leading-relaxed" lang={english && lang !== 'en' ? 'en' : lang}>
+              {show(copy) || s.missingLang}
+            </p>
+          ))}
+        </div>
       )}
     </div>
   );
