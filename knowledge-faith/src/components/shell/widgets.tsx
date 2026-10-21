@@ -188,7 +188,7 @@ export function PronunciationControl() {
     <div className="flex flex-col gap-1 text-xs font-medium text-muted">
       <label className="flex flex-col gap-1">
         {t.pronunciation}
-        <select value={pronunciation} onChange={event => select(event.target.value)} className="rounded-xl border border-pine/20 bg-parchment px-3 py-2 text-sm font-normal text-ink">
+        <select id="kf-pronunciation" value={pronunciation} onChange={event => select(event.target.value)} className="rounded-xl border border-pine/20 bg-parchment px-3 py-2 text-sm font-normal text-ink">
           <option value="off">{t.pronunciationOff}</option>
           <option value="en">English</option>
           <option value="ta" disabled>
