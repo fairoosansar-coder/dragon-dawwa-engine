@@ -57,7 +57,7 @@ export const HADITH_THEME_CATEGORIES: HadithThemeCategory[] = [
     id: 'fasting_worship',
     name: {
       en: 'Fasting & Ritual Worship',
-      ta: 'நோன்பு மற்றும் வணக்கம் (ஸவ்ம்)',
+      ta: 'நோன்பு மற்றும் இபாதத் (ஸவ்ம்)',
       si: 'උපවාසය සහ වන්දනා (සව්ම්)'
     },
     color: '#f59e0b', // amber

@@ -36,12 +36,45 @@ const BENCHMARK_ALIASES: Record<string, string> = {
 const READER: UserAccount = {
   user_id: 'kf-reader',
   email: '',
-  display_name: 'Knowledge & Faith reader',
+  display_name: 'DRAGON DAWWA reader',
   profile_pic: '',
   preferred_language: 'en',
   created_at: new Date(0).toISOString(),
-  badge: 'UmmaConnect · Knowledge & Faith',
+  badge: 'DRAGON DAWWA · Aegis Intelligence',
 };
+
+async function waitForResearch(id: string, signal: AbortSignal): Promise<DragonDawwaAnalysis> {
+  if (!id) throw new Error('Research did not start. Please retry.');
+  const deadline = Date.now() + 240_000;
+  while (Date.now() < deadline) {
+    await new Promise<void>((resolve, reject) => {
+      if (signal.aborted) {
+        reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+        return;
+      }
+      const timer = setTimeout(resolve, 2000);
+      signal.addEventListener(
+        'abort',
+        () => {
+          clearTimeout(timer);
+          reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+        },
+        { once: true },
+      );
+    });
+    const poll = await fetch(`/api/analyze/${encodeURIComponent(id)}`, { signal, cache: 'no-store' });
+    const body = (await poll.json().catch(() => ({}))) as {
+      status?: string;
+      error?: string;
+      analysis?: DragonDawwaAnalysis;
+    };
+    if (poll.status === 504 || poll.status === 502) continue;
+    if (!poll.ok) throw new Error(typeof body.error === 'string' ? body.error : `Research failed (${poll.status})`);
+    if (body.status === 'done' && body.analysis) return body.analysis;
+    if (body.status === 'error') throw new Error(body.error || 'Live research failed. Please retry.');
+  }
+  throw new Error('Research timed out. Please retry.');
+}
 
 function presetMatn(preset: SampleHadithPreset, lang: Lang): string {
   return LOCALIZED_MATN[preset.id]?.[lang] ?? preset.hadith_text;
@@ -148,13 +181,24 @@ export function DossierProvider({ children }: { children: ReactNode }) {
       try {
         const res = await fetch('/api/analyze', {
           method: 'POST',
-          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(180_000)]),
+          signal: controller.signal,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ hadith_input: nextMatn, isnad_input: nextIsnad, preferred_language: lang }),
         });
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(typeof body.error === 'string' ? body.error : `Research failed (${res.status})`);
-        setAnalysis(body as DragonDawwaAnalysis);
+        const body = (await res.json().catch(() => ({}))) as { id?: string; error?: string; agent_6_synthesis?: unknown };
+        if (!res.ok) {
+          throw new Error(
+            typeof body.error === 'string'
+              ? body.error
+              : res.status === 504
+                ? 'Research was cut off by the connection (504). Restart the dev server and try again.'
+                : `Research failed (${res.status})`,
+          );
+        }
+        const analysis = body.agent_6_synthesis
+          ? (body as DragonDawwaAnalysis)
+          : await waitForResearch(String(body.id ?? ''), controller.signal);
+        setAnalysis(analysis);
         setStep('overview');
         setUrlParams(p => {
           p.delete('preset');
@@ -188,7 +232,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
     const s = analysis.agent_6_synthesis;
     const quote = analysis.query_hadith.length > 140 ? `${analysis.query_hadith.slice(0, 140)}…` : analysis.query_hadith;
     const data = {
-      title: `Knowledge & Faith: ${s.final_status} (${s.purity_confidence_score}%)`,
+      title: `DRAGON DAWWA: ${s.final_status} (${s.purity_confidence_score}%)`,
       text: `Hadith research report\nAuthenticity: ${s.final_status}\nPurity score: ${s.purity_confidence_score}%\n\n"${quote}"`,
       url: url.toString(),
     };
@@ -206,7 +250,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
   const copyReport = useCallback(async () => {
     const s = analysis.agent_6_synthesis;
     const text = [
-      '# HADITH RESEARCH REPORT · Knowledge & Faith',
+      '# HADITH RESEARCH REPORT · DRAGON DAWWA',
       `Status: ${s.final_status}`,
       `Purity confidence score: ${s.purity_confidence_score}%`,
       '',

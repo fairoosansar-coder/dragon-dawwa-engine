@@ -1,12 +1,13 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { ViewProps } from '../App.tsx';
-import { Download, Mic, Radio, Sparkles, Trash2 } from 'lucide-react';
+import { Download, Mic, Pause, Play, Radio, Sparkles, Trash2 } from 'lucide-react';
 import type { PodcastScript, TtsResult, Verse } from '../shared/types.ts';
 import { getJson, postJson } from '../lib/api.ts';
 import { base64ToObjectUrl, pauseAudio } from '../lib/audio.ts';
 import { useApp, useStored } from '../lib/store.tsx';
 import { CitationChips, EvidenceList } from '../components/cards.tsx';
 import { Button, Card, ErrorNote, IconButton, Loading, Notice, SectionTitle, Select, TabLinks } from '../components/ui.tsx';
+import { useEpisodePlayback } from './useEpisodePlayback.ts';
 
 function GeneratedAudio({ audio, filename }: { audio: TtsResult; filename: string }) {
   const { t } = useApp();
@@ -37,9 +38,9 @@ function EpisodeBuilder() {
   const [hostVoice, setHostVoice] = useStored('kf-host-voice', 'Kore');
   const [guestVoice, setGuestVoice] = useStored('kf-guest-voice', 'Charon');
   const [current, setCurrent] = useState<PodcastScript | null>(null);
-  const [audio, setAudio] = useState<TtsResult | null>(null);
-  const [busy, setBusy] = useState<'script' | 'audio' | null>(null);
+  const [busy, setBusy] = useState<'script' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const playback = useEpisodePlayback(current?.lines ?? [], hostVoice, guestVoice, current?.id ?? '');
   const disabled = config ? !config.ai : false;
   const hasSaved = saved.verses.length + saved.hadith.length > 0;
 
@@ -48,7 +49,6 @@ function EpisodeBuilder() {
     if (!topic.trim() || busy) return;
     setBusy('script');
     setError(null);
-    setAudio(null);
     try {
       const script = await postJson<PodcastScript>('/api/podcast/script', {
         topic,
@@ -65,20 +65,13 @@ function EpisodeBuilder() {
     }
   }
 
-  async function makeAudio() {
-    if (!current || busy) return;
-    setBusy('audio');
-    setError(null);
-    try {
-      setAudio(await postJson<TtsResult>('/api/voice/dialogue', { lines: current.lines, hostVoice, guestVoice }));
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(null);
-    }
-  }
-
   const cited = useMemo(() => new Set(current?.lines.flatMap(l => l.citations) ?? []), [current]);
+  const activeLine = playback.activeLines[0];
+
+  useEffect(() => {
+    if (activeLine === undefined) return;
+    document.getElementById(`episode-line-${activeLine}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [activeLine]);
 
   return (
     <>
@@ -137,17 +130,31 @@ function EpisodeBuilder() {
             <div className="flex flex-wrap items-end gap-2">
               <Select label={t.hostVoice} value={hostVoice} onChange={setHostVoice} options={voices} />
               <Select label={t.guestVoice} value={guestVoice} onChange={setGuestVoice} options={voices} />
-              <Button onClick={makeAudio} disabled={disabled || busy !== null}>
-                <Mic className="h-4 w-4" aria-hidden /> {busy === 'audio' ? t.generating : t.generateAudio}
+              <Button onClick={playback.toggle} disabled={disabled || busy !== null || playback.chunkCount === 0}>
+                {playback.phase === 'idle' ? <Play className="h-4 w-4" aria-hidden /> : <Pause className="h-4 w-4" aria-hidden />}
+                {playback.phase === 'playing' ? t.pauseEpisode : playback.phase === 'loading' ? t.loadingFirstLines : t.playEpisode}
               </Button>
             </div>
           </div>
-          {busy === 'audio' && <Loading label={t.generating} />}
-          {audio && <GeneratedAudio audio={audio} filename={`${current.title.replace(/[^\w-]+/g, '-')}.wav`} />}
+          {playback.phase === 'loading' && <Loading label={t.loadingFirstLines} />}
+          {playback.phase === 'playing' && playback.index < playback.chunkCount - 1 && (
+            <p className="mt-3 text-sm text-pine" role="status">
+              {t.loadingNextLines}
+            </p>
+          )}
+          {playback.error && (
+            <div className="mt-4">
+              <ErrorNote message={playback.error} />
+            </div>
+          )}
           <div className="mt-6 grid gap-6 lg:grid-cols-[3fr_2fr]">
             <ol className="space-y-3">
               {current.lines.map((l, i) => (
-                <li key={i} className="flex gap-3">
+                <li
+                  key={i}
+                  id={`episode-line-${i}`}
+                  className={`flex gap-3 rounded-2xl p-2 ${playback.activeLines.includes(i) ? 'bg-mint/80 ring-1 ring-pine/20' : ''}`}
+                >
                   <span
                     className={`mt-0.5 h-fit shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${l.speaker === 'Host' ? 'bg-pine text-white' : 'bg-gold/20 text-ink'}`}
                   >
@@ -180,7 +187,6 @@ function EpisodeBuilder() {
                   type="button"
                   onClick={() => {
                     setCurrent(ep);
-                    setAudio(null);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
                   className="flex-1 text-left"

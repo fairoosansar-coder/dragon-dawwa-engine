@@ -25,6 +25,7 @@ import {
   Share2
 } from 'lucide-react';
 import { audioStudio, StudioFxType } from '../utils/audioStudio';
+import { withoutVanakkam } from '../utils/tamilGreeting';
 import { cancelBrowserSpeech } from '../utils/browserVoice';
 
 interface PodcastScriptPlayerProps {
@@ -217,9 +218,10 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
 
   // Parse structured script lines into dialogues and audio cues
   const dialogueItems: DialogueItem[] = React.useMemo(() => {
-    if (!script) return [];
+    const spokenScript = withoutVanakkam(script);
+    if (!spokenScript) return [];
 
-    const rawBlocks = script.split('\n').filter((l) => l.trim().length > 0);
+    const rawBlocks = spokenScript.split('\n').filter((l) => l.trim().length > 0);
     const result: DialogueItem[] = [];
 
     for (let i = 0; i < rawBlocks.length; i++) {
