@@ -44,6 +44,8 @@ test('the pilot keeps verified passages and an honest limit', () => {
   assert.deepEqual(current?.map(claim => claim.id), ['h4560']);
   const aboutIntention = claimsForQuestion('What does this say about intentions?', [habit], [intention, explanation]);
   assert.deepEqual(aboutIntention?.map(claim => claim.id), ['h4560']);
+  const tamil = { ...intention, text: 'செயல்கள் அனைத்தும் எண்ணங்களைப் பொருத்தே அமைகின்றன.' };
+  assert.deepEqual(claimsForQuestion('What does this say about intentions?', [tamil], [], [tamil])?.map(claim => claim.id), ['h4560']);
   assert.equal(claimsForQuestion('What is the population of Tokyo?', [intention, habit], []), null);
   const quotes = quotationParagraphs(aboutIntention ?? []);
   assert.equal(quotes[0].role, 'quotation');

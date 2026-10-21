@@ -62,6 +62,8 @@ const STOP = new Set([
   'should', 'hadith', 'quran', 'verse', 'passage', 'say', 'says', 'said',
 ]);
 
+const POINTER = new Set(['this', 'that', 'here', 'explain', 'meaning', 'mean', 'means']);
+
 export function contentTokens(question: string): string[] {
   return question
     .toLowerCase()
@@ -69,19 +71,44 @@ export function contentTokens(question: string): string[] {
     .filter(token => token.length >= 3 && !STOP.has(token));
 }
 
-/** Claims whose wording contains the question, or the current passage when the question only points at it. */
-export function claimsForQuestion(question: string, current: PilotClaim[], retrieved: PilotClaim[]): PilotClaim[] | null {
+export function pointsAtPassage(question: string): boolean {
+  return question
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .some(token => POINTER.has(token));
+}
+
+function readable(claims: PilotClaim[]): PilotClaim[] {
+  const seen = new Set<string>();
+  return claims.filter(claim => {
+    if (claim.role === 'explanation' || seen.has(claim.id)) return false;
+    seen.add(claim.id);
+    return true;
+  });
+}
+
+/** Claims whose wording contains the question, or the passage being heard when the question points at it. */
+export function claimsForQuestion(
+  question: string,
+  current: PilotClaim[],
+  retrieved: PilotClaim[],
+  playing: PilotClaim[] = current,
+): PilotClaim[] | null {
   const tokens = contentTokens(question);
-  const pool = tokens.length === 0 ? current : [...current, ...retrieved];
-  const support = pool.filter(claim => {
-    if (claim.role === 'explanation') return false;
-    if (tokens.length === 0) return true;
+  if (tokens.length === 0) {
+    const local = readable(current);
+    return local.length ? local : null;
+  }
+  const hits = readable([...current, ...retrieved]).filter(claim => {
     const hay = `${claim.label}\n${claim.text}`.toLowerCase();
     return tokens.some(token => hay.includes(token));
   });
-  if (!support.length) return null;
-  const seen = new Set<string>();
-  return support.filter(claim => (seen.has(claim.id) ? false : (seen.add(claim.id), true)));
+  if (hits.length) return hits;
+  if (pointsAtPassage(question)) {
+    const local = readable(playing);
+    return local.length ? local : null;
+  }
+  return null;
 }
 
 export function sourcesForSupport(support: PilotClaim[], all: PilotClaim[]): PilotClaim[] {

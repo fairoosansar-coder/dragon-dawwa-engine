@@ -10,6 +10,7 @@ import {
   PILOT_VERSES,
   claimsForQuestion,
   contentTokens,
+  pointsAtPassage,
   quotationParagraphs,
   sourcesForSupport,
   type PilotAnswer,
@@ -140,7 +141,8 @@ export async function askPilot(question: string, lang: Lang, chapterId: string):
   const episode = await loadPilotEpisode(lang);
   const episodeClaims = episode.chapters.flatMap(chapter => chapter.claims);
   const currentChapter = episode.chapters.find(chapter => chapter.id === chapterId) ?? episode.chapters[0];
-  const current = contentTokens(question).length === 0 ? (currentChapter?.claims ?? episodeClaims) : episodeClaims;
+  const playing = currentChapter?.claims ?? episodeClaims;
+  const current = contentTokens(question).length === 0 ? playing : episodeClaims;
   let retrieved: PilotClaim[] = [];
   let searchError: string | null = null;
   if (!claimsForQuestion(question, current, [])) {
@@ -157,7 +159,8 @@ export async function askPilot(question: string, lang: Lang, chapterId: string):
       searchError = gapMessage(err);
     }
   }
-  const support = claimsForQuestion(question, current, retrieved);
+  const matched = claimsForQuestion(question, current, retrieved, playing);
+  const support = matched ?? (pointsAtPassage(question) ? claimsForQuestion('', playing, []) : null);
   if (!support) {
     if (searchError) throw new UpstreamError(searchError, 502);
     return {
