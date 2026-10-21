@@ -24,7 +24,7 @@ const NAV: NavItem[] = [
   { path: 'studio', href: '#/studio', short: 'navListen', icon: Mic },
 ];
 
-export function AppFrame({ path, section, children }: { path: RouteRoot; section: string; children: ReactNode }) {
+export function AppFrame({ path, section, showSearch, children }: { path: RouteRoot; section: string; showSearch: boolean; children: ReactNode }) {
   const { t, lang, setLang } = useApp();
   const { focus, setFocus } = useShell();
   const audio = useAudioState();
@@ -91,16 +91,22 @@ export function AppFrame({ path, section, children }: { path: RouteRoot; section
                 </select>
               </label>
             </div>
-            <div className="px-4 pb-3">
-              <SearchField />
-            </div>
+            {showSearch && (
+              <div className="px-4 pb-3">
+                <SearchField />
+              </div>
+            )}
           </header>
         )}
         {!focus && (
           <div className="hidden shrink-0 items-center gap-4 border-b border-pine/10 bg-sand px-6 py-3 lg:flex">
             <p className="shrink-0 font-display text-lg font-bold text-pine">{section}</p>
-            <div className="h-6 w-px bg-gold/70" aria-hidden />
-            <SearchField className="max-w-md flex-1" />
+            {showSearch && (
+              <>
+                <div className="h-6 w-px bg-gold/70" aria-hidden />
+                <SearchField className="max-w-md flex-1" />
+              </>
+            )}
             <label className="ml-auto flex items-center gap-2 text-xs text-muted">
               <span>{t.language}</span>
               <select value={lang} onChange={event => setLang(toLang(event.target.value))} className="rounded-full border border-pine/20 bg-parchment px-3 py-1.5 text-sm text-ink">

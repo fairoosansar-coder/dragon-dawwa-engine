@@ -3,7 +3,8 @@ import type { ViewProps } from '../App.tsx';
 import { Download, Mic, Pause, Play, Radio, Sparkles, Trash2 } from 'lucide-react';
 import type { PodcastScript, TtsResult, Verse } from '../shared/types.ts';
 import { getJson, postJson } from '../lib/api.ts';
-import { base64ToObjectUrl, pauseAudio } from '../lib/audio.ts';
+import { base64ToObjectUrl, stopAudio } from '../lib/audio.ts';
+import { scrollMain } from '../lib/scroll.ts';
 import { useShell } from '../lib/shell.tsx';
 import { useApp, useStored } from '../lib/store.tsx';
 import { CitationChips, EvidenceList } from '../components/cards.tsx';
@@ -17,7 +18,7 @@ function GeneratedAudio({ audio, filename }: { audio: TtsResult; filename: strin
   useEffect(() => () => URL.revokeObjectURL(url), [url]);
   return (
     <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl bg-mint/60 p-3">
-      <audio controls src={url} onPlay={pauseAudio} className="min-w-0 flex-1" />
+      <audio controls src={url} onPlay={stopAudio} className="min-w-0 flex-1" />
       <a href={url} download={filename} className="inline-flex items-center gap-1 text-sm font-medium text-pine hover:underline">
         <Download className="h-4 w-4" aria-hidden /> {t.download}
       </a>
@@ -194,7 +195,7 @@ function EpisodeBuilder() {
                   type="button"
                   onClick={() => {
                     setCurrent(ep);
-                    window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+                    scrollMain();
                   }}
                   className="flex-1 text-left"
                 >

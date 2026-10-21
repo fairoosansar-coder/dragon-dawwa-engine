@@ -133,6 +133,7 @@ function CollectionBrowser() {
     <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
       <Card className="lg:p-4">
         <h2 className="font-display text-xl font-bold text-pine">{t.collections}</h2>
+        {collections.length === 0 && <EmptyState>{t.noResults}</EmptyState>}
         <ul className="mt-3 space-y-1">
           {collections.map(c => (
             <li key={c.id}>
@@ -179,7 +180,6 @@ function CollectionBrowser() {
             {index.loading && <Loading />}
             {index.error && <ErrorNote message={index.error} onRetry={index.reload} />}
             {!index.loading && !index.error && sections.length === 0 && <EmptyState>{t.noResults}</EmptyState>}
-            {collections.length === 0 && <EmptyState>{t.noResults}</EmptyState>}
             <ul className="grid gap-2 sm:grid-cols-2">
               {sections.map(s => (
                 <li key={s.id}>

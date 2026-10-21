@@ -14,11 +14,13 @@ export function VerseCard({
   onEnded,
   compact,
   scale = 'md',
+  selected = false,
 }: {
   verse: Verse;
   onEnded?: () => void;
   compact?: boolean;
   scale?: 'sm' | 'md' | 'lg';
+  selected?: boolean;
 }) {
   const { t, toggleVerse, isVerseSaved } = useApp();
   const [reciter] = useReciter();
@@ -28,7 +30,10 @@ export function VerseCard({
   const saved = isVerseSaved(verse.key);
 
   return (
-    <article id={`v-${verse.key.replace(':', '-')}`} className={`border-b border-pine/10 last:border-0 ${compact ? 'py-3' : 'py-5'}`}>
+    <article
+      id={`v-${verse.key.replace(':', '-')}`}
+      className={`border-b border-pine/10 last:border-0 ${compact ? 'py-3' : 'py-5'} ${selected ? 'rounded-2xl bg-gold/15 px-2' : ''}`}
+    >
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="rounded-full bg-mint px-3 py-1 text-xs font-semibold text-pine">
           {verse.surahName} · {verse.key}
@@ -48,7 +53,7 @@ export function VerseCard({
       <p lang="ar" className={`arabic text-ink ${compact ? 'text-2xl' : scale === 'lg' ? 'text-4xl' : scale === 'sm' ? 'text-2xl' : 'text-3xl'}`}>
         {verse.arabic}
       </p>
-      <p lang={verse.lang} className={`mt-2 leading-relaxed text-ink/90 ${scale === 'lg' ? 'text-lg' : scale === 'sm' ? 'text-sm' : ''}`}>
+      <p lang={verse.lang} className={`mt-2 leading-relaxed text-ink/90 ${scale === 'lg' ? 'text-xl' : scale === 'sm' ? 'text-sm' : ''}`}>
         {verse.translation}
       </p>
       <p className="mt-1 text-xs text-ink/50">{verse.translator}</p>

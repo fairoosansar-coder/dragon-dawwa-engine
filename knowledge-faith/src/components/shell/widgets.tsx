@@ -1,7 +1,8 @@
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Bookmark, BookmarkCheck, Search } from 'lucide-react';
 import { RubElHizb } from '../../engine/ds/ornaments.tsx';
 import { useRemote } from '../../lib/api.ts';
+import { prayerQueryDate } from '../../lib/prayerClock.ts';
 import { pauseAudio, resumeAudio, useAudioState, type AudioStatus } from '../../lib/audio.ts';
 import { useShell } from '../../lib/shell.tsx';
 import { useApp, useStored } from '../../lib/store.tsx';
@@ -40,11 +41,6 @@ export function SearchField({ className = '' }: { className?: string }) {
   );
 }
 
-function deviceDate(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-}
-
 /** Next prayer from the saved place only. Without a place, this is a link to set one. */
 export function PrayerStrip() {
   const { t } = useApp();
@@ -53,19 +49,38 @@ export function PrayerStrip() {
   const [school] = useStored<number>('kf-school', 0);
   const [latAdj] = useStored<number>('kf-lat-adj', 0);
   const [offsets] = useStored<PrayerOffsets>('kf-prayer-offsets', {});
+  const [now, setNow] = useState(() => new Date());
+  const [timeZone, setTimeZone] = useState<string | null>(null);
+  useEffect(() => {
+    const tick = () => setNow(new Date());
+    const timer = window.setInterval(tick, 30_000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') tick();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
+  const date = prayerQueryDate(now, timeZone);
   const url = place
-    ? `/api/prayer?lat=${place.lat}&lng=${place.lng}&method=${method}&school=${school}&date=${deviceDate()}&latAdj=${latitudeAdjustmentId(latAdj)}`
+    ? `/api/prayer?lat=${place.lat}&lng=${place.lng}&method=${method}&school=${school}${date ? `&date=${date}` : ''}&latAdj=${latitudeAdjustmentId(latAdj)}`
     : null;
   const remote = useRemote<PrayerDay>(url);
+  useEffect(() => {
+    const nextZone = remote.data?.timezone;
+    if (nextZone && nextZone !== timeZone) setTimeZone(nextZone);
+  }, [remote.data, timeZone]);
   const upcoming = useMemo(() => {
     if (!remote.data) return null;
     const timings = applyPrayerOffsets(remote.data.timings, offsets);
     const next = nextPrayer(
       { Fajr: timings.Fajr, Dhuhr: timings.Dhuhr, Asr: timings.Asr, Maghrib: timings.Maghrib, Isha: timings.Isha },
-      minutesInZone(new Date(), remote.data.timezone),
+      minutesInZone(now, remote.data.timezone),
     );
     return { name: next.name, time: timings[next.name] };
-  }, [remote.data, offsets]);
+  }, [remote.data, offsets, now]);
 
   if (!place) {
     return (

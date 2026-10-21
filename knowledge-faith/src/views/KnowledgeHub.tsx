@@ -5,6 +5,7 @@ import { TOPICS, verseOfTheDay } from '../shared/topics.ts';
 import type { AskResult, Hadith, SurahInfo, Verse } from '../shared/types.ts';
 import { postJson, useRemote } from '../lib/api.ts';
 import { useShell } from '../lib/shell.tsx';
+import { useReadingPlace } from '../lib/readingPlace.ts';
 import { useApp, useStored } from '../lib/store.tsx';
 import { CitationChips, EvidenceList, HadithCard, VerseCard } from '../components/cards.tsx';
 import { EmptyState, FeatureCard, PrayerStrip } from '../components/shell/widgets.tsx';
@@ -162,7 +163,8 @@ function ScholarDraft({ focus }: { focus: boolean }) {
 export default function KnowledgeHub({ sub }: ViewProps) {
   const { t, lang, saved } = useApp();
   const { query } = useShell();
-  const [surah] = useStored<number>('kf-last-surah', 1);
+  const [place] = useReadingPlace();
+  const surah = place.surah;
   const surahs = useRemote<SurahInfo[]>('/api/quran/surahs');
   const [topicId, setTopicId] = useState<string | null>(null);
   const topic = TOPICS.find(item => item.id === topicId);
@@ -198,6 +200,9 @@ export default function KnowledgeHub({ sub }: ViewProps) {
           <a href="#/quran" className="inline-flex items-center rounded-full bg-moss px-4 py-2 text-sm font-medium text-white">
             {t.openQuran}
           </a>
+          <a href="#/hub/saved" className="inline-flex items-center rounded-full border border-gold px-4 py-2 text-sm font-medium text-sand lg:hidden">
+            {t.sidebarSaved}
+          </a>
           <a href="#/studio" className="inline-flex items-center rounded-full border border-gold px-4 py-2 text-sm font-medium text-sand">
             {t.listen}
           </a>
@@ -221,7 +226,7 @@ export default function KnowledgeHub({ sub }: ViewProps) {
         <p className="font-display text-2xl font-bold text-pine">{current ? current.englishName : `${surah}`}</p>
         {current && (
           <p className="mt-1 text-sm text-muted">
-            {current.number} · {current.englishNameTranslation} · {current.numberOfAyahs}
+            {current.number}:{place.ayah} · {current.englishNameTranslation} · {current.numberOfAyahs}
           </p>
         )}
         <a href="#/quran/study" className="mt-4 inline-flex items-center rounded-full bg-moss px-4 py-2 text-sm font-medium text-white">

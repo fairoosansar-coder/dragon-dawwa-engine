@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type ComponentType } from 'react';
-import { parseHash, type RouteRoot } from './lib/route.ts';
+import { parseHash, showSectionSearch, type RouteRoot } from './lib/route.ts';
 import { ShellProvider, useShell } from './lib/shell.tsx';
 import { AppProvider, useApp } from './lib/store.tsx';
 import type { Strings } from './lib/i18n.ts';
@@ -78,7 +78,7 @@ function Shell() {
   }, [route, t, location.path]);
 
   return (
-    <AppFrame path={location.path} section={t[route.label]}>
+    <AppFrame path={location.path} section={t[route.label]} showSearch={showSectionSearch(location.path, location.segments)}>
       <Suspense fallback={<Loading />}>
         <View sub={location.segments[0]} segments={location.segments} />
       </Suspense>

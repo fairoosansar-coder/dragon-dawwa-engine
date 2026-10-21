@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, List } from 'lucide-react';
 import type { ViewProps } from '../App.tsx';
-import { pauseAudio, playAudio } from '../lib/audio.ts';
+import { playAudio, stopAudio } from '../lib/audio.ts';
 import { useRemote } from '../lib/api.ts';
+import { ayahForLoadedSurah, clampSurah, readTextSize, useReadingPlace, type TextSize } from '../lib/readingPlace.ts';
+import { scrollBehavior, scrollMain } from '../lib/scroll.ts';
 import { useShell } from '../lib/shell.tsx';
 import { useApp, useStored } from '../lib/store.tsx';
 import { recitationUrl } from '../shared/sources.ts';
@@ -15,30 +17,38 @@ import { Button, Card, ErrorNote, IconButton, Loading, TabLinks } from '../compo
 const BISMILLAH = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ';
 
 type ReadMode = 'study' | 'book';
-type TextSize = 'sm' | 'md' | 'lg';
 
 const ARABIC_SIZE: Record<TextSize, string> = { sm: 'text-2xl', md: 'text-3xl', lg: 'text-4xl' };
 const BODY_SIZE: Record<TextSize, string> = { sm: 'text-base', md: 'text-lg', lg: 'text-xl' };
 
-function prefersReducedMotion(): boolean {
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
 export default function QuranReader({ sub }: ViewProps) {
-  const [surah, setSurah] = useStored<number>('kf-last-surah', 1);
-  const [ayah, setAyah] = useState(1);
-  const [textSize, setTextSize] = useState<TextSize>('md');
+  const [place, setPlace] = useReadingPlace();
+  const surah = place.surah;
+  const [ayah, setAyah] = useState(place.ayah);
+  const [storedSize, setStoredSize] = useStored<unknown>('kf-text-size', 'md');
+  const textSize = readTextSize(storedSize);
+  const setTextSize = (size: TextSize) => setStoredSize(size);
   const [reciter, setReciter] = useReciter();
   const { setFocus } = useShell();
   const mode: 'library' | ReadMode = sub === 'book' ? 'book' : sub === 'study' ? 'study' : 'library';
+
+  const setSurah = useCallback((number: number) => {
+    const next = clampSurah(number);
+    setPlace(prev => (prev.surah === next ? prev : { ...prev, surah: next }));
+  }, [setPlace]);
+
+  useEffect(() => {
+    if (ayah < 1) return;
+    setPlace(prev => (prev.surah === surah && prev.ayah === ayah ? prev : { ...prev, ayah }));
+  }, [ayah, surah, setPlace]);
 
   useEffect(() => {
     if (mode === 'library') setFocus(false);
   }, [mode, setFocus]);
 
   const open = (number: number, verse = 1, next: ReadMode = 'study') => {
-    pauseAudio();
-    setSurah(Math.min(Math.max(number, 1), 114));
+    stopAudio();
+    setSurah(number);
     setAyah(Math.max(verse, 1));
     window.location.hash = `#/quran/${next}`;
   };
@@ -56,8 +66,9 @@ export default function QuranReader({ sub }: ViewProps) {
         textSize={textSize}
         onTextSize={setTextSize}
         reciter={reciter}
+        ayah={ayah}
         onReciter={id => {
-          pauseAudio();
+          stopAudio();
           setReciter(id);
         }}
         onOpen={open}
@@ -76,7 +87,7 @@ export default function QuranReader({ sub }: ViewProps) {
       onTextSize={setTextSize}
       reciter={reciter}
       onReciter={id => {
-        pauseAudio();
+        stopAudio();
         setReciter(id);
       }}
       onMode={onMode}
@@ -86,6 +97,7 @@ export default function QuranReader({ sub }: ViewProps) {
 
 function Library({
   surah,
+  ayah,
   tab,
   textSize,
   onTextSize,
@@ -94,6 +106,7 @@ function Library({
   onOpen,
 }: {
   surah: number;
+  ayah: number;
   tab: 'surahs' | 'bookmarks';
   textSize: TextSize;
   onTextSize: (size: TextSize) => void;
@@ -132,10 +145,10 @@ function Library({
         <h3 className="mt-2 font-display text-2xl font-bold text-pine">{current ? current.englishName : `${t.surahs} ${surah}`}</h3>
         {current && (
           <p className="mt-1 text-sm text-muted">
-            {current.number} · {current.englishNameTranslation} · {current.numberOfAyahs}
+            {current.number}:{ayah} · {current.englishNameTranslation} · {current.numberOfAyahs}
           </p>
         )}
-        <Button className="mt-4" onClick={() => onOpen(surah, 1, prefer)}>
+        <Button className="mt-4" onClick={() => onOpen(surah, ayah, prefer)}>
           {t.continueReading}
         </Button>
       </Card>
@@ -235,32 +248,31 @@ function Edition({
   const [contents, setContents] = useState(false);
   const reader = useRemote<{ info: SurahInfo; verses: Verse[] }>(`/api/quran/surah/${surah}?lang=${lang}`);
   const surahs = useRemote<SurahInfo[]>('/api/quran/surahs');
-  const verses = reader.data?.verses ?? [];
+  const loaded = reader.data?.info.number === surah ? reader.data : null;
+  const verses = loaded?.verses ?? [];
   const versesRef = useRef(verses);
   versesRef.current = verses;
   const touch = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
-    const count = reader.data?.info.numberOfAyahs;
-    if (!count) return;
-    if (ayah < 1) setAyah(count);
-    else if (ayah > count) setAyah(count);
-  }, [reader.data, ayah, setAyah]);
+    const next = ayahForLoadedSurah(surah, reader.data?.info.number, reader.data?.info.numberOfAyahs, ayah);
+    if (next != null && next !== ayah) setAyah(next);
+  }, [reader.data, ayah, surah, setAyah]);
 
   const goSurah = useCallback(
     (number: number, verse = 1) => {
-      pauseAudio();
-      setSurah(Math.min(Math.max(number, 1), 114));
+      stopAudio();
+      setSurah(number);
       setAyah(verse);
       setContents(false);
-      window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+      scrollMain();
     },
     [setAyah, setSurah],
   );
 
   const step = useCallback(
     (delta: number) => {
-      const count = versesRef.current.length ? (reader.data?.info.numberOfAyahs ?? versesRef.current.length) : 0;
+      const count = reader.data?.info.number === surah ? reader.data.info.numberOfAyahs : 0;
       if (!count) return;
       const next = ayah + delta;
       if (next >= 1 && next <= count) {
@@ -275,6 +287,7 @@ function Edition({
 
   const playRef = useRef<(n: number) => void>(() => undefined);
   playRef.current = (ayahNumber: number) => {
+    if (reader.data?.info.number !== surah) return;
     const list = versesRef.current;
     const verse = list.find(item => item.ayah === ayahNumber);
     if (!verse) return;
@@ -304,11 +317,11 @@ function Edition({
   }, [mode, setFocus, step]);
 
   useEffect(() => {
-    if (mode !== 'book') return;
-    const mark = document.getElementById(`ayah-mark-${ayah}`);
+    if (ayah < 1 || reader.data?.info.number !== surah) return;
+    const mark = document.getElementById(mode === 'book' ? `ayah-mark-${ayah}` : `v-${surah}-${ayah}`);
     if (!mark) return;
-    mark.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'center' });
-  }, [ayah, mode, surah, lang]);
+    mark.scrollIntoView({ behavior: scrollBehavior(), block: 'center' });
+  }, [ayah, mode, surah, lang, reader.data]);
 
   const current = verses.find(item => item.ayah === ayah) ?? verses[0];
   const savedKey = current?.key ?? '';
@@ -359,10 +372,10 @@ function Edition({
             {t.focusReading}
           </Button>
           <span className="text-sm text-muted">
-            {surah}:{ayah || 1}
+            {surah}:{ayah >= 1 ? ayah : '…'}
           </span>
         </div>
-        {contents && <div className="mb-4 lg:hidden">{surahList}</div>}
+        {(contents || q.length > 0) && <div className="mb-4 lg:hidden">{surahList}</div>}
         <div className="mb-4">
           <ReadingSettings
             mode={mode}
@@ -374,15 +387,15 @@ function Edition({
             onMode={onMode}
           />
         </div>
-        {reader.loading && <Loading />}
+        {!loaded && reader.loading && <Loading />}
         {reader.error && <ErrorNote message={reader.error} onRetry={reader.reload} />}
-        {reader.data && mode === 'study' && (
+        {loaded && mode === 'study' && (
           <Card>
             <p className="text-xs uppercase tracking-widest text-muted">
-              {reader.data.info.number} · {reader.data.info.revelationType} · {reader.data.info.numberOfAyahs}
+              {loaded.info.number} · {loaded.info.revelationType} · {loaded.info.numberOfAyahs}
             </p>
-            <h2 className="font-display text-3xl font-bold text-pine">{reader.data.info.englishName}</h2>
-            <p className="text-sm text-muted">{reader.data.info.englishNameTranslation}</p>
+            <h2 className="font-display text-3xl font-bold text-pine">{loaded.info.englishName}</h2>
+            <p className="text-sm text-muted">{loaded.info.englishNameTranslation}</p>
             <div className="mt-3">
               <SourceAttribution />
             </div>
@@ -394,13 +407,18 @@ function Edition({
             <div className={ARABIC_SIZE[textSize]}>
               {verses.map(verse => (
                 <div key={verse.key} className={BODY_SIZE[textSize]}>
-                  <VerseCard verse={verse} scale={textSize} onEnded={() => playRef.current(verse.ayah + 1)} />
+                  <VerseCard
+                    verse={verse}
+                    scale={textSize}
+                    selected={verse.ayah === ayah}
+                    onEnded={() => playRef.current(verse.ayah + 1)}
+                  />
                 </div>
               ))}
             </div>
           </Card>
         )}
-        {reader.data && mode === 'book' && (
+        {loaded && mode === 'book' && (
           <div
             onTouchStart={event => {
               touch.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
@@ -414,10 +432,10 @@ function Edition({
           >
             <BookPage>
               <header className="mb-6 text-center">
-                <p className="text-xs uppercase tracking-widest text-muted">{reader.data.info.revelationType}</p>
-                <h2 className="mt-2 font-display text-3xl font-bold text-pine">{reader.data.info.englishName}</h2>
+                <p className="text-xs uppercase tracking-widest text-muted">{loaded.info.revelationType}</p>
+                <h2 className="mt-2 font-display text-3xl font-bold text-pine">{loaded.info.englishName}</h2>
                 <p lang="ar" className="arabic mt-2 text-2xl text-ink">
-                  {reader.data.info.name}
+                  {loaded.info.name}
                 </p>
                 {surah !== 1 && surah !== 9 && (
                   <p lang="ar" className="arabic mt-4 text-2xl text-pine">

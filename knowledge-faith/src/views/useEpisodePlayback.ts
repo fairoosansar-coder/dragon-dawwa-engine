@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PodcastLine, TtsResult } from '../shared/types.ts';
 import { postJson } from '../lib/api.ts';
-import { base64ToObjectUrl, pauseAudio } from '../lib/audio.ts';
+import { base64ToObjectUrl, bindExternalStop, stopAudio } from '../lib/audio.ts';
 import { chunkEpisodeLines } from '../engine/utils/episodeChunks.ts';
 
 export type PlaybackPhase = 'idle' | 'loading' | 'playing';
@@ -30,7 +30,13 @@ export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, gues
   useEffect(() => {
     const el = new Audio();
     audioRef.current = el;
+    bindExternalStop(() => {
+      token.current += 1;
+      el.pause();
+      setPhase('idle');
+    });
     return () => {
+      bindExternalStop(null);
       token.current += 1;
       el.pause();
       el.src = '';
@@ -113,7 +119,7 @@ export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, gues
       setPhase('idle');
       setError('Gemini audio could not play. Press Play to retry.');
     };
-    pauseAudio();
+    stopAudio();
     try {
       await el.play();
     } catch (err) {
