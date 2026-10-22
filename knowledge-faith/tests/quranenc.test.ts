@@ -6,6 +6,7 @@ import { audioStatusLabel } from '../src/components/shell/widgets.tsx';
 import { STRINGS } from '../src/lib/i18n.ts';
 import {
   acceptsMeaning,
+  alignTranslation,
   attachQuranEnc,
   cacheParsed,
   confirmedMeaningSrc,
@@ -166,7 +167,33 @@ test('footnotes and in-text markers are kept exactly', () => {
   assert.equal(one?.translation, 'Ayah two[4]');
   assert.equal(one?.footnotes, '[4] exact');
   assert.equal(parseSuraTranslation({ result: [{ sura: '2', aya: '1', translation: 'Wrong surah', footnotes: '' }] }, 1), null);
-  assert.equal(parseSuraTranslation({ result: [{ sura: '1', aya: '1', translation: 'A', footnotes: null }] }, 1), null);
+  const omitted = parseSuraTranslation({ result: [{ sura: '1', aya: '1', translation: 'A', footnotes: null }] }, 1);
+  assert.equal(omitted?.[0].translation, 'A');
+  assert.equal(omitted?.[0].footnotes, '');
+  assert.equal(parseSuraTranslation({ result: [{ sura: '1', aya: '1', translation: 'A' }] }, 1)?.[0].footnotes, '');
+  assert.equal(parseSuraTranslation({ result: [{ sura: '1', aya: '1', translation: 'A', footnotes: { bad: true } }] }, 1), null);
+  assert.equal(parseSuraTranslation({ result: [{ sura: '1', aya: '1', translation: null, footnotes: '' }] }, 1), null);
+});
+
+test('Tamil Baqavi stays on its own ayah when the source omits footnotes', () => {
+  const parsed = parseSuraTranslation(
+    {
+      result: [
+        { id: '1', sura: '1', aya: '1', translation: '1. அளவற்ற அருளாளனும்', footnotes: null },
+        { id: '2', sura: '1', aya: '2', translation: '2. எல்லாப் புகழும் அல்லாஹ்வுக்கே', footnotes: null },
+      ],
+    },
+    1,
+  );
+  assert.deepEqual(
+    parsed?.map(row => [row.aya, row.translation, row.footnotes]),
+    [
+      [1, '1. அளவற்ற அருளாளனும்', ''],
+      [2, '2. எல்லாப் புகழும் அல்லாஹ்வுக்கே', ''],
+    ],
+  );
+  assert.equal(alignTranslation([1, 2], parsed)?.[1].translation, '2. எல்லாப் புகழும் அல்லாஹ்வுக்கே');
+  assert.equal(alignTranslation([1, 2, 3], parsed), null);
 });
 
 test('each language manifest is read on its own and only listed files can play', () => {
@@ -406,7 +433,7 @@ test('Al-Mukhtasar keeps exact text, null footnotes, and a repeated multi-verse 
   ]);
   assert.equal(split.length, 2);
   assert.equal(parseTafsirSura({ result: [{ sura: '2', aya: '1', translation: 'A', footnotes: { bad: true } }] }, 2), null);
-  assert.equal(parseSuraTranslation({ result: [{ sura: '2', aya: '1', translation: 'A', footnotes: null }] }, 2), null);
+  assert.equal(parseSuraTranslation({ result: [{ sura: '2', aya: '1', translation: 'A', footnotes: null }] }, 2)?.[0].footnotes, '');
   assert.deepEqual(parseTafsirKeys({ tafsirs: [] }), []);
   assert.equal(parseTafsirKeys({ tafsirs: [{ key: 1 }] }), null);
   const english = describeMukhtasar('en', MUKHTASAR_KEY.en, []);

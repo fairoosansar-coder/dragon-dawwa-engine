@@ -727,7 +727,7 @@ function Edition({
                       <span className="mx-1 inline-block min-w-6 rounded-full border border-gold px-1 text-center align-middle font-sans text-xs font-semibold text-pine">
                         {verse.ayah}
                       </span>
-                      {verse.translation}{' '}
+                      {verse.translation.trim() ? verse.translation : verse.translationKey ? t.verseTranslationUnavailable : ''}{' '}
                     </span>
                   ))}
                 </p>
