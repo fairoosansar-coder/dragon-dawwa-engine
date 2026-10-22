@@ -6,7 +6,7 @@ import { spiritualHref } from '../lib/route.ts';
 
 export function useSp() {
   const app = useApp();
-  return { ...app, s: SP[app.lang] };
+  return { ...app, s: SP.en };
 }
 
 export function PageBack({ segments }: { segments: string[] }) {
@@ -62,7 +62,7 @@ export function Geometry({ name }: { name: string }) {
 }
 
 export function Panel({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-3xl border border-dd-emerald/10 bg-white/80 p-5 shadow-sm sm:p-6 ${className}`}>{children}</section>;
+  return <section className={`rounded-3xl border border-dd-emerald/10 bg-parchment p-5 shadow-sm sm:p-6 ${className}`}>{children}</section>;
 }
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {

@@ -1,7 +1,10 @@
 import { DAY, fetchJson, UpstreamError } from './http.ts';
-import { QURAN_ARABIC_EDITION, QURAN_TRANSLATIONS, type Lang } from '../shared/sources.ts';
+import { attachQuranEnc } from '../shared/quranenc.ts';
+import { QURAN_ARABIC_EDITION, type Lang } from '../shared/sources.ts';
 import { isValidRef, refKey, type AyahRef } from '../shared/refs.ts';
 import type { SurahInfo, Verse } from '../shared/types.ts';
+import { meaningCoverage, quranEncAya, quranEncSura, requireEdition } from './quranenc.ts';
+import { cleanAyahText, pairTransliteration } from './transliteration.ts';
 
 const BASE = 'https://api.alquran.cloud/v1';
 
@@ -15,6 +18,7 @@ interface RawAyah {
   numberInSurah: number;
   text: string;
   surah?: { number: number; englishName: string };
+  edition?: { identifier: string };
 }
 
 interface RawEdition {
@@ -39,7 +43,16 @@ export async function ayahCounts(): Promise<number[]> {
   return (await listSurahs()).map(s => s.numberOfAyahs);
 }
 
-const clean = (text: string) => text.replace(/^\uFEFF/, '').trim();
+const clean = cleanAyahText;
+
+function editionList(data: RawEdition | RawEdition[]): RawEdition[] {
+  return Array.isArray(data) ? data : [data];
+}
+
+function spokenFields(text: string | undefined, edition: string | null): Pick<Verse, 'transliteration' | 'transliterationEdition'> {
+  if (!edition || !text) return {};
+  return { transliteration: text, transliterationEdition: edition };
+}
 
 function stripBismillah(text: string, surah: number, ayah: number): string {
   text = clean(text);
@@ -49,53 +62,167 @@ function stripBismillah(text: string, surah: number, ayah: number): string {
   return words.length > 4 ? words.slice(4).join(' ') : text;
 }
 
-export async function getSurah(surah: number, lang: Lang): Promise<{ info: SurahInfo; verses: Verse[] }> {
+export interface ArabicVerse {
+  key: string;
+  surah: number;
+  ayah: number;
+  number: number;
+  arabic: string;
+  surahName: string;
+  transliteration?: string;
+  transliterationEdition?: string;
+}
+
+/** Uthmani Arabic for one surah. This does not wait for a QuranEnc meaning or an audio list. */
+export async function getSurahArabic(
+  surah: number,
+  pronunciationEdition: string | null = null,
+): Promise<{ info: SurahInfo; verses: ArabicVerse[] }> {
   const surahs = await listSurahs();
   const info = surahs[surah - 1];
   if (!info) throw new UpstreamError('Surah must be between 1 and 114', 400);
-  const translation = QURAN_TRANSLATIONS[lang];
-  const res = await fetchJson<Envelope<RawEdition[]>>(
-    `${BASE}/surah/${surah}/editions/${QURAN_ARABIC_EDITION},${translation.edition}`,
-    7 * DAY,
-  );
-  const [arabic, translated] = res.data;
-  const verses = arabic.ayahs.map((a, i) => ({
-    key: `${surah}:${a.numberInSurah}`,
+  const [res, translitRes] = await Promise.all([
+    fetchJson<Envelope<RawEdition | RawEdition[]>>(`${BASE}/surah/${surah}/editions/${QURAN_ARABIC_EDITION}`, 7 * DAY),
+    pronunciationEdition
+      ? fetchJson<Envelope<RawEdition | RawEdition[]>>(`${BASE}/surah/${surah}/editions/${pronunciationEdition}`, 7 * DAY).catch(
+          () => null,
+        )
+      : Promise.resolve(null),
+  ]);
+  const arabic = editionList(res.data)[0];
+  if (!arabic?.ayahs?.length) {
+    throw new UpstreamError('The Uthmani Arabic text was not available for this surah. No other text was substituted.', 502);
+  }
+  const translitEdition = translitRes ? editionList(translitRes.data)[0] : undefined;
+  const paired = translitEdition ? pairTransliteration(arabic.ayahs, translitEdition.ayahs) : null;
+  return {
+    info,
+    verses: arabic.ayahs.map(a => ({
+      key: `${surah}:${a.numberInSurah}`,
+      surah,
+      ayah: a.numberInSurah,
+      number: a.number,
+      arabic: stripBismillah(a.text, surah, a.numberInSurah),
+      surahName: info.englishName,
+      ...spokenFields(paired?.get(a.numberInSurah), paired ? pronunciationEdition : null),
+    })),
+  };
+}
+
+export interface SurahMeaning {
+  surah: number;
+  lang: Lang;
+  editionKey: string;
+  translationVersion: string;
+  translationTitle: string;
+  translationDescription: string;
+  verses: { ayah: number; translation: string; footnotes: string }[];
+}
+
+/** QuranEnc meaning for one surah. The audio list is a separate request and is not waited on here. */
+export async function getSurahMeaning(surah: number, lang: Lang, editionKey?: string): Promise<SurahMeaning> {
+  if (!Number.isInteger(surah) || surah < 1 || surah > 114) throw new UpstreamError('Surah must be between 1 and 114', 400);
+  const edition = await requireEdition(lang, editionKey);
+  const rows = await quranEncSura(edition, surah);
+  return {
     surah,
-    ayah: a.numberInSurah,
-    number: a.number,
-    arabic: stripBismillah(a.text, surah, a.numberInSurah),
-    translation: clean(translated.ayahs[i]?.text ?? ''),
-    translator: translation.translator,
     lang,
-    surahName: info.englishName,
-  }));
+    editionKey: edition.key,
+    translationVersion: edition.version,
+    translationTitle: edition.title,
+    translationDescription: edition.description,
+    verses: rows.map(row => ({ ayah: row.aya, translation: row.translation, footnotes: row.footnotes })),
+  };
+}
+
+export async function getSurah(
+  surah: number,
+  lang: Lang,
+  pronunciationEdition: string | null = null,
+  editionKey?: string,
+): Promise<{ info: SurahInfo; verses: Verse[] }> {
+  const surahs = await listSurahs();
+  const info = surahs[surah - 1];
+  if (!info) throw new UpstreamError('Surah must be between 1 and 114', 400);
+  const [edition, res, translitRes] = await Promise.all([
+    requireEdition(lang, editionKey),
+    fetchJson<Envelope<RawEdition | RawEdition[]>>(`${BASE}/surah/${surah}/editions/${QURAN_ARABIC_EDITION}`, 7 * DAY),
+    pronunciationEdition
+      ? fetchJson<Envelope<RawEdition | RawEdition[]>>(`${BASE}/surah/${surah}/editions/${pronunciationEdition}`, 7 * DAY).catch(
+          () => null,
+        )
+      : Promise.resolve(null),
+  ]);
+  const arabic = editionList(res.data)[0];
+  if (!arabic?.ayahs?.length) {
+    throw new UpstreamError('The Uthmani Arabic text was not available for this surah. No other text was substituted.', 502);
+  }
+  const translitEdition = translitRes ? editionList(translitRes.data)[0] : undefined;
+  const paired = translitEdition ? pairTransliteration(arabic.ayahs, translitEdition.ayahs) : null;
+  const [rows, manifest] = await Promise.all([quranEncSura(edition, surah), meaningCoverage(edition.key)]);
+  const verses = attachQuranEnc(
+    arabic.ayahs.map(a => ({
+      key: `${surah}:${a.numberInSurah}`,
+      surah,
+      ayah: a.numberInSurah,
+      number: a.number,
+      arabic: stripBismillah(a.text, surah, a.numberInSurah),
+      lang,
+      surahName: info.englishName,
+      ...spokenFields(paired?.get(a.numberInSurah), paired ? pronunciationEdition : null),
+    })),
+    edition,
+    rows,
+    manifest,
+  );
+  if (!verses) throw new UpstreamError('QuranEnc text does not match this surah. No other translation was substituted.', 502);
   return { info, verses };
 }
 
-export async function getVerses(refs: AyahRef[], lang: Lang): Promise<Verse[]> {
+export async function getVerses(
+  refs: AyahRef[],
+  lang: Lang,
+  pronunciationEdition: string | null = null,
+  editionKey?: string,
+): Promise<Verse[]> {
   const counts = await ayahCounts();
   const valid = refs.filter(r => isValidRef(r, counts));
-  const translation = QURAN_TRANSLATIONS[lang];
+  if (!valid.length) return [];
+  const edition = await requireEdition(lang, editionKey);
+  const manifest = await meaningCoverage(edition.key);
   const surahs = await listSurahs();
+  const editions = [QURAN_ARABIC_EDITION, pronunciationEdition].filter(Boolean).join(',');
   return Promise.all(
     valid.map(async ref => {
-      const res = await fetchJson<Envelope<RawAyah[]>>(
-        `${BASE}/ayah/${refKey(ref)}/editions/${QURAN_ARABIC_EDITION},${translation.edition}`,
-        7 * DAY,
+      const [res, row] = await Promise.all([
+        fetchJson<Envelope<RawAyah[]>>(`${BASE}/ayah/${refKey(ref)}/editions/${editions}`, 7 * DAY),
+        quranEncAya(edition, ref.surah, ref.ayah),
+      ]);
+      const byEdition = new Map(res.data.map(item => [item.edition?.identifier, item]));
+      const arabic = byEdition.get(QURAN_ARABIC_EDITION);
+      if (!arabic?.text || !arabic.number) {
+        throw new UpstreamError('The Uthmani Arabic text was not available for this verse. No other text was substituted.', 502);
+      }
+      const spoken = pronunciationEdition ? byEdition.get(pronunciationEdition) : undefined;
+      const attached = attachQuranEnc(
+        [
+          {
+            key: refKey(ref),
+            surah: ref.surah,
+            ayah: ref.ayah,
+            number: arabic.number,
+            arabic: stripBismillah(arabic.text, ref.surah, ref.ayah),
+            lang,
+            surahName: surahs[ref.surah - 1].englishName,
+            ...spokenFields(spoken ? clean(spoken.text) : undefined, pronunciationEdition),
+          },
+        ],
+        edition,
+        [row],
+        manifest,
       );
-      const [arabic, translated] = res.data;
-      return {
-        key: refKey(ref),
-        surah: ref.surah,
-        ayah: ref.ayah,
-        number: arabic.number,
-        arabic: stripBismillah(arabic.text, ref.surah, ref.ayah),
-        translation: clean(translated.text),
-        translator: translation.translator,
-        lang,
-        surahName: surahs[ref.surah - 1].englishName,
-      };
+      if (!attached) throw new UpstreamError('QuranEnc text does not match this verse. No other translation was substituted.', 502);
+      return attached[0];
     }),
   );
 }

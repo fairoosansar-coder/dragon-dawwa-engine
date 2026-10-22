@@ -19,11 +19,24 @@ export interface QuranTranslation {
 
 export const QURAN_ARABIC_EDITION = 'quran-uthmani';
 
+/**
+ * AlQuran Cloud translation ids kept for reference.
+ * The reader loads translation text from QuranEnc and must not fall back to these editions.
+ */
 export const QURAN_TRANSLATIONS: Record<Lang, QuranTranslation> = {
   en: { edition: 'en.sahih', translator: 'Saheeh International' },
   ta: { edition: 'ta.tamil', translator: 'Jan Trust Foundation' },
   si: { edition: 'si.naseemismail', translator: 'Naseem Ismail & Masoor Maulana Kaleel' },
 };
+
+/** AlQuran Cloud publishes an English transliteration edition only. Tamil and Sinhala are absent. */
+export const QURAN_TRANSLITERATION = {
+  en: { edition: 'en.transliteration', label: 'English Transliteration' },
+} as const;
+
+export function quranPronunciationEdition(value: unknown): string | null {
+  return value === 'en' ? QURAN_TRANSLITERATION.en.edition : null;
+}
 
 export const RECITERS = [
   { id: 'ar.alafasy', name: 'Mishary Rashid Alafasy' },

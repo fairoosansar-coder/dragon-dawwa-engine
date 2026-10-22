@@ -1,68 +1,182 @@
 import { useSyncExternalStore } from 'react';
 
-/** One shared audio element so only a single recitation or narration plays at a time. */
-const audio = typeof Audio !== 'undefined' ? new Audio() : null;
+/** One shared recitation element. Episode and generated narration register separately and must not overlap it. */
+export type AudioStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'error' | 'unavailable';
+
+interface Playable {
+  src: string;
+  paused: boolean;
+  preload: string;
+  play: () => Promise<void>;
+  pause: () => void;
+  addEventListener: (type: string, listener: () => void) => void;
+}
+
+let media: Playable | null = null;
+let bound = false;
 let currentId: string | null = null;
-let playing = false;
-let onEnded: (() => void) | null = null;
+let status: AudioStatus = typeof Audio === 'undefined' ? 'unavailable' : 'idle';
+let continuation: (() => void) | null = null;
+let externalStop: (() => void) | null = null;
 const listeners = new Set<() => void>();
 
 function emit() {
   listeners.forEach(l => l());
 }
 
-if (audio) {
+function setStatus(next: AudioStatus) {
+  status = next;
+  emit();
+}
+
+function bind(audio: Playable) {
+  if (bound) return;
+  bound = true;
   audio.preload = 'none';
-  audio.addEventListener('play', () => {
-    playing = true;
-    emit();
+  audio.addEventListener('waiting', () => {
+    if (currentId && status !== 'error') setStatus('loading');
+  });
+  audio.addEventListener('playing', () => {
+    if (currentId) setStatus('playing');
   });
   audio.addEventListener('pause', () => {
-    playing = false;
-    emit();
+    if (currentId && status !== 'error' && status !== 'unavailable') setStatus('paused');
   });
   audio.addEventListener('ended', () => {
-    playing = false;
-    const next = onEnded;
-    onEnded = null;
-    emit();
+    setStatus('paused');
+    const next = continuation;
+    continuation = null;
     next?.();
   });
   audio.addEventListener('error', () => {
-    playing = false;
-    emit();
+    if (currentId) setStatus('error');
   });
 }
 
-export function playAudio(id: string, src: string, then?: () => void): Promise<void> {
-  if (!audio) return Promise.resolve();
-  if (currentId === id && audio.paused && audio.src) {
-    onEnded = then ?? null;
-    return audio.play();
+function element(): Playable | null {
+  if (media) return media;
+  if (typeof Audio === 'undefined') return null;
+  media = new Audio();
+  bind(media);
+  return media;
+}
+
+function pauseDocumentMedia(except?: EventTarget) {
+  if (typeof document === 'undefined') return;
+  document.querySelectorAll('audio, video').forEach(node => {
+    if (node !== except) (node as HTMLMediaElement).pause();
+  });
+}
+
+function stopOthers() {
+  externalStop?.();
+  // The shared recitation element is not in the document. Episode audio is stopped through externalStop.
+  pauseDocumentMedia();
+}
+
+function start(then?: () => void): Promise<void> {
+  const audio = element();
+  if (!audio) {
+    setStatus('unavailable');
+    return Promise.resolve();
   }
-  audio.pause();
+  if (then) continuation = then;
+  stopOthers();
+  setStatus('loading');
+  return audio.play().then(
+    () => undefined,
+    () => {
+      if (currentId) setStatus('error');
+    },
+  );
+}
+
+export function playAudio(id: string, src: string, then?: () => void): Promise<void> {
+  const audio = element();
+  if (!audio) {
+    setStatus('unavailable');
+    return Promise.resolve();
+  }
+  if (currentId === id && audio.paused && audio.src && status !== 'error') return start(then);
+  continuation = null;
   currentId = id;
-  onEnded = then ?? null;
+  audio.pause();
   audio.src = src;
-  emit();
-  return audio.play();
+  return start(then);
 }
 
+/** Pause the current recitation and keep a queued sequential continuation. */
 export function pauseAudio() {
-  onEnded = null;
-  audio?.pause();
+  element()?.pause();
 }
 
-export function useAudioState(): { id: string | null; playing: boolean } {
+/** Stop recitation and drop any queued continuation. Used when playback is replaced. */
+export function stopAudio(except?: EventTarget) {
+  continuation = null;
+  currentId = null;
+  if (media) {
+    media.pause();
+    media.src = '';
+  }
+  pauseDocumentMedia(except);
+  setStatus(media || typeof Audio !== 'undefined' ? 'idle' : 'unavailable');
+}
+
+/** Stop recitation, generated narration, and every other visible player except `except`. */
+export function claimPlayback(except?: EventTarget) {
+  const stopEpisode = externalStop;
+  stopAudio(except);
+  stopEpisode?.();
+}
+
+/** Continue the current recitation after a pause or a failed play. Keeps the queued continuation. */
+export function resumeAudio() {
+  const audio = element();
+  if (!audio || !currentId || !audio.src) {
+    setStatus(audio ? status : 'unavailable');
+    return;
+  }
+  void start();
+}
+
+/** Episode playback registers this so recitation can stop it, and the reverse. */
+export function bindExternalStop(stop: (() => void) | null) {
+  externalStop = stop;
+}
+
+export function installMediaForTests(audio: Playable | null) {
+  media = audio;
+  bound = false;
+  if (audio) bind(audio);
+  currentId = null;
+  continuation = null;
+  externalStop = null;
+  setStatus(audio ? 'idle' : 'unavailable');
+}
+
+export function resetAudioForTests() {
+  continuation = null;
+  externalStop = null;
+  currentId = null;
+  if (media) {
+    media.pause();
+    media.src = '';
+  }
+  setStatus(media ? 'idle' : 'unavailable');
+}
+
+export function useAudioState(): { id: string | null; playing: boolean; status: AudioStatus } {
   const snapshot = useSyncExternalStore(
     cb => {
       listeners.add(cb);
       return () => listeners.delete(cb);
     },
-    () => `${currentId ?? ''}|${playing}`,
+    () => `${currentId ?? ''}|${status}`,
   );
-  const [id, isPlaying] = snapshot.split('|');
-  return { id: id || null, playing: isPlaying === 'true' };
+  const splitAt = snapshot.lastIndexOf('|');
+  const id = snapshot.slice(0, splitAt);
+  const current = snapshot.slice(splitAt + 1) as AudioStatus;
+  return { id: id || null, playing: current === 'playing', status: current };
 }
 
 export function base64ToObjectUrl(base64: string, mimeType: string): string {

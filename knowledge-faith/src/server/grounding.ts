@@ -1,3 +1,4 @@
+import type { EncyclopediaHadith } from '../shared/hadeethenc.ts';
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
 import { withoutVanakkam } from '../engine/utils/tamilGreeting.ts';
 import type { AnswerParagraph, Evidence, Hadith, PodcastLine, Verse } from '../shared/types.ts';
@@ -18,7 +19,7 @@ export function hadithEvidence(hadiths: Hadith[]): Evidence[] {
   return hadiths.map((h, i) => ({
     id: `H${i + 1}`,
     kind: 'hadith',
-    label: `${h.collectionName} ${h.number}`,
+    label: `Hadith · ${h.collectionName} ${h.number}`,
     arabic: h.arabic,
     text: h.text,
     attribution: h.machineTranslation
@@ -27,6 +28,26 @@ export function hadithEvidence(hadiths: Hadith[]): Evidence[] {
         ? 'English translation via hadith-api (fawazahmed0)'
         : 'Tamil translation via hadith-api (fawazahmed0)',
     grades: h.grades,
+  }));
+}
+
+export function encyclopediaEvidence(records: EncyclopediaHadith[], start = 0): Evidence[] {
+  const origin = Number.isInteger(start) && start > 0 ? start : 0;
+  return records.map((h, i) => ({
+    id: `E${origin + i + 1}`,
+    kind: 'hadith' as const,
+    label: `Hadith · HadeethEnc ${h.id}`,
+    arabic: h.arabic,
+    text: h.text,
+    attribution: [
+      'HadeethEnc',
+      h.grade ? `Grade: ${h.grade}` : 'HadeethEnc did not include a grade for this hadith.',
+      h.attribution,
+      h.sourceUrl,
+    ]
+      .filter(Boolean)
+      .join('. '),
+    grades: h.grade ? [{ name: 'HadeethEnc', grade: h.grade }] : [],
   }));
 }
 
@@ -74,6 +95,14 @@ ${topic}
 
 EVIDENCE PACKET:
 ${evidencePacket(evidence)}`;
+}
+
+/** Appends a later relevance page. Returns null when that page adds nothing new. */
+export function mergeFurtherEvidence(current: Evidence[], more: Evidence[]): Evidence[] | null {
+  const seen = new Set(current.map(item => item.label));
+  const extra = more.filter(item => !seen.has(item.label));
+  if (!extra.length) return null;
+  return [...current, ...extra];
 }
 
 /** Drops citations that do not resolve to retrieved evidence and paragraphs left unsupported. */

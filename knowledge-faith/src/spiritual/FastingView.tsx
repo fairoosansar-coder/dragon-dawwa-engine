@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useRemote } from '../lib/api.ts';
+import { useQuranEdition } from '../lib/quranEdition.ts';
+import { usePronunciation, withPronunciation } from '../lib/pronunciation.ts';
+import { shownVerses, translationRequest } from '../shared/quranenc.ts';
 import { useStored } from '../lib/store.tsx';
 import { OCCASIONS, occasionById, text } from './content.ts';
 import {
@@ -126,7 +129,7 @@ export function FastingCalendar({ segments, mode }: { segments: string[]; mode: 
     <div className="space-y-4">
       <PageBack segments={segments} />
       <Panel>
-        <h1 className="font-display text-3xl font-bold text-dd-emerald">{mode === 'planner' ? s.makeup : s.toolFasting}</h1>
+        <h1 className="font-display text-3xl font-bold text-dd-emerald">{mode === 'planner' ? s.makeup : s.hijri}</h1>
         <Banner>{s.provisional}</Banner>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <Field label={s.authority}>
@@ -303,9 +306,19 @@ function stepMonth(cursor: { year: number; month: number }, delta: number) {
 
 export function OccasionView({ segments, id }: { segments: string[]; id: string }) {
   const { lang, s } = useSp();
+  const [pronunciation] = usePronunciation();
   const occasion = occasionById(id);
   const refs = occasion?.verseRefs ?? [];
-  const remote = useRemote<Verse[]>(refs.length ? `/api/quran/verses?refs=${encodeURIComponent(refs.join(','))}&lang=${lang}` : null);
+  const quranEdition = useQuranEdition();
+  const request = translationRequest(
+    refs.length ? `/api/quran/verses?refs=${encodeURIComponent(refs.join(','))}&lang=${lang}` : null,
+    lang,
+    lang,
+    quranEdition.edition,
+    quranEdition.loading,
+  );
+  const remote = useRemote<Verse[]>(request ? withPronunciation(request.url, pronunciation) : null);
+  const verses = remote.loading || quranEdition.loading ? null : shownVerses(remote.data, lang, request?.editionKey ?? null);
   if (!occasion) {
     return (
       <Panel>
@@ -336,7 +349,10 @@ export function OccasionView({ segments, id }: { segments: string[]; id: string 
             <Prose copy={copy} />
           </section>
         ))}
-        {remote.data?.map(verse => (
+        {(remote.loading || quranEdition.loading) && <p>{s.loading}</p>}
+        {quranEdition.error && <p>{quranEdition.error}</p>}
+        {remote.error && <p>{remote.error}</p>}
+        {verses?.map(verse => (
           <VerseCard key={verse.key} verse={verse} />
         ))}
         <p className="mt-4 text-xs">{s.audioNotSpoken}</p>

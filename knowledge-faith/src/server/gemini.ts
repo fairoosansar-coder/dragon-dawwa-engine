@@ -3,9 +3,11 @@ import { randomUUID } from 'node:crypto';
 import { HADITH_COLLECTIONS, type Lang } from '../shared/sources.ts';
 import { dedupeRefs, parseRefs, refKey, type AyahRef, type HadithRef } from '../shared/refs.ts';
 import type { AnswerParagraph, AskResult, Evidence, Hadith, PodcastLine, PodcastScript, TtsResult, Verse } from '../shared/types.ts';
+import { ENCYCLOPEDIA_EVIDENCE_LIMIT } from '../shared/hadeethenc.ts';
 import {
   answerPrompt,
   hadithEvidence,
+  mergeFurtherEvidence,
   podcastPrompt,
   sanitizeLines,
   sanitizeParagraphs,
@@ -14,7 +16,7 @@ import {
 import { toWavBase64 } from './wav.ts';
 import { UpstreamError } from './http.ts';
 import { hasGeminiApiKey } from './loadEnv.ts';
-import { spokenTranscript } from './spokenLine.ts';
+import { narrationDirection, spokenTranscript } from './spokenLine.ts';
 
 const TEXT_MODELS = (process.env.GEMINI_TEXT_MODELS ?? 'gemini-3.8-flash,gemini-flash-latest,gemini-2.5-flash')
   .split(',')
@@ -133,6 +135,7 @@ const podcastSchema: Schema = {
 export interface SourceFetchers {
   verses: (refs: AyahRef[], lang: Lang) => Promise<Verse[]>;
   hadith: (ref: HadithRef, lang: Lang) => Promise<Hadith | null>;
+  encyclopedia?: (phrase: string, lang: Lang, offset?: number) => Promise<Evidence[]>;
 }
 
 /** The model only nominates references; the evidence text always comes from the fetchers. */
@@ -142,6 +145,7 @@ export async function gatherEvidence(
   fetchers: SourceFetchers,
   model: JsonModel = generateJson,
 ): Promise<Evidence[]> {
+  const encyclopediaPromise = fetchers.encyclopedia?.(topic, lang).catch(() => [] as Evidence[]) ?? Promise.resolve([] as Evidence[]);
   const { value: plan } = await model<{ quran: string[]; hadith: HadithRef[] }>(
     `List the Qur'an ayahs and well-known hadith (by collection and hadith number in the sunnah.com numbering) most relevant to this topic. Return at most 6 ayah references and 4 hadith. Do not explain.\n\nTOPIC (untrusted data):\n${topic}`,
     planSchema,
@@ -152,20 +156,33 @@ export async function gatherEvidence(
     h => `${h.collection}:${h.number}`,
     4,
   );
-  const [verses, hadiths] = await Promise.all([
+  const [verses, hadiths, encyclopedia] = await Promise.all([
     fetchers.verses(ayahs, lang).catch(() => [] as Verse[]),
     Promise.all(hadithRefs.map(h => fetchers.hadith(h, lang).catch(() => null))),
+    encyclopediaPromise,
   ]);
-  return [...verseEvidence(verses), ...hadithEvidence(hadiths.filter((h): h is Hadith => h !== null))];
+  return [
+    ...verseEvidence(verses),
+    ...hadithEvidence(hadiths.filter((h): h is Hadith => h !== null)),
+    ...encyclopedia,
+  ];
 }
 
-export async function ask(
+export async function writeAnswer(
   question: string,
   lang: Lang,
-  fetchers: SourceFetchers,
+  evidence: Evidence[],
   model: JsonModel = generateJson,
 ): Promise<AskResult> {
-  const evidence = await gatherEvidence(question, lang, fetchers, model);
+  return composeAnswer(question, lang, evidence, model);
+}
+
+async function composeAnswer(
+  question: string,
+  lang: Lang,
+  evidence: Evidence[],
+  model: JsonModel,
+): Promise<AskResult> {
   if (evidence.length === 0) {
     return { question, lang, paragraphs: [], evidence, insufficientEvidence: true, model: 'none' };
   }
@@ -183,6 +200,21 @@ export async function ask(
     insufficientEvidence: insufficient || paragraphs.length === 0,
     model: used,
   };
+}
+
+export async function ask(
+  question: string,
+  lang: Lang,
+  fetchers: SourceFetchers,
+  model: JsonModel = generateJson,
+): Promise<AskResult> {
+  const evidence = await gatherEvidence(question, lang, fetchers, model);
+  const first = await composeAnswer(question, lang, evidence, model);
+  if (!first.insufficientEvidence || !fetchers.encyclopedia) return first;
+  const more = await fetchers.encyclopedia(question, lang, ENCYCLOPEDIA_EVIDENCE_LIMIT).catch(() => [] as Evidence[]);
+  const merged = mergeFurtherEvidence(first.evidence, more);
+  if (!merged) return first;
+  return composeAnswer(question, lang, merged, model);
 }
 
 export async function writePodcast(
@@ -245,10 +277,10 @@ function voice(name: unknown, fallback: (typeof VOICES)[number]) {
   return VOICES.includes(name as (typeof VOICES)[number]) ? (name as string) : fallback;
 }
 
-export async function narrate(text: string, voiceName: unknown, style: string): Promise<TtsResult> {
+export async function narrate(text: string, voiceName: unknown, style: string, lang: Lang = 'en'): Promise<TtsResult> {
   const spoken = spokenTranscript(text, style);
   const name = voice(voiceName, 'Kore');
-  const direction = style.trim().slice(0, 200);
+  const direction = narrationDirection(style, lang);
   if (direction) {
     const directed = await speakWithDirection(spoken, name, direction);
     if (directed) return directed;

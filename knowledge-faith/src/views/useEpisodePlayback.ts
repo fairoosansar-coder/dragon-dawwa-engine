@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { Lang } from '../shared/sources.ts';
 import type { PodcastLine, TtsResult } from '../shared/types.ts';
 import { postJson } from '../lib/api.ts';
-import { base64ToObjectUrl, pauseAudio } from '../lib/audio.ts';
+import { base64ToObjectUrl, bindExternalStop, stopAudio } from '../lib/audio.ts';
+import { keepPlaybackPosition } from '../lib/playbackPosition.ts';
 import { chunkEpisodeLines } from '../engine/utils/episodeChunks.ts';
 
 export type PlaybackPhase = 'idle' | 'loading' | 'playing';
 
-export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, guestVoice: string, resetKey: string) {
+export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, guestVoice: string, resetKey: string, scriptLang: Lang) {
   const chunks = useMemo(() => chunkEpisodeLines(lines), [lines]);
   const chunksRef = useRef(chunks);
   const voicesRef = useRef({ hostVoice, guestVoice });
+  const langRef = useRef(scriptLang);
   chunksRef.current = chunks;
   voicesRef.current = { hostVoice, guestVoice };
+  langRef.current = scriptLang;
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urls = useRef<Map<number, string>>(new Map());
@@ -20,6 +24,7 @@ export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, gues
   const [index, setIndex] = useState(-1);
   const [phase, setPhase] = useState<PlaybackPhase>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [position, setPosition] = useState(0);
 
   const clearCache = () => {
     for (const url of urls.current.values()) URL.revokeObjectURL(url);
@@ -30,7 +35,13 @@ export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, gues
   useEffect(() => {
     const el = new Audio();
     audioRef.current = el;
+    bindExternalStop(() => {
+      token.current += 1;
+      el.pause();
+      setPhase('idle');
+    });
     return () => {
+      bindExternalStop(null);
       token.current += 1;
       el.pause();
       el.src = '';
@@ -45,7 +56,7 @@ export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, gues
     setIndex(-1);
     setPhase('idle');
     setError(null);
-  }, [resetKey, hostVoice, guestVoice]);
+  }, [resetKey, hostVoice, guestVoice, scriptLang]);
 
   function load(i: number): Promise<string | null> {
     const chunk = chunksRef.current[i];
@@ -58,6 +69,7 @@ export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, gues
     const task = postJson<TtsResult>('/api/voice/narrate', {
       text: chunk.text,
       voice,
+      lang: langRef.current,
     })
       .then(result => {
         const url = base64ToObjectUrl(result.audioBase64, result.mimeType || 'audio/wav');
@@ -104,7 +116,15 @@ export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, gues
     if (!el) return;
     prefetchAhead(i, run);
     setPhase('playing');
-    el.src = url;
+    const kept = keepPlaybackPosition(el.src, url, el.currentTime);
+    if (el.src !== kept.src) el.src = kept.src;
+    if (kept.time > 0) {
+      const restore = () => {
+        if (Math.abs(el.currentTime - kept.time) > 0.25) el.currentTime = kept.time;
+      };
+      if (el.readyState >= 1) restore();
+      else el.addEventListener('loadedmetadata', restore, { once: true });
+    }
     el.onended = () => {
       if (run === token.current) void playAt(i + 1, run);
     };
@@ -113,7 +133,7 @@ export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, gues
       setPhase('idle');
       setError('Gemini audio could not play. Press Play to retry.');
     };
-    pauseAudio();
+    stopAudio();
     try {
       await el.play();
     } catch (err) {
@@ -123,11 +143,20 @@ export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, gues
     }
   }
 
-  function toggle() {
+  function hold() {
+    const at = audioRef.current?.currentTime ?? 0;
     if (phase !== 'idle') {
       token.current += 1;
       audioRef.current?.pause();
       setPhase('idle');
+    }
+    setPosition(at);
+    return at;
+  }
+
+  function toggle() {
+    if (phase !== 'idle') {
+      hold();
       return;
     }
     setError(null);
@@ -139,5 +168,5 @@ export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, gues
 
   const activeLines = index >= 0 ? (chunks[index]?.lineIndexes ?? []) : [];
 
-  return { phase, index, activeLines, error, toggle, chunkCount: chunks.length };
+  return { phase, index, position, activeLines, error, toggle, hold, chunkCount: chunks.length };
 }

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useShell } from '../lib/shell.tsx';
 import { useRemote } from '../lib/api.ts';
 import { useStored } from '../lib/store.tsx';
 import { minutesInZone, nextPrayer } from '../shared/spiritual.ts';
@@ -8,7 +9,7 @@ import { evaluateHijriDay } from './fasting.ts';
 import { gregorianToHijri, hijriWithShift, isoDateInZone, parseIsoDate } from './hijri.ts';
 import { Geometry, Panel, useSp } from './chrome.tsx';
 import { useCalendarPrefs } from './FastingView.tsx';
-import { usePlace } from './PrayerQibla.tsx';
+import { usePlace } from './place.ts';
 import { useBookmarks, useGuideProgress } from './GuideView.tsx';
 const PILLARS = [
   { id: 'shahadah', href: '#/spiritual/shahadah', guides: ['shahadah'] },
@@ -24,6 +25,7 @@ const TOOLS = [
   ['#/spiritual/zakah/calculator', 'toolZakah'],
   ['#/spiritual/fasting/calendar', 'toolFasting'],
   ['#/spiritual/dua-dhikr', 'toolDua'],
+  ['#/spiritual/library', 'sourceLibrary'],
   ['#/spiritual/hajj/checklist', 'toolChecklist'],
 ] as const;
 
@@ -36,7 +38,7 @@ interface TodayPrefs {
 
 export function Hub() {
   const { lang, s } = useSp();
-  const [query, setQuery] = useState('');
+  const { query } = useShell();
   const [progress] = useGuideProgress();
   const hits = searchSpiritual(query, lang);
   return (
@@ -47,10 +49,6 @@ export function Hub() {
         <h1 className="mt-4 max-w-3xl font-display text-4xl font-bold leading-tight sm:text-5xl">{s.title}</h1>
         <p className="mt-4 max-w-2xl text-lg text-dd-ivory">{s.tagline}</p>
       </header>
-      <label className="block">
-        <span className="sr-only">{s.search}</span>
-        <input value={query} onChange={event => setQuery(event.target.value)} placeholder={s.search} className="min-h-12 w-full rounded-full border border-dd-emerald/20 bg-white px-5 text-base" />
-      </label>
       {query.trim().length >= 2 && (
         <ul className="space-y-2">
           {hits.length === 0 && <li>{s.searchEmpty}</li>}

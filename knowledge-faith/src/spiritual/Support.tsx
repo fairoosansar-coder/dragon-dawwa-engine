@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { postJson, useRemote } from '../lib/api.ts';
+import { useQuranEdition } from '../lib/quranEdition.ts';
+import { usePronunciation, withPronunciation } from '../lib/pronunciation.ts';
+import { shownVerses, translationRequest } from '../shared/quranenc.ts';
 import { useStored } from '../lib/store.tsx';
 import type { AskResult, Verse } from '../shared/types.ts';
 import { CitationChips, EvidenceList } from '../components/cards.tsx';
@@ -81,8 +84,18 @@ export function DuaLibrary({ segments }: { segments: string[] }) {
   const [target, setTarget] = useStored<number>('kf-tasbih-target', 33);
   const [phrase, setPhrase] = useStored<number>('kf-tasbih-phrase', 0);
   const entries = DUA_ENTRIES.filter(entry => (category === 'all' || entry.category === category) && (!query.trim() || entry.id.includes(query.trim()) || entry.category.includes(query.trim().toLowerCase())));
+  const [pronunciation] = usePronunciation();
+  const quranEdition = useQuranEdition();
   const refs = entries.flatMap(entry => entry.refs);
-  const remote = useRemote<Verse[]>(refs.length ? `/api/quran/verses?refs=${encodeURIComponent(refs.join(','))}&lang=${lang}` : null);
+  const request = translationRequest(
+    refs.length ? `/api/quran/verses?refs=${encodeURIComponent(refs.join(','))}&lang=${lang}` : null,
+    lang,
+    lang,
+    quranEdition.edition,
+    quranEdition.loading,
+  );
+  const remote = useRemote<Verse[]>(request ? withPronunciation(request.url, pronunciation) : null);
+  const verses = remote.loading || quranEdition.loading ? null : shownVerses(remote.data, lang, request?.editionKey ?? null);
   const current = DHIKR[phrase] ?? DHIKR[0];
   return (
     <div className="space-y-4">
@@ -104,9 +117,10 @@ export function DuaLibrary({ segments }: { segments: string[] }) {
         </div>
         <input className={`${control} mt-3 w-full`} value={query} placeholder={s.search} onChange={event => setQuery(event.target.value)} />
         {entries.length === 0 && <p className="mt-4">{s.dhikrEmpty}</p>}
-        {remote.loading && <p>{s.loading}</p>}
+        {(remote.loading || quranEdition.loading) && <p>{s.loading}</p>}
+        {quranEdition.error && <p>{quranEdition.error}</p>}
         {remote.error && <p>{remote.error}</p>}
-        {remote.data?.map(verse => (
+        {verses?.map(verse => (
           <article key={verse.key}>
             <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-dd-lapis">{s.quranKind}</p>
             <VerseCard verse={verse} />

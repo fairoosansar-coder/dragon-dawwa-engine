@@ -18,8 +18,20 @@ export interface Verse {
   arabic: string;
   translation: string;
   translator: string;
+  /** QuranEnc footnote text for this ayah, kept exactly. Empty when the edition has none. */
+  footnotes?: string;
+  /** QuranEnc edition key, unchanged. */
+  translationKey?: string;
+  translationVersion?: string;
+  translationTitle?: string;
+  translationDescription?: string;
+  /** Present only when this edition's meaning audio was confirmed. */
+  meaningAudio?: string;
   lang: Lang;
   surahName: string;
+  /** Pronunciation of this ayah from a checked transliteration edition. Not a translation. */
+  transliteration?: string;
+  transliterationEdition?: string;
 }
 
 export interface Grade {
@@ -59,6 +71,13 @@ export interface Evidence {
   text: string;
   attribution: string;
   grades: Grade[];
+  /** Heading and paragraph, or surah:ayah, or hadith id. Absent on older evidence. */
+  locator?: string | null;
+  sourceUrl?: string | null;
+  passageLanguage?: string | null;
+  retrievedOn?: string | null;
+  itemId?: string | null;
+  limitations?: string[];
 }
 
 export interface AnswerParagraph {
@@ -99,6 +118,25 @@ export interface PrayerDay {
   latitudeAdjustment?: number | null;
   hijri: { day: string; month: string; monthArabic: string; year: string };
   gregorian: string;
+}
+
+export interface AsmaName {
+  number: number;
+  arabic: string;
+  transliteration: string;
+  meaning: string;
+}
+
+export interface AsmaCollection {
+  names: AsmaName[];
+  source: {
+    name: 'Aladhan';
+    url: string;
+    transliteration: 'Latin';
+    meaningLanguage: 'en';
+    perNameReference: false;
+    scholarReviewed: false;
+  };
 }
 
 export interface TtsResult {

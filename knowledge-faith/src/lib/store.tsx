@@ -4,6 +4,8 @@ import type { HadithRef } from '../shared/refs.ts';
 import { STRINGS, type Strings } from './i18n.ts';
 import { useRemote } from './api.ts';
 
+const storedListeners = new Map<string, Set<(value: unknown) => void>>();
+
 export function useStored<T>(key: string, initial: T): [T, (value: T | ((prev: T) => T)) => void] {
   const [value, setValue] = useState<T>(() => {
     try {
@@ -14,13 +16,29 @@ export function useStored<T>(key: string, initial: T): [T, (value: T | ((prev: T
     }
   });
   useEffect(() => {
+    const listeners = storedListeners.get(key) ?? new Set<(value: unknown) => void>();
+    const onStore = (next: unknown) => setValue(next as T);
+    listeners.add(onStore);
+    storedListeners.set(key, listeners);
+    return () => {
+      listeners.delete(onStore);
+    };
+  }, [key]);
+  useEffect(() => {
     try {
       localStorage.setItem(key, JSON.stringify(value));
     } catch {
       /* storage full or disabled: keep in memory only */
     }
   }, [key, value]);
-  return [value, setValue];
+  const update = useCallback((next: T | ((prev: T) => T)) => {
+    setValue(prev => {
+      const resolved = typeof next === 'function' ? (next as (prev: T) => T)(prev) : next;
+      queueMicrotask(() => storedListeners.get(key)?.forEach(listener => listener(resolved)));
+      return resolved;
+    });
+  }, [key]);
+  return [value, update];
 }
 
 export interface AppConfig {
@@ -57,8 +75,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { data: config } = useRemote<AppConfig>('/api/config');
 
   useEffect(() => {
-    document.documentElement.lang = lang;
-  }, [lang]);
+    document.documentElement.lang = 'en';
+  }, []);
 
   const toggleVerse = useCallback(
     (key: string) =>
@@ -84,7 +102,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => ({
       lang,
       setLang,
-      t: STRINGS[lang],
+      t: STRINGS.en,
       config,
       saved,
       toggleVerse,

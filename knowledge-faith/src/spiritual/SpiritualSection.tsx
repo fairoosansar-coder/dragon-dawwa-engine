@@ -1,12 +1,14 @@
 import { useEffect } from 'react';
 import { SP } from './i18n.ts';
-import { useSp } from './chrome.tsx';
 import { Hub } from './Hub.tsx';
 import { GuideView } from './GuideView.tsx';
 import { PrayerTimesView, QiblaView } from './PrayerQibla.tsx';
 import { SavedCalculations, ZakahCalculator } from './ZakahView.tsx';
 import { FastingCalendar, OccasionView } from './FastingView.tsx';
+import { NamesView } from './NamesView.tsx';
+import { NameDetail } from './NameDetail.tsx';
 import { Checklist, DuaLibrary, Questions, SavedView, TopicsIndex } from './Support.tsx';
+import { WorshipLibrary } from './WorshipLibrary.tsx';
 import { SLOTS, type SlotId } from './content.ts';
 
 function isSlot(value: string | undefined): value is SlotId {
@@ -14,14 +16,15 @@ function isSlot(value: string | undefined): value is SlotId {
 }
 
 export default function SpiritualSection({ segments = [] }: { segments?: string[] }) {
-  const { lang } = useSp();
   const [root, a, b] = segments;
   useEffect(() => {
-    document.title = `${SP[lang].title} · ${SP[lang].brand}`;
-  }, [lang]);
+    document.title = `${SP.en.title} · ${SP.en.brand}`;
+  }, []);
 
   let view = <Hub />;
   if (root === 'shahadah') view = <GuideView segments={['shahadah']} anchor={isSlot(a) ? a : undefined} />;
+  else if (root === 'names' && a && /^\d{1,12}$/.test(a)) view = <NameDetail id={a} />;
+  else if (root === 'names') view = <NamesView segments={segments} />;
   else if (root === 'salah' && a === 'times') view = <PrayerTimesView segments={segments} />;
   else if (root === 'salah' && a === 'qibla') view = <QiblaView segments={segments} />;
   else if (root === 'salah' && a === 'learn') view = <GuideView segments={['salah', 'learn']} anchor={isSlot(b) ? b : undefined} />;
@@ -41,6 +44,7 @@ export default function SpiritualSection({ segments = [] }: { segments?: string[
   else if (root === 'hajj') view = <GuideView segments={['hajj']} anchor={isSlot(a) ? a : undefined} />;
   else if (root === 'umrah' && a === 'checklist') view = <Checklist segments={segments} kind="umrah" />;
   else if (root === 'umrah') view = <GuideView segments={['umrah']} anchor={isSlot(a) ? a : undefined} />;
+  else if (root === 'library') view = <WorshipLibrary topicId={a} />;
   else if (root === 'dua-dhikr') view = <DuaLibrary segments={segments} />;
   else if (root === 'akhlaq') view = <GuideView segments={['akhlaq']} anchor={isSlot(a) ? a : undefined} />;
   else if (root === 'new-muslim') view = <GuideView segments={['new-muslim']} anchor={isSlot(a) ? a : undefined} />;
