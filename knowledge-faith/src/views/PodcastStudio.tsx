@@ -32,6 +32,7 @@ import type {
 } from '../shared/studio/contracts.ts';
 import { buildPresenterGreeting, STUDIO_PRESENTERS } from '../shared/studio/presenter.ts';
 import { EditorialProductionDesk } from '../studio/EditorialProductionDesk.tsx';
+import { RoundtableListen } from '../studio/RoundtableListen.tsx';
 import { ListenerPreferencesDrawer } from '../studio/ListenerPreferencesDrawer.tsx';
 import { SourceReaderPanel } from '../studio/SourceReaderPanel.tsx';
 import { ProgrammeMedallion } from '../studio/StudioArtwork.tsx';
@@ -1166,6 +1167,19 @@ function DragonDawwaRadioStudio() {
   );
 }
 
+function EditorialRoute() {
+  const { lang } = useApp();
+  const remote = useRemote<StudioEpisode>(`/api/studio/episodes/tonight-mercy-ar-rahman?lang=${lang}`);
+  if (remote.loading && !remote.data) return <Loading />;
+  if (remote.error || !remote.data) return <ErrorNote message={remote.error ?? 'The editorial episode could not be loaded.'} />;
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-ink/70">Editorial review. Publishing stays behind an authorized account. Listeners use the roundtable.</p>
+      <EditorialProductionDesk episode={remote.data} lang={lang} onEpisodeUpdated={() => remote.reload()} />
+    </div>
+  );
+}
+
 export default function PodcastStudio({ sub }: ViewProps) {
   const { t } = useApp();
   if (sub === 'pilot') {
@@ -1175,7 +1189,8 @@ export default function PodcastStudio({ sub }: ViewProps) {
       </Suspense>
     );
   }
-  if (sub === 'roundtable') {
+  if (sub === 'desk') return <EditorialRoute />;
+  if (sub === 'hadith-table') {
     return (
       <>
         <p className="mb-4 text-sm text-ink/70">{t.roundtableHint}</p>
@@ -1185,5 +1200,5 @@ export default function PodcastStudio({ sub }: ViewProps) {
       </>
     );
   }
-  return <DragonDawwaRadioStudio />;
+  return <RoundtableListen />;
 }

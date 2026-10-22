@@ -11,7 +11,9 @@ import {
   getStudioCatalogueSummary,
   getStudioVoiceStatus,
   listStudioProductions,
+  createRoundtable,
   loadStudioEpisode,
+  openRoundtableEpisode,
   runStudioProductionPipeline,
   transitionStudioProduction,
 } from './service.ts';
@@ -48,6 +50,24 @@ export function studioRouter(deps: StudioRouterDeps): express.Router {
       const id = String(req.params.id || 'tonight-mercy-ar-rahman');
       const lang = toLang(req.query.lang);
       res.json(await loadStudioEpisode(id, lang));
+    }),
+  );
+
+  router.get(
+    '/api/studio/roundtable/:id',
+    route(async (req, res) => {
+      const id = String(req.params.id || 'tonight-mercy-ar-rahman');
+      res.json(await openRoundtableEpisode(id, toLang(req.query.lang)));
+    }),
+  );
+
+  router.post(
+    '/api/studio/roundtable',
+    deps.aiLimiter,
+    route(async (req, res) => {
+      const topic = text(req.body?.topic, 300, 'topic');
+      const episode = await createRoundtable(topic, toLang(req.body?.lang));
+      res.status(201).json(episode);
     }),
   );
 

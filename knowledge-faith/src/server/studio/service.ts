@@ -49,7 +49,9 @@ import { UpstreamError } from '../http.ts';
 import { getVerses } from '../quran.ts';
 import { fetchReaderHtml } from '../readable.ts';
 import { loadCompletedResearchJob, referencesFromJob, waitForSharedResearchJob } from './fromJob.ts';
+import { assembleRoundtableFromJob } from './roundtableFromJob.ts';
 import { assembleStudioProductionFromJob } from './scriptFromJob.ts';
+import { toRoundtableEpisode } from '../../shared/studio/roundtable.ts';
 
 const episodeCache = new Map<string, { at: number; episode: StudioEpisode }>();
 const CACHE_TTL_MS = 5 * 60_000;
@@ -586,6 +588,56 @@ export async function loadStudioEpisode(idOrSlug: string, lang: Lang): Promise<S
     STUDIO_EPISODE_BLUEPRINTS.find(b => b.id === idOrSlug || b.slug === idOrSlug) ??
     STUDIO_EPISODE_BLUEPRINTS[0];
   return hydrateBlueprintEpisode(blueprint, lang);
+}
+
+function rememberRoundtable(episode: StudioEpisode): StudioEpisode {
+  studioProductions.set(`${episode.id}:${episode.lang}`, episode);
+  studioProductions.set(episode.id, episode);
+  return episode;
+}
+
+/** Listener copy of an available episode. The editorial episode is left unchanged. */
+export async function openRoundtableEpisode(idOrSlug: string, lang: Lang): Promise<StudioEpisode> {
+  const stored = studioProductions.get(`${idOrSlug}:${lang}`) ?? studioProductions.get(idOrSlug);
+  if (stored?.lang === lang && stored.id.startsWith('roundtable-')) return stored;
+  const sourceId = idOrSlug.replace(/^roundtable-/, '');
+  const blueprint = STUDIO_EPISODE_BLUEPRINTS.find(item => item.id === sourceId || item.slug === sourceId);
+  if (!blueprint) {
+    if (stored && stored.lang !== lang) {
+      throw new UpstreamError(
+        `This roundtable was prepared in ${stored.lang.toUpperCase()}. It was not substituted into ${lang.toUpperCase()}.`,
+        422,
+      );
+    }
+    throw new UpstreamError('That roundtable is not available.', 404);
+  }
+  const source = await loadStudioEpisode(blueprint.id, lang);
+  if (source.lang !== lang) {
+    throw new UpstreamError(`This episode is not available in ${lang}. Another language was not substituted.`, 422);
+  }
+  return rememberRoundtable(toRoundtableEpisode(source));
+}
+
+/** One listener action: research the topic, then return an unpublished roundtable draft. */
+export async function createRoundtable(topic: string, lang: Lang): Promise<StudioEpisode> {
+  const response = await waitForSharedResearchJob(topic, lang);
+  const built = assembleRoundtableFromJob(
+    {
+      topic,
+      audience: 'general',
+      lang,
+      durationMinutes: 4,
+      familyId: 'research-room',
+      learningObjective: 'Hear the retrieved passage and a short conversation around it.',
+      tone: 'warm_reflective',
+      format: 'explanatory_dialogue',
+      questions: [topic],
+    },
+    response,
+    `roundtable-${response.job.id}`,
+    nowIso(),
+  );
+  return rememberRoundtable(built.episode);
 }
 
 /**
