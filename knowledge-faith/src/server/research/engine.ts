@@ -366,7 +366,7 @@ export async function executeResearch(input: {
       if (!allow('HadeethEnc')) return;
       try {
         const record = await timed('HadeethEnc', () => attempt(() => input.ports.loadHadeeth(input.language, hit.id, signal), signal));
-        if (!passageSupportsTopic(input.question, record.text)) {
+        if (!passageSupportsTopic(input.question, record.text) && !plan.subquestions.some(sub => passageSupportsTopic(sub.text, record.text))) {
           pushCoverage({
             kind: 'no_relevant_evidence',
             provider: 'HadeethEnc',
@@ -406,7 +406,8 @@ export async function executeResearch(input: {
         for (const verse of verses) {
           const key = `${verse.surah}:${verse.ayah}`;
           const named = namedKeys.has(key);
-          if (!named && !passageSupportsTopic(input.question, `${verse.arabic}\n${verse.translation}`)) {
+          const verseText = `${verse.arabic}\n${verse.translation}`;
+          if (!named && !passageSupportsTopic(input.question, verseText) && !plan.subquestions.some(sub => passageSupportsTopic(sub.text, verseText))) {
             pushCoverage({
               kind: 'no_relevant_evidence',
               provider: 'QuranEnc',

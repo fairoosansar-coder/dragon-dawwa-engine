@@ -201,7 +201,9 @@ export function contentTokens(text: string): string[] {
   return tokens;
 }
 
-const WEAK_LATIN = new Set(['number', 'said', 'being', 'taught', 'about']);
+const WEAK_LATIN = new Set([
+  'number', 'said', 'being', 'taught', 'about', 'someone', 'something', 'anything', 'people', 'person',
+]);
 
 /** A passage supports a topic when its own text contains the question’s content terms. Titles are ignored. */
 export function passageSupportsTopic(topic: string, passage: string): boolean {
