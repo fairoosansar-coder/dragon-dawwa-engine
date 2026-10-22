@@ -1,4 +1,15 @@
-const ALLOWED_HOSTS = new Set(['api.alquran.cloud', 'cdn.jsdelivr.net', 'api.aladhan.com']);
+const ALLOWED_HOSTS = new Set([
+  'api.alquran.cloud',
+  'cdn.jsdelivr.net',
+  'api.aladhan.com',
+  'quranenc.com',
+  'd.quranenc.com',
+  'hadeethenc.com',
+  'api3.islamhouse.com',
+]);
+
+export const SOURCE_BUSY = 'The source asked us to wait. Try again shortly.';
+export const SOURCE_TIMEOUT = 'The source took too long to respond. Try again.';
 const MAX_ENTRIES = 500;
 
 interface Entry {
@@ -32,11 +43,17 @@ export async function fetchJson<T>(url: string, ttlMs: number, timeoutMs = 12_00
   const request = (async () => {
     let res: Response;
     try {
-      res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs), redirect: 'follow' });
+      res = await fetch(url, {
+        signal: AbortSignal.timeout(timeoutMs),
+        redirect: 'follow',
+        headers: { Accept: 'application/json', 'User-Agent': 'DragonDawwa/1.0 (Knowledge and Faith research)' },
+      });
     } catch {
-      throw new UpstreamError(`${host} did not respond`, 504);
+      throw new UpstreamError(SOURCE_TIMEOUT, 504);
     }
     if (res.status === 404) throw new UpstreamError('Not found at source', 404);
+    if (res.status === 429) throw new UpstreamError(SOURCE_BUSY, 429);
+    if (res.status === 204 || res.status === 205) throw new UpstreamError(`${host} returned an empty response`, 502);
     if (!res.ok) throw new UpstreamError(`${host} returned ${res.status}`);
     const value = (await res.json()) as T;
     cache.set(url, { value, expires: Date.now() + ttlMs });
@@ -50,6 +67,31 @@ export async function fetchJson<T>(url: string, ttlMs: number, timeoutMs = 12_00
   } finally {
     inflight.delete(url);
   }
+}
+
+/** GET JSON from an allowlisted host and do not store the response. Callers cache only after a successful parse. */
+export async function fetchJsonFresh<T>(url: string, timeoutMs = 12_000): Promise<T> {
+  const host = new URL(url).hostname;
+  if (!ALLOWED_HOSTS.has(host)) throw new UpstreamError(`Upstream host not allowed: ${host}`, 500);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      signal: AbortSignal.timeout(timeoutMs),
+      redirect: 'follow',
+      headers: { Accept: 'application/json', 'User-Agent': 'DragonDawwa/1.0 (Knowledge and Faith research)' },
+    });
+  } catch {
+    throw new UpstreamError(SOURCE_TIMEOUT, 504);
+  }
+  const finalHost = new URL(res.url).hostname;
+  // A missing QuranEnc audio list answers 404 and redirects to an error page on another host.
+  // That is absence. Do not read the error page, and do not treat it as a failed list.
+  if (res.status === 404) throw new UpstreamError('Not found at source', 404);
+  if (!ALLOWED_HOSTS.has(finalHost)) throw new UpstreamError(`Upstream host not allowed: ${finalHost}`, 502);
+  if (res.status === 429) throw new UpstreamError(SOURCE_BUSY, 429);
+  if (res.status === 204 || res.status === 205) throw new UpstreamError(`${host} returned an empty response`, 502);
+  if (!res.ok) throw new UpstreamError(`${host} returned ${res.status}`);
+  return (await res.json()) as T;
 }
 
 export const DAY = 86_400_000;

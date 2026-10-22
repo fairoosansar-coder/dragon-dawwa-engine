@@ -29,3 +29,16 @@ export function parseHash(hash: string): { path: RouteRoot; segments: string[] }
 export function spiritualHref(segments: string[] = []): string {
   return `#/spiritual${segments.length ? `/${segments.join('/')}` : ''}`;
 }
+
+/** Shell search is shown only where the open section reads the query. */
+export function showSectionSearch(path: RouteRoot, segments: string[]): boolean {
+  if (path === 'hub' || path === 'quran') return true;
+  if (path === 'hadith') {
+    if (segments[0] === 'research') return false;
+    if (segments[0] && /^\d+$/.test(segments[0])) return false;
+    return true;
+  }
+  if (path === 'studio') return segments[0] !== 'roundtable' && segments[0] !== 'pilot';
+  if (path === 'spiritual') return segments.length === 0;
+  return false;
+}

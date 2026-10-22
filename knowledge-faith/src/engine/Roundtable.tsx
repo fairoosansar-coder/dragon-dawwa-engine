@@ -5,13 +5,13 @@ import { ArchBanner, StarDivider } from './ds/ornaments.tsx';
 import { EngineFrame } from './EngineFrame.tsx';
 import { useDossier } from './DossierContext.tsx';
 import { useApp } from '../lib/store.tsx';
-import { pauseAudio } from '../lib/audio.ts';
+import { stopAudio } from '../lib/audio.ts';
 
 export default function Roundtable() {
   const { t, config } = useApp();
   const d = useDossier();
   const s = d.displayed.agent_6_synthesis;
-  useEffect(() => pauseAudio(), []);
+  useEffect(() => stopAudio(), []);
   return (
     <EngineFrame className="space-y-6">
       <ArchBanner

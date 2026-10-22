@@ -9,7 +9,8 @@ import { aladhanDate } from '../src/server/prayer.ts';
 import { SAMPLE_HADITHS } from '../src/engine/data/sampleHadiths.ts';
 import { browserSpeechAvailable, speakInBrowser } from '../src/engine/utils/browserVoice.ts';
 import { hasGeminiApiKey } from '../src/server/loadEnv.ts';
-import { spokenTranscript } from '../src/server/spokenLine.ts';
+import { narrationDirection, spokenTranscript } from '../src/server/spokenLine.ts';
+import { podcastPrompt } from '../src/server/grounding.ts';
 import { publicAppUrl, viteDevServerOptions } from '../src/server/publicUrl.ts';
 
 test('parseRefs handles single ayahs, ranges and rejects nonsense', () => {
@@ -124,6 +125,15 @@ test('publicAppUrl uses the Codespaces forwarded host instead of localhost', () 
     if (domain === undefined) delete process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN;
     else process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN = domain;
   }
+});
+
+test('spoken narration is directed in the content language without changing the words', () => {
+  const words = 'அல்லாஹ்வைத் தவிர வேறு இறைவன் இல்லை.';
+  assert.equal(narrationDirection('', 'ta'), 'Speak in Tamil.');
+  assert.equal(narrationDirection('Read calmly', 'si'), 'Read calmly Speak in Sinhala.');
+  assert.equal(narrationDirection('', 'en'), '');
+  assert.equal(spokenTranscript(words, narrationDirection('Read calmly', 'ta')), words);
+  assert.match(podcastPrompt('patience', 'ta', [], 2), /Tamil/);
 });
 
 test('a delivery note is not left on the words that will be spoken', () => {
