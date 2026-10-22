@@ -103,11 +103,14 @@ export function KnowledgeShelf({ pathId }: { pathId: string }) {
               <Card>
                 <p className="text-xs font-semibold text-pine">IslamHouse {item.id}</p>
                 <h2 className="mt-2 font-display text-2xl font-bold text-pine" lang={item.language ?? lang}>
-                  {item.title}
+                  <a href={`#/hub/${pathId}/item/${item.id}`}>{item.title}</a>
                 </h2>
+                <a className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-pine underline" href={`#/hub/${pathId}/item/${item.id}`}>
+                  Read
+                </a>
                 {item.sourceUrl && (
-                  <a className="mt-3 inline-block text-sm text-pine underline" href={item.sourceUrl} target="_blank" rel="noreferrer">
-                    {t.sourcePage}
+                  <a className="ml-4 inline-block text-sm text-ink/70 underline" href={item.sourceUrl} target="_blank" rel="noreferrer">
+                    Original source
                   </a>
                 )}
               </Card>

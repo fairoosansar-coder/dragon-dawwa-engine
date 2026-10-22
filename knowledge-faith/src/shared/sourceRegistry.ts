@@ -80,6 +80,15 @@ export const SINCERITY_QURAN_HEADING = 'உளத்தூய்மை குற
  * Approved research hosts are IslamHouse, QuranEnc and HadeethEnc.
  * Other catalogue destinations stay here until an API and a content licence are both verified.
  */
+/** Re-read 2026-10-21 from the IslamHouse API hub README. The MIT licence on that repository covers its code, not every linked publication. */
+export const ISLAMHOUSE_RIGHTS = {
+  source: 'IslamHouse.com',
+  conditions:
+    'The IslamHouse API hub states that IslamHouse, QuranEnc and HadeethEnc content may be stored, indexed and used in an app when the original text, credits, version and source stay intact and the copy is updated after the source changes. A summary written here is independent Dragon Dawwa work and is not an edition approved by those publishers.',
+  generatedWork: false,
+  checkedOn: '2026-10-21',
+} as const;
+
 export const SOURCE_FINDINGS = {
   catalogue: {
     url: 'https://s.islamhouse.com/api/v1/services',

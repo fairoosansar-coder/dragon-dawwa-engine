@@ -19,6 +19,10 @@ import { loadHadeeth, loadHadeethCategories, loadHadeethList, searchHadeeth } fr
 import { pageByRelevance } from './src/shared/hadeethenc.ts';
 import { askPilot, loadPilotEpisode } from './src/server/pilot.ts';
 import { loadKnowledgeShelf, loadLibrary, loadLibraryItem } from './src/server/islamhouse.ts';
+import { readLibraryItem } from './src/server/libraryRead.ts';
+import { allowedMediaUrl, readMedia } from './src/server/media.ts';
+import { listNames, readName } from './src/server/names.ts';
+import { cancelSharedResearchJob, getSharedResearchJob, startSharedResearchJob } from './src/server/research/jobs.ts';
 import { dossierEvidence, quoteFromEvidence, researchTopic } from './src/server/research.ts';
 import { attachVerification, verifyScript } from './src/shared/research.ts';
 import type { EncyclopediaHadith } from './src/shared/hadeethenc.ts';
@@ -242,6 +246,61 @@ app.get(
       ),
     ),
   ),
+);
+
+app.get(
+  '/api/library/read/:id',
+  route(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) throw new UpstreamError('Unknown item', 404);
+    res.json(await readLibraryItem(id, toLang(req.query.lang)));
+  }),
+);
+
+app.get('/api/library/media', async (req, res, next) => {
+  try {
+    const url = allowedMediaUrl(typeof req.query.url === 'string' ? req.query.url : '');
+    if (!url) throw new UpstreamError('That file address is not an IslamHouse media file.', 400);
+    const file = await readMedia(url);
+    res.setHeader('Content-Type', file.type.split(';')[0] || 'application/octet-stream');
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.send(file.body);
+  } catch (err) {
+    next(err instanceof UpstreamError ? err : new UpstreamError(err instanceof Error ? err.message : 'The file could not be read.', 502));
+  }
+});
+
+app.get('/api/names', route(async (_req, res) => res.json(await listNames())));
+app.get('/api/names/:id', route(async (req, res) => res.json(await readName(String(req.params.id)))));
+
+app.post(
+  '/api/research/jobs',
+  rateLimiter(20, 'Too many research jobs. Please wait a few minutes.'),
+  route(async (req, res) => {
+    const question = text(req.body?.question, 800, 'question');
+    const id = startSharedResearchJob(question, toLang(req.body?.lang));
+    res.status(202).json({ id, contractVersion: '1.0.0' });
+  }),
+);
+
+app.get(
+  '/api/research/jobs/:id',
+  route(async (req, res) => {
+    const job = getSharedResearchJob(String(req.params.id));
+    if (!job) throw new UpstreamError('Unknown research job', 404);
+    res.json(job);
+  }),
+);
+
+app.post(
+  '/api/research/jobs/:id/cancel',
+  route(async (req, res) => {
+    const job = cancelSharedResearchJob(String(req.params.id));
+    if (!job) throw new UpstreamError('Unknown research job', 404);
+    res.json(job);
+  }),
 );
 
 app.get(

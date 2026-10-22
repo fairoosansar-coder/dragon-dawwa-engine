@@ -9,6 +9,7 @@ import { libraryShareText, WORSHIP_TOPICS, worshipTopic, type LibraryFile, type 
 import { PRAYER_ARTICLE, PRAYER_CREDITS } from '../shared/sourceRegistry.ts';
 import type { Lang } from '../shared/sources.ts';
 import { PageBack } from './chrome.tsx';
+import { LibraryReader } from '../views/LibraryReader.tsx';
 
 function useLocationHash(): string {
   const [hash, setHash] = useState(() => (typeof window === 'undefined' ? '' : window.location.hash));
@@ -128,13 +129,16 @@ function ItemBody({ item, topicId, topicTitle, lang }: { item: LibraryItem; topi
           </div>
         ))}
       </div>
-      {item.sourceUrl && (
-        <p>
-          <a className="text-sm text-pine underline" href={item.sourceUrl} target="_blank" rel="noreferrer">
-            {t.sourcePage}
+      <p className="flex flex-wrap gap-4">
+        <a className="text-sm font-semibold text-pine underline" href={`#/spiritual/library/${topicId}?lang=${lang}&item=${item.id}`}>
+          Read
+        </a>
+        {item.sourceUrl && (
+          <a className="text-sm text-ink/70 underline" href={item.sourceUrl} target="_blank" rel="noreferrer">
+            Original source
           </a>
-        </p>
-      )}
+        )}
+      </p>
       <RecordShare
         text={libraryShareText(item, topicTitle, lang)}
         hash={`#/spiritual/library/${topicId}?lang=${lang}&item=${item.id}`}
@@ -180,30 +184,12 @@ export function WorshipLibrary({ topicId }: { topicId?: string }) {
     <div className="space-y-4">
       <PageBack segments={['library', topic.id]} />
       <SectionTitle sub={t.librarySource}>{topic.title}</SectionTitle>
-      {itemId ? (
-        <OneItem topicId={topic.id} topicTitle={topic.title} itemId={itemId} lang={lang} />
+      {itemId && /^\d{1,12}$/.test(itemId) ? (
+        <LibraryReader itemId={Number(itemId)} backHref={`#/spiritual/library/${topic.id}?lang=${lang}`} />
       ) : (
         <TopicList topicId={topic.id} topicTitle={topic.title} categoryId={topic.categoryId} lang={lang} page={page} category={params.get('category') ?? ''} />
       )}
     </div>
-  );
-}
-
-function OneItem({ topicId, topicTitle, itemId, lang }: { topicId: string; topicTitle: string; itemId: string; lang: Lang }) {
-  const { t } = useApp();
-  const remote = useRemote<{ lang: Lang; topic: string; item: LibraryItem }>(`/api/library/item?topic=${topicId}&id=${itemId}&lang=${lang}`);
-  const data = remote.data && remote.data.lang === lang && remote.data.topic === topicId && String(remote.data.item.id) === itemId ? remote.data : null;
-  return (
-    <Card>
-      {remote.loading && !data && <Loading />}
-      {remote.error && <ErrorNote message={remote.error} onRetry={remote.reload} />}
-      {data && <ItemBody item={data.item} topicId={topicId} topicTitle={topicTitle} lang={lang} />}
-      <p className="mt-4 text-sm">
-        <a className="text-pine underline" href={`#/spiritual/library/${topicId}?lang=${lang}`}>
-          {t.back}
-        </a>
-      </p>
-    </Card>
   );
 }
 
@@ -273,8 +259,8 @@ function TopicList({
           <p lang="ta" className="mt-2 text-sm text-ink">
             {PRAYER_CREDITS.author}
           </p>
-          <a className="mt-3 inline-block text-sm text-pine underline" href={PRAYER_ARTICLE.readerUrl} target="_blank" rel="noreferrer">
-            {t.sourcePage}
+          <a className="mt-3 inline-block text-sm font-semibold text-pine underline" href={`#/spiritual/library/prayer?lang=ta&item=${PRAYER_ARTICLE.id}`}>
+            Read
           </a>
         </article>
       )}
