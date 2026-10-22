@@ -2,10 +2,11 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { postJson, useRemote } from '../lib/api.ts';
 import { useApp } from '../lib/store.tsx';
 import type { ResearchJobResponse } from '../shared/contracts/v1.ts';
+import { researchOutcome } from '../shared/research/outcomes.ts';
 import { Button, Card, ErrorNote, Notice } from '../components/ui.tsx';
 
 export function SourceResearch() {
-  const { lang } = useApp();
+  const { lang, config } = useApp();
   const [question, setQuestion] = useState('');
   const [jobId, setJobId] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -39,6 +40,16 @@ export function SourceResearch() {
 
   const job = remote.data?.job;
   const dossier = remote.data?.dossier;
+  const passageCount = dossier?.passages.length ?? 0;
+  const finished = job?.status === 'done' || job?.status === 'error' || job?.status === 'cancelled';
+  const outcome = job && finished
+    ? researchOutcome({
+        question: job.question,
+        queryCount: job.subquestions.reduce((total, sub) => total + sub.queries.length, 0),
+        passageCount,
+        coverage: job.coverage,
+      })
+    : null;
 
   return (
     <div className="mb-8 space-y-4">
@@ -48,6 +59,11 @@ export function SourceResearch() {
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink/70">
           A question is split into searches. A retrieved passage keeps the grade and reference printed by its source. This check does not call a library sahih.
         </p>
+        {config && config.ai === false && (
+          <p className="mt-3 text-sm text-ink/70">
+            Live study help and spoken audio are not available on this server. Research uses the words in your question.
+          </p>
+        )}
         <form onSubmit={onSubmit} className="mt-4 space-y-3">
           <label className="block text-sm font-medium text-pine" htmlFor="source-question">
             Question
@@ -91,15 +107,29 @@ export function SourceResearch() {
               ))}
             </ul>
           )}
+          {outcome && passageCount === 0 && (
+            <div className="mt-4">
+              <Notice>
+                <p className="font-semibold">{outcome.title}</p>
+                <p className="mt-1">{outcome.detail}</p>
+                {outcome.retry && (
+                  <div className="mt-3">
+                    <Button type="button" variant="soft" onClick={() => void onSubmit({ preventDefault() {} } as FormEvent)}>
+                      Retry
+                    </Button>
+                  </div>
+                )}
+              </Notice>
+            </div>
+          )}
           <ul className="mt-4 space-y-2">
-            {job.coverage.map(note => (
-              <li key={`${note.kind}-${note.provider}-${note.detail}`}>
-                <Notice>
-                  <span className="font-semibold">{note.kind.replaceAll('_', ' ')}. </span>
-                  {note.detail}
-                </Notice>
-              </li>
-            ))}
+            {job.coverage
+              .filter(note => !note.detail.startsWith('Live Gemini is not configured'))
+              .map(note => (
+                <li key={`${note.kind}-${note.provider}-${note.detail}`}>
+                  <p className="text-sm leading-relaxed text-ink/80">{note.detail}</p>
+                </li>
+              ))}
           </ul>
           {job.errors.map(error => (
             <p key={`${error.provider}-${error.message}`} className="mt-2 text-sm text-red-900">
@@ -114,7 +144,7 @@ export function SourceResearch() {
           <h2 className="font-display text-2xl font-bold text-pine">Retrieved passages</h2>
           {dossier.claims.map(claim => (
             <Notice key={claim.claim}>
-              <span className="font-semibold">Claim check: {claim.support.replaceAll('_', ' ')}. </span>
+              {claim.support === 'supported' && <span className="font-semibold">Supported. </span>}
               {claim.note}
               {claim.passageIds.length > 0 && <span> Passages: {claim.passageIds.join(', ')}.</span>}
             </Notice>
@@ -151,6 +181,12 @@ export function SourceResearch() {
               )}
             </Card>
           ))}
+          {outcome && passageCount > 0 && (
+            <Notice>
+              <p className="font-semibold">{outcome.title}</p>
+              <p className="mt-1">{outcome.detail}</p>
+            </Notice>
+          )}
           <p className="text-sm text-ink/70">{dossier.verificationNote}</p>
         </section>
       )}

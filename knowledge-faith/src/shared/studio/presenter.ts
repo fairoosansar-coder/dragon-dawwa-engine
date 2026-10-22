@@ -222,7 +222,7 @@ export function buildVoiceCapabilityReport(
     narrateHttpStatus: configured ? 200 : 503,
     blocker: configured
       ? null
-      : 'GEMINI_API_KEY is not configured on this server (POST /api/voice/narrate returns HTTP 503). Live generated presenter speech was not verified and is not mocked. Direct Qur’an Arabic recitation (AlQuran Cloud) and QuranEnc meaning audio manifests remain playable.',
+      : 'Live spoken audio is not available on this server. Passages can still be read. Qur’an recitation in the library is separate from this generated voice.',
     envModelsConfigured: models,
     envVoicesConfigured: voices,
     languages: {

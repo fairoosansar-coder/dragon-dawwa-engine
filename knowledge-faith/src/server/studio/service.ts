@@ -620,7 +620,7 @@ export async function answerStudioQuestion(req: StudioAskRequest): Promise<Studi
   const voiceAvailable = geminiConfigured();
   const voiceBlocker = voiceAvailable
     ? null
-    : 'Live Gemini speech synthesis is unavailable because GEMINI_API_KEY is not configured on this server (POST /api/voice/narrate returns HTTP 503).';
+    : 'Live spoken audio is not available on this server.';
 
   // 1. Arabic term inquiry ("What does this Arabic term mean?")
   if (/arabic term|what does .* mean|meaning of ar-rahman|meaning of rahmah|meaning of niyyah|அரபுச் சொல்|අරාබි වචනය/i.test(lower)) {

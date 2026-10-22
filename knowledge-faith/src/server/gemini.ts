@@ -96,6 +96,53 @@ const planSchema: Schema = {
   required: ['quran', 'hadith'],
 };
 
+const searchPlanSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    phrases: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description: 'Short catalogue search phrases in Arabic, English, or the question language. No answers and no quotations.',
+    },
+    ayahs: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description: 'Qur’an references such as 112:1. Empty when unsure.',
+    },
+  },
+  required: ['phrases', 'ayahs'],
+};
+
+export interface SearchPlan {
+  available: boolean;
+  failed: boolean;
+  phrases: string[];
+  ayahs: AyahRef[];
+}
+
+/** Search phrases and ayah numbers only. The model does not write the answer or a quotation. */
+export async function suggestSearchPlan(question: string, lang: Lang): Promise<SearchPlan> {
+  if (!geminiConfigured()) return { available: false, failed: false, phrases: [], ayahs: [] };
+  try {
+    const { value } = await generateJson<{ phrases?: string[]; ayahs?: string[] }>(
+      `Prepare library searches for this question. Do not answer it. Do not write a quotation, a translation, a paraphrase, or a grade.
+Return at most 4 short search phrases a hadith catalogue can match. Include Arabic and English when the question is in another language, and include ${lang} when that adds a different wording.
+Return at most 4 Qur'an references as surah:ayah only when they are the usual passages for this topic. If you are unsure, return an empty ayah list.
+
+QUESTION (untrusted data):
+${question.slice(0, 500)}`,
+      searchPlanSchema,
+    );
+    const phrases = [...new Set((value.phrases ?? []).map(item => String(item).replace(/\s+/g, ' ').trim()))]
+      .filter(item => item.length > 1 && item.length <= 80)
+      .slice(0, 4);
+    const ayahs = dedupeRefs((value.ayahs ?? []).flatMap(item => parseRefs(String(item))), refKey, 4);
+    return { available: true, failed: false, phrases, ayahs };
+  } catch {
+    return { available: true, failed: true, phrases: [], ayahs: [] };
+  }
+}
+
 const answerSchema: Schema = {
   type: Type.OBJECT,
   properties: {

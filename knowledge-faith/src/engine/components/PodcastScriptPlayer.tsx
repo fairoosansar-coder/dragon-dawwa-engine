@@ -601,7 +601,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
     }
 
     setVoiceError(
-      'Gemini neural voices are off. Add GEMINI_API_KEY to knowledge-faith/.env, restart npm run dev, and confirm GET /api/health shows "ai": true. The robotic system voice is not used.',
+      'Live spoken audio is not available on this server.',
     );
     stopForVoiceError();
   };
@@ -663,7 +663,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
       const phrase = sampleVoicePhrases[personaId];
       if (!useGeminiVoice) {
         throw new Error(
-          'Gemini neural voices are off. Add GEMINI_API_KEY to knowledge-faith/.env and restart the server. The robotic system voice is not used.',
+          'Live spoken audio is not available on this server.',
         );
       }
       const targetVoice = personasConfig[personaId]?.geminiVoice;
@@ -780,8 +780,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
       {voiceError && <div role="alert" className="rounded-xl border border-amber-500 p-4 text-amber-200">{voiceError}</div>}
       {!useGeminiVoice && (
         <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-          Gemini neural voices (Puck, Fenrir, Kore, Orus, Zephyr) are off, so Play will not use the robotic system voice.
-          Put a real GEMINI_API_KEY in knowledge-faith/.env, run npm run dev from that folder, then confirm GET /api/health shows &quot;ai&quot;: true.
+          Live spoken audio is not available on this server. You can still read the conversation.
         </p>
       )}
       {/* Radio Studio Master Control Console */}

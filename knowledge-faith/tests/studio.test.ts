@@ -140,7 +140,7 @@ describe('Presenter Presence, Opt-In Memory & Factual Provider Capability Report
     const unconfigured = buildVoiceCapabilityReport(false);
     assert.equal(unconfigured.configured, false);
     assert.equal(unconfigured.narrateHttpStatus, 503);
-    assert.match(unconfigured.blocker ?? '', /GEMINI_API_KEY/);
+    assert.match(unconfigured.blocker ?? '', /Live spoken audio is not available/);
     assert.equal(unconfigured.languages.en.geminiTtsVerifiedInThisEnv, false);
     assert.equal(unconfigured.languages.ta.geminiTtsVerifiedInThisEnv, false);
     assert.equal(unconfigured.languages.si.geminiTtsVerifiedInThisEnv, false);

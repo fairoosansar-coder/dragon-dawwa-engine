@@ -218,7 +218,7 @@ export function useStudioOrchestrator(episode: StudioEpisode | null, lang: Lang,
 
       if (!aiConfigured) {
         throw new Error(
-          'Live Gemini presenter narration requires GEMINI_API_KEY on the server (/api/health reports "ai": false). Select a Qur’an recitation or archival recording segment to hear direct source audio, or follow the synchronized transcript and sources.',
+          'Live spoken audio is not available on this server. You can still read the conversation and open the sources.',
         );
       }
 

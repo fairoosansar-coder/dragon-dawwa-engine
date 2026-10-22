@@ -8,7 +8,7 @@ import type {
   SourceRecord,
 } from '../../shared/contracts/v1.ts';
 import type { Lang } from '../../shared/sources.ts';
-import { contentTokens } from '../../shared/research.ts';
+import { contentTokens, passageSupportsTopic } from '../../shared/research.ts';
 import { verifyClaim } from '../../shared/research/claims.ts';
 import { asksScience, decomposeQuestion } from '../../shared/research/decompose.ts';
 import { ayahsMentioned } from '../../shared/research.ts';
@@ -83,6 +83,11 @@ export interface ResearchPorts {
   loadHadeeth(lang: Lang, id: string, signal: AbortSignal): Promise<HadithRecord>;
   getVerses(refs: { surah: number; ayah: number }[], lang: Lang, signal: AbortSignal): Promise<VerseRecord[]>;
   searchScience(query: string, signal: AbortSignal): Promise<ScienceWork[] | 'not_configured'>;
+  suggestSearch?(
+    question: string,
+    lang: Lang,
+    signal: AbortSignal,
+  ): Promise<{ available: boolean; failed: boolean; phrases: string[]; ayahs: { surah: number; ayah: number }[] }>;
 }
 
 export interface ResearchRun {
@@ -261,6 +266,39 @@ export async function executeResearch(input: {
   };
 
   try {
+    const religious = plan.subquestions.filter(sub => sub.domain !== 'science' && !asksScience(sub.text));
+    const host = religious[0];
+    const suggestedAyahs: { surah: number; ayah: number }[] = [];
+    if (host && input.ports.suggestSearch) {
+      try {
+        const suggestion = await timed('Gemini', () => attempt(() => input.ports.suggestSearch!(input.question, input.language, signal), signal));
+        if (!suggestion.available) {
+          pushCoverage({
+            kind: 'scholarly_review_required',
+            provider: 'Gemini',
+            detail: 'Live Gemini is not configured, so extra searches in other languages were not added. Real spoken audio is not available. The words in the question are still searched.',
+          });
+        } else if (suggestion.failed) {
+          pushCoverage({
+            kind: 'source_unavailable',
+            provider: 'Gemini',
+            detail: 'A source could not be reached. The study assistant did not prepare extra searches. Research continued with the words in the question.',
+          });
+        } else {
+          for (const phrase of suggestion.phrases) {
+            if (!host.queries.includes(phrase) && host.queries.length < 6) host.queries.push(phrase);
+          }
+          for (const ayah of suggestion.ayahs) suggestedAyahs.push(ayah);
+        }
+      } catch (err) {
+        if (isAbort(err, signal)) return finish('cancelled');
+        pushCoverage({
+          kind: 'source_unavailable',
+          provider: 'Gemini',
+          detail: 'A source could not be reached. The study assistant did not prepare extra searches. Research continued with the words in the question.',
+        });
+      }
+    }
     const queries: { sub: ResearchSubquestion; phrase: string }[] = [];
     for (const sub of plan.subquestions) {
       if (sub.domain === 'science' || asksScience(sub.text)) continue;
@@ -269,15 +307,13 @@ export async function executeResearch(input: {
         if (!queries.some(item => item.phrase === phrase)) queries.push({ sub, phrase });
       }
     }
-    if (queries.length < plan.subquestions.filter(sub => sub.domain !== 'science').length) {
-      const skipped = plan.subquestions.filter(sub => sub.domain !== 'science' && sub.queries.length === 0);
-      for (const sub of skipped) {
-        pushCoverage({
-          kind: 'no_relevant_evidence',
-          provider: 'planner',
-          detail: `No distinctive search terms remained in: ${sub.text}`,
-        });
-      }
+    const unprocessed = religious.length > 0 && queries.length === 0;
+    if (unprocessed) {
+      pushCoverage({
+        kind: 'no_relevant_evidence',
+        provider: 'planner',
+        detail: `We could not process the question. It is still here: ${input.question}`,
+      });
     }
     publish('search', 2);
     const hits: (HadithHit & { subId: string })[] = [];
@@ -289,7 +325,7 @@ export async function executeResearch(input: {
           pushCoverage({
             kind: 'no_relevant_evidence',
             provider: 'HadeethEnc',
-            detail: `Search returned no records for “${query.phrase}”. The rest of HadeethEnc was not read.`,
+            detail: `Search returned no records for “${query.phrase}”. Other searches still run.`,
           });
         }
         for (const row of rows) {
@@ -302,13 +338,12 @@ export async function executeResearch(input: {
         pushCoverage({
           kind: 'source_unavailable',
           provider: 'HadeethEnc',
-          detail: `HadeethEnc search failed: ${message} This is not evidence that the subject is absent.`,
+          detail: `A source could not be reached. HadeethEnc search failed: ${message} This is not a finding that the subject is absent.`,
         });
-        break;
+        continue;
       }
     }
 
-    const religious = plan.subquestions.filter(sub => sub.domain !== 'science' && !asksScience(sub.text));
     const perSub = Math.max(1, Math.floor(BUDGET.opens / Math.max(1, religious.length)));
     const chosen: HadithHit[] = [];
     let unseen = 0;
@@ -331,7 +366,7 @@ export async function executeResearch(input: {
       if (!allow('HadeethEnc')) return;
       try {
         const record = await timed('HadeethEnc', () => attempt(() => input.ports.loadHadeeth(input.language, hit.id, signal), signal));
-        if (score(input.question, record.text) === 0) {
+        if (!passageSupportsTopic(input.question, record.text)) {
           pushCoverage({
             kind: 'no_relevant_evidence',
             provider: 'HadeethEnc',
@@ -357,13 +392,29 @@ export async function executeResearch(input: {
     });
     if (signal.aborted) return finish('cancelled');
 
-    const ayahs = ayahsMentioned(input.question).slice(0, 6);
+    const namedAyahs = ayahsMentioned(input.question);
+    const ayahs = [...namedAyahs];
+    for (const ayah of suggestedAyahs) {
+      if (ayahs.length >= 6) break;
+      if (!ayahs.some(item => item.surah === ayah.surah && item.ayah === ayah.ayah)) ayahs.push(ayah);
+    }
+    const namedKeys = new Set(namedAyahs.map(ayah => `${ayah.surah}:${ayah.ayah}`));
     if (ayahs.length && allow('QuranEnc')) {
       try {
         const verses = await timed('QuranEnc', () => attempt(() => input.ports.getVerses(ayahs, input.language, signal), signal));
         const found = new Set(verses.map(verse => `${verse.surah}:${verse.ayah}`));
         for (const verse of verses) {
-          const hash = remember('QuranEnc', `${verse.surah}:${verse.ayah}`, verse.version ?? contentHash(verse.translation), verse.translation);
+          const key = `${verse.surah}:${verse.ayah}`;
+          const named = namedKeys.has(key);
+          if (!named && !passageSupportsTopic(input.question, `${verse.arabic}\n${verse.translation}`)) {
+            pushCoverage({
+              kind: 'no_relevant_evidence',
+              provider: 'QuranEnc',
+              detail: `Qur’an ${key} was opened. Its wording did not share a content term with the question, so it is not cited.`,
+            });
+            continue;
+          }
+          const hash = remember('QuranEnc', key, verse.version ?? contentHash(verse.translation), verse.translation);
           passages.push(versePassage(verse, input.language, clock().toISOString(), hash));
         }
         for (const ayah of ayahs) {
@@ -379,7 +430,11 @@ export async function executeResearch(input: {
         if (isAbort(err, signal)) return finish('cancelled');
         const message = err instanceof Error ? err.message : 'QuranEnc did not respond.';
         errors.push({ provider: 'QuranEnc', message });
-        pushCoverage({ kind: 'source_unavailable', provider: 'QuranEnc', detail: message });
+        pushCoverage({
+          kind: 'source_unavailable',
+          provider: 'QuranEnc',
+          detail: `A source could not be reached. QuranEnc did not respond: ${message} The hadith search is not cancelled by this.`,
+        });
       }
     }
 
@@ -437,11 +492,13 @@ export async function executeResearch(input: {
       });
     }
     if (passages.length) pushCoverage({ kind: 'evidence_found', provider: 'dossier', detail: `${passages.length} passage(s) were opened and kept.` });
-    else if (!coverage.some(note => note.kind === 'source_unavailable' || note.kind === 'science_not_configured' || note.kind === 'language_unavailable')) {
+    else if (unprocessed) {
+      /* The processing note already names the question. A second “nothing matched” note would pretend a search ran. */
+    } else if (!coverage.some(note => note.kind === 'source_unavailable' || note.kind === 'science_not_configured' || note.kind === 'language_unavailable')) {
       pushCoverage({
         kind: 'no_relevant_evidence',
         provider: 'dossier',
-        detail: 'No opened passage matched this question in the material that was searched. The libraries were not read in full.',
+        detail: `Available evidence does not sufficiently support an answer. Your question is still here: ${input.question}`,
       });
     }
     publish('verify', 4);
@@ -491,7 +548,18 @@ function claimFor(sub: ResearchSubquestion, passages: EvidencePassage[], coverag
           : check.note,
     };
   }
-  const related = passages.filter(item => item.role !== 'empirical' && score(sub.text, item.text) > 0);
+  if (!sub.queries.length) {
+    return {
+      claim: sub.text,
+      passageIds: [] as string[],
+      support: 'insufficient' as const,
+      citationExists: false,
+      quotationFaithful: null,
+      citationRelevant: false,
+      note: 'We could not process the question. It is still here.',
+    };
+  }
+  const related = passages.filter(item => item.role !== 'empirical' && passageSupportsTopic(sub.text, item.text));
   if (!related.length) {
     return {
       claim: sub.text,
@@ -500,7 +568,9 @@ function claimFor(sub: ResearchSubquestion, passages: EvidencePassage[], coverag
       citationExists: false,
       quotationFaithful: null,
       citationRelevant: false,
-      note: 'No opened passage contained a content term from this part of the question.',
+      note: coverage.some(note => note.kind === 'source_unavailable')
+        ? 'A source could not be reached, so this part was not fully checked.'
+        : 'Available evidence does not sufficiently support an answer to this part of the question.',
     };
   }
   const best = [...related].sort((a, b) => score(sub.text, b.text) - score(sub.text, a.text))[0];
