@@ -69,7 +69,7 @@ test('section search is hidden where the query is not read', () => {
   assert.equal(showSectionSearch('quran', ['study']), true);
   assert.equal(showSectionSearch('hadith', []), true);
   assert.equal(showSectionSearch('hadith', ['research']), false);
-  assert.equal(showSectionSearch('studio', []), true);
+  assert.equal(showSectionSearch('studio', []), false);
   assert.equal(showSectionSearch('studio', ['roundtable']), false);
   assert.equal(showSectionSearch('spiritual', []), true);
   assert.equal(showSectionSearch('spiritual', ['salah', 'times']), false);
