@@ -34,13 +34,25 @@ function text(value: unknown, max: number, field: string): string {
 export function studioRouter(deps: StudioRouterDeps): express.Router {
   const router = express.Router();
 
-  router.get('/api/studio/voice-status', (_req, res) => {
-    res.json(getStudioVoiceStatus());
-  });
+  router.get(
+    '/api/studio/voice-status',
+    route(async (req, res) => {
+      const probe = req.query.probe === 'true' || req.query.probe === '1';
+      res.json(
+        await getStudioVoiceStatus({
+          probe,
+          editorialAccountsConfigured: deps.accounts.length > 0,
+        }),
+      );
+    }),
+  );
 
-  router.get('/api/studio/catalogue', (req, res) => {
-    res.json(getStudioCatalogueSummary(toLang(req.query.lang)));
-  });
+  router.get(
+    '/api/studio/catalogue',
+    route(async (req, res) => {
+      res.json(await getStudioCatalogueSummary(toLang(req.query.lang)));
+    }),
+  );
 
   router.get(
     '/api/studio/episodes/:id',
@@ -111,7 +123,6 @@ export function studioRouter(deps: StudioRouterDeps): express.Router {
       const action = String(req.body?.action ?? '') as StudioTransitionAction;
       const notes = typeof req.body?.notes === 'string' ? req.body.notes : '';
 
-      // Reuse existing editorial roles and permissions for publication/approval transitions
       let user: EditorUser | null = authenticate(deps.accounts, req.headers.authorization);
       if (!user) {
         if (action === 'publish-episode' || action === 'withdraw-episode') {
@@ -123,7 +134,6 @@ export function studioRouter(deps: StudioRouterDeps): express.Router {
           }
           throw new EditorialError('Sign in with an authorized publisher token to publish or withdraw episodes.', 401);
         }
-        // For local studio review/draft transitions when no EDITORIAL_USERS is configured, allow studio desk reviewer role except publish
         if (deps.accounts.length > 0) {
           throw new EditorialError('Sign in with an editorial access token.', 401);
         }

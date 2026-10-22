@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 import { recitationUrl, toLang, type Lang } from '../../shared/sources.ts';
 import type { Verse } from '../../shared/types.ts';
 import type { EncyclopediaHadith } from '../../shared/hadeethenc.ts';
-import { pageByRelevance } from '../../shared/hadeethenc.ts';
 import {
   PILOT_LIMITATION,
   PILOT_QUOTATION_NOTE,
@@ -12,7 +11,6 @@ import {
 import {
   asksForScience,
   contentTokens,
-  passageSupportsTopic,
   referenceEvidence,
   type ResearchReference,
 } from '../../shared/research.ts';
@@ -25,15 +23,19 @@ import {
   STUDIO_EPISODE_BLUEPRINTS,
   type EpisodeBlueprint,
 } from '../../shared/studio/catalogue.ts';
-import type {
-  AudioStreamKind,
-  ContentOriginBadge,
-  EpisodeOutlineItem,
-  StudioAskAnswer,
-  StudioAskRequest,
-  StudioEpisode,
-  StudioSegment,
-  TopicBrief,
+import {
+  evidencePassageToReference,
+  referenceToEvidencePassage,
+  RESEARCH_CONTRACT_VERSION,
+  type AudioStreamKind,
+  type ContentOriginBadge,
+  type EpisodeOutlineItem,
+  type StudioAskAnswer,
+  type StudioAskRequest,
+  type StudioEpisode,
+  type StudioSegment,
+  type TopicBrief,
+  type VoiceCapabilityReport,
 } from '../../shared/studio/contracts.ts';
 import { buildVoiceCapabilityReport, STUDIO_PRESENTERS } from '../../shared/studio/presenter.ts';
 import {
@@ -46,11 +48,14 @@ import {
 } from '../../shared/studio/verification.ts';
 import type { EditorUser } from '../../shared/spiritual/governance.ts';
 import { geminiConfigured, VOICES, writeAnswer } from '../gemini.ts';
-import { loadHadeeth, searchHadeeth } from '../hadeethenc.ts';
+import { loadHadeeth } from '../hadeethenc.ts';
 import { UpstreamError } from '../http.ts';
 import { getVerses } from '../quran.ts';
+import { loadAudioManifest } from '../quranenc.ts';
 import { fetchReaderHtml } from '../readable.ts';
 import { researchTopic } from '../research.ts';
+import { executeResearch, type ResearchPorts } from '../research/engine.ts';
+import { defaultResearchPorts } from '../research/ports.ts';
 
 const episodeCache = new Map<string, { at: number; episode: StudioEpisode }>();
 const CACHE_TTL_MS = 5 * 60_000;
@@ -156,7 +161,6 @@ function buildSegmentsForEpisode(
   const firstVerse = verses[0];
   const firstHadith = hadiths[0];
 
-  // 1. Opening — quotes the opening passage directly so every substantive line is established in the retrieved evidence
   if (firstVerse) {
     const vid = `Q${firstVerse.surah}-${firstVerse.ayah}`;
     pushSeg({
@@ -178,7 +182,6 @@ function buildSegmentsForEpisode(
     });
   }
 
-  // 2. Orientation — quotes the primary hadith wording that frames the episode's question
   if (firstHadith) {
     const hid = `E${firstHadith.id}`;
     pushSeg({
@@ -200,7 +203,6 @@ function buildSegmentsForEpisode(
     });
   }
 
-  // 3. Evidence — Original Qur'an Recitation (separate stream) + Published Meaning Audio (separate stream) + Remaining Verses/Hadiths
   for (const verse of verses) {
     const vid = `Q${verse.surah}-${verse.ayah}`;
     pushSeg({
@@ -290,7 +292,6 @@ function buildSegmentsForEpisode(
     });
   }
 
-  // 4. Exploration — HadeethEnc documented explanation on the same record
   if (firstHadith?.explanation) {
     const hid = `E${firstHadith.id}`;
     pushSeg({
@@ -314,7 +315,6 @@ function buildSegmentsForEpisode(
     });
   }
 
-  // 5. Application — Documented lesson from the HadeethEnc record
   const lessonQuote = firstHadith?.lessons?.[0]?.trim() ?? firstVerse?.translation ?? '';
   const appCitation = firstHadith && firstHadith.lessons?.[0] ? `E${firstHadith.id}` : firstVerse ? `Q${firstVerse.surah}-${firstVerse.ayah}` : allIds[0];
   if (lessonQuote && appCitation) {
@@ -337,7 +337,6 @@ function buildSegmentsForEpisode(
     });
   }
 
-  // 6. Closing — Final verse quotation
   const lastVerse = verses[verses.length - 1] ?? firstVerse;
   if (lastVerse) {
     const vid = `Q${lastVerse.surah}-${lastVerse.ayah}`;
@@ -518,6 +517,7 @@ export async function hydrateBlueprintEpisode(blueprint: EpisodeBlueprint, lang:
       : [STUDIO_PRESENTERS.presenter];
 
   const episode: StudioEpisode = {
+    contractVersion: RESEARCH_CONTRACT_VERSION,
     id: blueprint.id,
     slug: blueprint.slug,
     familyId: blueprint.familyId,
@@ -540,6 +540,7 @@ export async function hydrateBlueprintEpisode(blueprint: EpisodeBlueprint, lang:
     brief: { ...blueprint.brief, lang },
     outline,
     segments,
+    passages: references.map(referenceToEvidencePassage),
     references,
     evidence: references.map(referenceEvidence),
     gaps,
@@ -590,13 +591,13 @@ export async function loadStudioEpisode(idOrSlug: string, lang: Lang): Promise<S
 }
 
 /**
- * Interactive Ask-While-Listening Resolver.
- * Uses word/token overlap ONLY as a retrieval relevance signal to select which passages to inspect.
- * Returns direct quotations (`kind: 'quotation'`) when no AI synthesis is configured,
- * unreviewed synthesis (`kind: 'synthesis'`, `review: 'unreviewed'`) when Gemini is configured,
- * and `kind: 'limitation'` (`PILOT_LIMITATION`) when the retrieved sources do not answer the question.
+ * Interactive Ask-While-Listening Resolver integrated with the master agent's committed
+ * `executeResearch` (`src/server/research/engine.ts`) and `src/shared/contracts/v1.ts` (`1.0.0`).
  */
-export async function answerStudioQuestion(req: StudioAskRequest): Promise<StudioAskAnswer> {
+export async function answerStudioQuestion(
+  req: StudioAskRequest,
+  ports: ResearchPorts = defaultResearchPorts(),
+): Promise<StudioAskAnswer> {
   const rawQuestion = req.question.trim();
   const lower = rawQuestion.toLowerCase();
 
@@ -618,9 +619,9 @@ export async function answerStudioQuestion(req: StudioAskRequest): Promise<Studi
   const segmentRefs = episode.references.filter(r => currentSegment?.citations.includes(r.id));
   const fallbackRefs = segmentRefs.length > 0 ? segmentRefs : episode.references.slice(0, 3);
   const voiceAvailable = geminiConfigured();
-  const voiceBlocker = voiceAvailable
+  const voiceUserMessage = voiceAvailable
     ? null
-    : 'Live Gemini speech synthesis is unavailable because GEMINI_API_KEY is not configured on this server (POST /api/voice/narrate returns HTTP 503).';
+    : 'Spoken presenter narration is not available right now. Read the cited answer and open the sources below.';
 
   // 1. Arabic term inquiry ("What does this Arabic term mean?")
   if (/arabic term|what does .* mean|meaning of ar-rahman|meaning of rahmah|meaning of niyyah|அரபுச் சொல்|අරාබි වචනය/i.test(lower)) {
@@ -630,6 +631,7 @@ export async function answerStudioQuestion(req: StudioAskRequest): Promise<Studi
     const citeIds = activeRefs.map(r => r.id);
 
     return {
+      contractVersion: RESEARCH_CONTRACT_VERSION,
       id: `ans-${randomUUID()}`,
       episodeId: episode.id,
       segmentId: currentSegment?.id ?? 'seg-1',
@@ -658,6 +660,7 @@ export async function answerStudioQuestion(req: StudioAskRequest): Promise<Studi
             ]
           : []),
       ],
+      passages: activeRefs.map(referenceToEvidencePassage),
       references: activeRefs,
       relatedReferences: episode.references,
       arabicTermExplanation: {
@@ -665,9 +668,10 @@ export async function answerStudioQuestion(req: StudioAskRequest): Promise<Studi
         arabic: termEntry.arabic,
         meaning: termEntry.meanings[effectiveLang],
         citationId: citeIds[0] ?? 'Q1-1',
+        readerRoute: termEntry.key === 'ar-rahman' ? '#/spiritual/names/176539' : null,
       },
       voiceAvailable,
-      voiceBlocker,
+      voiceUserMessage,
       answeredAt: nowIso(),
     };
   }
@@ -677,6 +681,7 @@ export async function answerStudioQuestion(req: StudioAskRequest): Promise<Studi
     const hadithRefs = episode.references.filter(r => r.provider === 'HadeethEnc');
     if (hadithRefs.length > 0) {
       return {
+        contractVersion: RESEARCH_CONTRACT_VERSION,
         id: `ans-${randomUUID()}`,
         episodeId: episode.id,
         segmentId: currentSegment?.id ?? 'seg-1',
@@ -693,10 +698,11 @@ export async function answerStudioQuestion(req: StudioAskRequest): Promise<Studi
           role: 'quotation' as const,
           statementKind: 'published_translation' as const,
         })),
+        passages: hadithRefs.map(referenceToEvidencePassage),
         references: hadithRefs,
         relatedReferences: episode.references,
         voiceAvailable,
-        voiceBlocker,
+        voiceUserMessage,
         answeredAt: nowIso(),
       };
     }
@@ -710,6 +716,7 @@ export async function answerStudioQuestion(req: StudioAskRequest): Promise<Studi
   ) {
     const activeRefs = fallbackRefs;
     return {
+      contractVersion: RESEARCH_CONTRACT_VERSION,
       id: `ans-${randomUUID()}`,
       episodeId: episode.id,
       segmentId: currentSegment?.id ?? 'seg-1',
@@ -726,83 +733,47 @@ export async function answerStudioQuestion(req: StudioAskRequest): Promise<Studi
         role: 'quotation' as const,
         statementKind: 'published_translation' as const,
       })),
+      passages: activeRefs.map(referenceToEvidencePassage),
       references: activeRefs,
       relatedReferences: episode.references,
       voiceAvailable,
-      voiceBlocker,
+      voiceUserMessage,
       answeredAt: nowIso(),
     };
   }
 
-  // 4. Science boundary check
-  if (asksForScience(rawQuestion)) {
-    return {
-      id: `ans-${randomUUID()}`,
-      episodeId: episode.id,
-      segmentId: currentSegment?.id ?? 'seg-1',
-      question: rawQuestion,
-      lang: effectiveLang,
-      visibility: 'private_session',
-      review: 'unreviewed',
-      originBadge: 'Dragon Dawwa generated material',
-      kind: 'limitation',
-      note: PILOT_LIMITATION,
-      paragraphs: [
-        {
-          text: 'This researcher supplies religious-source research only. A scientific claim requires a separate science-research workflow; religious passages are not presented as laboratory scientific proof.',
-          citations: [],
-          role: 'limitation',
-          statementKind: 'presenter_reflection',
-        },
-      ],
-      references: [],
-      relatedReferences: fallbackRefs,
-      voiceAvailable,
-      voiceBlocker,
-      answeredAt: nowIso(),
-    };
-  }
-
-  // 5. General question: use token overlap strictly as a retrieval relevance signal to select candidate passages
+  // 4. General or multi-sentence question: run against the master agent's committed `executeResearch` engine (`src/server/research/engine.ts`)!
   const tokens = contentTokens(rawQuestion);
-  const matchingEpisodeRefs = episode.references.filter(r => {
-    const hay = `${r.title}\n${r.passage}`.toLowerCase();
-    return tokens.some(t => hay.includes(t));
+  const matchingEpisodeRefs =
+    !asksForScience(rawQuestion) && tokens.length > 0
+      ? episode.references.filter(r => {
+          const hay = `${r.title}\n${r.passage}`.toLowerCase();
+          return tokens.some(t => hay.includes(t));
+        })
+      : [];
+
+  const researchRun = await executeResearch({
+    question: rawQuestion,
+    language: effectiveLang,
+    ports,
   });
 
-  let retrievedRefs: ResearchReference[] = [...matchingEpisodeRefs];
-
-  if (retrievedRefs.length === 0 && tokens.length > 0) {
-    try {
-      const searchRes = await searchHadeeth(effectiveLang, rawQuestion.slice(0, 120));
-      const topHits = pageByRelevance(searchRes.items, 0);
-      const records = await Promise.all(topHits.map(item => loadHadeeth(effectiveLang, item.id).catch(() => null)));
-      const now = nowIso();
-      for (const rec of records) {
-        if (rec && passageSupportsTopic(rawQuestion, rec.text)) {
-          retrievedRefs.push(hadithToReference(rec, now));
-        }
-      }
-    } catch {
-      /* continue to researchTopic */
+  const engineRefs = researchRun.dossier.passages.map(evidencePassageToReference);
+  const combinedRefs = [...matchingEpisodeRefs];
+  for (const er of engineRefs) {
+    if (!combinedRefs.some(r => r.id === er.id)) {
+      combinedRefs.push(er);
     }
   }
+  const combinedPassages = [
+    ...matchingEpisodeRefs.map(referenceToEvidencePassage),
+    ...researchRun.dossier.passages.filter(p => !matchingEpisodeRefs.some(r => r.id === p.id)),
+  ];
 
-  if (retrievedRefs.length === 0 && tokens.length > 0) {
-    try {
-      const dossier = await researchTopic({
-        topic: rawQuestion,
-        questions: [rawQuestion],
-        lang: effectiveLang,
-      });
-      retrievedRefs = dossier.references;
-    } catch {
-      /* handled below */
-    }
-  }
-
-  if (retrievedRefs.length === 0) {
+  if (combinedRefs.length === 0) {
+    const scienceNote = researchRun.job.coverage.find(c => c.kind === 'science_not_configured');
     return {
+      contractVersion: RESEARCH_CONTRACT_VERSION,
       id: `ans-${randomUUID()}`,
       episodeId: episode.id,
       segmentId: currentSegment?.id ?? 'seg-1',
@@ -812,29 +783,33 @@ export async function answerStudioQuestion(req: StudioAskRequest): Promise<Studi
       review: 'unreviewed',
       originBadge: 'Dragon Dawwa generated material',
       kind: 'limitation',
-      note: PILOT_LIMITATION,
+      note: scienceNote ? scienceNote.detail : PILOT_LIMITATION,
       paragraphs: [
         {
-          text: PILOT_LIMITATION,
+          text: scienceNote ? scienceNote.detail : PILOT_LIMITATION,
           citations: [],
           role: 'limitation',
           statementKind: 'presenter_reflection',
         },
       ],
+      passages: [],
       references: [],
       relatedReferences: fallbackRefs,
+      researchJob: researchRun.job,
+      researchDossier: researchRun.dossier,
       voiceAvailable,
-      voiceBlocker,
+      voiceUserMessage,
       answeredAt: nowIso(),
     };
   }
 
   if (geminiConfigured()) {
     try {
-      const packet = retrievedRefs.map(referenceEvidence);
+      const packet = combinedRefs.map(referenceEvidence);
       const written = await writeAnswer(rawQuestion, effectiveLang, packet);
       if (!written.insufficientEvidence && written.paragraphs.length > 0) {
         return {
+          contractVersion: RESEARCH_CONTRACT_VERSION,
           id: `ans-${randomUUID()}`,
           episodeId: episode.id,
           segmentId: currentSegment?.id ?? 'seg-1',
@@ -851,10 +826,13 @@ export async function answerStudioQuestion(req: StudioAskRequest): Promise<Studi
             role: 'synthesis' as const,
             statementKind: 'faithful_paraphrase' as const,
           })),
-          references: retrievedRefs,
+          passages: combinedPassages,
+          references: combinedRefs,
           relatedReferences: fallbackRefs,
+          researchJob: researchRun.job,
+          researchDossier: researchRun.dossier,
           voiceAvailable,
-          voiceBlocker,
+          voiceUserMessage,
           answeredAt: nowIso(),
         };
       }
@@ -864,6 +842,7 @@ export async function answerStudioQuestion(req: StudioAskRequest): Promise<Studi
   }
 
   return {
+    contractVersion: RESEARCH_CONTRACT_VERSION,
     id: `ans-${randomUUID()}`,
     episodeId: episode.id,
     segmentId: currentSegment?.id ?? 'seg-1',
@@ -874,25 +853,23 @@ export async function answerStudioQuestion(req: StudioAskRequest): Promise<Studi
     originBadge: 'Dragon Dawwa generated material',
     kind: 'quotation',
     note: PILOT_QUOTATION_NOTE,
-    paragraphs: retrievedRefs.map(r => ({
+    paragraphs: combinedRefs.map(r => ({
       text: r.passage,
       citations: [r.id],
       role: 'quotation' as const,
       statementKind: 'published_translation' as const,
     })),
-    references: retrievedRefs,
+    passages: combinedPassages,
+    references: combinedRefs,
     relatedReferences: fallbackRefs,
+    researchJob: researchRun.job,
+    researchDossier: researchRun.dossier,
     voiceAvailable,
-    voiceBlocker,
+    voiceUserMessage,
     answeredAt: nowIso(),
   };
 }
 
-/**
- * Runs the Script Production Pipeline from a TopicBrief using the committed `researchTopic` and `verifyScript` services:
- * Topic brief → Research dossier → Episode outline → Script draft → Claim & quotation verification → Editorial review ('needs-review')
- * Never automatically publishes generated episodes.
- */
 export async function runStudioProductionPipeline(input: Partial<TopicBrief>): Promise<{
   episode: StudioEpisode;
   dossierSummary: {
@@ -934,13 +911,28 @@ export async function runStudioProductionPipeline(input: Partial<TopicBrief>): P
     questions: Array.isArray(input.questions) ? input.questions.map(String) : [topic],
   };
 
-  const dossier = await researchTopic({
-    topic: brief.topic,
-    questions: brief.questions ?? [brief.topic],
-    lang: brief.lang,
-  });
+  // Run both the fixture-aware researchTopic and the new v1.0.0 executeResearch engine
+  const [dossier, engineRun] = await Promise.all([
+    researchTopic({
+      topic: brief.topic,
+      questions: brief.questions ?? [brief.topic],
+      lang: brief.lang,
+    }),
+    executeResearch({
+      question: brief.topic,
+      language: brief.lang,
+      ports: defaultResearchPorts(),
+    }),
+  ]);
 
-  const references = dossier.references;
+  const references = [...dossier.references];
+  for (const p of engineRun.dossier.passages) {
+    const converted = evidencePassageToReference(p);
+    if (!references.some(r => r.id === converted.id)) {
+      references.push(converted);
+    }
+  }
+
   if (references.length === 0) {
     throw new UpstreamError(
       dossier.unanswered[0] ?? 'No verified passages could be retrieved for this topic in the selected language.',
@@ -960,7 +952,6 @@ export async function runStudioProductionPipeline(input: Partial<TopicBrief>): P
     });
   };
 
-  // Every generated segment quotes the retrieved passage directly with neutral framing so verifyScript checks pass honestly
   addSeg({
     section: 'opening',
     sectionLabel: `1. Opening · ${references[0].provider} ${references[0].itemId}`,
@@ -1026,6 +1017,7 @@ export async function runStudioProductionPipeline(input: Partial<TopicBrief>): P
   const id = `prod-${randomUUID().slice(0, 8)}`;
   const now = nowIso();
   const episode: StudioEpisode = {
+    contractVersion: RESEARCH_CONTRACT_VERSION,
     id,
     slug: id,
     familyId,
@@ -1050,6 +1042,7 @@ export async function runStudioProductionPipeline(input: Partial<TopicBrief>): P
     brief,
     outline,
     segments,
+    passages: references.map(referenceToEvidencePassage),
     references,
     evidence: references.map(referenceEvidence),
     gaps: dossier.unanswered.map(msg => ({ source: 'Research Dossier', message: msg })),
@@ -1077,7 +1070,10 @@ export async function runStudioProductionPipeline(input: Partial<TopicBrief>): P
   return {
     episode,
     dossierSummary: {
-      examined: dossier.examined,
+      examined: [
+        ...dossier.examined,
+        ...engineRun.job.coverage.map(c => `[${c.provider}] ${c.kind}: ${c.detail}`),
+      ],
       notExamined: dossier.notExamined,
       unanswered: dossier.unanswered,
       disagreements: dossier.disagreements,
@@ -1131,12 +1127,37 @@ export function transitionStudioProduction(
   return updated;
 }
 
-export function getStudioVoiceStatus() {
-  return buildVoiceCapabilityReport(geminiConfigured(), ['gemini-3.8-flash-tts', 'gemini-2.5-flash-preview-tts'], VOICES);
+export async function getStudioVoiceStatus(opts?: {
+  probe?: boolean;
+  editorialAccountsConfigured?: boolean;
+}): Promise<VoiceCapabilityReport> {
+  const models = (process.env.GEMINI_TTS_MODELS ?? 'gemini-3.8-flash-tts,gemini-2.5-flash-preview-tts')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  let liveManifestProbe: Partial<Record<Lang, 'available' | 'unavailable'>> | undefined;
+  if (opts?.probe) {
+    const [enManifest, taManifest, siManifest] = await Promise.all([
+      loadAudioManifest('english_rwwad').then(m => (m ? ('available' as const) : ('unavailable' as const))).catch(() => 'unavailable' as const),
+      loadAudioManifest('tamil_omar_brief').then(m => (m ? ('available' as const) : ('unavailable' as const))).catch(() => 'unavailable' as const),
+      loadAudioManifest('sinhalese_mahir').then(m => (m ? ('available' as const) : ('unavailable' as const))).catch(() => 'unavailable' as const),
+    ]);
+    liveManifestProbe = { en: enManifest, ta: taManifest, si: siManifest };
+  }
+
+  return buildVoiceCapabilityReport({
+    geminiApiKeyConfigured: geminiConfigured(),
+    editorialAccountsConfigured: opts?.editorialAccountsConfigured ?? Boolean(process.env.EDITORIAL_USERS?.trim()),
+    models,
+    voices: VOICES,
+    liveManifestProbe,
+  });
 }
 
-export function getStudioCatalogueSummary(lang: Lang) {
+export async function getStudioCatalogueSummary(lang: Lang) {
   return {
+    contractVersion: RESEARCH_CONTRACT_VERSION,
     lang,
     presenters: Object.values(STUDIO_PRESENTERS),
     families: PROGRAMME_FAMILIES,
@@ -1153,6 +1174,6 @@ export function getStudioCatalogueSummary(lang: Lang) {
       summary: b.summaries[lang],
       durationMinutes: b.brief.durationMinutes,
     })),
-    voiceStatus: getStudioVoiceStatus(),
+    voiceStatus: await getStudioVoiceStatus({ probe: false }),
   };
 }

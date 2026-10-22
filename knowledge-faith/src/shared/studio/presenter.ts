@@ -62,11 +62,6 @@ export interface LastListeningPosition {
   updatedAt: string;
 }
 
-/**
- * Explicit opt-in listener memory.
- * Strictly limited to functional learning preferences chosen by the listener.
- * Never infers or stores religious devotion, sect, spiritual worth, or sensitive personal judgments.
- */
 export interface StudioListenerPreferences {
   optIn: boolean;
   preferredLanguage: Lang;
@@ -177,11 +172,6 @@ export function sanitizeListenerPreferences(raw: unknown): StudioListenerPrefere
   };
 }
 
-/**
- * Generates a calm, respectful session greeting in the selected content language.
- * Never pretends to know personal details not supplied by the user, and never uses scholarly titles.
- * Never uses "வணக்கம்" in Tamil; greets with "அஸ்ஸலாமு அலைக்கும்".
- */
 export function buildPresenterGreeting(lang: Lang, prefs?: StudioListenerPreferences): string {
   const goalNote =
     prefs?.optIn && prefs.learningGoals.length > 0
@@ -201,69 +191,100 @@ export function buildPresenterGreeting(lang: Lang, prefs?: StudioListenerPrefere
   return `Assalamu Alaikum, and welcome to Dragon Dawwa Studio. This is a generated AI studio presenter — not a human scholar or mufti. Listen to the retrieved passages, inspect every source, and pause whenever you wish to ask a question.${goalNote}`;
 }
 
+export interface BuildVoiceStatusInput {
+  geminiApiKeyConfigured: boolean;
+  editorialAccountsConfigured?: boolean;
+  models?: string[];
+  voices?: readonly string[];
+  liveManifestProbe?: Partial<Record<Lang, 'available' | 'unavailable'>>;
+  checkedAt?: string;
+}
+
 /**
- * Reports only what has actually been checked in this environment.
- * When GEMINI_API_KEY is missing, geminiTtsVerifiedInThisEnv is false for all languages.
+ * Strictly separates:
+ * - `userMessage`: Simple user-facing message (no HTTP codes or env var names).
+ * - `configuration`: What is configured in process environment/settings (no verification claim).
+ * - `recordedTestEvidence`: Static notes from recorded test runs (explicitly labeled as historical, not live).
+ * - `liveCapability`: Runtime state from actual checks (`unprobed` unless probed live; never hard-coded as verified).
+ * - `diagnostics`: Technical HTTP codes (`200`, `503`) and environment-variable names (`GEMINI_API_KEY`, `GEMINI_TTS_MODELS`, `EDITORIAL_USERS`).
  */
-export function buildVoiceCapabilityReport(
-  configured: boolean,
-  models: string[] = ['gemini-3.8-flash-tts', 'gemini-2.5-flash-preview-tts'],
-  voices: readonly string[] = ['Kore', 'Puck', 'Charon', 'Aoede', 'Zephyr', 'Fenrir', 'Orus'],
-): VoiceCapabilityReport {
+export function buildVoiceCapabilityReport(input: BuildVoiceStatusInput | boolean): VoiceCapabilityReport {
   void LANGS;
-  const ttsNote = configured
-    ? 'GEMINI_API_KEY is present; live TTS synthesis is enabled via /api/voice/narrate.'
-    : 'Not verified in this environment: GEMINI_API_KEY is missing (/api/health reports "ai": false and POST /api/voice/narrate returned HTTP 503). Only script/source retrieval and QuranEnc meaning audio manifests were verified.';
+  const opts: BuildVoiceStatusInput =
+    typeof input === 'boolean' ? { geminiApiKeyConfigured: input } : input;
+
+  const configured = opts.geminiApiKeyConfigured;
+  const models = opts.models ?? ['gemini-3.8-flash-tts', 'gemini-2.5-flash-preview-tts'];
+  const voices = opts.voices ?? ['Kore', 'Puck', 'Charon', 'Aoede', 'Zephyr', 'Fenrir', 'Orus'];
+  const checkedAt = opts.checkedAt ?? new Date().toISOString();
+  const probed = Boolean(opts.liveManifestProbe);
+
+  const userMessage = configured
+    ? 'Spoken presenter narration is configured. Select Listen to play the programme, or Ask to pause and explore a question.'
+    : 'Spoken presenter narration is not available right now. You can read the transcript, listen to the Qur’an recitation and meaning audio, and ask questions below.';
 
   return {
-    checkedOn: '2026-10-21',
-    provider: 'Google Gemini TTS (/api/voice/narrate)',
-    configured,
-    narrateHttpStatus: configured ? 200 : 503,
-    blocker: configured
-      ? null
-      : 'GEMINI_API_KEY is not configured on this server (POST /api/voice/narrate returns HTTP 503). Live generated presenter speech was not verified and is not mocked. Direct Qur’an Arabic recitation (AlQuran Cloud) and QuranEnc meaning audio manifests remain playable.',
-    envModelsConfigured: models,
-    envVoicesConfigured: voices,
-    languages: {
-      en: {
-        scriptAndSourcesVerified: true,
-        quranMeaningAudioEdition: 'english_rwwad (manifest verified HTTP 200)',
-        geminiTtsVerifiedInThisEnv: configured,
-        note: ttsNote,
+    userMessage,
+    configuration: {
+      provider: 'Google Gemini TTS',
+      geminiApiKeyConfigured: configured,
+      configuredTtsModels: models,
+      configuredVoices: voices,
+      meaningAudioEditionKeys: {
+        en: 'english_rwwad',
+        ta: 'tamil_omar_brief',
+        si: 'sinhalese_mahir',
       },
-      ta: {
-        scriptAndSourcesVerified: true,
-        quranMeaningAudioEdition: 'tamil_omar_brief (manifest verified HTTP 200)',
-        geminiTtsVerifiedInThisEnv: configured,
-        note: ttsNote,
-      },
-      si: {
-        scriptAndSourcesVerified: true,
-        quranMeaningAudioEdition: 'sinhalese_mahir (manifest verified HTTP 200)',
-        geminiTtsVerifiedInThisEnv: configured,
-        note: ttsNote,
+      streamingImplemented: false,
+    },
+    recordedTestEvidence: {
+      recordedOn: '2026-10-21',
+      note: 'Historical test observations recorded during repository verification. These are not a live status check of the current request.',
+      observations: [
+        'QuranEnc audio manifests were recorded on 2026-10-21 for english_rwwad, tamil_omar_brief, and sinhalese_mahir.',
+        'HadeethEnc records do not include an audio field on the record payload.',
+        'Without GEMINI_API_KEY, presenter narration was not verified and is never replaced by mocked or browser-synthesized speech.',
+      ],
+    },
+    liveCapability: {
+      checkedAt,
+      probedUpstream: probed,
+      presenterNarration: configured ? 'configured_unprobed' : 'unavailable',
+      quranRecitationStream: 'external_cdn_configured',
+      meaningAudioManifests: {
+        en: opts.liveManifestProbe?.en ?? 'unprobed',
+        ta: opts.liveManifestProbe?.ta ?? 'unprobed',
+        si: opts.liveManifestProbe?.si ?? 'unprobed',
       },
     },
-    streaming: {
-      supported: false,
-      mode: 'Code requests full WAV responses per chunk via generateContent / interactions; streaming audio is not implemented.',
+    diagnostics: {
+      envVars: {
+        GEMINI_API_KEY: configured ? 'present' : 'missing',
+        GEMINI_TTS_MODELS: models.join(','),
+        EDITORIAL_USERS: opts.editorialAccountsConfigured ? 'present' : 'missing',
+      },
+      endpoints: {
+        '/api/health': {
+          httpStatus: 200,
+          ai: configured,
+        },
+        '/api/voice/narrate': {
+          httpStatus: configured ? 200 : 503,
+          detail: configured
+            ? 'GEMINI_API_KEY is present; upstream Gemini TTS call executes on POST /api/voice/narrate.'
+            : 'HTTP 503: AI features are not configured on this server (GEMINI_API_KEY missing).',
+        },
+      },
     },
-    interruptions:
-      'Verified in client state machine and shared audio manager (src/lib/audio.ts): pausing, asking a question, or starting another audio source immediately stops active playback.',
-    audioFormats: [
-      'audio/mpeg (verified for AlQuran Cloud ar.alafasy recitation and QuranEnc meaning audio files)',
-      'audio/wav (24kHz 16-bit mono PCM wrapper in src/server/wav.ts; live Gemini TTS output not verified without GEMINI_API_KEY)',
-    ],
     separationPolicy: {
       quran_recitation:
         'Played directly from AlQuran Cloud (cdn.islamic.network/quran/audio/128/ar.alafasy). Never sent to presenter TTS.',
       meaning_audio:
-        'Played only from QuranEnc verified edition audio manifests (english_rwwad, tamil_omar_brief, sinhalese_mahir) matching the exact translation edition.',
+        'Played only from QuranEnc edition audio manifests (english_rwwad, tamil_omar_brief, sinhalese_mahir) matching the exact translation edition.',
       original_recording:
         'Played directly from IslamHouse d1.islamhouse.com MP3 URLs with source attribution. Generated introductions stay in separate segments.',
       presenter_narration:
-        'Calls POST /api/voice/narrate only when GEMINI_API_KEY is configured; otherwise reports the exact HTTP 503 blocker without substituting browser voices or mocked audio.',
+        'Calls POST /api/voice/narrate only when GEMINI_API_KEY is configured; otherwise reports unavailability without substituting browser voices or mocked audio.',
     },
   };
 }

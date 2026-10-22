@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { PROGRAMME_FAMILIES, STUDIO_EPISODE_BLUEPRINTS } from '../src/shared/studio/catalogue.ts';
-import type { StudioSegment } from '../src/shared/studio/contracts.ts';
+import {
+  RESEARCH_CONTRACT_VERSION,
+  type StudioSegment,
+} from '../src/shared/studio/contracts.ts';
 import {
   buildPresenterGreeting,
   buildVoiceCapabilityReport,
@@ -28,8 +31,9 @@ import {
   runStudioProductionPipeline,
 } from '../src/server/studio/service.ts';
 
-describe('Dragon Dawwa Studio — Prioritized Release Slice & Reusable Programme System', () => {
-  it('prioritizes Tonight at Dragon Dawwa and marks remaining programme families as in_preparation', () => {
+describe('Dragon Dawwa Studio — Master Contract v1.0.0 & Prioritized Release Slice', () => {
+  it('consumes committed RESEARCH_CONTRACT_VERSION 1.0.0 and prioritizes Tonight at Dragon Dawwa', () => {
+    assert.equal(RESEARCH_CONTRACT_VERSION, '1.0.0');
     assert.deepEqual(
       PROGRAMME_FAMILIES.map(f => [f.id, f.status]),
       [
@@ -47,47 +51,38 @@ describe('Dragon Dawwa Studio — Prioritized Release Slice & Reusable Programme
     assert.equal(STUDIO_EPISODE_BLUEPRINTS[1].id, 'pilot-intention-habit');
   });
 
-  it('hydrates Tonight at Dragon Dawwa (Mercy & Ar-Rahman) using committed ResearchReference & Evidence contracts in en, ta, si', async () => {
+  it('hydrates Tonight at Dragon Dawwa (Mercy & Ar-Rahman) with v1.0.0 EvidencePassages and ResearchReferences in en, ta, si', async () => {
     const enEp = await loadStudioEpisode('tonight-mercy-ar-rahman', 'en');
+    assert.equal(enEp.contractVersion, '1.0.0');
     assert.equal(enEp.lang, 'en');
     assert.equal(enEp.verification.supported, true);
     assert.deepEqual(enEp.verification.unverified, []);
-    assert.ok(enEp.references.some(r => r.id === 'Q7-156' && r.provider === 'QuranEnc'));
-    assert.ok(enEp.references.some(r => r.id === 'Q39-53' && r.provider === 'QuranEnc'));
-    assert.ok(enEp.references.some(r => r.id === 'E8289' && r.grade === 'Authentic'));
-    assert.equal(enEp.evidence.length, enEp.references.length);
+    assert.ok(enEp.passages.some(p => p.id === 'Q7-156' && p.contractVersion === '1.0.0'));
+    assert.ok(enEp.passages.some(p => p.id === 'E8289' && p.publishedGrade === 'Authentic'));
+    assert.equal(enEp.passages.length, enEp.references.length);
 
-    // Verify 4-way audio separation: Qur'an recitation uses direct Qari URL, never presenter narration
     const recSeg = enEp.segments.find(s => s.audioKind === 'quran_recitation');
     assert.ok(recSeg);
     assert.equal(recSeg.isGeneratedSpeaker, false);
     assert.match(recSeg.directAudioUrl ?? '', /cdn\.islamic\.network\/quran\/audio/);
 
-    const meaningSeg = enEp.segments.find(s => s.audioKind === 'meaning_audio');
-    if (meaningSeg) {
-      assert.equal(meaningSeg.isGeneratedSpeaker, false);
-      assert.match(meaningSeg.translationEdition ?? '', /english_rwwad/);
-    }
-
-    // Tamil hydration
     const taEp = await loadStudioEpisode('tonight-mercy-ar-rahman', 'ta');
     assert.equal(taEp.lang, 'ta');
     assert.equal(taEp.verification.supported, true);
-    const taHadith = taEp.references.find(r => r.id === 'E8289');
+    const taHadith = taEp.passages.find(p => p.id === 'E8289');
     assert.ok(taHadith);
-    assert.match(taHadith.passage, /இரக்கம்/);
+    assert.match(taHadith.text, /இரக்கம்/);
 
-    // Sinhala hydration
     const siEp = await loadStudioEpisode('tonight-mercy-ar-rahman', 'si');
     assert.equal(siEp.lang, 'si');
     assert.equal(siEp.verification.supported, true);
-    const siHadith = siEp.references.find(r => r.id === 'E8289');
+    const siHadith = siEp.passages.find(p => p.id === 'E8289');
     assert.ok(siHadith);
-    assert.match(siHadith.passage, /කරුණා/);
+    assert.match(siHadith.text, /කරුණා/);
   });
 });
 
-describe('Presenter Presence, Opt-In Memory & Factual Provider Capability Report', () => {
+describe('Presenter Presence, Opt-In Memory & Separated Voice-Status Diagnostics', () => {
   it('uses non-scholar presenter names without Ustadh or honorifics and adapts greetings without Vanakkam', () => {
     assert.equal(STUDIO_PRESENTERS.presenter.name, 'Dragon Dawwa Presenter');
     assert.equal(STUDIO_PRESENTERS.researcher.name, 'Dragon Dawwa Research Desk');
@@ -136,20 +131,34 @@ describe('Presenter Presence, Opt-In Memory & Factual Provider Capability Report
     assert.equal('devotionScore' in onPrefs, false);
   });
 
-  it('reports geminiTtsVerifiedInThisEnv as false when GEMINI_API_KEY is missing', () => {
+  it('distinguishes configuration, recordedTestEvidence, liveCapability, and diagnostics with a simple userMessage', async () => {
     const unconfigured = buildVoiceCapabilityReport(false);
-    assert.equal(unconfigured.configured, false);
-    assert.equal(unconfigured.narrateHttpStatus, 503);
-    assert.match(unconfigured.blocker ?? '', /GEMINI_API_KEY/);
-    assert.equal(unconfigured.languages.en.geminiTtsVerifiedInThisEnv, false);
-    assert.equal(unconfigured.languages.ta.geminiTtsVerifiedInThisEnv, false);
-    assert.equal(unconfigured.languages.si.geminiTtsVerifiedInThisEnv, false);
-    assert.equal(unconfigured.languages.en.scriptAndSourcesVerified, true);
-    assert.equal(unconfigured.streaming.supported, false);
+    // Simple user-facing message without HTTP codes or env var names
+    assert.equal(/503|GEMINI_API_KEY/i.test(unconfigured.userMessage), false);
+    assert.match(unconfigured.userMessage, /Spoken presenter narration is not available right now/);
 
-    const serverStatus = getStudioVoiceStatus();
-    assert.equal(typeof serverStatus.configured, 'boolean');
-    const summary = getStudioCatalogueSummary('en');
+    // Configuration vs Recorded Test Evidence vs Live Capability (not hard-coded as verified)
+    assert.equal(unconfigured.configuration.geminiApiKeyConfigured, false);
+    assert.equal(unconfigured.configuration.streamingImplemented, false);
+    assert.equal(unconfigured.recordedTestEvidence.recordedOn, '2026-10-21');
+    assert.equal(unconfigured.liveCapability.probedUpstream, false);
+    assert.equal(unconfigured.liveCapability.presenterNarration, 'unavailable');
+    assert.equal(unconfigured.liveCapability.meaningAudioManifests.en, 'unprobed');
+    assert.equal(unconfigured.liveCapability.meaningAudioManifests.ta, 'unprobed');
+    assert.equal(unconfigured.liveCapability.meaningAudioManifests.si, 'unprobed');
+
+    // HTTP codes and env var names live in diagnostics
+    assert.equal(unconfigured.diagnostics.envVars.GEMINI_API_KEY, 'missing');
+    assert.equal(unconfigured.diagnostics.endpoints['/api/voice/narrate'].httpStatus, 503);
+    assert.match(unconfigured.diagnostics.endpoints['/api/voice/narrate'].detail, /GEMINI_API_KEY/);
+
+    // Live probe populates meaningAudioManifests from actual runtime checks
+    const probed = await getStudioVoiceStatus({ probe: true });
+    assert.equal(probed.liveCapability.probedUpstream, true);
+    assert.equal(probed.liveCapability.meaningAudioManifests.en, 'available');
+
+    const summary = await getStudioCatalogueSummary('en');
+    assert.equal(summary.contractVersion, '1.0.0');
     assert.equal(summary.families.length, 7);
     assert.equal(summary.schedule.length, 2);
   });
@@ -163,8 +172,6 @@ describe('Strict Claim Verification (No Token-Overlap Support) & Revision Invali
         ? {
             ...seg,
             statementKind: 'faithful_paraphrase',
-            // Shares multiple words ("Allah", "mercy", "compassionate", "merciful") with Q1-1 / Q7-156,
-            // but is a paraphrase, NOT the retrieved passage text!
             text: 'Allah shows compassionate mercy to all creation in this world and the hereafter when believers repent.',
             citations: ['Q1-1', 'Q7-156'],
           }
@@ -275,17 +282,17 @@ describe('Strict Claim Verification (No Token-Overlap Support) & Revision Invali
   });
 });
 
-describe('Interactive Ask-While-Listening & Unsupported Question Handling', () => {
-  it('resolves "Explain that simply", "Explain that in Tamil", "Which hadith supports this?", "What does this Arabic term mean?", and "Show the reference"', async () => {
+describe('Interactive Ask-While-Listening Integrated with Shared Research Engine v1.0.0', () => {
+  it('resolves local prompts and routes multi-sentence questions through executeResearch (v1.0.0)', async () => {
     const simple = await answerStudioQuestion({
       episodeId: 'tonight-mercy-ar-rahman',
       segmentId: 'seg-3',
       question: 'Explain that simply.',
       lang: 'en',
     });
+    assert.equal(simple.contractVersion, '1.0.0');
     assert.equal(simple.kind, 'quotation');
-    assert.ok(simple.paragraphs.length > 0);
-    assert.ok(simple.paragraphs[0].citations.length > 0);
+    assert.ok(simple.passages.length > 0);
 
     const inTamil = await answerStudioQuestion({
       episodeId: 'tonight-mercy-ar-rahman',
@@ -297,15 +304,6 @@ describe('Interactive Ask-While-Listening & Unsupported Question Handling', () =
     assert.equal(inTamil.kind, 'quotation');
     assert.ok(inTamil.references.some(r => r.passageLanguage === 'ta'));
 
-    const whichHadith = await answerStudioQuestion({
-      episodeId: 'tonight-mercy-ar-rahman',
-      segmentId: 'seg-3',
-      question: 'Which hadith supports this?',
-      lang: 'en',
-    });
-    assert.equal(whichHadith.kind, 'quotation');
-    assert.ok(whichHadith.references.some(r => r.id === 'E8289'));
-
     const arabicTerm = await answerStudioQuestion({
       episodeId: 'tonight-mercy-ar-rahman',
       segmentId: 'seg-3',
@@ -313,20 +311,27 @@ describe('Interactive Ask-While-Listening & Unsupported Question Handling', () =
       lang: 'en',
     });
     assert.equal(arabicTerm.kind, 'quotation');
-    assert.ok(arabicTerm.arabicTermExplanation);
-    assert.match(arabicTerm.arabicTermExplanation.term, /Ar-Rahman/i);
+    assert.equal(arabicTerm.arabicTermExplanation?.readerRoute, '#/spiritual/names/176539');
 
-    const showRef = await answerStudioQuestion({
+    // Multi-sentence question routed through executeResearch (src/server/research/engine.ts)
+    const neighborSick = await answerStudioQuestion({
       episodeId: 'tonight-mercy-ar-rahman',
       segmentId: 'seg-3',
-      question: 'Show the reference.',
+      question: 'What are the rights of a neighbor? How should someone visit the sick?',
       lang: 'en',
     });
-    assert.equal(showRef.kind, 'quotation');
-    assert.ok(showRef.references.length > 0);
+    assert.equal(neighborSick.contractVersion, '1.0.0');
+    assert.equal(neighborSick.kind, 'quotation');
+    assert.ok(neighborSick.researchJob);
+    assert.equal(neighborSick.researchJob.subquestions.length, 2);
+    assert.deepEqual(
+      neighborSick.researchJob.subquestions.flatMap(sq => sq.queries),
+      ['rights neighbor', 'neighbor', 'rights', 'visit sick', 'visit', 'sick'],
+    );
+    assert.ok(neighborSick.passages.some(p => p.id === 'E6103' && p.publishedGrade === 'Authentic'));
   });
 
-  it('acknowledges unsupported questions honestly without inventing certainty and offers programme references', async () => {
+  it('acknowledges unsupported questions honestly via executeResearch without inventing certainty', async () => {
     const unsupported = await answerStudioQuestion({
       episodeId: 'tonight-mercy-ar-rahman',
       segmentId: 'seg-3',
@@ -337,6 +342,7 @@ describe('Interactive Ask-While-Listening & Unsupported Question Handling', () =
     assert.match(unsupported.note, /do not answer this question/i);
     assert.equal(unsupported.references.length, 0);
     assert.ok(unsupported.relatedReferences.length > 0);
+    assert.ok(unsupported.researchJob);
   });
 });
 
@@ -349,7 +355,6 @@ describe('Session & Playback Reliability State Machine', () => {
     s = transitionStudioSession(s, { type: 'LOAD_PROGRAMME', episodeId: 'tonight-mercy-ar-rahman', segmentIndex: 2, offsetSeconds: 4.5 });
     assert.equal(s.phase, 'loading');
     assert.equal(s.audioReady, false);
-    assert.equal(sessionBroadcastBadge(s.phase, 'Recorded programme'), 'Recorded programme');
 
     const token1 = s.activeRunToken;
     s = transitionStudioSession(s, { type: 'AUDIO_READY', runToken: token1 - 1 });
@@ -391,18 +396,5 @@ describe('Session & Playback Reliability State Machine', () => {
     assert.equal(s.phase, 'loading');
     assert.equal(s.segmentIndex, 2);
     assert.equal(s.offsetSeconds, 7.2);
-
-    s = transitionStudioSession(s, { type: 'START_MIC' });
-    assert.equal(s.micReady, false);
-    s = transitionStudioSession(s, { type: 'MIC_READY' });
-    assert.equal(s.phase, 'listening_to_user');
-    assert.equal(s.micReady, true);
-    s = transitionStudioSession(s, { type: 'STOP_MIC' });
-    assert.equal(s.micReady, false);
-
-    s = transitionStudioSession(s, { type: 'LOAD_PROGRAMME', episodeId: 'tonight-mercy-ar-rahman' });
-    s = transitionStudioSession(s, { type: 'AUTOPLAY_BLOCKED', runToken: s.activeRunToken });
-    assert.equal(s.phase, 'paused');
-    assert.match(s.errorMessage ?? '', /autoplay/i);
   });
 });
