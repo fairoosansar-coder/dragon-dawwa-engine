@@ -6,6 +6,7 @@ import { PrayerTimesView, QiblaView } from './PrayerQibla.tsx';
 import { SavedCalculations, ZakahCalculator } from './ZakahView.tsx';
 import { FastingCalendar, OccasionView } from './FastingView.tsx';
 import { NamesView } from './NamesView.tsx';
+import { NameDetail } from './NameDetail.tsx';
 import { Checklist, DuaLibrary, Questions, SavedView, TopicsIndex } from './Support.tsx';
 import { WorshipLibrary } from './WorshipLibrary.tsx';
 import { SLOTS, type SlotId } from './content.ts';
@@ -22,6 +23,7 @@ export default function SpiritualSection({ segments = [] }: { segments?: string[
 
   let view = <Hub />;
   if (root === 'shahadah') view = <GuideView segments={['shahadah']} anchor={isSlot(a) ? a : undefined} />;
+  else if (root === 'names' && a && /^\d{1,12}$/.test(a)) view = <NameDetail id={a} />;
   else if (root === 'names') view = <NamesView segments={segments} />;
   else if (root === 'salah' && a === 'times') view = <PrayerTimesView segments={segments} />;
   else if (root === 'salah' && a === 'qibla') view = <QiblaView segments={segments} />;

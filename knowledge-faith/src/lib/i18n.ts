@@ -273,10 +273,10 @@ const en = {
   pathNote: 'Open any path. This does not ask you to declare a religion.',
   pathSource: 'IslamHouse category',
   pathEmpty: 'No items found in this category. An empty category is not the whole library.',
-  pathCatalogue: 'A title is a catalogue entry. The passage is on the source page.',
+  pathCatalogue: 'A title is a catalogue entry. Open it to read inside Dragon Dawwa.',
   readerPrayerNote: 'This Tamil article is outside the prayer category list. An empty category is not the whole Tamil library.',
   namesCatalogueGap:
-    'On 21 Oct 2026 an English terminology catalogue listed 98 entries for the Beautiful Names, and one English page was opened. Tamil returned 404. The Sinhala category page had no entries. No API was found, so those pages are not used here.',
+    'TerminologyEnc category 758 is matched to the Aladhan list by Arabic name, not by position. Tamil term pages returned 404. The Sinhala category page had no term links. A missing language is left missing.',
 };
 
 export type Strings = typeof en;
