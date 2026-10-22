@@ -6,7 +6,7 @@
  * - Studio owns `/api/studio/*`, `src/shared/studio/**`, `src/server/studio/**`, `src/studio/**`, and `src/views/PodcastStudio.tsx`.
  * - `server.ts` is shared. Research mounts the job, library, and names routes. Studio mounts `studioRouter` beside `spiritualRouter`.
  * - `src/lib/audio.ts` stays the only player. These examples do not start audio.
- * - `researchTopic` and `src/engine/server/researchJobs.ts` stay the podcast and AI-dossier helpers. They are not this job API.
+ * - `researchTopic` stays for tests and identified fixture topics. A listener's own question uses this job API.
  */
 import type { ResearchJobResponse } from './v1.ts';
 

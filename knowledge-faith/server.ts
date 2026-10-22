@@ -23,8 +23,9 @@ import { readLibraryItem } from './src/server/libraryRead.ts';
 import { allowedMediaUrl, readMedia } from './src/server/media.ts';
 import { listNames, readName } from './src/server/names.ts';
 import { cancelSharedResearchJob, getSharedResearchJob, startSharedResearchJob } from './src/server/research/jobs.ts';
-import { dossierEvidence, quoteFromEvidence, researchTopic } from './src/server/research.ts';
-import { attachVerification, verifyScript } from './src/shared/research.ts';
+import { quoteFromEvidence } from './src/server/research.ts';
+import { referencesFromJob, waitForSharedResearchJob } from './src/server/studio/fromJob.ts';
+import { attachVerification, referenceEvidence, verifyScript } from './src/shared/research.ts';
 import type { EncyclopediaHadith } from './src/shared/hadeethenc.ts';
 import {
   ask,
@@ -398,13 +399,22 @@ app.post(
             ),
           ]
         : [];
-    const dossier = explicit.length ? null : await researchTopic({ topic, questions: [topic], lang });
-    const evidence = explicit.length ? explicit : dossierEvidence(dossier!);
+    let evidence = explicit;
+    let unanswered: string[] = [];
+    if (!explicit.length) {
+      const job = await waitForSharedResearchJob(topic, lang);
+      const mapped = referencesFromJob(job, lang);
+      evidence = mapped.references.map(referenceEvidence);
+      unanswered = mapped.gaps.map(gap => gap.message);
+    }
     if (!evidence.length) {
-      throw new UpstreamError(dossier?.unanswered[0] ?? 'No sources could be retrieved for this topic.', 422);
+      throw new UpstreamError(
+        unanswered[0] ?? 'No sources could be retrieved for this topic. The libraries were not read in full.',
+        422,
+      );
     }
     const script = geminiConfigured() ? await writePodcast(topic, lang, minutes, evidence) : quoteFromEvidence(topic, lang, evidence);
-    res.json(attachVerification(script, verifyScript(script.lines, evidence), dossier?.unanswered ?? []));
+    res.json(attachVerification(script, verifyScript(script.lines, evidence), unanswered));
   }),
 );
 

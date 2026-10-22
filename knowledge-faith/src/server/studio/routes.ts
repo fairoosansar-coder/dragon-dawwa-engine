@@ -60,6 +60,7 @@ export function studioRouter(deps: StudioRouterDeps): express.Router {
       const segmentId = typeof req.body?.segmentId === 'string' ? req.body.segmentId : 'seg-1';
       const lang = toLang(req.body?.lang);
       const targetLang = req.body?.targetLang ? toLang(req.body.targetLang) : undefined;
+      const jobId = typeof req.body?.jobId === 'string' && req.body.jobId.trim() ? req.body.jobId.trim() : undefined;
       res.json(
         await answerStudioQuestion({
           episodeId,
@@ -67,6 +68,7 @@ export function studioRouter(deps: StudioRouterDeps): express.Router {
           question,
           lang,
           targetLang,
+          jobId,
         }),
       );
     }),
@@ -77,10 +79,12 @@ export function studioRouter(deps: StudioRouterDeps): express.Router {
     deps.aiLimiter,
     route(async (req, res) => {
       const topic = text(req.body?.topic, 300, 'topic');
+      const jobId = typeof req.body?.jobId === 'string' && req.body.jobId.trim() ? req.body.jobId.trim() : undefined;
       const result = await runStudioProductionPipeline({
         ...req.body,
         topic,
         lang: toLang(req.body?.lang),
+        jobId,
       });
       res.status(201).json(result);
     }),

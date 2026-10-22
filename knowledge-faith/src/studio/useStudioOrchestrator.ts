@@ -4,7 +4,9 @@ import { base64ToObjectUrl, bindExternalStop, claimPlayback, stopAudio } from '.
 import { useStored } from '../lib/store.tsx';
 import type { Lang } from '../shared/sources.ts';
 import type { TtsResult } from '../shared/types.ts';
+import { languageRequestedByQuestion, questionUsesCurrentEpisode } from '../shared/studio/askIntent.ts';
 import type { StudioAskAnswer, StudioEpisode, StudioSegment } from '../shared/studio/contracts.ts';
+import { followResearchJob } from './followResearchJob.ts';
 import {
   DEFAULT_LISTENER_PREFERENCES,
   sanitizeListenerPreferences,
@@ -447,18 +449,43 @@ export function useStudioOrchestrator(episode: StudioEpisode | null, lang: Lang,
       const reqId = sessionRef.current.activeAskRequestId + 1;
       dispatch({ type: 'SUBMIT_QUESTION', offsetSeconds: currentOff });
       setAskBusy(true);
-      setAskProgress('Pausing programme & inspecting current segment citations…');
+      const usesEpisode = questionUsesCurrentEpisode(trimmed);
+      setAskProgress(
+        usesEpisode
+          ? 'Pausing programme and reading the current segment…'
+          : 'Pausing programme. A research job will start for this question.',
+      );
 
       const activeSeg = ep.segments[sessionRef.current.segmentIndex] ?? ep.segments[0];
       const t0 = performance.now();
 
       const progressTimer = window.setTimeout(() => {
-        if (!controller.signal.aborted) {
-          setAskProgress('Querying verified QuranEnc, HadeethEnc & IslamHouse catalogues…');
+        if (!controller.signal.aborted && usesEpisode) {
+          setAskProgress('Reading the passage already in this programme…');
         }
       }, 350);
 
       try {
+        let jobId: string | undefined;
+        if (!usesEpisode) {
+          const askLang = languageRequestedByQuestion(trimmed, targetLang ?? ep.lang);
+          const snap = await followResearchJob({
+            question: trimmed,
+            lang: askLang,
+            signal: controller.signal,
+            onProgress: response => {
+              if (controller.signal.aborted || sessionRef.current.activeAskRequestId !== reqId) return;
+              const dossierState = response.dossier ? 'Dossier ready' : 'The dossier is not ready';
+              setAskProgress(`Research ${response.job.status} · ${response.job.progress.step} · ${dossierState}`);
+            },
+          });
+          if (controller.signal.aborted || sessionRef.current.activeAskRequestId !== reqId) {
+            window.clearTimeout(progressTimer);
+            return null;
+          }
+          jobId = snap.job.id;
+        }
+
         const res = await fetch('/api/studio/ask', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -469,6 +496,7 @@ export function useStudioOrchestrator(episode: StudioEpisode | null, lang: Lang,
             question: trimmed,
             lang: ep.lang,
             ...(targetLang ? { targetLang } : {}),
+            ...(jobId ? { jobId } : {}),
           }),
         });
         window.clearTimeout(progressTimer);
@@ -497,9 +525,14 @@ export function useStudioOrchestrator(episode: StudioEpisode | null, lang: Lang,
         return data;
       } catch (err) {
         window.clearTimeout(progressTimer);
-        if (controller.signal.aborted || (err instanceof Error && err.name === 'AbortError')) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          if (!controller.signal.aborted) {
+            setAskBusy(false);
+            setAskProgress(null);
+          }
           return null;
         }
+        if (controller.signal.aborted) return null;
         setAskBusy(false);
         setAskProgress(null);
         dispatch({
