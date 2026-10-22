@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 import { recitationUrl, toLang, type Lang } from '../../shared/sources.ts';
 import type { Verse } from '../../shared/types.ts';
 import type { EncyclopediaHadith } from '../../shared/hadeethenc.ts';
-import { pageByRelevance } from '../../shared/hadeethenc.ts';
 import {
   PILOT_LIMITATION,
   PILOT_QUOTATION_NOTE,
@@ -12,7 +11,6 @@ import {
 import {
   asksForScience,
   contentTokens,
-  passageSupportsTopic,
   referenceEvidence,
   type ResearchReference,
 } from '../../shared/research.ts';
@@ -25,12 +23,12 @@ import {
   STUDIO_EPISODE_BLUEPRINTS,
   type EpisodeBlueprint,
 } from '../../shared/studio/catalogue.ts';
+import { languageRequestedByQuestion, questionUsesCurrentEpisode } from '../../shared/studio/askIntent.ts';
 import type {
-  AudioStreamKind,
-  ContentOriginBadge,
   EpisodeOutlineItem,
   StudioAskAnswer,
   StudioAskRequest,
+  StudioDossierSummary,
   StudioEpisode,
   StudioSegment,
   TopicBrief,
@@ -46,11 +44,12 @@ import {
 } from '../../shared/studio/verification.ts';
 import type { EditorUser } from '../../shared/spiritual/governance.ts';
 import { geminiConfigured, VOICES, writeAnswer } from '../gemini.ts';
-import { loadHadeeth, searchHadeeth } from '../hadeethenc.ts';
+import { loadHadeeth } from '../hadeethenc.ts';
 import { UpstreamError } from '../http.ts';
 import { getVerses } from '../quran.ts';
 import { fetchReaderHtml } from '../readable.ts';
-import { researchTopic } from '../research.ts';
+import { loadCompletedResearchJob, referencesFromJob, waitForSharedResearchJob } from './fromJob.ts';
+import { assembleStudioProductionFromJob } from './scriptFromJob.ts';
 
 const episodeCache = new Map<string, { at: number; episode: StudioEpisode }>();
 const CACHE_TTL_MS = 5 * 60_000;
@@ -600,14 +599,7 @@ export async function answerStudioQuestion(req: StudioAskRequest): Promise<Studi
   const rawQuestion = req.question.trim();
   const lower = rawQuestion.toLowerCase();
 
-  let effectiveLang: Lang = req.targetLang ?? req.lang;
-  if (/\bin tamil\b|தமிழில்|தமிழ்/i.test(rawQuestion)) {
-    effectiveLang = 'ta';
-  } else if (/\bin sinhala\b|සිංහල/i.test(rawQuestion)) {
-    effectiveLang = 'si';
-  } else if (/\bin english\b/i.test(rawQuestion)) {
-    effectiveLang = 'en';
-  }
+  const effectiveLang = languageRequestedByQuestion(rawQuestion, req.targetLang ?? req.lang);
 
   const episode = await loadStudioEpisode(req.episodeId || 'tonight-mercy-ar-rahman', effectiveLang);
   const currentSegment =
@@ -763,42 +755,67 @@ export async function answerStudioQuestion(req: StudioAskRequest): Promise<Studi
     };
   }
 
-  // 5. General question: use token overlap strictly as a retrieval relevance signal to select candidate passages
+  // 5. A new question uses the shared research job. The current episode is not searched as one literal phrase.
   const tokens = contentTokens(rawQuestion);
-  const matchingEpisodeRefs = episode.references.filter(r => {
-    const hay = `${r.title}\n${r.passage}`.toLowerCase();
-    return tokens.some(t => hay.includes(t));
-  });
+  const matchingEpisodeRefs = questionUsesCurrentEpisode(rawQuestion)
+    ? episode.references.filter(r => {
+        const hay = `${r.title}\n${r.passage}`.toLowerCase();
+        return tokens.some(t => hay.includes(t));
+      })
+    : [];
 
   let retrievedRefs: ResearchReference[] = [...matchingEpisodeRefs];
+  let researchFailure: string | null = null;
 
-  if (retrievedRefs.length === 0 && tokens.length > 0) {
+  if (retrievedRefs.length === 0 && tokens.length > 0 && !questionUsesCurrentEpisode(rawQuestion)) {
     try {
-      const searchRes = await searchHadeeth(effectiveLang, rawQuestion.slice(0, 120));
-      const topHits = pageByRelevance(searchRes.items, 0);
-      const records = await Promise.all(topHits.map(item => loadHadeeth(effectiveLang, item.id).catch(() => null)));
-      const now = nowIso();
-      for (const rec of records) {
-        if (rec && passageSupportsTopic(rawQuestion, rec.text)) {
-          retrievedRefs.push(hadithToReference(rec, now));
-        }
+      const snap = req.jobId ? loadCompletedResearchJob(req.jobId) : await waitForSharedResearchJob(rawQuestion, effectiveLang);
+      if (snap.job.question !== rawQuestion || snap.job.language !== effectiveLang) {
+        throw new UpstreamError('The research response does not match the question that was asked.', 409);
       }
-    } catch {
-      /* continue to researchTopic */
+      const mapped = referencesFromJob(snap, effectiveLang);
+      const supportedIds = new Set(
+        mapped.claims.filter(claim => claim.support === 'supported').flatMap(claim => claim.passageIds),
+      );
+      retrievedRefs = mapped.references.filter(reference => supportedIds.has(reference.id));
+      if (retrievedRefs.length === 0 && snap.job.errors.length > 0) {
+        researchFailure = snap.job.errors.map(item => item.message).join(' ');
+      }
+      if (retrievedRefs.length === 0 && mapped.gaps.some(gap => /source unavailable/i.test(gap.message))) {
+        researchFailure = mapped.gaps.find(gap => /source unavailable/i.test(gap.message))?.message ?? researchFailure;
+      }
+    } catch (err) {
+      if (err instanceof UpstreamError && (err.status === 409 || err.status === 499)) throw err;
+      researchFailure = err instanceof Error ? err.message : 'Research failed.';
     }
   }
 
-  if (retrievedRefs.length === 0 && tokens.length > 0) {
-    try {
-      const dossier = await researchTopic({
-        topic: rawQuestion,
-        questions: [rawQuestion],
-        lang: effectiveLang,
-      });
-      retrievedRefs = dossier.references;
-    } catch {
-      /* handled below */
-    }
+  if (researchFailure && retrievedRefs.length === 0) {
+    return {
+      id: `ans-${randomUUID()}`,
+      episodeId: episode.id,
+      segmentId: currentSegment?.id ?? 'seg-1',
+      question: rawQuestion,
+      lang: effectiveLang,
+      visibility: 'private_session',
+      review: 'unreviewed',
+      originBadge: 'Dragon Dawwa generated material',
+      kind: 'limitation',
+      note: researchFailure,
+      paragraphs: [
+        {
+          text: researchFailure,
+          citations: [],
+          role: 'limitation',
+          statementKind: 'presenter_reflection',
+        },
+      ],
+      references: [],
+      relatedReferences: fallbackRefs,
+      voiceAvailable,
+      voiceBlocker,
+      answeredAt: nowIso(),
+    };
   }
 
   if (retrievedRefs.length === 0) {
@@ -889,18 +906,12 @@ export async function answerStudioQuestion(req: StudioAskRequest): Promise<Studi
 }
 
 /**
- * Runs the Script Production Pipeline from a TopicBrief using the committed `researchTopic` and `verifyScript` services:
- * Topic brief → Research dossier → Episode outline → Script draft → Claim & quotation verification → Editorial review ('needs-review')
- * Never automatically publishes generated episodes.
+ * Topic brief → completed research job → cited script → verification → needs-review.
+ * A supplied job id is read. It is not started again. Generated episodes are never published.
  */
-export async function runStudioProductionPipeline(input: Partial<TopicBrief>): Promise<{
+export async function runStudioProductionPipeline(input: Partial<TopicBrief> & { jobId?: string }): Promise<{
   episode: StudioEpisode;
-  dossierSummary: {
-    examined: string[];
-    notExamined: string[];
-    unanswered: string[];
-    disagreements: string[];
-  };
+  dossierSummary: StudioDossierSummary;
 }> {
   const topic = String(input.topic ?? '').trim();
   if (!topic) {
@@ -934,155 +945,14 @@ export async function runStudioProductionPipeline(input: Partial<TopicBrief>): P
     questions: Array.isArray(input.questions) ? input.questions.map(String) : [topic],
   };
 
-  const dossier = await researchTopic({
-    topic: brief.topic,
-    questions: brief.questions ?? [brief.topic],
-    lang: brief.lang,
-  });
-
-  const references = dossier.references;
-  if (references.length === 0) {
-    throw new UpstreamError(
-      dossier.unanswered[0] ?? 'No verified passages could be retrieved for this topic in the selected language.',
-      422,
-    );
-  }
-
-  const citationIds = references.map(r => r.id);
-  const segments: StudioSegment[] = [];
-  const addSeg = (partial: Omit<StudioSegment, 'id' | 'index' | 'durationSeconds'>) => {
-    const index = segments.length;
-    segments.push({
-      ...partial,
-      id: `seg-${index + 1}`,
-      index,
-      durationSeconds: Math.max(10, Math.min(30, Math.round(partial.text.split(/\s+/).length / 2.3))),
-    });
-  };
-
-  // Every generated segment quotes the retrieved passage directly with neutral framing so verifyScript checks pass honestly
-  addSeg({
-    section: 'opening',
-    sectionLabel: `1. Opening · ${references[0].provider} ${references[0].itemId}`,
-    speakerId: 'presenter',
-    speakerName: STUDIO_PRESENTERS.presenter.name,
-    speakerRoleLabel: STUDIO_PRESENTERS.presenter.roleTitle,
-    isGeneratedSpeaker: true,
-    statementKind: 'exact_quotation',
-    originBadge: 'Published translation',
-    audioKind: 'presenter_narration',
-    text: references[0].passage,
-    arabicText: references[0].arabic,
-    citations: [references[0].id],
-    translationEdition: `${references[0].provider} ${references[0].itemId}`,
-    sourceLanguage: (references[0].passageLanguage as Lang) || lang,
-    directAudioUrl: null,
-  });
-
-  for (const ref of references) {
-    const isAyah = ref.provider === 'QuranEnc';
-    const badge: ContentOriginBadge = isAyah
-      ? 'Quranic Arabic text'
-      : ref.provider === 'HadeethEnc'
-        ? 'Prophetic narration (Hadith)'
-        : 'Published translation';
-    const audioKind: AudioStreamKind = 'presenter_narration';
-
-    addSeg({
-      section: 'evidence',
-      sectionLabel: `3. Evidence · ${ref.title}`,
-      speakerId: format === 'explanatory_dialogue' ? 'researcher' : 'presenter',
-      speakerName: format === 'explanatory_dialogue' ? STUDIO_PRESENTERS.researcher.name : STUDIO_PRESENTERS.presenter.name,
-      speakerRoleLabel:
-        format === 'explanatory_dialogue' ? STUDIO_PRESENTERS.researcher.roleTitle : STUDIO_PRESENTERS.presenter.roleTitle,
-      isGeneratedSpeaker: true,
-      statementKind: 'exact_quotation',
-      originBadge: badge,
-      audioKind,
-      text: ref.passage,
-      arabicText: ref.arabic,
-      citations: [ref.id],
-      translationEdition: `${ref.provider} ${ref.itemId}`,
-      sourceLanguage: (ref.passageLanguage as Lang) || lang,
-      directAudioUrl: null,
-    });
-  }
-
-  const outline: EpisodeOutlineItem[] = [
-    { section: 'opening', heading: '1. Opening', summary: `Opening passage for ${brief.topic}`, plannedCitationIds: [references[0].id] },
-    { section: 'orientation', heading: '2. Orientation', summary: brief.learningObjective, plannedCitationIds: citationIds },
-    { section: 'evidence', heading: '3. Evidence', summary: `Read ${references.length} retrieved passage(s).`, plannedCitationIds: citationIds },
-    { section: 'exploration', heading: '4. Exploration', summary: 'Examine retrieved passages and limitations.', plannedCitationIds: citationIds },
-    { section: 'application', heading: '5. Application', summary: 'Practical takeaway grounded in the retrieved text.', plannedCitationIds: [references[0].id] },
-    { section: 'closing', heading: '6. Closing', summary: 'Editorial review handoff.', plannedCitationIds: [references[0].id] },
-  ];
-
-  const verification = verifyStudioEpisode(segments, references, {
-    currentRevision: 1,
-    approvedRevision: null,
-    narratedRevision: null,
-  });
-
+  const snap = input.jobId
+    ? loadCompletedResearchJob(input.jobId)
+    : await waitForSharedResearchJob(brief.topic, brief.lang);
   const id = `prod-${randomUUID().slice(0, 8)}`;
-  const now = nowIso();
-  const episode: StudioEpisode = {
-    id,
-    slug: id,
-    familyId,
-    title: brief.topic.slice(0, 140),
-    subtitle: `${family.title} · Draft Production (${lang.toUpperCase()})`,
-    summary: brief.learningObjective,
-    lang,
-    availableLanguages: [lang],
-    format,
-    broadcastLabel: 'On demand',
-    editorialState: 'needs-review',
-    currentRevision: 1,
-    approvedRevision: null,
-    narratedRevision: null,
-    approvalValid: false,
-    narrationValid: false,
-    published: false,
-    presenters:
-      format === 'explanatory_dialogue'
-        ? [STUDIO_PRESENTERS.presenter, STUDIO_PRESENTERS.researcher]
-        : [STUDIO_PRESENTERS.presenter],
-    brief,
-    outline,
-    segments,
-    references,
-    evidence: references.map(referenceEvidence),
-    gaps: dossier.unanswered.map(msg => ({ source: 'Research Dossier', message: msg })),
-    disagreements: dossier.disagreements,
-    verification,
-    reviews: [],
-    revisions: [
-      {
-        revision: 1,
-        state: 'needs-review',
-        updatedAt: now,
-        updatedBy: 'Studio Production Pipeline',
-        changeNote: 'Generated from Topic Brief and Research Dossier; awaiting editorial review.',
-        segmentCount: segments.length,
-        contentHash: computeSegmentsHash(segments),
-        verificationSupported: verification.supported,
-      },
-    ],
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  studioProductions.set(id, episode);
-  studioProductions.set(`${id}:${lang}`, episode);
-  return {
-    episode,
-    dossierSummary: {
-      examined: dossier.examined,
-      notExamined: dossier.notExamined,
-      unanswered: dossier.unanswered,
-      disagreements: dossier.disagreements,
-    },
-  };
+  const built = assembleStudioProductionFromJob(brief, snap, id, nowIso());
+  studioProductions.set(id, built.episode);
+  studioProductions.set(`${id}:${lang}`, built.episode);
+  return built;
 }
 
 export function listStudioProductions(): StudioEpisode[] {

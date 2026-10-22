@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { AlertTriangle, CheckCircle2, Edit3, FileCheck, History, Sparkles } from 'lucide-react';
 import { postJson } from '../lib/api.ts';
 import type { Lang } from '../shared/sources.ts';
@@ -6,9 +6,11 @@ import { PROGRAMME_FAMILIES } from '../shared/studio/catalogue.ts';
 import type {
   PresentationFormat,
   ProgrammeFamilyId,
+  StudioDossierSummary,
   StudioEpisode,
   StudioSegment,
 } from '../shared/studio/contracts.ts';
+import { followResearchJob } from './followResearchJob.ts';
 import type { StudioTransitionAction } from '../shared/studio/verification.ts';
 
 export function EditorialProductionDesk({
@@ -26,13 +28,10 @@ export function EditorialProductionDesk({
   const [learningObjective, setLearningObjective] = useState('');
   const [durationMinutes, setDurationMinutes] = useState(4);
   const [pipelineBusy, setPipelineBusy] = useState(false);
+  const [pipelineProgress, setPipelineProgress] = useState<string | null>(null);
   const [pipelineError, setPipelineError] = useState<string | null>(null);
-  const [dossierNotes, setDossierNotes] = useState<{
-    examined: string[];
-    notExamined: string[];
-    unanswered: string[];
-    disagreements: string[];
-  } | null>(null);
+  const [dossierNotes, setDossierNotes] = useState<StudioDossierSummary | null>(null);
+  const pipelineAbort = useRef<AbortController | null>(null);
 
   const [editingSegIndex, setEditingSegIndex] = useState<number | null>(null);
   const [editedText, setEditedText] = useState('');
@@ -44,18 +43,28 @@ export function EditorialProductionDesk({
   async function handleRunPipeline(e: FormEvent) {
     e.preventDefault();
     if (!topic.trim() || pipelineBusy) return;
+    const controller = new AbortController();
+    pipelineAbort.current = controller;
     setPipelineBusy(true);
     setPipelineError(null);
+    setPipelineProgress('Starting a research job. The dossier is not ready.');
     setActionNotice(null);
     try {
+      const snap = await followResearchJob({
+        question: topic.trim(),
+        lang,
+        signal: controller.signal,
+        onProgress: response => {
+          const dossierState = response.dossier ? 'Dossier ready' : 'The dossier is not ready';
+          setPipelineProgress(
+            `Research ${response.job.status} · ${response.job.progress.step} (${response.job.progress.completed}/${response.job.progress.total}) · ${dossierState}`,
+          );
+        },
+      });
+      if (controller.signal.aborted) return;
       const res = await postJson<{
         episode: StudioEpisode;
-        dossierSummary: {
-          examined: string[];
-          notExamined: string[];
-          unanswered: string[];
-          disagreements: string[];
-        };
+        dossierSummary: StudioDossierSummary;
       }>('/api/studio/pipeline/run', {
         topic: topic.trim(),
         familyId,
@@ -63,6 +72,7 @@ export function EditorialProductionDesk({
         learningObjective: learningObjective.trim(),
         durationMinutes,
         lang,
+        jobId: snap.job.id,
       });
       setDossierNotes(res.dossierSummary);
       onEpisodeUpdated(res.episode);
@@ -70,9 +80,15 @@ export function EditorialProductionDesk({
         `Pipeline complete: assembled ${res.episode.segments.length} segments from ${res.episode.references.length} retrieved reference(s). Episode is in "${res.episode.editorialState}" state (never auto-published).`,
       );
     } catch (err) {
+      if (controller.signal.aborted || (err instanceof Error && err.name === 'AbortError')) {
+        setPipelineError('Research was cancelled. No script was built from a partial dossier.');
+        return;
+      }
       setPipelineError(err instanceof Error ? err.message : 'Production pipeline failed.');
     } finally {
+      pipelineAbort.current = null;
       setPipelineBusy(false);
+      setPipelineProgress(null);
     }
   }
 
@@ -479,20 +495,47 @@ export function EditorialProductionDesk({
           </label>
         </div>
 
-        <button
-          type="submit"
-          disabled={pipelineBusy || !topic.trim()}
-          className="inline-flex min-h-11 items-center gap-2 rounded-full bg-pine px-5 py-2 text-sm font-semibold text-sand hover:bg-moss disabled:opacity-50"
-        >
-          <Sparkles className="h-4 w-4 text-gold" aria-hidden="true" />
-          {pipelineBusy ? 'Running Dossier & Script Pipeline…' : 'Run Production Pipeline'}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="submit"
+            disabled={pipelineBusy || !topic.trim()}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-pine px-5 py-2 text-sm font-semibold text-sand hover:bg-moss disabled:opacity-50"
+          >
+            <Sparkles className="h-4 w-4 text-gold" aria-hidden="true" />
+            {pipelineBusy ? 'Researching sources…' : 'Run Production Pipeline'}
+          </button>
+          {pipelineBusy && (
+            <button
+              type="button"
+              data-testid="studio-cancel-pipeline-btn"
+              onClick={() => pipelineAbort.current?.abort()}
+              className="inline-flex min-h-11 items-center rounded-full border border-red-800/30 bg-red-50 px-4 text-xs font-semibold text-red-900"
+            >
+              Cancel research
+            </button>
+          )}
+        </div>
+        {pipelineProgress && (
+          <p data-testid="studio-pipeline-progress" className="text-xs font-medium text-pine">
+            {pipelineProgress}
+          </p>
+        )}
 
         {dossierNotes && (
-          <div className="mt-3 rounded-2xl border border-pine/15 bg-sand/60 p-3 text-xs text-ink/85">
-            <p className="font-semibold text-pine">Research Dossier Coverage Log</p>
+          <div className="mt-3 space-y-2 rounded-2xl border border-pine/15 bg-sand/60 p-3 text-xs text-ink/85">
+            <p className="font-semibold text-pine">Research job coverage and claim checks</p>
+            {dossierNotes.coverage.map((note, i) => (
+              <p key={`coverage-${i}`} data-testid="studio-coverage-note">
+                {note.kind}: {note.detail}
+              </p>
+            ))}
+            {dossierNotes.claims.map((claim, i) => (
+              <p key={`claim-${i}`} data-testid="studio-claim-note">
+                {claim.support}: {claim.claim}
+              </p>
+            ))}
             {dossierNotes.examined.map((line, i) => (
-              <p key={i} className="mt-1">• {line}</p>
+              <p key={`examined-${i}`}>• {line}</p>
             ))}
           </div>
         )}

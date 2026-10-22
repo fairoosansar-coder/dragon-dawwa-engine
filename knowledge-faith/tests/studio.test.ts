@@ -271,7 +271,11 @@ describe('Strict Claim Verification (No Token-Overlap Support) & Revision Invali
     assert.equal(res.episode.editorialState, 'needs-review');
     assert.equal(res.episode.outline.length, 6);
     assert.ok(res.episode.references.length > 0);
-    assert.equal(res.episode.verification.supported, true);
+    assert.equal(res.episode.verification.supported, false);
+    assert.ok(res.episode.verification.unverified.includes('Line 1'));
+    assert.ok(res.episode.segments.some(segment => res.episode.references.some(reference => reference.passage === segment.text)));
+    assert.ok(res.dossierSummary.coverage.length >= 0);
+    assert.ok(Array.isArray(res.dossierSummary.claims));
   });
 });
 

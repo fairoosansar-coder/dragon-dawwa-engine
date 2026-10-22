@@ -1,3 +1,4 @@
+import type { ClaimEvidence, CoverageNote } from '../contracts/v1.ts';
 import type { Lang } from '../sources.ts';
 import type { Evidence, PodcastLine } from '../types.ts';
 import {
@@ -264,12 +265,23 @@ export type StudioAnswerOutcome =
   | 'synthesis'
   | 'limitation';
 
+export interface StudioDossierSummary {
+  examined: string[];
+  notExamined: string[];
+  unanswered: string[];
+  disagreements: string[];
+  coverage: CoverageNote[];
+  claims: ClaimEvidence[];
+}
+
 export interface StudioAskRequest {
   episodeId: string;
   segmentId: string;
   question: string;
   lang: Lang;
   targetLang?: Lang;
+  /** Completed `/api/research/jobs` id. Ask does not start a second job when this is set. */
+  jobId?: string;
 }
 
 export interface StudioAskAnswer {
