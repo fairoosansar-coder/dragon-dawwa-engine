@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Bookmark, BookmarkCheck, Search } from 'lucide-react';
 import { RubElHizb } from '../../engine/ds/ornaments.tsx';
 import { useRemote } from '../../lib/api.ts';
@@ -365,7 +366,10 @@ export function OverlaySheet({
   );
 }
 
-export function ReadingSettings({
+/** Settings for every Qur'an page. The control lives in the top bar and the options open under it. */
+export function HeaderSettingsMenu({
+  open,
+  onOpenChange,
   mode,
   textSize,
   onTextSize,
@@ -380,9 +384,9 @@ export function ReadingSettings({
   onEdition,
   editionsError,
   onQuiet,
-  open,
-  onOpenChange,
 }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   mode: 'library' | 'study' | 'book';
   textSize: 'sm' | 'md' | 'lg';
   onTextSize: (size: 'sm' | 'md' | 'lg') => void;
@@ -397,10 +401,13 @@ export function ReadingSettings({
   onEdition: (key: string) => void;
   editionsError: string | null;
   onQuiet?: () => void;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
 }) {
   const { t } = useApp();
+  const { focus } = useShell();
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  const buttonWrapRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [anchor, setAnchor] = useState<{ top: number; right: number; width: number } | null>(null);
   const edition = editions.find(item => item.key === editionKey);
   const editionReady = Boolean(edition && editions.some(item => item.key === editionKey));
   const sizeSelect = (value: 'sm' | 'md' | 'lg', onChange: (size: 'sm' | 'md' | 'lg') => void, id: string) => (
@@ -410,79 +417,170 @@ export function ReadingSettings({
       <option value="lg">A++</option>
     </select>
   );
-  return (
-    <details
-      id="kf-reading-settings"
-      open={open}
-      onToggle={event => onOpenChange(event.currentTarget.open)}
-      className="rounded-2xl border border-pine/10 bg-parchment px-4 py-3"
-    >
-      <summary className="flex min-h-11 cursor-pointer list-none items-center text-sm font-semibold text-pine [&::-webkit-details-marker]:hidden">
-        {t.readingSettings}
-      </summary>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="flex flex-col gap-1 text-xs font-medium text-muted">
-          <label className="flex flex-col gap-1">
-            {t.editionLabel}
-            {editionReady ? (
-              <select id="kf-quran-edition" value={editionKey} onChange={event => onEdition(event.target.value)} className="rounded-xl border border-pine/20 bg-parchment px-3 py-2 text-sm font-normal text-ink">
-                {editions.map(item => (
-                  <option key={item.key} value={item.key}>
-                    {item.title}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <span className="rounded-xl border border-pine/10 bg-sand px-3 py-2 text-sm font-normal text-ink">{editionsError || t.quranEncLoading}</span>
-            )}
-          </label>
-          {edition && (
-            <p className="font-normal leading-relaxed">
-              {edition.key} · {edition.version}
-            </p>
-          )}
-        </div>
-        {onMode && (
-          <div className="flex flex-col gap-1 text-xs font-medium text-muted">
-            {t.readingMode}
-            <div className="flex flex-wrap gap-2">
-              <Button variant={mode === 'study' ? 'primary' : 'soft'} onClick={() => onMode('study')} aria-pressed={mode === 'study'}>
-                {t.quranAyahStudy}
-              </Button>
-              <Button variant={mode === 'book' ? 'primary' : 'soft'} onClick={() => onMode('book')} aria-pressed={mode === 'book'}>
-                {t.quranRead}
-              </Button>
+
+  useLayoutEffect(() => {
+    const pick = () => {
+      const nodes = ['kf-library-settings', 'kf-library-settings-mobile']
+        .map(id => document.getElementById(id))
+        .filter((node): node is HTMLElement => node instanceof HTMLElement);
+      setSlot(nodes.find(node => node.getClientRects().length > 0) ?? null);
+    };
+    pick();
+    window.addEventListener('resize', pick);
+    return () => window.removeEventListener('resize', pick);
+  }, [focus]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const button = buttonWrapRef.current;
+      if (!button) return;
+      const rect = button.getBoundingClientRect();
+      const margin = 12;
+      const width = Math.min(352, window.innerWidth - margin * 2);
+      const preferredRight = window.innerWidth - rect.right;
+      const right = Math.min(Math.max(preferredRight, margin), window.innerWidth - margin - width);
+      setAnchor({ top: rect.bottom + 8, right, width });
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [open, slot]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (buttonWrapRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      onOpenChange(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      onOpenChange(false);
+      buttonWrapRef.current?.querySelector('button')?.focus();
+    };
+    document.addEventListener('pointerdown', onPointer);
+    document.addEventListener('keydown', onKey);
+    const timer = window.setTimeout(() => {
+      const field = document.getElementById('kf-quran-edition');
+      if (field instanceof HTMLElement) field.focus();
+    }, 0);
+    return () => {
+      document.removeEventListener('pointerdown', onPointer);
+      document.removeEventListener('keydown', onKey);
+      window.clearTimeout(timer);
+    };
+  }, [open, onOpenChange]);
+
+  const button = (
+    <div ref={buttonWrapRef} className="w-fit">
+      <Button
+        id="kf-settings-button"
+        variant="soft"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        aria-controls={open ? 'kf-reading-settings' : undefined}
+        onClick={() => onOpenChange(!open)}
+      >
+        {t.settings}
+      </Button>
+    </div>
+  );
+  const panel =
+    open && anchor
+      ? createPortal(
+          <div
+            ref={panelRef}
+            id="kf-reading-settings"
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby="kf-reading-settings-title"
+            style={{ top: anchor.top, right: anchor.right, width: anchor.width }}
+            className="fixed z-50 max-h-[min(32rem,70dvh)] overflow-y-auto rounded-2xl border border-pine/10 bg-parchment p-4 shadow-xl"
+          >
+            <h2 id="kf-reading-settings-title" className="font-display text-lg font-bold text-pine">
+              {t.readingSettings}
+            </h2>
+            <div className="mt-3 grid gap-3">
+              <div className="flex flex-col gap-1 text-xs font-medium text-muted">
+                <label className="flex flex-col gap-1">
+                  {t.editionLabel}
+                  {editionReady ? (
+                    <select id="kf-quran-edition" value={editionKey} onChange={event => onEdition(event.target.value)} className="rounded-xl border border-pine/20 bg-parchment px-3 py-2 text-sm font-normal text-ink">
+                      {editions.map(item => (
+                        <option key={item.key} value={item.key}>
+                          {item.title}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span id="kf-quran-edition" className="rounded-xl border border-pine/10 bg-sand px-3 py-2 text-sm font-normal text-ink">
+                      {editionsError || t.quranEncLoading}
+                    </span>
+                  )}
+                </label>
+                {edition && (
+                  <p className="font-normal leading-relaxed">
+                    {edition.key} · {edition.version}
+                  </p>
+                )}
+              </div>
+              {onMode && (
+                <div className="flex flex-col gap-1 text-xs font-medium text-muted">
+                  {t.readingMode}
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant={mode === 'study' ? 'primary' : 'soft'} onClick={() => onMode('study')} aria-pressed={mode === 'study'}>
+                      {t.quranAyahStudy}
+                    </Button>
+                    <Button variant={mode === 'book' ? 'primary' : 'soft'} onClick={() => onMode('book')} aria-pressed={mode === 'book'}>
+                      {t.quranRead}
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+                {t.reciter}
+                <select id="kf-reciter" value={reciter} onChange={event => onReciter(event.target.value)} className="rounded-xl border border-pine/20 bg-parchment px-3 py-2 text-sm text-ink">
+                  {reciters.map(item => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+                {t.arabicSize}
+                {sizeSelect(textSize, onTextSize, 'kf-text-size')}
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+                {t.translationSize}
+                {sizeSelect(translationSize, onTranslationSize, 'kf-translation-size')}
+              </label>
+              <PronunciationControl />
+              {onQuiet && (
+                <Button variant="soft" onClick={onQuiet}>
+                  {t.focusReading}
+                </Button>
+              )}
             </div>
-          </div>
-        )}
-        <label className="flex flex-col gap-1 text-xs font-medium text-muted">
-          {t.reciter}
-          <select id="kf-reciter" value={reciter} onChange={event => onReciter(event.target.value)} className="rounded-xl border border-pine/20 bg-parchment px-3 py-2 text-sm text-ink">
-            {reciters.map(item => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-muted">
-          {t.arabicSize}
-          {sizeSelect(textSize, onTextSize, 'kf-text-size')}
-        </label>
-        <label className="flex flex-col gap-1 text-xs font-medium text-muted">
-          {t.translationSize}
-          {sizeSelect(translationSize, onTranslationSize, 'kf-translation-size')}
-        </label>
-        <PronunciationControl />
-        {onQuiet && (
-          <div className="flex flex-col justify-end">
-            <Button variant="soft" onClick={onQuiet}>
-              {t.focusReading}
-            </Button>
-          </div>
-        )}
-      </div>
-    </details>
+          </div>,
+          document.body,
+        )
+      : null;
+
+  if (!slot) return panel;
+  return (
+    <>
+      {createPortal(button, slot)}
+      {panel}
+    </>
   );
 }
 

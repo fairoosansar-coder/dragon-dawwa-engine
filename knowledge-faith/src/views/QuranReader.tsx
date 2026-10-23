@@ -26,7 +26,7 @@ import { recitationUrl, type Lang } from '../shared/sources.ts';
 import type { SurahInfo, Verse } from '../shared/types.ts';
 import { useReciter } from '../components/cards.tsx';
 import { VerseCard } from '../components/cards.tsx';
-import { audioStatusLabel, BookPage, EmptyState, OverlaySheet, PronunciationStatus, ReadingSettings, SourceAttribution, quranSectionId, type QuranSectionId } from '../components/shell/widgets.tsx';
+import { audioStatusLabel, BookPage, EmptyState, HeaderSettingsMenu, OverlaySheet, PronunciationStatus, SourceAttribution, quranSectionId, type QuranSectionId } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, IconButton, Loading } from '../components/ui.tsx';
 
 const BISMILLAH = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ';
@@ -40,40 +40,6 @@ function ReaderChrome({ children }: { children: ReactNode }) {
   const bar = <div className="py-2" style={{ width: 'min(100%, 46rem)', marginInline: 'auto' }}>{children}</div>;
   if (!slot) return <div className="mb-3">{bar}</div>;
   return createPortal(bar, slot);
-}
-
-/** Home, Search, and My Quran keep Settings beside Content language, not in the page title. */
-function LibrarySettingsButton({ open, onOpen, label }: { open: boolean; onOpen: () => void; label: string }) {
-  const [slot, setSlot] = useState<HTMLElement | null>(null);
-  useLayoutEffect(() => {
-    const pick = () => {
-      const nodes = ['kf-library-settings', 'kf-library-settings-mobile']
-        .map(id => document.getElementById(id))
-        .filter((node): node is HTMLElement => node instanceof HTMLElement);
-      setSlot(nodes.find(node => node.getClientRects().length > 0) ?? null);
-    };
-    pick();
-    window.addEventListener('resize', pick);
-    return () => window.removeEventListener('resize', pick);
-  }, []);
-  const button = (
-    <Button id="kf-library-settings-button" variant="soft" aria-expanded={open} aria-controls="kf-reading-settings" onClick={onOpen}>
-      {label}
-    </Button>
-  );
-  if (!slot) return button;
-  return createPortal(button, slot);
-}
-
-function revealReadingSettings() {
-  const panel = document.getElementById('kf-reading-settings');
-  if (panel instanceof HTMLDetailsElement) panel.open = true;
-  const main = document.getElementById('main');
-  if (panel && main) {
-    const top = panel.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop - 12;
-    main.scrollTop = Math.max(0, top);
-  }
-  window.setTimeout(() => document.getElementById('kf-quran-edition')?.focus(), 0);
 }
 
 interface ArabicPayload {
@@ -260,7 +226,7 @@ function Library({
 }) {
   const { t, config, saved } = useApp();
   const { query, setFocus } = useShell();
-  const [settingsOpen, setSettingsOpen] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [listTab, setListTab] = useState<'surahs' | 'bookmarks'>(section === 'mine' ? 'bookmarks' : 'surahs');
   const [prefer, setPrefer] = useState<ReadMode>('book');
   const surahs = useRemote<SurahInfo[]>('/api/quran/surahs');
@@ -287,36 +253,10 @@ function Library({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <header>
-          <h1 className="font-display text-4xl font-bold text-pine">{heading}</h1>
-          {section === 'home' && <p className="mt-2 text-lg text-muted">{t.quranSubtitle}</p>}
-        </header>
-        <LibrarySettingsButton
-          open={settingsOpen}
-          onOpen={() => {
-            setSettingsOpen(true);
-            revealReadingSettings();
-          }}
-          label={t.settings}
-        />
-      </div>
-      {section === 'home' && <Card>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">{t.continueReading}</p>
-        <h3 className="mt-2 font-display text-2xl font-bold text-pine">{current ? current.englishName : `${t.surahs} ${displaySurah(surah)}`}</h3>
-        {current && (
-          <p className="mt-1 text-sm text-muted">
-            {readingPlaceLabel(surah, ayah)} · {current.englishNameTranslation} · {current.numberOfAyahs}
-          </p>
-        )}
-        <Button className="mt-4" onClick={() => onOpen(surah, ayah, prefer)}>
-          {t.continueReading}
-        </Button>
-      </Card>}
-      <ReadingSettings
-        mode={prefer}
+      <HeaderSettingsMenu
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
+        mode={prefer}
         textSize={textSize}
         onTextSize={onTextSize}
         translationSize={translationSize}
@@ -329,8 +269,27 @@ function Library({
         editionKey={editionKey}
         onEdition={onEdition}
         editionsError={editionsError}
-        onQuiet={() => setFocus(true)}
+        onQuiet={() => {
+          setSettingsOpen(false);
+          setFocus(true);
+        }}
       />
+      <header>
+        <h1 className="font-display text-4xl font-bold text-pine">{heading}</h1>
+        {section === 'home' && <p className="mt-2 text-lg text-muted">{t.quranSubtitle}</p>}
+      </header>
+      {section === 'home' && <Card>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">{t.continueReading}</p>
+        <h3 className="mt-2 font-display text-2xl font-bold text-pine">{current ? current.englishName : `${t.surahs} ${displaySurah(surah)}`}</h3>
+        {current && (
+          <p className="mt-1 text-sm text-muted">
+            {readingPlaceLabel(surah, ayah)} · {current.englishNameTranslation} · {current.numberOfAyahs}
+          </p>
+        )}
+        <Button className="mt-4" onClick={() => onOpen(surah, ayah, prefer)}>
+          {t.continueReading}
+        </Button>
+      </Card>}
       {section === 'home' && (
         <div className="flex flex-wrap gap-2" role="tablist" aria-label={t.quranTitle}>
           <Button variant={listTab === 'surahs' ? 'primary' : 'soft'} aria-pressed={listTab === 'surahs'} onClick={() => setListTab('surahs')}>
@@ -437,7 +396,7 @@ function Edition({
   const [pronunciation] = usePronunciation();
   const { query, setFocus } = useShell();
   const [contents, setContents] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [listenKind, setListenKind] = useState<'recitation' | 'meaning'>('recitation');
   const audio = useAudioState();
   const arabicUrl = withPronunciation(`/api/quran/surah/${surah}/arabic`, pronunciation);
@@ -637,6 +596,32 @@ function Edition({
 
   return (
     <div data-reader className="min-w-0">
+      <HeaderSettingsMenu
+        open={settingsOpen}
+        onOpenChange={open => {
+          setSettingsOpen(open);
+          if (open) setContents(false);
+        }}
+        mode={mode}
+        textSize={textSize}
+        onTextSize={onTextSize}
+        translationSize={translationSize}
+        onTranslationSize={onTranslationSize}
+        reciter={reciter}
+        onReciter={onReciter}
+        reciters={reciters}
+        onMode={next => {
+          window.location.hash = next === 'study' ? '#/quran/study' : '#/quran/book';
+        }}
+        editions={editions}
+        editionKey={editionKey}
+        onEdition={onEdition}
+        editionsError={editionsError}
+        onQuiet={() => {
+          setSettingsOpen(false);
+          setFocus(true);
+        }}
+      />
       <ReaderChrome>
       <div data-reader-toolbar className="flex flex-wrap items-center gap-2">
         <Button
@@ -672,19 +657,6 @@ function Edition({
         <Button variant="ghost" onClick={() => savedKey && toggleVerse(savedKey)} aria-pressed={verseSaved} disabled={!savedKey}>
           {verseSaved ? <BookmarkCheck className="h-4 w-4" aria-hidden /> : <Bookmark className="h-4 w-4" aria-hidden />}
           {verseSaved ? t.unsave : t.save}
-        </Button>
-        <Button
-          id="kf-settings-button"
-          variant="soft"
-          aria-expanded={settingsOpen}
-          aria-controls="kf-reading-settings"
-          onClick={() => {
-            setContents(false);
-            setSettingsOpen(true);
-            revealReadingSettings();
-          }}
-        >
-          {t.settings}
         </Button>
       </div>
       {playbackStatus && (
@@ -736,26 +708,6 @@ function Edition({
         </ul>
       </Card>
       <div className="min-w-0 space-y-4">
-      <ReadingSettings
-        mode={mode}
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-        textSize={textSize}
-        onTextSize={onTextSize}
-        translationSize={translationSize}
-        onTranslationSize={onTranslationSize}
-        reciter={reciter}
-        onReciter={onReciter}
-        reciters={reciters}
-        onMode={next => {
-          window.location.hash = next === 'study' ? '#/quran/study' : '#/quran/book';
-        }}
-        editions={editions}
-        editionKey={editionKey}
-        onEdition={onEdition}
-        editionsError={editionsError}
-        onQuiet={() => setFocus(true)}
-      />
         {!arabic && arabicRemote.loading && <Loading />}
         {!arabic && !arabicRemote.loading && arabicRemote.error && <ErrorNote message={arabicRemote.error} onRetry={arabicRemote.reload} />}
         {editionsError && <ErrorNote message={editionsError} onRetry={onEditionsRetry} />}

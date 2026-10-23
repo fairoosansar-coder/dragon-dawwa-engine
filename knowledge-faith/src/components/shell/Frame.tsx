@@ -41,7 +41,7 @@ export function AppFrame({ path, section, segments = [], showSearch, children }:
   const { focus, setFocus } = useShell();
   const audio = useAudioState();
   const player = Boolean(audio.id) && audio.status !== 'idle';
-  const librarySettings = path === 'quran' && segments[0] !== 'book' && segments[0] !== 'study';
+  const quranSettings = path === 'quran';
 
   return (
     <div className="flex h-dvh overflow-hidden bg-sand text-ink">
@@ -95,7 +95,7 @@ export function AppFrame({ path, section, segments = [], showSearch, children }:
             <div className="flex items-center justify-between gap-3 px-4 py-3">
               <BrandLockup />
               <div className="flex shrink-0 items-center gap-2">
-                {librarySettings && <div id="kf-library-settings-mobile" />}
+                {quranSettings && <div id="kf-library-settings-mobile" />}
                 <label className="shrink-0 text-xs text-muted">
                   <span className="sr-only">{t.language}</span>
                   <select value={lang} onChange={event => setLang(toLang(event.target.value))} className="rounded-full border border-pine/20 bg-parchment px-3 py-1.5 text-sm text-ink">
@@ -126,7 +126,7 @@ export function AppFrame({ path, section, segments = [], showSearch, children }:
               </>
             )}
             <div className="ml-auto flex items-center gap-2">
-              {librarySettings && <div id="kf-library-settings" />}
+              {quranSettings && <div id="kf-library-settings" />}
               <label className="flex items-center gap-2 text-xs text-muted">
                 <span>{t.language}</span>
                 <select value={lang} onChange={event => setLang(toLang(event.target.value))} className="rounded-full border border-pine/20 bg-parchment px-3 py-1.5 text-sm text-ink">
