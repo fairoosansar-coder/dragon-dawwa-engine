@@ -41,6 +41,7 @@ export function AppFrame({ path, section, segments = [], showSearch, children }:
   const { focus, setFocus } = useShell();
   const audio = useAudioState();
   const player = Boolean(audio.id) && audio.status !== 'idle';
+  const librarySettings = path === 'quran' && segments[0] !== 'book' && segments[0] !== 'study';
 
   return (
     <div className="flex h-dvh overflow-hidden bg-sand text-ink">
@@ -93,16 +94,19 @@ export function AppFrame({ path, section, segments = [], showSearch, children }:
           <header className="shrink-0 border-b border-pine/10 bg-sand lg:hidden">
             <div className="flex items-center justify-between gap-3 px-4 py-3">
               <BrandLockup />
-              <label className="shrink-0 text-xs text-muted">
-                <span className="sr-only">{t.language}</span>
-                <select value={lang} onChange={event => setLang(toLang(event.target.value))} className="rounded-full border border-pine/20 bg-parchment px-3 py-1.5 text-sm text-ink">
-                  {LANGS.map(code => (
-                    <option key={code} value={code}>
-                      {LANGUAGE_NAMES[code].english}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="flex shrink-0 items-center gap-2">
+                {librarySettings && <div id="kf-library-settings-mobile" />}
+                <label className="shrink-0 text-xs text-muted">
+                  <span className="sr-only">{t.language}</span>
+                  <select value={lang} onChange={event => setLang(toLang(event.target.value))} className="rounded-full border border-pine/20 bg-parchment px-3 py-1.5 text-sm text-ink">
+                    {LANGS.map(code => (
+                      <option key={code} value={code}>
+                        {LANGUAGE_NAMES[code].english}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
             </div>
             <ReleaseMark className="px-4 pb-2 text-[10px] text-muted" />
             {showSearch && (
@@ -121,16 +125,19 @@ export function AppFrame({ path, section, segments = [], showSearch, children }:
                 <SearchField className="max-w-md flex-1" />
               </>
             )}
-            <label className="ml-auto flex items-center gap-2 text-xs text-muted">
-              <span>{t.language}</span>
-              <select value={lang} onChange={event => setLang(toLang(event.target.value))} className="rounded-full border border-pine/20 bg-parchment px-3 py-1.5 text-sm text-ink">
-                {LANGS.map(code => (
-                  <option key={code} value={code}>
-                    {LANGUAGE_NAMES[code].english}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="ml-auto flex items-center gap-2">
+              {librarySettings && <div id="kf-library-settings" />}
+              <label className="flex items-center gap-2 text-xs text-muted">
+                <span>{t.language}</span>
+                <select value={lang} onChange={event => setLang(toLang(event.target.value))} className="rounded-full border border-pine/20 bg-parchment px-3 py-1.5 text-sm text-ink">
+                  {LANGS.map(code => (
+                    <option key={code} value={code}>
+                      {LANGUAGE_NAMES[code].english}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </div>
         )}
         {path === 'quran' && !focus && <QuranSections current={quranSectionId(segments[0])} />}
