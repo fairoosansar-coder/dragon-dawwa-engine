@@ -6,6 +6,7 @@ import { useShell } from '../../lib/shell.tsx';
 import { useApp } from '../../lib/store.tsx';
 import type { Strings } from '../../lib/i18n.ts';
 import { useAudioState } from '../../lib/audio.ts';
+import { buildStamp } from '../../buildStamp.ts';
 import { BrandLockup } from './Brand.tsx';
 import { AudioMiniPlayer, SearchField } from './widgets.tsx';
 
@@ -15,6 +16,16 @@ interface NavItem {
   short: keyof Strings;
   side?: keyof Strings;
   icon: LucideIcon;
+}
+
+function ReleaseMark({ className }: { className: string }) {
+  const short = buildStamp.sha.slice(0, 7);
+  const label = `${short} · ${buildStamp.builtAt}`;
+  return (
+    <p className={className} data-release={buildStamp.sha} data-built-at={buildStamp.builtAt} title={`Release ${buildStamp.sha} built ${buildStamp.builtAt}`}>
+      {label}
+    </p>
+  );
 }
 
 const NAV: NavItem[] = [
@@ -65,6 +76,7 @@ export function AppFrame({ path, section, showSearch, children }: { path: RouteR
             <a href="#/hub/scholar" className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-sand/80 hover:bg-white/5">
               {t.sidebarQuestion}
             </a>
+            <ReleaseMark className="px-3 pt-3 text-[10px] leading-snug text-sand/60" />
           </div>
         </aside>
       )}
@@ -92,6 +104,7 @@ export function AppFrame({ path, section, showSearch, children }: { path: RouteR
                 </select>
               </label>
             </div>
+            <ReleaseMark className="px-4 pb-2 text-[10px] text-muted" />
             {showSearch && (
               <div className="px-4 pb-3">
                 <SearchField />

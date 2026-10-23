@@ -1,4 +1,5 @@
 node_modules/
+knowledge-faith/build-info.json
 build/
 dist/
 coverage/
