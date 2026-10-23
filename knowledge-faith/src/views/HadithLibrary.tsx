@@ -102,20 +102,9 @@ export default function HadithLibrary({ sub, segments }: ViewProps) {
         ]}
       />
       {research ? (
-        <>
-          <SourceResearch />
-          <details className="mt-10 rounded-3xl border border-pine/15 bg-white/60 p-4">
-            <summary className="cursor-pointer text-sm font-semibold text-pine">Generated report</summary>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink/70">
-              This workbench is separate from the retrieved passages above. A score shown here is not a published source grade, and it does not mean a library or an answer is sahih.
-            </p>
-            <div className="mt-4">
-              <Suspense fallback={<Loading />}>
-                <DossierWorkbench />
-              </Suspense>
-            </div>
-          </details>
-        </>
+        <Suspense fallback={<Loading />}>
+          <DossierWorkbench />
+        </Suspense>
       ) : collections ? (
         <CollectionBrowser />
       ) : (

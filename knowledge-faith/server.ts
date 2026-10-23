@@ -453,7 +453,6 @@ app.post(
   route(async (req, res) => {
     const hadith = text(req.body?.hadith_input, 4000, 'hadith_input');
     const isnad = typeof req.body?.isnad_input === 'string' ? req.body.isnad_input.slice(0, 2000) : '';
-    requireAi();
     const id = startResearchJob(
       () => executeDragonDawwaAnalysis(hadith, isnad, toLang(req.body?.preferred_language)),
       err => engineFailure(err, 'The hadith research engine could not complete this request. Please retry.').message,

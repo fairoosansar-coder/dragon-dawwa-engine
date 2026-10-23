@@ -97,6 +97,15 @@ export const PODCAST_PERSONA_PROFILES: Record<string, SpeakerVoiceProfile> = {
     style: 'Authoritative, stately, measured male classical jurist providing serene legal perspective and harmonizing consensus gradings across Islamic legal history',
     description: 'The Legal Weight Keeper contextualizing scholar gradings into actionable understanding'
   },
+  amina: {
+    id: 'amina',
+    personaName: 'Dr. Amina al-Kindi',
+    role: 'Source Research & HadeethEnc Specialist (Agent 7)',
+    voiceName: 'Aoede',
+    gender: 'F',
+    style: 'Clear, poised, evidence-grounded female researcher citing HadeethEnc records, published grades, explanations, and documented lessons with scholarly precision',
+    description: 'The HadeethEnc Source Specialist feeding retrieved primary records into the roundtable'
+  },
   narrator: {
     id: 'narrator',
     personaName: 'Prime Dragon Radio Desk',
@@ -175,6 +184,17 @@ export function getGeminiVoiceForSpeaker(speaker: string): SpeakerVoiceProfile {
     return PODCAST_PERSONA_PROFILES.yusuf;
   }
 
+  // 5b. Dr. Amina al-Kindi (Source Research Agent / Agent 7)
+  if (
+    s.includes('amina') ||
+    s.includes('kindi') ||
+    s.includes('agent 7') ||
+    s.includes('source research') ||
+    s.includes('hadeethenc')
+  ) {
+    return PODCAST_PERSONA_PROFILES.amina;
+  }
+
   // 6. Host (Brother Feroz / Agent 6 Synthesis Moderator / Anchor)
   if (
     s.includes('host') || 
@@ -212,7 +232,8 @@ export function getAllPodcastPersonas(): SpeakerVoiceProfile[] {
     PODCAST_PERSONA_PROFILES.layla,
     PODCAST_PERSONA_PROFILES.imran,
     PODCAST_PERSONA_PROFILES.zainab,
-    PODCAST_PERSONA_PROFILES.yusuf
+    PODCAST_PERSONA_PROFILES.yusuf,
+    PODCAST_PERSONA_PROFILES.amina,
   ];
 }
 

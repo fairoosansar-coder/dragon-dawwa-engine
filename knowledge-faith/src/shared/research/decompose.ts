@@ -42,7 +42,7 @@ function domainOf(text: string): QuestionDomain {
 
 function sentences(question: string): string[] {
   const parts = question
-    .split(/\n+|(?<=[.!?؟])\s+/)
+    .split(/\n+|(?<=[.!?؟;])\s+/)
     .map(part => part.trim())
     .filter(part => part.length > 1);
   return parts.length ? parts : [question.trim()].filter(Boolean);

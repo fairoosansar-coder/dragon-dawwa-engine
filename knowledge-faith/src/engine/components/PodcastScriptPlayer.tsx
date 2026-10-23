@@ -43,6 +43,7 @@ export type PersonaId =
   | 'Sheikh Imran al-Hasani' 
   | 'Dr. Zainab al-Mubarak' 
   | 'Sheikh Yusuf al-Azhari' 
+  | 'Dr. Amina al-Kindi'
   | 'Narrator';
 
 interface DialogueItem {
@@ -189,6 +190,19 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
       rate: 0.95,
       avatar: 'Y'
     },
+    'Dr. Amina al-Kindi': {
+      name: 'Dr. Amina al-Kindi',
+      role: 'Source Research & HadeethEnc Specialist (Agent 7)',
+      geminiVoice: 'Aoede',
+      voiceTag: 'Gemini Aoede (Clear, evidence-grounded researcher)',
+      gender: 'F',
+      color: 'text-teal-400',
+      bg: 'bg-teal-950/60',
+      border: 'border-teal-500/50',
+      pitch: 1.10,
+      rate: 1.0,
+      avatar: 'A'
+    },
     'Narrator': {
       name: 'Prime Dragon Radio Desk',
       role: 'Studio Announcer',
@@ -299,14 +313,24 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
       ) {
         detectedSpeaker = 'Sheikh Yusuf al-Azhari';
         speechText = line.replace(/^((SHEIKH\s*)?YUSUF(\s+AL-AZHARI)?):\s*/i, '');
+      } else if (
+        upper.startsWith('DR. AMINA:') ||
+        upper.startsWith('DR. AMINA AL-KINDI:') ||
+        upper.startsWith('AMINA:') ||
+        upper.startsWith('AGENT 7:')
+      ) {
+        detectedSpeaker = 'Dr. Amina al-Kindi';
+        speechText = line.replace(/^(AGENT\s*7|(DR\.\s*)?AMINA(\s+AL-KINDI)?):\s*/i, '');
       }
 
       // Detect if a specific scholar or the anchor is addressed in this speech
       let addressedTo: string | undefined = undefined;
       const lowerText = speechText.toLowerCase();
-      if (detectedSpeaker !== 'Host' && (lowerText.includes('brother feroz') || lowerText.includes('feroz') || lowerText.includes('anchor'))) {
+      if (detectedSpeaker !== 'Host' && (lowerText.includes('brother feroz') || lowerText.includes('feroz') || lowerText.includes('anchor') || lowerText.includes('ஃபெரோஸ்') || lowerText.includes('ෆෙරෝස්'))) {
         addressedTo = 'Brother Feroz (Anchor)';
-      } else if (lowerText.includes('tariq')) {
+      } else if (lowerText.includes('amina') || lowerText.includes('அமீனா') || lowerText.includes('අමීනා')) {
+        addressedTo = 'Dr. Amina al-Kindi';
+      } else if (lowerText.includes('tariq') || lowerText.includes('தாரிக்')) {
         addressedTo = 'Dr. Tariq al-Mansoor';
       } else if (lowerText.includes('layla')) {
         addressedTo = 'Dr. Layla al-Qasimi';
@@ -485,6 +509,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
     'Sheikh Imran al-Hasani': 'Greetings. I am Sheikh Imran al-Hasani, biographical critic of narrator integrity.',
     'Dr. Zainab al-Mubarak': 'Hello, I am Dr. Zainab al-Mubarak, investigating hidden textual defects.',
     'Sheikh Yusuf al-Azhari': 'Peace and blessings. I am Sheikh Yusuf al-Azhari, scholars verdicts and legal grading master.',
+    'Dr. Amina al-Kindi': 'Assalamu alaikum. I am Dr. Amina al-Kindi, HadeethEnc source research specialist.',
     'Narrator': 'Prime Dragon Radio Studio audio desk online.'
   };
 
@@ -870,14 +895,15 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
             </div>
 
             {/* Panelists Microphone Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
               {([
                 'Host', 
                 'Dr. Tariq al-Mansoor', 
                 'Dr. Layla al-Qasimi', 
                 'Sheikh Imran al-Hasani', 
                 'Dr. Zainab al-Mubarak', 
-                'Sheikh Yusuf al-Azhari'
+                'Sheikh Yusuf al-Azhari',
+                'Dr. Amina al-Kindi',
               ] as PersonaId[]).map((pId) => {
                 const p = personasConfig[pId];
                 const isCurrentSpeaker = currentItemIndex >= 0 && dialogueItems[currentItemIndex]?.speaker === pId;

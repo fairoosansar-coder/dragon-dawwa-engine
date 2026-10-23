@@ -156,7 +156,7 @@ const SINHALA_STOP = new Set([
 
 /** Content words with generic question words removed. Works for English, Tamil, and Sinhala letters. */
 export function contentTokens(text: string): string[] {
-  const parts = text.toLocaleLowerCase('en').split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  const parts = text.toLocaleLowerCase('en').split(/[^\p{L}\p{M}\p{N}]+/u).filter(Boolean);
   const tokens: string[] = [];
   const seen = new Set<string>();
   for (const part of parts) {

@@ -3,6 +3,7 @@ import { DragonDawwaAnalysis } from '../types/hadith';
 import { UserAccount } from '../types/wall';
 import { SupportedLanguage } from '../utils/localization';
 import { getNarratorBadgeStyle, getPurityLevel } from '../utils/gradeUtils';
+import { attachAgent7ToAnalysis } from '../utils/agent7SourceResearch';
 
 interface PrintDossierReportProps {
   analysis: DragonDawwaAnalysis;
@@ -15,14 +16,16 @@ export const PrintDossierReport: React.FC<PrintDossierReportProps> = ({
   currentUser,
   currentLanguage
 }) => {
-  const purityScore = analysis.agent_6_synthesis.purity_confidence_score;
+  const enriched = analysis.agent_7_source_research ? analysis : attachAgent7ToAnalysis(analysis, currentLanguage);
+  const purityScore = enriched.agent_6_synthesis.purity_confidence_score;
   const purityMeta = getPurityLevel(purityScore);
-  const takhrij = analysis.agent_1_takhrij;
-  const isnad = analysis.agent_2_isnad;
-  const rijal = analysis.agent_3_rijal;
-  const shawahid = analysis.agent_4_shawahid_matn;
-  const scholars = analysis.agent_5_scholars_verdict;
-  const synthesis = analysis.agent_6_synthesis;
+  const takhrij = enriched.agent_1_takhrij;
+  const isnad = enriched.agent_2_isnad;
+  const rijal = enriched.agent_3_rijal;
+  const shawahid = enriched.agent_4_shawahid_matn;
+  const scholars = enriched.agent_5_scholars_verdict;
+  const synthesis = enriched.agent_6_synthesis;
+  const agent7 = enriched.agent_7_source_research!;
 
   const currentDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
@@ -509,6 +512,106 @@ export const PrintDossierReport: React.FC<PrintDossierReportProps> = ({
           {synthesis.executive_report_markdown.split('\n\n').map((paragraph, idx) => (
             <p key={idx}>{paragraph}</p>
           ))}
+        </div>
+      </div>
+
+      {/* =========================================================================
+          SECTION 8: AGENT 7 - SOURCE RESEARCH (HADEETHENC ENCYCLOPEDIA & EVIDENCE)
+          ========================================================================= */}
+      <div className="space-y-4 page-break-before" data-testid="print-agent-7-section">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-1 flex items-center justify-between">
+          <span>8. Agent 7 — Source Research ({agent7.persona_name} · HadeethEnc Encyclopedia)</span>
+          <span className="text-[10px] font-mono text-slate-500 font-normal">Section 08</span>
+        </h2>
+
+        <div className="p-3.5 rounded-lg border border-slate-300 bg-slate-50 text-xs text-slate-800 leading-relaxed">
+          <strong className="text-slate-950">What HadeethEnc Sources Establish:</strong> {agent7.summary_established}
+        </div>
+
+        <div className="space-y-3">
+          {agent7.retrieved_records.map(rec => (
+            <div key={rec.id} className="p-4 rounded-lg border border-slate-300 bg-white space-y-2 text-xs avoid-break">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-1.5">
+                <span className="font-bold text-slate-950">
+                  HadeethEnc #{rec.id} — {rec.title}
+                </span>
+                <span className="font-mono text-[11px] font-bold text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-300">
+                  Published Grade: {rec.published_grade ?? 'Not supplied'} · {rec.match_status}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-600">
+                Collection Attribution: <strong className="text-slate-900">{rec.collection_attribution || 'HadeethEnc'}</strong> · URL: {rec.source_url}
+              </p>
+              {rec.arabic && (
+                <p lang="ar" dir="rtl" className="font-arabic text-base text-slate-950 bg-amber-50/40 p-2.5 rounded border border-amber-200 leading-loose">
+                  {rec.arabic}
+                </p>
+              )}
+              <p className="text-slate-900 leading-relaxed">
+                <strong>Translation ({rec.language.toUpperCase()}):</strong> {rec.translation}
+              </p>
+              {rec.explanation && (
+                <p className="text-slate-700 leading-relaxed">
+                  <strong>Published HadeethEnc Explanation:</strong> {rec.explanation}
+                </p>
+              )}
+              {rec.lessons.length > 0 && (
+                <div>
+                  <strong className="text-slate-900">Documented Lessons:</strong>
+                  <ul className="list-disc pl-5 mt-1 space-y-0.5 text-slate-700">
+                    {rec.lessons.map((l, idx) => (
+                      <li key={idx}>{l}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs avoid-break">
+          <div className="p-3 rounded-lg border border-slate-300 bg-slate-50 space-y-1.5">
+            <strong className="block uppercase text-[10px] text-slate-900">Attributed Published Opinions</strong>
+            {agent7.attributed_opinions.map((op, i) => (
+              <p key={i} className="text-slate-800">
+                <strong>{op.author_or_source}:</strong> {op.opinion_text} <span className="font-mono text-[10px] text-slate-500">({op.reference})</span>
+              </p>
+            ))}
+          </div>
+          <div className="p-3 rounded-lg border border-slate-300 bg-slate-50 space-y-1.5">
+            <strong className="block uppercase text-[10px] text-slate-900">Agent 7 Analytical Interpretation & Unresolved Questions</strong>
+            <p className="text-slate-800">{agent7.agent_interpretation}</p>
+            <ul className="list-disc pl-4 text-slate-700 space-y-0.5">
+              {agent7.unresolved_questions.map((u, i) => (
+                <li key={i}>{u}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div className="p-3 rounded-lg border border-slate-300 bg-white space-y-1.5 text-xs avoid-break">
+          <strong className="block uppercase text-[10px] text-slate-900">Cross-Agent Evidence Responses (Agent 7 to Agents 1–6)</strong>
+          {agent7.responses_to_agents.map((resp, i) => (
+            <p key={i} className="text-slate-800">
+              <strong>To {resp.target_agent} [{resp.cited_references.join(', ')}]:</strong> {resp.response_text}
+            </p>
+          ))}
+        </div>
+      </div>
+
+      {/* =========================================================================
+          SECTION 9: COMPLETE 7-AGENT PODCAST ROUNDTABLE TRANSCRIPT & RESEARCH ACTIVITY
+          ========================================================================= */}
+      <div className="space-y-3 avoid-break" data-testid="print-roundtable-section">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-1 flex items-center justify-between">
+          <span>9. Complete 7-Agent Roundtable Transcript & Research Activity Log</span>
+          <span className="text-[10px] font-mono text-slate-500 font-normal">Section 09</span>
+        </h2>
+        <div className="p-4 rounded-xl border border-slate-300 bg-slate-50/50 space-y-2 text-xs leading-relaxed text-slate-800 whitespace-pre-wrap">
+          {synthesis.podcast_script}
+        </div>
+        <div className="p-3 rounded-lg border border-slate-200 bg-white font-mono text-[10px] text-slate-600">
+          Research Activity Log: Queries [{agent7.research_activity.queries_run.join(' · ')}] · Candidates: {agent7.research_activity.candidates_found} · Opened: #{agent7.research_activity.records_opened.join(', #')} · {agent7.research_activity.note}
         </div>
       </div>
 
