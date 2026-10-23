@@ -70,9 +70,13 @@ export function VerseCard({
           {verse.transliteration}
         </p>
       )}
-      {verse.translation ? (
+      {verse.translation.trim() ? (
         <p lang={verse.lang} className={`mt-2 leading-relaxed text-ink/90 ${scale === 'lg' ? 'text-xl' : scale === 'sm' ? 'text-sm' : ''}`}>
           {verse.translation}
+        </p>
+      ) : verse.translationKey ? (
+        <p className="mt-2 text-sm text-muted" role="status">
+          {t.verseTranslationUnavailable}
         </p>
       ) : null}
       {verse.footnotes ? (

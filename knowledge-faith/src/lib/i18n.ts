@@ -212,6 +212,7 @@ const en = {
   quranEncLoading: 'Loading the QuranEnc edition…',
   quranEncMissing: 'QuranEnc has no edition for this language. No other translation was substituted.',
   quranEncUnread: 'This passage is not the selected QuranEnc edition, so it was not shown.',
+  verseTranslationUnavailable: 'This translation is unavailable for this ayah.',
   verseActions: 'Verse actions',
   exitFocus: 'Leave quiet reading',
   focusReading: 'Quiet reading',
