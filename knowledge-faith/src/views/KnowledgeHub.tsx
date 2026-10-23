@@ -4,6 +4,7 @@ import type { ViewProps } from '../App.tsx';
 import { TOPICS, verseOfTheDay } from '../shared/topics.ts';
 import type { AskResult, Hadith, SurahInfo, Verse } from '../shared/types.ts';
 import { postJson, useRemote } from '../lib/api.ts';
+import { beginResearch, researchHref } from '../lib/researchDesk.ts';
 import { useShell } from '../lib/shell.tsx';
 import { displayAyah, displaySurah, useReadingPlace } from '../lib/readingPlace.ts';
 import { useQuranEdition } from '../lib/quranEdition.ts';
@@ -184,6 +185,10 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
   const surah = place.surah;
   const surahs = useRemote<SurahInfo[]>('/api/quran/surahs');
   const [topicId, setTopicId] = useState<string | null>(null);
+  const [asked, setAsked] = useState('');
+  const [askError, setAskError] = useState<string | null>(null);
+  const [clarify, setClarify] = useState(false);
+  const [busy, setBusy] = useState(false);
   const topic = TOPICS.find(item => item.id === topicId);
   const today = useMemo(() => verseOfTheDay(new Date()), []);
   const savedRef = useRef<HTMLElement>(null);
@@ -200,8 +205,28 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
     { href: '#/quran', title: t.cardQuran, body: t.cardQuranBody, icon: <BookOpen className="h-5 w-5" aria-hidden /> },
     { href: '#/hadith', title: t.cardHadith, body: t.cardHadithBody, icon: <Library className="h-5 w-5" aria-hidden /> },
     { href: '#/spiritual', title: t.cardPillars, body: t.cardPillarsBody, icon: <MoonStar className="h-5 w-5" aria-hidden /> },
-    { href: '#/studio', title: t.cardListen, body: t.cardListenBody, icon: <Sparkles className="h-5 w-5" aria-hidden /> },
+    { href: '#/podcast', title: t.cardPodcast, body: t.cardPodcastBody, icon: <Sparkles className="h-5 w-5" aria-hidden /> },
   ].filter(card => !q || card.title.toLowerCase().includes(q) || card.body.toLowerCase().includes(q));
+
+  async function research(event: FormEvent, clarified = false) {
+    event.preventDefault();
+    const question = asked.trim();
+    if (question.length < 3 || busy) return;
+    setBusy(true);
+    setAskError(null);
+    try {
+      const started = await beginResearch({ question, entry: 'knowledge', lang, clarified });
+      if (started.action === 'clarify' || !started.id || !started.scope) {
+        setClarify(true);
+        return;
+      }
+      window.location.hash = researchHref(started.scope, started.id, lang, started.action === 'forward', null, question);
+    } catch (err) {
+      setAskError(err instanceof Error ? err.message : 'The research job could not be started.');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   if ((sub === 'discover' || sub === 'deepen' || sub === 'prophet') && segments[1] === 'item' && /^\d{1,12}$/.test(segments[2] ?? '')) {
     return <LibraryReader itemId={Number(segments[2])} backHref={`#/hub/${sub}`} />;
@@ -210,6 +235,27 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
 
   return (
     <div className="space-y-6">
+      <section className="rounded-3xl border border-gold/60 bg-white px-5 py-6 sm:px-8">
+        <h1 className="font-display text-4xl font-bold leading-tight text-pine sm:text-5xl">{t.askIslam}</h1>
+        <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink/75">{t.askIslamBody}</p>
+        <form onSubmit={event => void research(event, clarify)} className="mt-5 space-y-3">
+          <label className="sr-only" htmlFor="knowledge-question">{t.askIslam}</label>
+          <textarea
+            id="knowledge-question"
+            value={asked}
+            onChange={event => setAsked(event.target.value)}
+            rows={4}
+            maxLength={800}
+            placeholder={t.askIslamPlaceholder}
+            className="w-full rounded-3xl border border-pine/20 bg-sand px-4 py-4 text-base leading-relaxed"
+          />
+          <Button type="submit" disabled={busy || asked.trim().length < 3} className="w-full py-3 sm:w-auto">
+            {t.researchMyQuestion}
+          </Button>
+        </form>
+        {clarify && <p className="mt-3 text-sm text-pine">{t.clarifyMeaning}</p>}
+        {askError && <div className="mt-3"><ErrorNote message={askError} /></div>}
+      </section>
       <header>
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">{t.hubEyebrow}</p>
         <h1 className="mt-3 max-w-3xl font-display text-4xl font-bold leading-tight text-pine sm:text-5xl">{t.hubHeading}</h1>
@@ -225,8 +271,8 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
           <a href="#/hub/saved" className="inline-flex items-center rounded-full border border-gold px-4 py-2 text-sm font-medium text-sand lg:hidden">
             {t.sidebarSaved}
           </a>
-          <a href="#/studio" className="inline-flex items-center rounded-full border border-gold px-4 py-2 text-sm font-medium text-sand">
-            {t.listen}
+          <a href="#/podcast" className="inline-flex items-center rounded-full border border-gold px-4 py-2 text-sm font-medium text-sand">
+            {t.navPodcast}
           </a>
         </div>
       </section>

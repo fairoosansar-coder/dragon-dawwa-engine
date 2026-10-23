@@ -88,9 +88,10 @@ export function DossierActions() {
 
 export default function DossierWorkbench() {
   const d = useDossier();
-  const { config } = useApp();
+  const { t, config } = useApp();
   const data = d.displayed;
   const agent7 = data.agent_7_source_research;
+  const showReport = d.reportOrigin !== 'idle';
 
   const openFullReport = () => {
     d.setStep('report');
@@ -122,8 +123,9 @@ export default function DossierWorkbench() {
         onSelectBenchmark={d.selectBenchmark}
         currentLanguage={d.lang}
       />
-
-      <div id="dossier-results-anchor" className="space-y-6">
+      {d.reportOrigin === 'example' && <p className="rounded-2xl bg-amber-100 px-4 py-3 text-sm text-amber-950">{t.dossierExample}</p>}
+      {d.reportOrigin === 'idle' && <p className="rounded-2xl bg-parchment px-4 py-3 text-sm text-ink/80">{t.dossierIdle}</p>}
+      {showReport && <div id="dossier-results-anchor" className="space-y-6">
         <StarDivider label="تحقيق الحديث" />
 
         {/* Unified 7-Agent Journey Callout Bar */}
@@ -193,7 +195,7 @@ export default function DossierWorkbench() {
             neuralVoice={config == null || config.ai === true}
           />
         )}
-      </div>
+      </div>}
     </EngineFrame>
   );
 }

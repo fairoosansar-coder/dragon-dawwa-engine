@@ -18,6 +18,31 @@ export type PassageRole = 'source_text' | 'translation' | 'commentary' | 'genera
 
 export type ResearchStatus = 'queued' | 'running' | 'done' | 'cancelled' | 'error';
 
+export type ResearchScope = 'knowledge' | 'quran' | 'hadith' | 'books';
+
+export type ResearchTeamId = 'quran' | 'hadith' | 'books';
+
+export type AgentRunStatus = 'ran' | 'not_run' | 'unavailable';
+
+export type ResearchNoticeId = 'forward-hadith' | 'forward-quran' | 'forward-books' | 'forward-knowledge';
+
+/** What one specialist actually did on this job. A role that did not run is not a finding. */
+export interface AgentContribution {
+  id: string;
+  team: ResearchTeamId;
+  role: string;
+  status: AgentRunStatus;
+  detail: string;
+}
+
+export interface ResearchAssignmentView {
+  scope: ResearchScope;
+  teams: ResearchTeamId[];
+  bookId: number | null;
+  noticeId: ResearchNoticeId | null;
+  forwardedFrom: ResearchScope | null;
+}
+
 export type QuestionDomain = 'scripture' | 'explanation' | 'practice' | 'history' | 'science' | 'mixed';
 
 export type CoverageKind =
@@ -113,6 +138,10 @@ export interface ResearchJobView {
   startedAt: string;
   finishedAt: string | null;
   timingsMs: ResearchTimings;
+  /** Present when the coordinating agent assigned this job. Older jobs omit it. */
+  assignment?: ResearchAssignmentView | null;
+  /** Roles that were assigned. Includes roles that did not run, marked not_run. */
+  agents?: AgentContribution[];
 }
 
 export interface ClaimEvidence {

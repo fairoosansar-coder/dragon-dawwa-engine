@@ -365,6 +365,9 @@ function Library({
           <Button variant={listTab === 'bookmarks' ? 'primary' : 'soft'} aria-pressed={listTab === 'bookmarks'} onClick={() => setListTab('bookmarks')}>
             {t.bookmarks}
           </Button>
+          <a href="#/quran/research" className="inline-flex items-center rounded-full border border-pine/20 px-4 py-2 text-sm font-medium text-pine">
+            {t.researchQuran}
+          </a>
         </div>
       )}
       {section === 'mine' || (section === 'home' && listTab === 'bookmarks') ? (
