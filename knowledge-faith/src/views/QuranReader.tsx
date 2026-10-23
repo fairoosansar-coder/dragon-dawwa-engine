@@ -42,6 +42,29 @@ function ReaderChrome({ children }: { children: ReactNode }) {
   return createPortal(bar, slot);
 }
 
+/** Home, Search, and My Quran keep Settings beside Content language, not in the page title. */
+function LibrarySettingsButton({ open, onOpen, label }: { open: boolean; onOpen: () => void; label: string }) {
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    const pick = () => {
+      const nodes = ['kf-library-settings', 'kf-library-settings-mobile']
+        .map(id => document.getElementById(id))
+        .filter((node): node is HTMLElement => node instanceof HTMLElement);
+      setSlot(nodes.find(node => node.getClientRects().length > 0) ?? null);
+    };
+    pick();
+    window.addEventListener('resize', pick);
+    return () => window.removeEventListener('resize', pick);
+  }, []);
+  const button = (
+    <Button id="kf-library-settings-button" variant="soft" aria-expanded={open} aria-controls="kf-reading-settings" onClick={onOpen}>
+      {label}
+    </Button>
+  );
+  if (!slot) return button;
+  return createPortal(button, slot);
+}
+
 interface ArabicPayload {
   info: SurahInfo;
   verses: Array<{
@@ -256,9 +279,7 @@ function Library({
           <h1 className="font-display text-4xl font-bold text-pine">{heading}</h1>
           {section === 'home' && <p className="mt-2 text-lg text-muted">{t.quranSubtitle}</p>}
         </header>
-        <Button variant="soft" aria-expanded={settingsOpen} aria-controls="kf-reading-settings" onClick={() => setSettingsOpen(true)}>
-          {t.settings}
-        </Button>
+        <LibrarySettingsButton open={settingsOpen} onOpen={() => setSettingsOpen(true)} label={t.settings} />
       </div>
       <SettingsDrawer
         open={settingsOpen}
