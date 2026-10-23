@@ -79,7 +79,7 @@ function Shell() {
   }, [route, t, location.path]);
 
   return (
-    <AppFrame path={location.path} section={t[route.label]} showSearch={showSectionSearch(location.path, location.segments)}>
+    <AppFrame path={location.path} section={t[route.label]} segments={location.segments} showSearch={showSectionSearch(location.path, location.segments)}>
       <Suspense fallback={<Loading />}>
         <View sub={location.segments[0]} segments={location.segments} />
       </Suspense>

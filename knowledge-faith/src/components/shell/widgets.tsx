@@ -26,6 +26,44 @@ export function audioStatusLabel(t: Strings, status: AudioStatus, id?: string | 
   return meaning ? t.listenMeaning : t.audioIdle;
 }
 
+export type QuranSectionId = 'home' | 'read' | 'search' | 'study' | 'mine';
+
+export function quranSectionId(segment?: string): QuranSectionId {
+  if (segment === 'book') return 'read';
+  if (segment === 'study') return 'study';
+  if (segment === 'search') return 'search';
+  if (segment === 'bookmarks') return 'mine';
+  return 'home';
+}
+
+/** Home, Read, Search, Ayah Study, and My Quran. English labels, above the scrolling page. */
+export function QuranSections({ current }: { current: QuranSectionId }) {
+  const { t } = useApp();
+  const tabs: { id: QuranSectionId; href: string; label: string }[] = [
+    { id: 'home', href: '#/quran', label: t.quranHome },
+    { id: 'read', href: '#/quran/book', label: t.quranRead },
+    { id: 'search', href: '#/quran/search', label: t.quranSearch },
+    { id: 'study', href: '#/quran/study', label: t.quranAyahStudy },
+    { id: 'mine', href: '#/quran/bookmarks', label: t.quranMine },
+  ];
+  return (
+    <nav aria-label={t.quranTitle} className="shrink-0 border-b border-pine/10 bg-sand px-4 py-3 sm:px-6">
+      <div className="mx-auto grid w-full max-w-6xl gap-1 rounded-2xl border border-gold/50 bg-parchment p-1" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}>
+        {tabs.map(tab => (
+          <a
+            key={tab.id}
+            href={tab.href}
+            aria-current={current === tab.id ? 'page' : undefined}
+            className={`flex min-h-11 min-w-0 items-center justify-center rounded-xl px-0.5 py-1.5 text-center text-[11px] font-semibold leading-tight break-words sm:px-2 sm:text-sm ${current === tab.id ? 'bg-pine text-sand' : 'text-pine hover:bg-mint'}`}
+          >
+            {tab.label}
+          </a>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
 export function SearchField({ className = '' }: { className?: string }) {
   const { t } = useApp();
   const { query, setQuery } = useShell();
@@ -153,22 +191,20 @@ export function VerseActions({
   onBookmark: () => void;
 }) {
   const { t } = useApp();
-  const audio = useAudioState();
   return (
     <div role="group" aria-label={t.verseActions} className="flex flex-wrap items-center gap-2">
       <Button variant="soft" onClick={onListen}>
-        {t.listen}
+        {t.play}
       </Button>
       {onMeaning && (
         <Button variant="soft" onClick={onMeaning}>
-          {t.listenMeaning}
+          {t.playMeaning}
         </Button>
       )}
       <Button variant="ghost" onClick={onBookmark} aria-pressed={saved}>
         {saved ? <BookmarkCheck className="h-4 w-4" aria-hidden /> : <Bookmark className="h-4 w-4" aria-hidden />}
         {saved ? t.unsave : t.save}
       </Button>
-      {audio.status !== 'idle' && <span className="text-sm text-muted">{audioStatusLabel(t, audio.status, audio.id)}</span>}
     </div>
   );
 }
@@ -179,15 +215,20 @@ export function SourceAttribution({ verse }: { verse?: Verse | null }) {
     return <p className="text-sm text-muted">{t.quranEncUnread}</p>;
   }
   return (
-    <div className="space-y-1 text-sm text-muted">
-      <p>
-        {t.meaningNote} · {verse.translationTitle || verse.translator}
-      </p>
-      <p>
-        {verse.translationKey} · {verse.translationVersion}
-      </p>
-      {verse.translationDescription ? <p className="leading-relaxed">{verse.translationDescription}</p> : null}
-    </div>
+    <details className="rounded-2xl border border-pine/10 px-4 py-3">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center text-sm font-semibold text-pine [&::-webkit-details-marker]:hidden">
+        {t.sourcesSection}
+      </summary>
+      <div className="mt-3 space-y-1 text-sm leading-relaxed text-muted">
+        <p>
+          {t.meaningNote} · {verse.translationTitle || verse.translator}
+        </p>
+        <p>
+          {verse.translationKey} · {verse.translationVersion}
+        </p>
+        {verse.translationDescription ? <p>{verse.translationDescription}</p> : null}
+      </div>
+    </details>
   );
 }
 
@@ -236,6 +277,7 @@ export function ReadingSettings({
   editionKey,
   onEdition,
   editionsError,
+  onQuiet,
 }: {
   mode: 'library' | 'study' | 'book';
   textSize: 'sm' | 'md' | 'lg';
@@ -248,6 +290,7 @@ export function ReadingSettings({
   editionKey: string;
   onEdition: (key: string) => void;
   editionsError: string | null;
+  onQuiet?: () => void;
 }) {
   const { t } = useApp();
   const edition = editions.find(item => item.key === editionKey);
@@ -283,10 +326,10 @@ export function ReadingSettings({
         {t.readingMode}
         <div className="flex gap-2">
           <Button variant={mode === 'study' ? 'primary' : 'soft'} onClick={() => onMode('study')} aria-pressed={mode === 'study'}>
-            {t.studyMode}
+            {t.quranAyahStudy}
           </Button>
           <Button variant={mode === 'book' ? 'primary' : 'soft'} onClick={() => onMode('book')} aria-pressed={mode === 'book'}>
-            {t.bookMode}
+            {t.quranRead}
           </Button>
         </div>
       </div>
@@ -309,6 +352,13 @@ export function ReadingSettings({
         </select>
       </label>
       <PronunciationControl />
+      {onQuiet && (
+        <div className="flex flex-col justify-end">
+          <Button variant="soft" onClick={onQuiet}>
+            {t.focusReading}
+          </Button>
+        </div>
+      )}
       </div>
     </details>
   );
@@ -318,19 +368,15 @@ export function AudioMiniPlayer({ safe }: { safe: boolean }) {
   const { t } = useApp();
   const audio = useAudioState();
   if (!audio.id || audio.status === 'idle') return null;
+  const meaning = Boolean(audio.id.startsWith('meaning-'));
+  const active = audio.status === 'playing' || audio.status === 'loading';
   return (
-    <div data-mini-player className={`shrink-0 border-t border-gold/50 bg-pine px-4 py-3 text-sand ${safe ? 'pb-[max(0.75rem,env(safe-area-inset-bottom))]' : ''}`}>
+    <div data-mini-player className={`relative z-20 shrink-0 border-t-8 border-sand bg-pine px-4 py-3 text-sand ${safe ? 'pb-[max(0.75rem,env(safe-area-inset-bottom))]' : ''}`}>
       <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-        <p className="text-sm">{audioStatusLabel(t, audio.status, audio.id)}</p>
-        {audio.status === 'playing' || audio.status === 'loading' ? (
-          <Button variant="soft" onClick={pauseAudio}>
-            {t.pause}
-          </Button>
-        ) : audio.status === 'paused' || audio.status === 'error' ? (
-          <Button variant="soft" onClick={resumeAudio}>
-            {t.play}
-          </Button>
-        ) : null}
+        <p className="min-w-0 text-sm leading-snug">{audioStatusLabel(t, audio.status, audio.id)}</p>
+        <Button variant="soft" onClick={active ? pauseAudio : resumeAudio}>
+          {active ? t.pause : meaning ? t.playMeaning : t.play}
+        </Button>
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { bindExternalStop, installMediaForTests, pauseAudio, playAudio, resetAudioForTests, resumeAudio, stopAudio } from '../src/lib/audio.ts';
 import { prayerQueryDate } from '../src/lib/prayerClock.ts';
 import { ayahForLoadedSurah, migrateReadingPlace, readTextSize } from '../src/lib/readingPlace.ts';
-import { showSectionSearch } from '../src/lib/route.ts';
+import { quranListQuery, showSectionSearch } from '../src/lib/route.ts';
 import { minutesInZone, nextPrayer } from '../src/shared/spiritual.ts';
 import { STRINGS } from '../src/lib/i18n.ts';
 import { GUIDES, readingSections, text } from '../src/spiritual/content.ts';
@@ -66,7 +66,14 @@ test('kf-last-surah migrates a stored surah number without dropping a saved ayah
 
 test('section search is hidden where the query is not read', () => {
   assert.equal(showSectionSearch('hub', []), true);
-  assert.equal(showSectionSearch('quran', ['study']), true);
+  assert.equal(showSectionSearch('quran', []), true);
+  assert.equal(showSectionSearch('quran', ['search']), true);
+  assert.equal(showSectionSearch('quran', ['study']), false);
+  assert.equal(showSectionSearch('quran', ['book']), false);
+  assert.equal(showSectionSearch('quran', ['bookmarks']), false);
+  assert.equal(quranListQuery('', '?q=notasurah'), '');
+  assert.equal(quranListQuery('', '?hadith=fast'), '');
+  assert.equal(quranListQuery('Yunus', '?q=notasurah'), 'Yunus');
   assert.equal(showSectionSearch('hadith', []), true);
   assert.equal(showSectionSearch('hadith', ['research']), false);
   assert.equal(showSectionSearch('studio', []), true);
