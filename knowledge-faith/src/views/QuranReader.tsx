@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BookOpen, ChevronLeft, ChevronRight, List } from 'lucide-react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { Bookmark, BookmarkCheck, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ViewProps } from '../App.tsx';
 import { Mukhtasar } from '../components/Mukhtasar.tsx';
 import { VerseShare } from '../components/VerseShare.tsx';
-import { playAudio, stopAudio } from '../lib/audio.ts';
+import { pauseAudio, playAudio, resumeAudio, stopAudio, useAudioState } from '../lib/audio.ts';
 import { useRemote } from '../lib/api.ts';
 import { useQuranEdition } from '../lib/quranEdition.ts';
-import { ayahForLoadedSurah, clampSurah, displaySurah, readTextSize, readingPlaceLabel, useReadingPlace, type TextSize } from '../lib/readingPlace.ts';
+import { ayahForLoadedSurah, clampSurah, displaySurah, readTextSize, readTranslationSize, readingPlaceLabel, useReadingPlace, type TextSize } from '../lib/readingPlace.ts';
 import { quranListQuery } from '../lib/route.ts';
 import { scrollMain, scrollMarkIntoMain } from '../lib/scroll.ts';
 import { useShell } from '../lib/shell.tsx';
@@ -25,10 +26,21 @@ import { recitationUrl, type Lang } from '../shared/sources.ts';
 import type { SurahInfo, Verse } from '../shared/types.ts';
 import { useReciter } from '../components/cards.tsx';
 import { VerseCard } from '../components/cards.tsx';
-import { BookPage, EmptyState, PronunciationStatus, ReadingSettings, SourceAttribution, VerseActions, quranSectionId, type QuranSectionId } from '../components/shell/widgets.tsx';
+import { audioStatusLabel, BookPage, EmptyState, OverlaySheet, PronunciationStatus, SettingsDrawer, SourceAttribution, quranSectionId, type QuranSectionId } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, IconButton, Loading } from '../components/ui.tsx';
 
 const BISMILLAH = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ';
+
+/** Playback stays above the scrolling page, so a sticky bar never covers the surah title. */
+function ReaderChrome({ children }: { children: ReactNode }) {
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    setSlot(document.getElementById('kf-reader-chrome'));
+  }, []);
+  const bar = <div className="py-2" style={{ width: 'min(100%, 46rem)', marginInline: 'auto' }}>{children}</div>;
+  if (!slot) return <div className="mb-3">{bar}</div>;
+  return createPortal(bar, slot);
+}
 
 interface ArabicPayload {
   info: SurahInfo;
@@ -91,6 +103,9 @@ export default function QuranReader({ sub }: ViewProps) {
   const [storedSize, setStoredSize] = useStored<unknown>('kf-text-size', 'md');
   const textSize = readTextSize(storedSize);
   const setTextSize = (size: TextSize) => setStoredSize(size);
+  const [storedTranslation, setStoredTranslation] = useStored<unknown>('kf-translation-size', null);
+  const translationSize = readTranslationSize(storedTranslation, textSize);
+  const setTranslationSize = (size: TextSize) => setStoredTranslation(size);
   const [reciter, setReciter] = useReciter();
   const editionsError = quranEdition.error ?? (!quranEdition.loading && quranEdition.editions.length === 0 ? t.quranEncMissing : null);
   const { setFocus } = useShell();
@@ -121,16 +136,11 @@ export default function QuranReader({ sub }: ViewProps) {
     if (mode === 'library') setFocus(false);
   }, [mode, setFocus]);
 
-  const open = (number: number, verse = 1, next: ReadMode = 'study') => {
+  const open = (number: number, verse = 1) => {
     stopAudio();
     setSurah(number);
     setAyah(Math.max(verse, 1));
-    window.location.hash = `#/quran/${next}`;
-  };
-
-  const onMode = (next: ReadMode) => {
-    if (mode === 'library') return;
-    window.location.hash = `#/quran/${next}`;
+    window.location.hash = '#/quran/book';
   };
 
   if (mode === 'library') {
@@ -140,6 +150,8 @@ export default function QuranReader({ sub }: ViewProps) {
         section={section === 'search' || section === 'mine' ? section : 'home'}
         textSize={textSize}
         onTextSize={setTextSize}
+        translationSize={translationSize}
+        onTranslationSize={setTranslationSize}
         reciter={reciter}
         ayah={ayah}
         onReciter={id => {
@@ -165,12 +177,13 @@ export default function QuranReader({ sub }: ViewProps) {
       setAyah={setAyah}
       textSize={textSize}
       onTextSize={setTextSize}
+      translationSize={translationSize}
+      onTranslationSize={setTranslationSize}
       reciter={reciter}
       onReciter={id => {
         stopAudio();
         setReciter(id);
       }}
-      onMode={onMode}
       editions={quranEdition.editions}
       editionKey={viewEdition}
       onEdition={quranEdition.choose}
@@ -186,6 +199,8 @@ function Library({
   section,
   textSize,
   onTextSize,
+  translationSize,
+  onTranslationSize,
   reciter,
   onReciter,
   onOpen,
@@ -199,9 +214,11 @@ function Library({
   section: 'home' | 'search' | 'mine';
   textSize: TextSize;
   onTextSize: (size: TextSize) => void;
+  translationSize: TextSize;
+  onTranslationSize: (size: TextSize) => void;
   reciter: string;
   onReciter: (id: string) => void;
-  onOpen: (number: number, verse?: number, mode?: ReadMode) => void;
+  onOpen: (number: number, verse?: number) => void;
   editions: ReturnType<typeof useQuranEdition>['editions'];
   editionKey: string;
   onEdition: (key: string) => void;
@@ -209,7 +226,7 @@ function Library({
 }) {
   const { t, config, saved } = useApp();
   const { query } = useShell();
-  const [prefer, setPrefer] = useState<ReadMode>('book');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const surahs = useRemote<SurahInfo[]>('/api/quran/surahs');
   const current = surahs.data?.find(item => item.number === surah);
   const raw = quranListQuery(query, typeof window === 'undefined' ? '' : window.location.search);
@@ -230,12 +247,34 @@ function Library({
 
   const heading = section === 'search' ? t.quranSearch : section === 'mine' ? t.quranMine : t.quranTitle;
 
+  const reciters = config?.reciters ?? [{ id: 'ar.alafasy', name: 'Mishary Rashid Alafasy' }];
+
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-4xl font-bold text-pine">{heading}</h1>
-        {section === 'home' && <p className="mt-2 text-lg text-muted">{t.quranSubtitle}</p>}
-      </header>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <header>
+          <h1 className="font-display text-4xl font-bold text-pine">{heading}</h1>
+          {section === 'home' && <p className="mt-2 text-lg text-muted">{t.quranSubtitle}</p>}
+        </header>
+        <Button variant="soft" aria-expanded={settingsOpen} aria-controls="kf-reading-settings" onClick={() => setSettingsOpen(true)}>
+          {t.settings}
+        </Button>
+      </div>
+      <SettingsDrawer
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        textSize={textSize}
+        onTextSize={onTextSize}
+        translationSize={translationSize}
+        onTranslationSize={onTranslationSize}
+        reciter={reciter}
+        onReciter={onReciter}
+        reciters={reciters}
+        editions={editions}
+        editionKey={editionKey}
+        onEdition={onEdition}
+        editionsError={editionsError}
+      />
       {section === 'home' && <Card>
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">{t.continueReading}</p>
         <h3 className="mt-2 font-display text-2xl font-bold text-pine">{current ? current.englishName : `${t.surahs} ${displaySurah(surah)}`}</h3>
@@ -244,23 +283,10 @@ function Library({
             {readingPlaceLabel(surah, ayah)} · {current.englishNameTranslation} · {current.numberOfAyahs}
           </p>
         )}
-        <Button className="mt-4" onClick={() => onOpen(surah, ayah, prefer)}>
+        <Button className="mt-4" onClick={() => onOpen(surah, ayah)}>
           {t.continueReading}
         </Button>
       </Card>}
-      <ReadingSettings
-          textSize={textSize}
-          onTextSize={onTextSize}
-          reciter={reciter}
-          onReciter={onReciter}
-          reciters={config?.reciters ?? [{ id: 'ar.alafasy', name: 'Mishary Rashid Alafasy' }]}
-          mode={prefer}
-          onMode={setPrefer}
-          editions={editions}
-          editionKey={editionKey}
-          onEdition={onEdition}
-          editionsError={editionsError}
-        />
       {section === 'mine' ? (
         bookmarks.length === 0 ? (
           <EmptyState>{q ? t.noResults : t.bookmarksEmpty}</EmptyState>
@@ -270,7 +296,7 @@ function Library({
               const [s, a] = key.split(':').map(Number);
               return (
                 <li key={key}>
-                  <button type="button" onClick={() => onOpen(s, a, prefer)} className="w-full rounded-2xl border border-pine/10 bg-parchment px-4 py-3 text-left text-sm font-medium text-pine">
+                  <button type="button" onClick={() => onOpen(s, a)} className="w-full rounded-2xl border border-pine/10 bg-parchment px-4 py-3 text-left text-sm font-medium text-pine">
                     {key}
                   </button>
                 </li>
@@ -288,7 +314,7 @@ function Library({
               <li key={item.number} className={item.number === surah ? 'bg-mint' : 'bg-sand'}>
                 <button
                   type="button"
-                  onClick={() => onOpen(item.number, 1, prefer)}
+                  onClick={() => onOpen(item.number, 1)}
                   aria-current={item.number === surah ? 'true' : undefined}
                   className="flex w-full items-center gap-3 px-3 py-3 text-left"
                 >
@@ -324,9 +350,10 @@ function Edition({
   setAyah,
   textSize,
   onTextSize,
+  translationSize,
+  onTranslationSize,
   reciter,
   onReciter,
-  onMode,
   editions,
   editionKey,
   onEdition,
@@ -341,9 +368,10 @@ function Edition({
   setAyah: (value: number) => void;
   textSize: TextSize;
   onTextSize: (size: TextSize) => void;
+  translationSize: TextSize;
+  onTranslationSize: (size: TextSize) => void;
   reciter: string;
   onReciter: (id: string) => void;
-  onMode: (mode: ReadMode) => void;
   editions: ReturnType<typeof useQuranEdition>['editions'];
   editionKey: string;
   onEdition: (key: string) => void;
@@ -355,6 +383,9 @@ function Edition({
   const [pronunciation] = usePronunciation();
   const { query, setFocus } = useShell();
   const [contents, setContents] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [listenKind, setListenKind] = useState<'recitation' | 'meaning'>('recitation');
+  const audio = useAudioState();
   const arabicUrl = withPronunciation(`/api/quran/surah/${surah}/arabic`, pronunciation);
   const meaningUrl = editionKey ? `/api/quran/surah/${surah}/meaning?lang=${lang}&edition=${encodeURIComponent(editionKey)}` : null;
   const arabicRemote = useRemote<ArabicPayload>(arabicUrl);
@@ -474,6 +505,7 @@ function Edition({
   useEffect(() => {
     if (mode !== 'book') return;
     const onKey = (event: KeyboardEvent) => {
+      if (contents || settingsOpen) return;
       const tag = (event.target as HTMLElement | null)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
@@ -486,7 +518,7 @@ function Edition({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [mode, setFocus, step]);
+  }, [contents, mode, setFocus, settingsOpen, step]);
 
   useEffect(() => {
     if (ayah < 1 || loaded?.info.number !== surah) return;
@@ -514,122 +546,167 @@ function Edition({
     if (!listedMeaningUrl(coverage, editionKey, verse.surah, verse.ayah)) return { action: null, note: t.meaningAudioNotListedVerse };
     return { action: () => playMeaningRef.current(verse.surah, verse.ayah), note: null };
   };
-  const bookMeaning = meaningFor(current);
+  const meaningChoice = meaningFor(current);
+  const currentKind = audio.id?.startsWith('meaning-') ? 'meaning' : audio.id?.startsWith('ayah-') ? 'recitation' : null;
+  const sameKind = currentKind === listenKind && audio.status !== 'idle' && audio.status !== 'error' && audio.status !== 'unavailable';
+  const playing = sameKind && (audio.status === 'playing' || audio.status === 'loading');
+  const playDisabled = listenKind === 'meaning' && !sameKind && !meaningChoice.action;
+  const playbackStatus =
+    audio.status === 'error' || audio.status === 'unavailable'
+      ? audioStatusLabel(t, audio.status, audio.id)
+      : listenKind === 'meaning'
+        ? meaningNote || editionNotice || meaningChoice.note
+        : null;
+  const verseSaved = savedKey ? isVerseSaved(savedKey) : false;
+  const onPlay = () => {
+    if (playing) {
+      pauseAudio();
+      return;
+    }
+    if (sameKind && audio.status === 'paused') {
+      resumeAudio();
+      return;
+    }
+    if (listenKind === 'meaning') {
+      if (meaningChoice.action) meaningChoice.action();
+      else setMeaningNote(meaningChoice.note ?? t.meaningAudioNotListedVerse);
+      return;
+    }
+    if (current) playRef.current(current.ayah);
+  };
+  const reciters = config?.reciters ?? [{ id: 'ar.alafasy', name: 'Mishary Rashid Alafasy' }];
   const raw = quranListQuery(query, typeof window === 'undefined' ? '' : window.location.search);
   const q = raw.toLowerCase();
   const list = (surahs.data ?? []).filter(
     item => !q || String(item.number) === q || item.englishName.toLowerCase().includes(q) || item.name.includes(raw),
   );
 
-  const surahList = (
-    <Card className="lg:sticky lg:top-20 lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto lg:p-4">
-      <h2 className="font-display text-xl font-bold text-pine">{t.contents}</h2>
-      {surahs.loading && <Loading />}
-      {surahs.error && <ErrorNote message={surahs.error} onRetry={surahs.reload} />}
-      <ul className="mt-3 space-y-1">
-        {list.map(item => (
-          <li key={item.number}>
-            <button
-              type="button"
-              onClick={() => goSurah(item.number, 1)}
-              aria-current={item.number === surah ? 'true' : undefined}
-              className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm ${item.number === surah ? 'bg-pine text-sand' : 'hover:bg-mint'}`}
-            >
-              <span className="w-7 text-xs opacity-70">{item.number}</span>
-              <span className="flex-1">{item.englishName}</span>
-              <span className="text-xs opacity-70">{item.numberOfAyahs}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </Card>
-  );
-
   return (
-    <div className="space-y-6">
-      <div className={mode === 'book' ? 'grid gap-6 lg:grid-cols-[minmax(0,42rem)_240px] lg:justify-center' : 'grid gap-6 lg:grid-cols-[240px_minmax(0,42rem)] lg:justify-center'}>
-      {mode === 'study' && <div className="hidden lg:block">{surahList}</div>}
-      <div className="mx-auto min-w-0 w-full max-w-3xl">
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <IconButton label={t.contents} onClick={() => setContents(open => !open)} className="lg:hidden">
-            <List className="h-5 w-5" />
-          </IconButton>
-          <IconButton label={t.previousAyah} onClick={() => step(-1)}>
-            <ChevronLeft className="h-5 w-5" />
-          </IconButton>
-          <IconButton label={t.nextAyah} onClick={() => step(1)}>
-            <ChevronRight className="h-5 w-5" />
-          </IconButton>
-          <span className="text-sm text-muted">
-            {typeof ayah === 'number' && ayah >= 1 ? readingPlaceLabel(surah, ayah) : `${displaySurah(surah)}:…`}
-          </span>
+    <div data-reader className="min-w-0" style={{ width: 'min(100%, 46rem)', marginInline: 'auto' }}>
+      <ReaderChrome>
+      <div data-reader-toolbar className="flex flex-wrap items-center gap-2">
+        <Button
+          id="kf-surahs-button"
+          variant="soft"
+          aria-expanded={contents}
+          aria-controls="kf-surah-index"
+          onClick={() => {
+            setSettingsOpen(false);
+            setContents(open => !open);
+          }}
+        >
+          {t.surahs}
+        </Button>
+        <IconButton label={t.previousAyah} onClick={() => step(-1)}>
+          <ChevronLeft className="h-5 w-5" />
+        </IconButton>
+        <IconButton label={t.nextAyah} onClick={() => step(1)}>
+          <ChevronRight className="h-5 w-5" />
+        </IconButton>
+        <span className="text-sm text-muted">{typeof ayah === 'number' && ayah >= 1 ? readingPlaceLabel(surah, ayah) : `${displaySurah(surah)}:…`}</span>
+        <div role="group" aria-label={t.verseActions} className="flex flex-wrap gap-2">
+          <Button variant={listenKind === 'recitation' ? 'primary' : 'soft'} aria-pressed={listenKind === 'recitation'} onClick={() => setListenKind('recitation')}>
+            {t.recitation}
+          </Button>
+          <Button variant={listenKind === 'meaning' ? 'primary' : 'soft'} aria-pressed={listenKind === 'meaning'} onClick={() => setListenKind('meaning')}>
+            {t.meaningChoice}
+          </Button>
         </div>
-        {contents && <div className="mb-4 lg:hidden">{surahList}</div>}
-        <div className="mb-4">
-          <ReadingSettings
-            mode={mode}
-            textSize={textSize}
-            onTextSize={onTextSize}
-            reciter={reciter}
-            onReciter={onReciter}
-            reciters={config?.reciters ?? [{ id: 'ar.alafasy', name: 'Mishary Rashid Alafasy' }]}
-            onMode={onMode}
-            editions={editions}
-            editionKey={editionKey}
-            onEdition={onEdition}
-            editionsError={editionsError}
-            onQuiet={() => setFocus(true)}
-          />
-        </div>
+        <Button variant="soft" onClick={onPlay} disabled={playDisabled} aria-label={playing ? t.pause : listenKind === 'meaning' ? t.playMeaning : t.play}>
+          {playing ? t.pause : t.playAction}
+        </Button>
+        <Button variant="ghost" onClick={() => savedKey && toggleVerse(savedKey)} aria-pressed={verseSaved} disabled={!savedKey}>
+          {verseSaved ? <BookmarkCheck className="h-4 w-4" aria-hidden /> : <Bookmark className="h-4 w-4" aria-hidden />}
+          {verseSaved ? t.unsave : t.save}
+        </Button>
+        <Button
+          id="kf-settings-button"
+          variant="soft"
+          aria-expanded={settingsOpen}
+          aria-controls="kf-reading-settings"
+          onClick={() => {
+            setContents(false);
+            setSettingsOpen(true);
+          }}
+        >
+          {t.settings}
+        </Button>
+      </div>
+      {playbackStatus && (
+        <p className="pb-1 text-sm text-muted" role="status">
+          {playbackStatus}
+        </p>
+      )}
+      </ReaderChrome>
+      <OverlaySheet open={contents} onClose={() => setContents(false)} id="kf-surah-index" title={t.surahs}>
+        {surahs.loading && <Loading />}
+        {surahs.error && <ErrorNote message={surahs.error} onRetry={surahs.reload} />}
+        <ul className="space-y-1">
+          {list.map(item => (
+            <li key={item.number}>
+              <button
+                type="button"
+                onClick={() => goSurah(item.number, 1)}
+                aria-current={item.number === surah ? 'true' : undefined}
+                className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm ${item.number === surah ? 'bg-pine text-sand' : 'hover:bg-mint'}`}
+              >
+                <span className="w-7 text-xs opacity-70">{item.number}</span>
+                <span className="flex-1">{item.englishName}</span>
+                <span className="text-xs opacity-70">{item.numberOfAyahs}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </OverlaySheet>
+      <SettingsDrawer
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        textSize={textSize}
+        onTextSize={onTextSize}
+        translationSize={translationSize}
+        onTranslationSize={onTranslationSize}
+        reciter={reciter}
+        onReciter={onReciter}
+        reciters={reciters}
+        editions={editions}
+        editionKey={editionKey}
+        onEdition={onEdition}
+        editionsError={editionsError}
+        onQuiet={() => {
+          setSettingsOpen(false);
+          setFocus(true);
+        }}
+      />
         {!arabic && arabicRemote.loading && <Loading />}
         {!arabic && !arabicRemote.loading && arabicRemote.error && <ErrorNote message={arabicRemote.error} onRetry={arabicRemote.reload} />}
         {editionsError && <ErrorNote message={editionsError} onRetry={onEditionsRetry} />}
         {meaningRemote.error && <ErrorNote message={meaningRemote.error} onRetry={meaningRemote.reload} />}
         {loaded && mode === 'study' && (
           <Card>
-            <p className="text-xs uppercase tracking-widest text-muted">
-              {loaded.info.number} · {loaded.info.revelationType} · {loaded.info.numberOfAyahs}
-            </p>
-            <h2 className="font-display text-3xl font-bold text-pine">{loaded.info.englishName}</h2>
-            <p className="text-sm text-muted">{loaded.info.englishNameTranslation}</p>
-            <div className="mt-4">
-              <VerseActions
-                saved={savedKey ? isVerseSaved(savedKey) : false}
-                onListen={() => current && playRef.current(current.ayah)}
-                onMeaning={meaningFor(current).action ?? undefined}
-                onBookmark={() => savedKey && toggleVerse(savedKey)}
-              />
-            </div>
-            {editionNotice && (
-              <p className="mt-3 text-sm text-muted" role="status">
-                {editionNotice}
+            <header id="kf-surah-title" className="scroll-mt-4 text-center">
+              <p className="text-xs uppercase tracking-widest text-muted">
+                {loaded.info.number} · {loaded.info.revelationType} · {loaded.info.numberOfAyahs}
               </p>
-            )}
-            {meaningNote && (
-              <p className="mt-3 text-sm text-muted" role="status">
-                {meaningNote}
-              </p>
-            )}
-            {pronunciation === 'en' && verses.some(verse => verse.transliteration) && <p className="mt-3 text-sm text-muted">{t.pronunciationSource}</p>}
-            {pronunciation === 'en' && verses.length > 0 && !verses.some(verse => verse.transliteration) && (
-              <p className="mt-3 text-sm text-muted">{t.pronunciationMissing}</p>
-            )}
-            {!meaning && meaningRemote.loading && (
-              <p className="mt-3 text-sm text-muted" role="status">
-                {t.loadingMeaning}
-              </p>
-            )}
+              <h2 className="mt-1 font-display text-3xl font-bold text-pine">{loaded.info.englishName}</h2>
+              <p className="text-sm text-muted">{loaded.info.englishNameTranslation}</p>
+            </header>
             {surah !== 1 && surah !== 9 && (
-              <p lang="ar" className="arabic mt-8 text-center text-3xl text-pine">
+              <p lang="ar" className="arabic mt-3 text-center text-3xl text-pine">
                 {BISMILLAH}
               </p>
             )}
-            <div className={`mt-2 ${ARABIC_SIZE[textSize]}`}>
+            {!meaning && meaningRemote.loading && (
+              <p className="mt-3 text-center text-sm text-muted" role="status">
+                {t.loadingMeaning}
+              </p>
+            )}
+            <div className={`mt-4 ${ARABIC_SIZE[textSize]}`}>
               {verses.map(verse => (
-                <div key={verse.key} className={BODY_SIZE[textSize]}>
+                <div key={verse.key} className={BODY_SIZE[translationSize]}>
                   <VerseCard
                     verse={verse}
                     scale={textSize}
+                    translationScale={translationSize}
                     selected={verse.ayah === ayah}
                     onEnded={() => playRef.current(verse.ayah + 1)}
                     cite={false}
@@ -639,9 +716,13 @@ function Edition({
                 </div>
               ))}
             </div>
-            <div className="mt-8 space-y-3">
+            <div className="mt-6 space-y-3">
               {meaning && <SourceAttribution verse={verses[0]} />}
               <PronunciationStatus pronunciation={pronunciation} />
+              {pronunciation === 'en' && verses.some(verse => verse.transliteration) && <p className="text-sm text-muted">{t.pronunciationSource}</p>}
+              {pronunciation === 'en' && verses.length > 0 && !verses.some(verse => verse.transliteration) && (
+                <p className="text-sm text-muted">{t.pronunciationMissing}</p>
+              )}
               <Mukhtasar surah={surah} ayah={ayah >= 1 ? ayah : 1} lang={lang} />
               {current && (
                 <VerseShare
@@ -677,27 +758,19 @@ function Edition({
             }}
           >
             <BookPage>
-              <header className="mb-6 text-center">
+              <header id="kf-surah-title" className="scroll-mt-4 text-center">
                 <p className="text-xs uppercase tracking-widest text-muted">{loaded.info.revelationType}</p>
-                <h2 className="mt-2 font-display text-3xl font-bold text-pine">{loaded.info.englishName}</h2>
-                <p lang="ar" className="arabic mt-2 text-2xl text-ink">
+                <h2 className="mt-1 font-display text-2xl font-bold text-pine sm:text-3xl">{loaded.info.englishName}</h2>
+                <p lang="ar" className="arabic mt-1 text-2xl text-ink">
                   {loaded.info.name}
                 </p>
-                <div className="mt-4 flex justify-center">
-                  <VerseActions
-                    saved={savedKey ? isVerseSaved(savedKey) : false}
-                    onListen={() => current && playRef.current(current.ayah)}
-                    onMeaning={bookMeaning.action ?? undefined}
-                    onBookmark={() => savedKey && toggleVerse(savedKey)}
-                  />
-                </div>
                 {surah !== 1 && surah !== 9 && (
-                  <p lang="ar" className="arabic mt-6 text-2xl text-pine">
+                  <p lang="ar" className="arabic mt-3 text-2xl text-pine">
                     {BISMILLAH}
                   </p>
                 )}
               </header>
-              <p lang="ar" dir="rtl" className={`arabic mt-8 text-ink ${ARABIC_SIZE[textSize]}`}>
+              <p lang="ar" dir="rtl" className={`arabic mt-4 text-ink ${ARABIC_SIZE[textSize]}`}>
                 {verses.map(verse => (
                   <span
                     key={verse.key}
@@ -713,7 +786,7 @@ function Edition({
                 ))}
               </p>
               {pronunciation === 'en' && verses.some(verse => verse.transliteration) && (
-                <p lang="en" className={`mt-6 leading-loose text-ink/80 ${BODY_SIZE[textSize]}`}>
+                <p lang="en" dir="ltr" className={`mt-4 leading-loose text-ink/80 ${BODY_SIZE[translationSize]}`}>
                   {verses.map(verse => (
                     <span key={`${verse.key}-pr`} onClick={() => setAyah(verse.ayah)} className={verse.ayah === ayah ? 'rounded bg-gold/15' : undefined}>
                       <span className="mx-1 inline-block min-w-6 rounded-full border border-gold px-1 text-center align-middle font-sans text-xs font-semibold text-pine">
@@ -725,7 +798,7 @@ function Edition({
                 </p>
               )}
               {meaning && (
-                <p lang={lang} className={`mt-10 leading-8 text-ink sm:leading-9 ${BODY_SIZE[textSize]}`}>
+                <p lang={lang} dir="ltr" className={`mt-4 leading-8 text-ink sm:leading-9 ${BODY_SIZE[translationSize]}`}>
                   {verses.map(verse => (
                     <span key={`${verse.key}-tr`} onClick={() => setAyah(verse.ayah)} className={verse.ayah === ayah ? 'rounded bg-gold/15' : undefined}>
                       <span className="mx-1 inline-block min-w-6 rounded-full border border-gold px-1 text-center align-middle font-sans text-xs font-semibold text-pine">
@@ -737,7 +810,7 @@ function Edition({
                 </p>
               )}
               {meaning && verses.some(verse => verse.footnotes) && (
-                <details className={`mt-6 rounded-2xl border border-pine/10 px-4 py-3 text-ink/80 ${BODY_SIZE[textSize]}`}>
+                <details className={`mt-6 rounded-2xl border border-pine/10 px-4 py-3 text-ink/80 ${BODY_SIZE[translationSize]}`}>
                   <summary className="cursor-pointer text-xs font-semibold uppercase tracking-widest text-muted">{t.footnotes}</summary>
                   <div className="mt-3 space-y-3">
                     {verses
@@ -782,30 +855,12 @@ function Edition({
                   />
                 )}
                 <Mukhtasar surah={surah} ayah={ayah >= 1 ? ayah : 1} lang={lang} />
-                {editionNotice && (
-                  <p className="text-sm text-muted" role="status">
-                    {editionNotice}
-                  </p>
-                )}
-                {!editionNotice && bookMeaning.note && (
-                  <p className="text-sm text-muted" role="status">
-                    {bookMeaning.note}
-                  </p>
-                )}
-                {meaningNote && (
-                  <p className="text-sm text-muted" role="status">
-                    {meaningNote}
-                  </p>
-                )}
                 <p className="text-sm text-muted">{t.reflowNote}</p>
               </div>
             </BookPage>
           </div>
         )}
         <p className="mt-4 text-center text-sm text-muted">{displaySurah(surah)} / 114</p>
-      </div>
-      {mode === 'book' && <div className="hidden lg:block">{surahList}</div>}
-      </div>
     </div>
   );
 }
