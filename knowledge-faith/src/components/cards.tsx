@@ -19,6 +19,7 @@ export function VerseCard({
   cite = true,
   onMeaning,
   meaningNote,
+  playback = true,
 }: {
   verse: Verse;
   onEnded?: () => void;
@@ -26,6 +27,8 @@ export function VerseCard({
   scale?: 'sm' | 'md' | 'lg';
   selected?: boolean;
   cite?: boolean;
+  /** Study keeps one shared player. Bookmark stays on the verse. */
+  playback?: boolean;
   /** A function plays this edition's listed file. Null hides the control. Omit to use the verse payload. */
   onMeaning?: (() => void) | null;
   meaningNote?: string | null;
@@ -43,19 +46,21 @@ export function VerseCard({
   return (
     <article
       id={`v-${verse.key.replace(':', '-')}`}
-      className={`border-b border-pine/10 last:border-0 ${compact ? 'py-3' : 'py-5'} ${selected ? 'rounded-2xl bg-gold/15 px-2' : ''}`}
+      className={`border-b border-pine/10 last:border-0 ${compact ? 'py-3' : 'py-7 sm:py-8'} ${selected ? 'rounded-2xl bg-gold/15 px-3' : ''}`}
     >
-      <div className="mb-2 flex items-center justify-between gap-2">
+      <div className="mb-3 flex items-center justify-between gap-2">
         <span className="rounded-full bg-mint px-3 py-1 text-xs font-semibold text-pine">
           {verse.surahName} · {verse.key}
         </span>
         <div className="flex">
-          <IconButton
-            label={active ? t.pause : t.play}
-            onClick={() => (active ? pauseAudio() : playAudio(id, recitationUrl(reciter, verse.number), onEnded))}
-          >
-            {active ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-          </IconButton>
+          {playback && (
+            <IconButton
+              label={active ? t.pause : t.play}
+              onClick={() => (active ? pauseAudio() : playAudio(id, recitationUrl(reciter, verse.number), onEnded))}
+            >
+              {active ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            </IconButton>
+          )}
           <IconButton label={saved ? t.unsave : t.save} aria-pressed={saved} onClick={() => toggleVerse(verse.key)}>
             {saved ? <BookmarkCheck className="h-4 w-4 text-gold" /> : <Bookmark className="h-4 w-4" />}
           </IconButton>
@@ -70,9 +75,13 @@ export function VerseCard({
           {verse.transliteration}
         </p>
       )}
-      {verse.translation ? (
-        <p lang={verse.lang} className={`mt-2 leading-relaxed text-ink/90 ${scale === 'lg' ? 'text-xl' : scale === 'sm' ? 'text-sm' : ''}`}>
+      {verse.translation.trim() ? (
+        <p lang={verse.lang} className={`mt-4 max-w-prose leading-8 text-ink/90 ${scale === 'lg' ? 'text-xl' : scale === 'sm' ? 'text-base' : 'text-lg'}`}>
           {verse.translation}
+        </p>
+      ) : verse.translationKey ? (
+        <p className="mt-2 text-sm text-muted" role="status">
+          {t.verseTranslationUnavailable}
         </p>
       ) : null}
       {verse.footnotes ? (

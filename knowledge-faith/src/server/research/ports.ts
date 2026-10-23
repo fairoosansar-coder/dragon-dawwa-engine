@@ -1,4 +1,5 @@
 import type { Lang } from '../../shared/sources.ts';
+import { suggestSearchPlan } from '../gemini.ts';
 import { loadHadeeth, searchHadeeth } from '../hadeethenc.ts';
 import { getVerses } from '../quran.ts';
 import type { ResearchPorts } from './engine.ts';
@@ -49,5 +50,9 @@ export function defaultResearchPorts(): ResearchPorts {
       }));
     },
     searchScience: searchOpenAlex,
+    async suggestSearch(question, lang, signal) {
+      if (signal.aborted) throw aborted(signal);
+      return suggestSearchPlan(question, lang);
+    },
   };
 }

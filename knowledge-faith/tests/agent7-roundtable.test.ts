@@ -105,7 +105,7 @@ describe('7-Agent Hadith Research & Roundtable with HadeethEnc (Agent 7)', () =>
     const wordMatchOnly = verifyClaim(
       'கடமையாக்கப்பட்ட நோன்பைத் தவிர வேறு எதற்காகவும் சனிக்கிழமை நோன்பு நோற்காதீர்கள்',
       'E65003',
-      [{ id: 'E65003', text: 'நான் கடமையாக்கப்பட்ட தொழுகைகளை நிறைவேற்றுவேன்.' }],
+      [{ id: 'E65003', text: 'நான் கடமையாக்கப்பட்ட நோன்பு மற்றும் தொழுகைகளை நிறைவேற்றுவேன்.' }],
     );
     assert.equal(wordMatchOnly.citationExists, true);
     assert.equal(wordMatchOnly.citationRelevant, true);

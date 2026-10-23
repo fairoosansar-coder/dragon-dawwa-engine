@@ -5,6 +5,7 @@ import { AppProvider, useApp } from './lib/store.tsx';
 import type { Strings } from './lib/i18n.ts';
 import { Loading } from './components/ui.tsx';
 import { AppFrame } from './components/shell/Frame.tsx';
+import { buildStamp } from './buildStamp.ts';
 import { DossierProvider } from './engine/DossierContext.tsx';
 
 const KnowledgeHub = lazy(() => import('./views/KnowledgeHub.tsx'));
@@ -78,7 +79,7 @@ function Shell() {
   }, [route, t, location.path]);
 
   return (
-    <AppFrame path={location.path} section={t[route.label]} showSearch={showSectionSearch(location.path, location.segments)}>
+    <AppFrame path={location.path} section={t[route.label]} segments={location.segments} showSearch={showSectionSearch(location.path, location.segments)}>
       <Suspense fallback={<Loading />}>
         <View sub={location.segments[0]} segments={location.segments} />
       </Suspense>
@@ -88,6 +89,9 @@ function Shell() {
           {lang !== 'en' && <p>{t.uiNote}</p>}
           <p className="font-display font-bold tracking-wide text-pine">DRAGON DAWWA</p>
           <p className="italic">{t.brandSub}</p>
+          <p data-release={buildStamp.sha} data-built-at={buildStamp.builtAt}>
+            {buildStamp.sha.slice(0, 7)} · {buildStamp.builtAt}
+          </p>
         </footer>
       )}
     </AppFrame>

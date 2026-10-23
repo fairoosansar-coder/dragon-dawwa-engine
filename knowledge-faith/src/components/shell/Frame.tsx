@@ -6,8 +6,9 @@ import { useShell } from '../../lib/shell.tsx';
 import { useApp } from '../../lib/store.tsx';
 import type { Strings } from '../../lib/i18n.ts';
 import { useAudioState } from '../../lib/audio.ts';
+import { buildStamp } from '../../buildStamp.ts';
 import { BrandLockup } from './Brand.tsx';
-import { AudioMiniPlayer, SearchField } from './widgets.tsx';
+import { AudioMiniPlayer, QuranSections, SearchField, quranSectionId } from './widgets.tsx';
 
 interface NavItem {
   path: RouteRoot;
@@ -15,6 +16,16 @@ interface NavItem {
   short: keyof Strings;
   side?: keyof Strings;
   icon: LucideIcon;
+}
+
+function ReleaseMark({ className }: { className: string }) {
+  const short = buildStamp.sha.slice(0, 7);
+  const label = `${short} · ${buildStamp.builtAt}`;
+  return (
+    <p className={className} data-release={buildStamp.sha} data-built-at={buildStamp.builtAt} title={`Release ${buildStamp.sha} built ${buildStamp.builtAt}`}>
+      {label}
+    </p>
+  );
 }
 
 const NAV: NavItem[] = [
@@ -25,7 +36,7 @@ const NAV: NavItem[] = [
   { path: 'studio', href: '#/studio', short: 'navListen', icon: Mic },
 ];
 
-export function AppFrame({ path, section, showSearch, children }: { path: RouteRoot; section: string; showSearch: boolean; children: ReactNode }) {
+export function AppFrame({ path, section, segments = [], showSearch, children }: { path: RouteRoot; section: string; segments?: string[]; showSearch: boolean; children: ReactNode }) {
   const { t, lang, setLang } = useApp();
   const { focus, setFocus } = useShell();
   const audio = useAudioState();
@@ -65,6 +76,7 @@ export function AppFrame({ path, section, showSearch, children }: { path: RouteR
             <a href="#/hub/scholar" className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-sand/80 hover:bg-white/5">
               {t.sidebarQuestion}
             </a>
+            <ReleaseMark className="px-3 pt-3 text-[10px] leading-snug text-sand/60" />
           </div>
         </aside>
       )}
@@ -92,6 +104,7 @@ export function AppFrame({ path, section, showSearch, children }: { path: RouteR
                 </select>
               </label>
             </div>
+            <ReleaseMark className="px-4 pb-2 text-[10px] text-muted" />
             {showSearch && (
               <div className="px-4 pb-3">
                 <SearchField />
@@ -120,8 +133,9 @@ export function AppFrame({ path, section, showSearch, children }: { path: RouteR
             </label>
           </div>
         )}
-        <main id="main" className="min-h-0 flex-1 overflow-x-clip overflow-y-auto px-4 py-6 sm:px-6">
-          <div className="mx-auto max-w-6xl">{children}</div>
+        {path === 'quran' && !focus && <QuranSections current={quranSectionId(segments[0])} />}
+        <main id="main" className="min-h-0 flex-1 overflow-x-clip overflow-y-auto scroll-pb-28 px-4 py-5 sm:px-6 sm:py-6">
+          <div className="mx-auto max-w-6xl pb-10">{children}</div>
         </main>
         {player && <AudioMiniPlayer safe={focus} />}
         {!focus && (

@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { arabicNameKey, matchByArabicName } from '../src/shared/arabicName.ts';
 import { verifyClaim } from '../src/shared/research/claims.ts';
+import { contentTokens, passageSupportsTopic } from '../src/shared/research.ts';
 import { decomposeQuestion } from '../src/shared/research/decompose.ts';
+import { researchOutcome } from '../src/shared/research/outcomes.ts';
 import { parseTermArticle, parseTermCatalogue, parseTermHeading } from '../src/shared/terminology.ts';
 import { articleBlocks } from '../src/shared/readableText.ts';
 import { allowedMediaUrl } from '../src/server/media.ts';
@@ -39,7 +41,24 @@ function ports(over: Partial<ResearchPorts> = {}): ResearchPorts {
   };
 }
 
+const SHAHADA_TA = 'அல்லாஹ்வைத் தவிர வேறு இறைவன் இல்லை என்று நான் சாட்சி கூறுகிறேன்';
+
 describe('question planning', () => {
+  it('keeps Tamil, Sinhala, and Arabic words when English stop-words would leave nothing', () => {
+    const tamil = contentTokens(SHAHADA_TA);
+    assert.ok(tamil.length > 0);
+    assert.ok(tamil.some(token => token.includes('இறைவன்') || token.includes('சாட்சி')));
+    assert.deepEqual(contentTokens(SHAHADA_TA.normalize('NFD')), tamil);
+    const sinhala = contentTokens('අල්ලාහ් හැර වෙනත් දෙවියෙක් නැතැයි මම සාක්ෂි දෙමි');
+    assert.ok(sinhala.some(token => token.includes('සාක්ෂි') || token.includes('අල්ලාහ්')));
+    const arabic = contentTokens('أَشْهَدُ أَنْ لَا إِلَٰهَ إِلَّا ٱللَّٰهُ');
+    assert.ok(arabic.some(token => token.includes('الله') || token.includes('إله') || token.includes('أشهد')));
+    assert.equal(arabic.some(token => /[\u064B-\u0652]/.test(token)), false);
+    const plan = decomposeQuestion(SHAHADA_TA);
+    assert.ok(plan.subquestions[0].queries.length > 0);
+    assert.equal(contentTokens('what is the').length, 0);
+  });
+
   it('splits a multi-sentence question into separate searches', () => {
     const plan = decomposeQuestion('What are the rights of a neighbor? How should someone visit the sick?');
     assert.equal(plan.subquestions.length, 2);
@@ -80,6 +99,71 @@ describe('content index', () => {
 });
 
 describe('research outcomes', () => {
+  it('names a processing failure, a source outage, and an unsupported question separately', () => {
+    const unprocessed = researchOutcome({
+      question: SHAHADA_TA,
+      queryCount: 0,
+      passageCount: 0,
+      coverage: [{ kind: 'no_relevant_evidence', detail: `We could not process the question. It is still here: ${SHAHADA_TA}` }],
+    });
+    assert.equal(unprocessed?.title, 'We could not process the question.');
+    assert.match(unprocessed?.detail ?? '', /still here/);
+    assert.equal(/no relevant evidence/i.test(`${unprocessed?.title} ${unprocessed?.detail}`), false);
+
+    const outage = researchOutcome({
+      question: 'What are the rights of a neighbor?',
+      queryCount: 2,
+      passageCount: 0,
+      coverage: [{ kind: 'source_unavailable', detail: 'HadeethEnc is down' }],
+    });
+    assert.equal(outage?.title, 'A source could not be reached.');
+
+    assert.equal(
+      passageSupportsTopic(
+        'What was the hull number of the fishing boat I sold in Jaffna in 1987?',
+        'The best number of companions is four',
+      ),
+      false,
+    );
+    assert.equal(
+      passageSupportsTopic('What is taught about being kind to parents?', 'both his parents reach old age with him'),
+      true,
+    );
+
+    const thin = researchOutcome({
+      question: 'What is the serial number of the bicycle I lost in Colombo?',
+      queryCount: 3,
+      passageCount: 0,
+      coverage: [],
+    });
+    assert.equal(thin?.title, 'Available evidence does not sufficiently support an answer.');
+    assert.match(thin?.detail ?? '', /bicycle/);
+  });
+
+  it('keeps a Tamil question searchable instead of treating it as empty', async () => {
+    const result = await executeResearch({
+      question: SHAHADA_TA,
+      language: 'ta',
+      ports: ports({
+        searchHadeeth: async () => [{ id: '4211', title: 'சாட்சி' }],
+        loadHadeeth: async () => ({
+          id: '4211',
+          title: 'சாட்சி',
+          text: 'அல்லாஹ்வைத் தவிர வேறு இறைவன் இல்லை என்றும் முஹம்மத் அல்லாஹ்வின் தூதர் என்றும் நான் சாட்சி கூறுகிறேன்.',
+          arabic: null,
+          grade: 'Sahih',
+          attribution: 'HadeethEnc 4211',
+          explanation: 'A published explanation on this record.',
+          url: 'https://hadeethenc.com/ta/browse/hadith/4211',
+        }),
+      }),
+    });
+    assert.equal(result.job.subquestions[0].queries.length > 0, true);
+    assert.equal(result.dossier.passages.length > 0, true);
+    assert.equal(result.job.coverage.some(note => /No distinctive search terms/.test(note.detail)), false);
+    assert.equal(result.dossier.passages[0].publishedGrade, 'Sahih');
+  });
+
   it('keeps a source failure distinct from an empty search', async () => {
     const failed = await executeResearch({
       question: 'What are the rights of a neighbor?',

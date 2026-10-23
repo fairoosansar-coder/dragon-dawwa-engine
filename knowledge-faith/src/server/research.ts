@@ -37,6 +37,7 @@ import { loadHadeeth, searchHadeeth } from './hadeethenc.ts';
 import { loadItemDocument, loadKnowledgeShelf, loadLibrary } from './islamhouse.ts';
 import { fetchReaderHtml } from './readable.ts';
 import { getVerses } from './quran.ts';
+import { suggestSearchPlan } from './gemini.ts';
 
 export interface ResearchRequest {
   topic: string;
@@ -221,6 +222,16 @@ export async function researchTopic(request: ResearchRequest): Promise<ResearchD
   }
 
   const ayahs = ayahsMentioned(blob);
+  const extraPhrases: string[] = [];
+  const suggestion = await suggestSearchPlan(blob, request.lang);
+  if (!suggestion.available) {
+    dossier.notExamined.push('Live Gemini is not configured, so extra searches in other languages were not added. Real spoken audio is not available.');
+  } else if (suggestion.failed) {
+    dossier.unanswered.push('A source could not be reached. The study assistant did not prepare extra searches. Research continued with the words in the question.');
+  } else {
+    extraPhrases.push(...suggestion.phrases);
+    ayahs.push(...suggestion.ayahs);
+  }
   const theme = TOPICS.find(item => blob.toLowerCase().includes(item.title.en.toLowerCase()) || blob.toLowerCase().includes(item.id));
     if (theme) {
     for (const ref of theme.refs) ayahs.push(...parseRefs(ref));
@@ -259,7 +270,7 @@ export async function researchTopic(request: ResearchRequest): Promise<ResearchD
         dossier.references.push(verseReference(verse, claimAddressed(questions, topic, verse.translation), retrievedOn, 'named'));
       }
     } catch {
-      dossier.unanswered.push('QuranEnc did not return the requested ayahs.');
+      dossier.unanswered.push('A source could not be reached. QuranEnc did not return the requested ayahs.');
     }
     if (surrounding.length) {
       try {
@@ -422,12 +433,15 @@ export async function researchTopic(request: ResearchRequest): Promise<ResearchD
     }
   }
 
-  const phrase = plan.searchPhrase;
-  if (!phrase) {
-    dossier.notExamined.push('No distinctive search terms remained after generic words were removed, so HadeethEnc search was not called.');
+  const phrases = [...new Set([plan.searchPhrase, ...extraPhrases].map(item => item.trim()).filter(Boolean))].slice(0, 4);
+  if (!phrases.length) {
+    dossier.unanswered.push(`We could not process the question. It is still here: ${topic}`);
   } else if (!asksForScience(blob) || ayahsMentioned(blob).length || isIntentionTopic(blob) || isPrayerTopic(blob)) {
     const seen = new Set<string>();
     let citedFromSearch = 0;
+    let hadeethDown = false;
+    for (const phrase of phrases) {
+      if (citedFromSearch > 0 || hadeethDown) break;
     for (let pageNumber = 1; pageNumber <= RESEARCH_BUDGET.hadeethPages && citedFromSearch === 0; pageNumber += 1) {
       try {
         const found = await searchHadeeth(request.lang, phrase, pageNumber);
@@ -467,9 +481,11 @@ export async function researchTopic(request: ResearchRequest): Promise<ResearchD
           break;
         }
       } catch {
-        dossier.unanswered.push(`HadeethEnc search page ${pageNumber} did not respond. Later pages were not requested.`);
+        dossier.unanswered.push(`A source could not be reached. HadeethEnc did not respond for “${phrase}”. This is not a finding that the subject is absent. Your question is still here: ${topic}`);
+        hadeethDown = true;
         break;
       }
+    }
     }
   }
 
@@ -499,7 +515,7 @@ export async function researchTopic(request: ResearchRequest): Promise<ResearchD
         dossier.notExamined.push(`IslamHouse ${category.id}: items whose titles did not share a content term were not opened. A relevant passage inside them would have been missed.`);
         break;
       } catch {
-        dossier.unanswered.push(`IslamHouse category “${category.id}” page ${pageNumber} could not be read in ${request.lang}.`);
+        dossier.unanswered.push(`A source could not be reached. IslamHouse category “${category.id}” page ${pageNumber} could not be read in ${request.lang}.`);
         break;
       }
     }
@@ -513,14 +529,23 @@ export async function researchTopic(request: ResearchRequest): Promise<ResearchD
   for (const question of questions) {
     if (asksForScience(question)) continue;
     if (!contentTokens(question).length) {
-      dossier.unanswered.push(`No distinctive terms remained in this question, so no passage was matched to it: ${question}`);
+      dossier.unanswered.push(`We could not process the question. It is still here: ${question}`);
       continue;
     }
+    if (!dossier.references.length) continue;
     const supported = dossier.references.some(item => passageSupportsTopic(question, item.passage));
-    if (!supported) dossier.unanswered.push(`No opened passage contained a content term from this question: ${question}`);
+    if (!supported) {
+      dossier.unanswered.push(`Available evidence does not sufficiently support an answer to this question. It is still here: ${question}`);
+    }
   }
   if (!dossier.references.length) {
-    dossier.unanswered.push('No passage was retrieved for this topic in the selected language from the catalogues that were opened.');
+    const unprocessed = dossier.unanswered.some(line => line.startsWith('We could not process the question'));
+    const unreachable = dossier.unanswered.some(line => line.startsWith('A source could not be reached'));
+    if (!unprocessed && unreachable) {
+      dossier.unanswered.push('Research is incomplete. A source could not be reached, so this is not a finding that the subject is absent.');
+    } else if (!unprocessed) {
+      dossier.unanswered.push(`Available evidence does not sufficiently support an answer. Your question is still here: ${topic}`);
+    }
   }
   dossier.notExamined.push('The rest of IslamHouse, QuranEnc and HadeethEnc was not searched. This run did not read those libraries in full.');
   return dossier;

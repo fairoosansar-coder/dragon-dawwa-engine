@@ -46,13 +46,14 @@ export async function fetchJson<T>(url: string, ttlMs: number, timeoutMs = 12_00
       res = await fetch(url, {
         signal: AbortSignal.timeout(timeoutMs),
         redirect: 'follow',
-        headers: { Accept: 'application/json', 'User-Agent': 'DragonDawwa/1.0' },
+        headers: { Accept: 'application/json', 'User-Agent': 'DragonDawwa/1.0 (Knowledge and Faith research)' },
       });
     } catch {
       throw new UpstreamError(SOURCE_TIMEOUT, 504);
     }
     if (res.status === 404) throw new UpstreamError('Not found at source', 404);
     if (res.status === 429) throw new UpstreamError(SOURCE_BUSY, 429);
+    if (res.status === 204 || res.status === 205) throw new UpstreamError(`${host} returned an empty response`, 502);
     if (!res.ok) throw new UpstreamError(`${host} returned ${res.status}`);
     const value = (await res.json()) as T;
     cache.set(url, { value, expires: Date.now() + ttlMs });
@@ -77,7 +78,7 @@ export async function fetchJsonFresh<T>(url: string, timeoutMs = 12_000): Promis
     res = await fetch(url, {
       signal: AbortSignal.timeout(timeoutMs),
       redirect: 'follow',
-      headers: { Accept: 'application/json', 'User-Agent': 'DragonDawwa/1.0' },
+      headers: { Accept: 'application/json', 'User-Agent': 'DragonDawwa/1.0 (Knowledge and Faith research)' },
     });
   } catch {
     throw new UpstreamError(SOURCE_TIMEOUT, 504);
@@ -88,6 +89,7 @@ export async function fetchJsonFresh<T>(url: string, timeoutMs = 12_000): Promis
   if (res.status === 404) throw new UpstreamError('Not found at source', 404);
   if (!ALLOWED_HOSTS.has(finalHost)) throw new UpstreamError(`Upstream host not allowed: ${finalHost}`, 502);
   if (res.status === 429) throw new UpstreamError(SOURCE_BUSY, 429);
+  if (res.status === 204 || res.status === 205) throw new UpstreamError(`${host} returned an empty response`, 502);
   if (!res.ok) throw new UpstreamError(`${host} returned ${res.status}`);
   return (await res.json()) as T;
 }

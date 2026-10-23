@@ -154,19 +154,46 @@ const SINHALA_STOP = new Set([
   'මොකක්ද', 'කුමක්', 'කුමක්ද', 'යනු', 'සහ', 'හෝ', 'එය', 'මෙය', 'පිළිබඳ', 'ගැන', 'වේ', 'නම්',
 ]);
 
-/** Content words with generic question words removed. Works for English, Tamil, and Sinhala letters. */
+const ARABIC_STOP = new Set([
+  'من', 'في', 'على', 'عن', 'إلى', 'الى', 'أن', 'ان', 'إن', 'هذا', 'هذه', 'ذلك', 'تلك',
+  'ما', 'أو', 'او', 'هو', 'هي', 'ثم', 'قد', 'لم', 'لن', 'كان', 'كانت', 'الذي', 'التي',
+  'لا', 'إلا', 'الا',
+]);
+
+/** Arabic tashkeel and tatweel. Tamil and Sinhala vowel signs are not in this range. */
+const ARABIC_DIACRITICS = /[\u064B-\u065F\u0670\u0640\u06D6-\u06ED]/g;
+
+function comparable(text: string): string {
+  return text.normalize('NFC').replace(ARABIC_DIACRITICS, '');
+}
+
+function letterCount(token: string): number {
+  return token.match(/\p{L}/gu)?.length ?? 0;
+}
+
+/**
+ * Content words with generic question words removed.
+ * Vowel signs and other combining marks stay attached to the word.
+ * A Tamil, Sinhala, or Arabic sentence is not discarded by the English length rule.
+ */
 export function contentTokens(text: string): string[] {
-  const parts = text.toLocaleLowerCase('en').split(/[^\p{L}\p{M}\p{N}]+/u).filter(Boolean);
+  const parts = comparable(text).toLocaleLowerCase('en').split(/[^\p{L}\p{M}\p{N}]+/u);
   const tokens: string[] = [];
   const seen = new Set<string>();
-  for (const part of parts) {
+  for (const raw of parts) {
+    const part = raw.replace(/^\p{M}+/gu, '');
+    if (!part) continue;
     const tamil = /[\u0B80-\u0BFF]/.test(part);
     const sinhala = /[\u0D80-\u0DFF]/.test(part);
+    const arabic = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/.test(part);
+    const letters = letterCount(part);
     if (tamil) {
-      if (part.length < 3 || TAMIL_STOP.has(part)) continue;
+      if (letters < 2 || TAMIL_STOP.has(part)) continue;
     } else if (sinhala) {
-      if (part.length < 3 || SINHALA_STOP.has(part)) continue;
-    } else if (part.length < 4 || LATIN_STOP.has(part)) continue;
+      if (letters < 2 || SINHALA_STOP.has(part)) continue;
+    } else if (arabic) {
+      if (letters < 2 || ARABIC_STOP.has(part)) continue;
+    } else if (letters < 3 || LATIN_STOP.has(part)) continue;
     if (seen.has(part)) continue;
     seen.add(part);
     tokens.push(part);
@@ -174,14 +201,21 @@ export function contentTokens(text: string): string[] {
   return tokens;
 }
 
-/** A passage supports a topic when its own text contains a distinctive content term. Titles are ignored. */
+const WEAK_LATIN = new Set([
+  'number', 'said', 'being', 'taught', 'about', 'someone', 'something', 'anything', 'people', 'person',
+]);
+
+/** A passage supports a topic when its own text contains the question’s content terms. Titles are ignored. */
 export function passageSupportsTopic(topic: string, passage: string): boolean {
-  const tokens = contentTokens(topic);
-  const distinctive = tokens.filter(token => token.length >= 5 || /[\u0B80-\u0BFF\u0D80-\u0DFF]/.test(token));
+  const tokens = contentTokens(topic).filter(token => !WEAK_LATIN.has(token));
+  const distinctive = tokens.filter(token => letterCount(token) >= 4 || /[\u0B80-\u0BFF\u0D80-\u0DFF\u0600-\u06FF]/.test(token));
   const usable = distinctive.length ? distinctive : tokens;
   if (!usable.length) return false;
-  const haystack = passage.toLocaleLowerCase('en');
-  return usable.some(token => haystack.includes(token));
+  const haystack = comparable(passage).toLocaleLowerCase('en');
+  const matched = usable.filter(token => haystack.includes(token));
+  // One incidental word is not enough when the question named several content words.
+  if (usable.length >= 3) return matched.length >= 2;
+  return matched.length >= 1;
 }
 
 export function searchPhrase(text: string): string {

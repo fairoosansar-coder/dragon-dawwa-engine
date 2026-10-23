@@ -1,5 +1,6 @@
 import './src/server/loadEnv.ts';
 import express, { type NextFunction, type Request, type Response } from 'express';
+import { readFileSync } from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { HADITH_COLLECTIONS, PRAYER_METHODS, RECITERS, quranPronunciationEdition, toLang } from './src/shared/sources.ts';
@@ -109,8 +110,29 @@ const aiLimiter = rateLimiter(Number(process.env.AI_REQUESTS_PER_15_MIN ?? 30));
 // The roundtable player synthesises one request per script line.
 const ttsLimiter = rateLimiter(Number(process.env.TTS_REQUESTS_PER_15_MIN ?? 240));
 
+function releaseInfo(): { sha: string; builtAt: string } {
+  try {
+    const parsed = JSON.parse(readFileSync(path.join(process.cwd(), 'build-info.json'), 'utf8')) as {
+      sha?: unknown;
+      builtAt?: unknown;
+    };
+    if (
+      typeof parsed.sha === 'string' &&
+      /^[0-9a-f]{7,40}$|^unknown$|^dev$/.test(parsed.sha) &&
+      typeof parsed.builtAt === 'string' &&
+      parsed.builtAt.length <= 40
+    ) {
+      return { sha: parsed.sha, builtAt: parsed.builtAt };
+    }
+  } catch {
+    // A dev start before the production build has no stamp file.
+  }
+  const sha = process.env.RAILWAY_GIT_COMMIT_SHA ?? '';
+  return { sha: /^[0-9a-f]{7,40}$/i.test(sha) ? sha.toLowerCase() : 'unknown', builtAt: 'unknown' };
+}
+
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', app: 'DRAGON DAWWA', ai: geminiConfigured() });
+  res.json({ status: 'ok', app: 'DRAGON DAWWA', ai: geminiConfigured(), release: releaseInfo() });
 });
 
 app.get('/api/config', (_req, res) => {

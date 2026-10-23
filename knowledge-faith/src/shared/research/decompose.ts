@@ -6,7 +6,10 @@ const PRACTICE = /\b(how should|how do|how to|what should|steps|perform|pray|wud
 const HISTORY = /\b(when did|history|seerah|biography|battle|year)\b/i;
 const SCRIPTURE = /\b(qur'an|quran|verse|ayah|hadith|hadeeth|narration|surah)\b/i;
 
-const EXTRA_STOP = new Set(['someone', 'something', 'anything', 'people', 'person', 'thing', 'things', 'need', 'needs']);
+const EXTRA_STOP = new Set([
+  'someone', 'something', 'anything', 'people', 'person', 'thing', 'things', 'need', 'needs',
+  'number', 'said', 'being', 'taught', 'about',
+]);
 
 const SPELLING: Record<string, readonly string[]> = {
   neighbor: ['neighbor', 'neighbour'],
@@ -42,7 +45,7 @@ function domainOf(text: string): QuestionDomain {
 
 function sentences(question: string): string[] {
   const parts = question
-    .split(/\n+|(?<=[.!?؟;])\s+/)
+    .split(/\n+|(?<=[.!?؟])\s+/)
     .map(part => part.trim())
     .filter(part => part.length > 1);
   return parts.length ? parts : [question.trim()].filter(Boolean);

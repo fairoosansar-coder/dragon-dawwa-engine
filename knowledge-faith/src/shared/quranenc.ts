@@ -248,7 +248,7 @@ function parseAyahRecord(item: unknown, sura: number): QuranEncAyah | null {
   const suraNumber = wholeNumber(row.sura);
   const aya = wholeNumber(row.aya);
   const translation = exactString(row.translation);
-  const footnotes = exactString(row.footnotes);
+  const footnotes = row.footnotes == null ? '' : exactString(row.footnotes);
   if (suraNumber !== sura || aya === null || aya < 1 || translation === null || footnotes === null) return null;
   return { sura: suraNumber, aya, translation, footnotes };
 }
