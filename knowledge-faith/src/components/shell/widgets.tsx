@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Bookmark, BookmarkCheck, Search } from 'lucide-react';
 import { RubElHizb } from '../../engine/ds/ornaments.tsx';
 import { useRemote } from '../../lib/api.ts';
@@ -174,7 +174,7 @@ export function BookPage({ children }: { children: ReactNode }) {
       <span className="pointer-events-none absolute bottom-2 right-2 hidden sm:block">
         <RubElHizb size={22} />
       </span>
-      <div className="relative rounded-xl border border-gold/70 px-3 py-6 sm:px-8 sm:py-10">{children}</div>
+      <div className="relative rounded-xl border border-gold/70 px-3 py-4 sm:px-8 sm:py-5">{children}</div>
     </div>
   );
 }
@@ -265,27 +265,131 @@ export function PronunciationStatus({ pronunciation }: { pronunciation: Pronunci
   return null;
 }
 
-export function ReadingSettings({
-  mode,
+function useOverlay(open: boolean, onClose: () => void, panelId: string, focusSelector?: string) {
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    if (!open) return;
+    const main = document.getElementById('main');
+    const scroll = main?.scrollTop ?? 0;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusables = () => {
+      const panel = document.getElementById(panelId);
+      if (!panel) return [];
+      return [...panel.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter(
+        element => !element.hasAttribute('disabled') && element.tabIndex !== -1,
+      );
+    };
+    const timer = window.setTimeout(() => {
+      const panel = document.getElementById(panelId);
+      const preferred = focusSelector ? panel?.querySelector<HTMLElement>(focusSelector) : null;
+      const target = preferred && !preferred.hasAttribute('disabled') ? preferred : focusables()[0];
+      target?.focus();
+    }, 0);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        closeRef.current();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const panel = document.getElementById(panelId);
+      const items = focusables();
+      if (!panel || items.length === 0) {
+        event.preventDefault();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || !panel.contains(active))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (active === last || !panel.contains(active))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener('keydown', onKey, true);
+      if (main) main.scrollTop = scroll;
+      previous?.focus();
+    };
+  }, [open, panelId, focusSelector]);
+}
+
+/** Desktop side drawer and phone sheet. It overlays the book, so the page underneath does not reflow. */
+export function OverlaySheet({
+  open,
+  onClose,
+  id,
+  title,
+  focusSelector,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  id: string;
+  title: string;
+  focusSelector?: string;
+  children: ReactNode;
+}) {
+  const { t } = useApp();
+  const titleId = `${id}-title`;
+  useOverlay(open, onClose, id, focusSelector);
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-40">
+      <button type="button" className="absolute inset-0 bg-ink/40" aria-label={t.shareClose} onClick={onClose} />
+      <div
+        id={id}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="absolute inset-x-0 bottom-0 flex max-h-[85dvh] flex-col rounded-t-3xl border border-gold/60 bg-parchment shadow-xl lg:inset-y-0 lg:right-0 lg:bottom-auto lg:left-auto lg:h-full lg:max-h-none lg:w-[22rem] lg:rounded-none lg:rounded-l-3xl"
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-pine/10 px-4 py-3">
+          <h2 id={titleId} className="font-display text-xl font-bold text-pine">
+            {title}
+          </h2>
+          <Button variant="ghost" onClick={onClose}>
+            {t.shareClose}
+          </Button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+export function SettingsDrawer({
+  open,
+  onClose,
   textSize,
   onTextSize,
+  translationSize,
+  onTranslationSize,
   reciter,
   onReciter,
   reciters,
-  onMode,
   editions,
   editionKey,
   onEdition,
   editionsError,
   onQuiet,
 }: {
-  mode: 'library' | 'study' | 'book';
+  open: boolean;
+  onClose: () => void;
   textSize: 'sm' | 'md' | 'lg';
   onTextSize: (size: 'sm' | 'md' | 'lg') => void;
+  translationSize: 'sm' | 'md' | 'lg';
+  onTranslationSize: (size: 'sm' | 'md' | 'lg') => void;
   reciter: string;
   onReciter: (id: string) => void;
   reciters: { id: string; name: string }[];
-  onMode: (mode: 'study' | 'book') => void;
   editions: QuranEncEdition[];
   editionKey: string;
   onEdition: (key: string) => void;
@@ -295,72 +399,63 @@ export function ReadingSettings({
   const { t } = useApp();
   const edition = editions.find(item => item.key === editionKey);
   const editionReady = Boolean(edition && editions.some(item => item.key === editionKey));
+  const sizeSelect = (value: 'sm' | 'md' | 'lg', onChange: (size: 'sm' | 'md' | 'lg') => void, id: string) => (
+    <select id={id} value={value} onChange={event => onChange(event.target.value as 'sm' | 'md' | 'lg')} className="rounded-xl border border-pine/20 bg-parchment px-3 py-2 text-sm font-normal text-ink">
+      <option value="sm">A</option>
+      <option value="md">A+</option>
+      <option value="lg">A++</option>
+    </select>
+  );
   return (
-    <details className="rounded-2xl border border-pine/10 bg-parchment px-4 py-3">
-      <summary className="flex min-h-11 cursor-pointer list-none items-center text-sm font-semibold text-pine [&::-webkit-details-marker]:hidden">
-        {t.readingSettings}
-      </summary>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      <div className="flex flex-col gap-1 text-xs font-medium text-muted">
-        <label className="flex flex-col gap-1">
-          {t.editionLabel}
-          {editionReady ? (
-            <select id="kf-quran-edition" value={editionKey} onChange={event => onEdition(event.target.value)} className="rounded-xl border border-pine/20 bg-parchment px-3 py-2 text-sm font-normal text-ink">
-              {editions.map(item => (
-                <option key={item.key} value={item.key}>
-                  {item.title}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <span className="rounded-xl border border-pine/10 bg-sand px-3 py-2 text-sm font-normal text-ink">{editionsError || t.quranEncLoading}</span>
+    <OverlaySheet open={open} onClose={onClose} id="kf-reading-settings" title={t.readingSettings} focusSelector="#kf-quran-edition">
+      <div className="grid gap-4">
+        <div className="flex flex-col gap-1 text-xs font-medium text-muted">
+          <label className="flex flex-col gap-1">
+            {t.editionLabel}
+            {editionReady ? (
+              <select id="kf-quran-edition" value={editionKey} onChange={event => onEdition(event.target.value)} className="rounded-xl border border-pine/20 bg-parchment px-3 py-2 text-sm font-normal text-ink">
+                {editions.map(item => (
+                  <option key={item.key} value={item.key}>
+                    {item.title}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="rounded-xl border border-pine/10 bg-sand px-3 py-2 text-sm font-normal text-ink">{editionsError || t.quranEncLoading}</span>
+            )}
+          </label>
+          {edition && (
+            <p className="font-normal leading-relaxed">
+              {edition.key} · {edition.version}
+            </p>
           )}
-        </label>
-        {edition && (
-          <p className="font-normal leading-relaxed">
-            {edition.key} · {edition.version}
-          </p>
-        )}
-      </div>
-      <div className="flex flex-col gap-1 text-xs font-medium text-muted">
-        {t.readingMode}
-        <div className="flex gap-2">
-          <Button variant={mode === 'study' ? 'primary' : 'soft'} onClick={() => onMode('study')} aria-pressed={mode === 'study'}>
-            {t.quranAyahStudy}
-          </Button>
-          <Button variant={mode === 'book' ? 'primary' : 'soft'} onClick={() => onMode('book')} aria-pressed={mode === 'book'}>
-            {t.quranRead}
-          </Button>
         </div>
-      </div>
-      <label className="flex flex-col gap-1 text-xs font-medium text-muted">
-        {t.reciter}
-        <select value={reciter} onChange={event => onReciter(event.target.value)} className="rounded-xl border border-pine/20 bg-parchment px-3 py-2 text-sm text-ink">
-          {reciters.map(item => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="flex flex-col gap-1 text-xs font-medium text-muted">
-        {t.textSize}
-        <select value={textSize} onChange={event => onTextSize(event.target.value as 'sm' | 'md' | 'lg')} className="rounded-xl border border-pine/20 bg-parchment px-3 py-2 text-sm text-ink">
-          <option value="sm">A</option>
-          <option value="md">A+</option>
-          <option value="lg">A++</option>
-        </select>
-      </label>
-      <PronunciationControl />
-      {onQuiet && (
-        <div className="flex flex-col justify-end">
+        <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+          {t.reciter}
+          <select id="kf-reciter" value={reciter} onChange={event => onReciter(event.target.value)} className="rounded-xl border border-pine/20 bg-parchment px-3 py-2 text-sm text-ink">
+            {reciters.map(item => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+          {t.arabicSize}
+          {sizeSelect(textSize, onTextSize, 'kf-text-size')}
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+          {t.translationSize}
+          {sizeSelect(translationSize, onTranslationSize, 'kf-translation-size')}
+        </label>
+        <PronunciationControl />
+        {onQuiet && (
           <Button variant="soft" onClick={onQuiet}>
             {t.focusReading}
           </Button>
-        </div>
-      )}
+        )}
       </div>
-    </details>
+    </OverlaySheet>
   );
 }
 

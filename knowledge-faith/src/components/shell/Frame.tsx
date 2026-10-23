@@ -134,10 +134,13 @@ export function AppFrame({ path, section, segments = [], showSearch, children }:
           </div>
         )}
         {path === 'quran' && !focus && <QuranSections current={quranSectionId(segments[0])} />}
+        {path === 'quran' && (segments[0] === 'book' || segments[0] === 'study') && (
+          <div id="kf-reader-chrome" className="shrink-0 border-b border-pine/10 bg-sand px-4 sm:px-6" />
+        )}
         <main id="main" className="min-h-0 flex-1 overflow-x-clip overflow-y-auto scroll-pb-28 px-4 py-5 sm:px-6 sm:py-6">
           <div className="mx-auto max-w-6xl pb-10">{children}</div>
         </main>
-        {player && <AudioMiniPlayer safe={focus} />}
+        {player && !(path === 'quran' && (segments[0] === 'book' || segments[0] === 'study')) && <AudioMiniPlayer safe={focus} />}
         {!focus && (
           <nav aria-label="Sections" className="shrink-0 border-t border-gold/40 bg-pine pb-[env(safe-area-inset-bottom)] lg:hidden">
           <ul className="grid grid-cols-5">
