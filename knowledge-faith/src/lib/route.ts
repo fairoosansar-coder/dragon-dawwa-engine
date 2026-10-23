@@ -30,9 +30,21 @@ export function spiritualHref(segments: string[] = []): string {
   return `#/spiritual${segments.length ? `/${segments.join('/')}` : ''}`;
 }
 
+/**
+ * Qur'an lists use the section field only.
+ * A hadith dossier `?q=` or `?hadith=` stays on the address bar and must not filter surahs.
+ */
+export function quranListQuery(sectionQuery: string, locationSearch = ''): string {
+  const params = new URLSearchParams(locationSearch.replace(/^\?/, ''));
+  params.delete('q');
+  params.delete('hadith');
+  return sectionQuery.trim();
+}
+
 /** Shell search is shown only where the open section reads the query. */
 export function showSectionSearch(path: RouteRoot, segments: string[]): boolean {
-  if (path === 'hub' || path === 'quran') return true;
+  if (path === 'hub') return true;
+  if (path === 'quran') return segments[0] == null || segments[0] === 'search';
   if (path === 'hadith') {
     if (segments[0] === 'research') return false;
     if (segments[0] && /^\d+$/.test(segments[0])) return false;
