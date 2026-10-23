@@ -24,6 +24,9 @@ import { readLibraryItem } from './src/server/libraryRead.ts';
 import { allowedMediaUrl, readMedia } from './src/server/media.ts';
 import { listNames, readName } from './src/server/names.ts';
 import { cancelSharedResearchJob, getSharedResearchJob, startSharedResearchJob } from './src/server/research/jobs.ts';
+import { listCommunityPodcasts, publishCommunityPodcast } from './src/server/research/communityPodcasts.ts';
+import { coordinateQuestion } from './src/shared/research/coordinator.ts';
+import type { ResearchScope } from './src/shared/contracts/v1.ts';
 import { dossierEvidence, quoteFromEvidence, researchTopic } from './src/server/research.ts';
 import { attachVerification, verifyScript } from './src/shared/research.ts';
 import type { EncyclopediaHadith } from './src/shared/hadeethenc.ts';
@@ -302,8 +305,73 @@ app.post(
   rateLimiter(20, 'Too many research jobs. Please wait a few minutes.'),
   route(async (req, res) => {
     const question = text(req.body?.question, 800, 'question');
-    const id = startSharedResearchJob(question, toLang(req.body?.lang));
-    res.status(202).json({ id, contractVersion: '1.0.0' });
+    const lang = toLang(req.body?.lang);
+    const entryRaw = typeof req.body?.entry === 'string' ? req.body.entry : '';
+    if (!entryRaw) {
+      const id = startSharedResearchJob(question, lang);
+      res.status(202).json({ id, contractVersion: '1.0.0' });
+      return;
+    }
+    const entries: ResearchScope[] = ['knowledge', 'quran', 'hadith', 'books'];
+    if (!entries.includes(entryRaw as ResearchScope)) throw new UpstreamError('Unknown research entry', 400);
+    const bookId = Number(req.body?.bookId);
+    const decision = coordinateQuestion({
+      question,
+      entry: entryRaw as ResearchScope,
+      language: lang,
+      bookId: Number.isInteger(bookId) && bookId > 0 ? bookId : null,
+      forwarded: req.body?.forwarded === true,
+      clarified: req.body?.clarified === true,
+      priorQuestion: typeof req.body?.priorQuestion === 'string' ? req.body.priorQuestion.slice(0, 800) : null,
+    });
+    if (decision.action === 'clarify') {
+      res.json({ action: 'clarify', clarificationId: decision.clarificationId, contractVersion: '1.0.0' });
+      return;
+    }
+    const researched = decision.assignment.forwardedFrom ? `${question}` : question;
+    const id = startSharedResearchJob(researched, lang, undefined, {
+      assignment: decision.assignment,
+      force: req.body?.force === true,
+    });
+    res.status(202).json({
+      action: decision.action,
+      id,
+      scope: decision.assignment.scope,
+      noticeId: decision.assignment.noticeId,
+      contractVersion: '1.0.0',
+    });
+  }),
+);
+
+app.get('/api/research/podcasts', route(async (_req, res) => res.json({ episodes: listCommunityPodcasts() })));
+
+app.post(
+  '/api/research/podcasts',
+  route(async (req, res) => {
+    if (req.body?.shared !== true) throw new UpstreamError('A podcast is published only when it is explicitly shared.', 400);
+    const question = text(req.body?.question, 800, 'question');
+    const lines = Array.isArray(req.body?.lines) ? req.body.lines.slice(0, 24) : [];
+    const participants = Array.isArray(req.body?.participants) ? req.body.participants.slice(0, 12) : [];
+    const reportHtml = typeof req.body?.reportHtml === 'string' ? req.body.reportHtml.slice(0, 400_000) : '';
+    if (!lines.length || !reportHtml) throw new UpstreamError('A shared episode needs its script and full report.', 400);
+    const episode = publishCommunityPodcast({
+      id: text(req.body?.id, 80, 'id'),
+      question,
+      language: toLang(req.body?.language ?? req.body?.lang),
+      participants: participants.map((item: { id?: string; role?: string; team?: string }) => ({
+        id: String(item?.id ?? '').slice(0, 80),
+        role: String(item?.role ?? '').slice(0, 120),
+        team: String(item?.team ?? '').slice(0, 40),
+      })),
+      lines: lines.map((line: { speaker?: string; role?: string; text?: string }) => ({
+        speaker: String(line?.speaker ?? '').slice(0, 120),
+        role: String(line?.role ?? '').slice(0, 120),
+        text: String(line?.text ?? '').slice(0, 4000),
+      })),
+      reportHtml,
+      createdAt: new Date().toISOString(),
+    });
+    res.status(201).json(episode);
   }),
 );
 

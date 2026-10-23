@@ -129,6 +129,13 @@ describe('research outcomes', () => {
       passageSupportsTopic('What is taught about being kind to parents?', 'both his parents reach old age with him'),
       true,
     );
+    assert.equal(
+      passageSupportsTopic(
+        'What is the isnad of the narration in Sahih Bukhari about intentions?',
+        'Verily, the reward of deeds depends on the intention, and a person will be rewarded according to what he intended.',
+      ),
+      true,
+    );
 
     const thin = researchOutcome({
       question: 'What is the serial number of the bicycle I lost in Colombo?',
