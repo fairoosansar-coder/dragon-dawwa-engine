@@ -365,6 +365,127 @@ export function OverlaySheet({
   );
 }
 
+export function ReadingSettings({
+  mode,
+  textSize,
+  onTextSize,
+  translationSize,
+  onTranslationSize,
+  reciter,
+  onReciter,
+  reciters,
+  onMode,
+  editions,
+  editionKey,
+  onEdition,
+  editionsError,
+  onQuiet,
+  open,
+  onOpenChange,
+}: {
+  mode: 'library' | 'study' | 'book';
+  textSize: 'sm' | 'md' | 'lg';
+  onTextSize: (size: 'sm' | 'md' | 'lg') => void;
+  translationSize: 'sm' | 'md' | 'lg';
+  onTranslationSize: (size: 'sm' | 'md' | 'lg') => void;
+  reciter: string;
+  onReciter: (id: string) => void;
+  reciters: { id: string; name: string }[];
+  onMode?: (mode: 'study' | 'book') => void;
+  editions: QuranEncEdition[];
+  editionKey: string;
+  onEdition: (key: string) => void;
+  editionsError: string | null;
+  onQuiet?: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { t } = useApp();
+  const edition = editions.find(item => item.key === editionKey);
+  const editionReady = Boolean(edition && editions.some(item => item.key === editionKey));
+  const sizeSelect = (value: 'sm' | 'md' | 'lg', onChange: (size: 'sm' | 'md' | 'lg') => void, id: string) => (
+    <select id={id} value={value} onChange={event => onChange(event.target.value as 'sm' | 'md' | 'lg')} className="rounded-xl border border-pine/20 bg-parchment px-3 py-2 text-sm font-normal text-ink">
+      <option value="sm">A</option>
+      <option value="md">A+</option>
+      <option value="lg">A++</option>
+    </select>
+  );
+  return (
+    <details
+      id="kf-reading-settings"
+      open={open}
+      onToggle={event => onOpenChange(event.currentTarget.open)}
+      className="rounded-2xl border border-pine/10 bg-parchment px-4 py-3"
+    >
+      <summary className="flex min-h-11 cursor-pointer list-none items-center text-sm font-semibold text-pine [&::-webkit-details-marker]:hidden">
+        {t.readingSettings}
+      </summary>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="flex flex-col gap-1 text-xs font-medium text-muted">
+          <label className="flex flex-col gap-1">
+            {t.editionLabel}
+            {editionReady ? (
+              <select id="kf-quran-edition" value={editionKey} onChange={event => onEdition(event.target.value)} className="rounded-xl border border-pine/20 bg-parchment px-3 py-2 text-sm font-normal text-ink">
+                {editions.map(item => (
+                  <option key={item.key} value={item.key}>
+                    {item.title}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="rounded-xl border border-pine/10 bg-sand px-3 py-2 text-sm font-normal text-ink">{editionsError || t.quranEncLoading}</span>
+            )}
+          </label>
+          {edition && (
+            <p className="font-normal leading-relaxed">
+              {edition.key} · {edition.version}
+            </p>
+          )}
+        </div>
+        {onMode && (
+          <div className="flex flex-col gap-1 text-xs font-medium text-muted">
+            {t.readingMode}
+            <div className="flex flex-wrap gap-2">
+              <Button variant={mode === 'study' ? 'primary' : 'soft'} onClick={() => onMode('study')} aria-pressed={mode === 'study'}>
+                {t.quranAyahStudy}
+              </Button>
+              <Button variant={mode === 'book' ? 'primary' : 'soft'} onClick={() => onMode('book')} aria-pressed={mode === 'book'}>
+                {t.quranRead}
+              </Button>
+            </div>
+          </div>
+        )}
+        <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+          {t.reciter}
+          <select id="kf-reciter" value={reciter} onChange={event => onReciter(event.target.value)} className="rounded-xl border border-pine/20 bg-parchment px-3 py-2 text-sm text-ink">
+            {reciters.map(item => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+          {t.arabicSize}
+          {sizeSelect(textSize, onTextSize, 'kf-text-size')}
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium text-muted">
+          {t.translationSize}
+          {sizeSelect(translationSize, onTranslationSize, 'kf-translation-size')}
+        </label>
+        <PronunciationControl />
+        {onQuiet && (
+          <div className="flex flex-col justify-end">
+            <Button variant="soft" onClick={onQuiet}>
+              {t.focusReading}
+            </Button>
+          </div>
+        )}
+      </div>
+    </details>
+  );
+}
+
 export function SettingsDrawer({
   open,
   onClose,
