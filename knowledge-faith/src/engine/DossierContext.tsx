@@ -234,8 +234,8 @@ export function DossierProvider({ children }: { children: ReactNode }) {
     const s = analysis.agent_6_synthesis;
     const quote = analysis.query_hadith.length > 140 ? `${analysis.query_hadith.slice(0, 140)}…` : analysis.query_hadith;
     const data = {
-      title: `DRAGON DAWWA: ${s.final_status} (${s.purity_confidence_score}%)`,
-      text: `Hadith research report\nAuthenticity: ${s.final_status}\nPurity score: ${s.purity_confidence_score}%\n\n"${quote}"`,
+      title: `DRAGON DAWWA: ${s.final_status}`,
+      text: `Hadith research report\nSynthesis status: ${s.final_status}\nA numerical purity percentage is not included. No documented purity calculation is attached.\n\n"${quote}"`,
       url: url.toString(),
     };
     if (typeof navigator.share === 'function' && (!navigator.canShare || navigator.canShare(data))) {

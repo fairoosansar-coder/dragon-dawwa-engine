@@ -3,6 +3,7 @@ import type {
   DragonDawwaAnalysis,
   HadeethEncRetrievedRecord,
 } from '../types/hadith.ts';
+import { publishedAuthenticity } from './reportPresentation.ts';
 
 export type LangCode = 'en' | 'ta' | 'si';
 
@@ -595,6 +596,7 @@ export function buildFullReportMarkdown(analysis: DragonDawwaAnalysis, lang: Lan
   const a5 = enriched.agent_5_scholars_verdict;
   const a6 = enriched.agent_6_synthesis;
   const a7 = enriched.agent_7_source_research!;
+  const grade = publishedAuthenticity(enriched);
 
   const lines: string[] = [
     '# DRAGON DAWWA · COMPLETE 7-AGENT HADITH RESEARCH DOSSIER',
@@ -605,7 +607,9 @@ export function buildFullReportMarkdown(analysis: DragonDawwaAnalysis, lang: Lan
     '',
     `## Executive Synthesis & Final Verdict (Agent 6)`,
     `- **Final Status**: ${a6.final_status}`,
-    `- **Purity Confidence Score**: ${a6.purity_confidence_score.toFixed(1)}%`,
+    `- **Published grade on the authenticity indicator**: ${grade.grade}`,
+    `- **Grade source**: ${grade.source}`,
+    `- **Numerical purity percentage**: withheld. No documented, validated calculation is attached to this dossier. A model score is not shown as purity.`,
     `- **Consensus & Disagreements**: ${a6.consensus_and_disagreements}`,
     '',
     a6.executive_report_markdown,
@@ -644,8 +648,15 @@ export function buildFullReportMarkdown(analysis: DragonDawwaAnalysis, lang: Lan
     `## Agent 1 — Takhrij & Textual Variants (Dr. Tariq al-Mansoor)`,
     a1.variants_summary,
     '',
-    ...a1.sources.map(
-      s => `- **${s.collection} (${s.hadith_number})**: ${s.exact_wording} — ${s.wording_differences ?? ''}`,
+    ...a1.sources.map(s =>
+      [
+        `- **${s.collection} (${s.hadith_number})**: ${s.exact_wording}`,
+        s.exact_wording_arabic ? `  - Arabic: ${s.exact_wording_arabic}` : '',
+        s.exact_wording_english ? `  - English: ${s.exact_wording_english}` : '',
+        s.wording_differences ? `  - Differences: ${s.wording_differences}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n'),
     ),
     '',
     `## Agent 2 — Isnad Continuity & Chain Topology (Dr. Layla al-Qasimi)`,

@@ -1,24 +1,18 @@
 import React from 'react';
 import {
-  Award,
-  BookMarked,
   BookOpen,
   CheckCircle2,
   ExternalLink,
-  Eye,
   FileDown,
   Library,
-  Link2,
   Printer,
   Radio,
-  Scale,
   ShieldCheck,
   Sparkles,
-  UserCheck,
 } from 'lucide-react';
 import type { Agent7SourceResearch, DragonDawwaAnalysis } from '../types/hadith.ts';
-import { getPurityLevel } from '../utils/gradeUtils.ts';
 import { attachAgent7ToAnalysis } from '../utils/agent7SourceResearch.ts';
+import { HadithReportPaper } from './HadithReportPaper.tsx';
 import type { SupportedLanguage } from '../utils/localization.ts';
 
 export const Agent7SourceResearchView: React.FC<{
@@ -293,36 +287,9 @@ export const CompleteResearchReportView: React.FC<{
   onDownloadFullReport,
   onOpenRoundtableTab,
 }) => {
-  const enriched = analysis.agent_7_source_research
-    ? analysis
-    : attachAgent7ToAnalysis(analysis, currentLanguage);
-  const s = enriched.agent_6_synthesis;
-  const p = getPurityLevel(s.purity_confidence_score);
-  const a1 = enriched.agent_1_takhrij;
-  const a2 = enriched.agent_2_isnad;
-  const a3 = enriched.agent_3_rijal;
-  const a4 = enriched.agent_4_shawahid_matn;
-  const a5 = enriched.agent_5_scholars_verdict;
-
   return (
-    <div className="space-y-8" data-testid="complete-full-report-view">
-      {/* 1. Prominent Executive Verdict & Action Header */}
-      <section className="rounded-3xl border-2 border-amber-500/50 bg-gradient-to-br from-slate-900 via-slate-900/95 to-emerald-950/40 p-6 sm:p-8 shadow-2xl space-y-5">
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-800 pb-4">
-          <div className="space-y-1.5">
-            <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-950/70 px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider text-amber-300">
-              <Award className="h-4 w-4" />
-              Complete 7-Agent Research Report
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
-              {s.final_status}
-            </h2>
-            <p className="text-xs font-mono text-emerald-400">
-              Purity Confidence Score: {s.purity_confidence_score.toFixed(1)}% · Classification: {p.title}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
+    <div className="space-y-6" data-testid="complete-full-report-view">
+      <div className="flex flex-wrap items-center justify-end gap-2">
             {onOpenRoundtableTab && (
               <button
                 type="button"
@@ -356,230 +323,8 @@ export const CompleteResearchReportView: React.FC<{
                 Print Full Report
               </button>
             )}
-          </div>
-        </div>
-
-        {/* Researched Hadith Query & Consensus / Disagreements */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 space-y-2">
-          <div className="text-[11px] font-mono uppercase tracking-wider text-amber-400">
-            Researched Hadith Narration (Matn)
-          </div>
-          <p className="text-sm sm:text-base font-medium text-white leading-relaxed" lang={currentLanguage}>
-            “{enriched.query_hadith}”
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 space-y-2">
-          <div className="text-xs font-bold uppercase tracking-wider text-emerald-400">
-            Agent 6 (Synthesis) · Consensus & Scholarly Disagreements
-          </div>
-          <p className="text-sm leading-relaxed text-slate-200" lang={currentLanguage}>
-            {s.consensus_and_disagreements}
-          </p>
-          <div className="space-y-3 pt-2 border-t border-slate-800 text-sm text-slate-300 leading-relaxed" lang={currentLanguage}>
-            {s.executive_report_markdown.split('\n\n').map((para, i) => (
-              <p key={i}>{para.replace(/^#+\s*/, '').replace(/\*\*/g, '')}</p>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 2. Agent 7 — Source Research (HadeethEnc Encyclopedia & Cross-Agent Evidence) */}
-      <section className="space-y-4">
-        <Agent7SourceResearchView analysis={enriched} currentLanguage={currentLanguage} />
-      </section>
-
-      {/* 3. Agent 1 — Takhrij & Textual Variants */}
-      <section className="rounded-2xl border border-slate-800 bg-[var(--surface-panel)]/95 p-6 space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-            <BookMarked className="h-5 w-5 text-emerald-400" />
-            Agent 1 · Takhrij & Textual Variants (Dr. Tariq al-Mansoor)
-          </h3>
-          <span className="font-mono text-xs text-slate-400">{a1.sources.length} Primary Citations</span>
-        </div>
-        <p className="text-xs sm:text-sm text-slate-300 leading-relaxed" lang={currentLanguage}>
-          {a1.variants_summary}
-        </p>
-        <div className="overflow-x-auto rounded-xl border border-slate-800">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-900 text-slate-300 border-b border-slate-800">
-              <tr>
-                <th className="p-3">Collection</th>
-                <th className="p-3">Reference</th>
-                <th className="p-3">Recorded Wording</th>
-                <th className="p-3">Variant & Comparison Notes</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/80 text-slate-200">
-              {a1.sources.map((src, idx) => (
-                <tr key={idx}>
-                  <td className="p-3 font-bold text-amber-300 whitespace-nowrap">{src.collection}</td>
-                  <td className="p-3 font-mono text-emerald-300 whitespace-nowrap">{src.hadith_number}</td>
-                  <td className="p-3 font-arabic text-sm text-amber-100" dir="rtl" lang="ar">
-                    {src.exact_wording}
-                  </td>
-                  <td className="p-3 text-slate-300" lang={currentLanguage}>
-                    {src.wording_differences}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* 4. Agent 2 — Isnad Continuity & Chain Topology */}
-      <section className="rounded-2xl border border-slate-800 bg-[var(--surface-panel)]/95 p-6 space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-            <Link2 className="h-5 w-5 text-cyan-400" />
-            Agent 2 · Isnad Continuity & Transmission Chain (Dr. Layla al-Qasimi)
-          </h3>
-          <span className="font-mono text-xs text-cyan-300">{a2.narrator_sequence.length} Transmission Tiers</span>
-        </div>
-        <p className="text-xs sm:text-sm text-slate-200 font-medium" lang={currentLanguage}>
-          {a2.overall_chain_status}
-        </p>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3 font-mono text-xs text-amber-200">
-          {a2.narrator_sequence.join(' ➔ ')}
-        </div>
-        <div className="overflow-x-auto rounded-xl border border-slate-800">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-900 text-slate-300 border-b border-slate-800">
-              <tr>
-                <th className="p-3">Teacher</th>
-                <th className="p-3">Student</th>
-                <th className="p-3">Transmission Mode</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">Historical Reasoning</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/80 text-slate-200">
-              {a2.chain_links.map((lk, idx) => (
-                <tr key={idx}>
-                  <td className="p-3 font-semibold">{lk.teacher}</td>
-                  <td className="p-3 font-semibold">{lk.student}</td>
-                  <td className="p-3 font-mono text-amber-300">{lk.transmission_mode}</td>
-                  <td className="p-3 font-bold text-emerald-300">{lk.connection_status}</td>
-                  <td className="p-3 text-slate-300">{lk.historical_reasoning}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* 5. Agent 3 — Rijal Biographical Critic Archive */}
-      <section className="rounded-2xl border border-slate-800 bg-[var(--surface-panel)]/95 p-6 space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-            <UserCheck className="h-5 w-5 text-purple-400" />
-            Agent 3 · Rijal Biographical Critic Archive (Sheikh Imran al-Hasani)
-          </h3>
-          <span className="font-mono text-xs text-purple-300">{a3.narrators.length} Transmitters Audited</span>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {a3.narrators.map((n, idx) => (
-            <div key={idx} className="rounded-xl border border-slate-800 bg-slate-900/80 p-4 space-y-2 text-xs">
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-bold text-white text-sm">{n.narrator_name}</span>
-                <span className="rounded-lg border border-emerald-500/40 bg-emerald-950/70 px-2.5 py-0.5 font-bold text-emerald-300">
-                  {n.status}
-                </span>
-              </div>
-              {n.critic_verdicts.map((cv, cIdx) => (
-                <p key={cIdx} className="text-slate-300 italic" lang={currentLanguage}>
-                  “{cv}”
-                </p>
-              ))}
-              {n.critic_quotes_translated && (
-                <p className="text-amber-200/90" lang={currentLanguage}>
-                  {n.critic_quotes_translated}
-                </p>
-              )}
-              <div className="text-[11px] font-mono text-slate-400 pt-1">
-                Citations: {n.citations.join(' · ')}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* 6. Agent 4 — Shawahid, Matn Diagnostics & Defect Screening */}
-      <section className="rounded-2xl border border-slate-800 bg-[var(--surface-panel)]/95 p-6 space-y-4">
-        <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3">
-          <Eye className="h-5 w-5 text-pink-400" />
-          Agent 4 · Shawahid, Matn Diagnostics & Defect Screening (Dr. Zainab al-Mubarak)
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-          <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-4 space-y-2">
-            <div className="font-bold uppercase tracking-wider text-emerald-400">Supporting Reports (Shawahid)</div>
-            <ul className="list-disc pl-4 space-y-1.5 text-slate-200" lang={currentLanguage}>
-              {a4.supporting_reports.map((sr, i) => (
-                <li key={i}>{sr}</li>
-              ))}
-            </ul>
-          </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-4 space-y-2">
-            <div className="font-bold uppercase tracking-wider text-amber-400">Hidden Defects (‘Ilal)</div>
-            <ul className="list-disc pl-4 space-y-1.5 text-slate-200" lang={currentLanguage}>
-              {a4.hidden_defects_ilal.map((hd, i) => (
-                <li key={i}>{hd}</li>
-              ))}
-            </ul>
-          </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-4 space-y-2">
-            <div className="font-bold uppercase tracking-wider text-rose-400">Contradictions & Shudhudh Screen</div>
-            <ul className="list-disc pl-4 space-y-1.5 text-slate-200" lang={currentLanguage}>
-              {a4.contradictions.map((c, i) => (
-                <li key={i}>{c}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-        {(a4.quranic_corroboration_arabic || a4.quranic_corroboration_english) && (
-          <div className="rounded-xl border border-amber-500/30 bg-slate-900/90 p-4 space-y-1 text-xs">
-            <div className="font-mono uppercase text-amber-400">Qur’anic Harmony & Corroboration</div>
-            {a4.quranic_corroboration_arabic && (
-              <p lang="ar" dir="rtl" className="font-arabic text-lg text-amber-100">
-                {a4.quranic_corroboration_arabic}
-              </p>
-            )}
-            <p className="text-slate-200" lang={currentLanguage}>
-              {a4.quranic_corroboration_english}
-            </p>
-          </div>
-        )}
-      </section>
-
-      {/* 7. Agent 5 — Comparative Scholars' Verdicts Matrix */}
-      <section className="rounded-2xl border border-slate-800 bg-[var(--surface-panel)]/95 p-6 space-y-4">
-        <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2 border-b border-slate-800 pb-3">
-          <Scale className="h-5 w-5 text-indigo-400" />
-          Agent 5 · Comparative Scholars’ Verdicts Matrix (Sheikh Yusuf al-Azhari)
-        </h3>
-        <div className="overflow-x-auto rounded-xl border border-slate-800">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-900 text-slate-300 border-b border-slate-800">
-              <tr>
-                <th className="p-3">Scholar / Authority</th>
-                <th className="p-3">Published Ruling / Grading</th>
-                <th className="p-3">Reference</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/80 text-slate-200">
-              {a5.gradings.map((g, i) => (
-                <tr key={i}>
-                  <td className="p-3 font-bold text-white" lang={currentLanguage}>{g.scholar}</td>
-                  <td className="p-3 font-bold text-amber-300" lang={currentLanguage}>{g.grading}</td>
-                  <td className="p-3 font-mono text-slate-300" lang={currentLanguage}>{g.reference}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      </div>
+      <HadithReportPaper analysis={analysis} currentLanguage={currentLanguage} readerName="DRAGON DAWWA reader" />
     </div>
   );
 };
