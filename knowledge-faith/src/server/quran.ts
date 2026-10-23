@@ -19,6 +19,9 @@ interface RawAyah {
   text: string;
   surah?: { number: number; englishName: string };
   edition?: { identifier: string };
+  page?: number;
+  juz?: number;
+  hizbQuarter?: number;
 }
 
 interface RawEdition {
@@ -69,6 +72,9 @@ export interface ArabicVerse {
   number: number;
   arabic: string;
   surahName: string;
+  page?: number;
+  juz?: number;
+  hizbQuarter?: number;
   transliteration?: string;
   transliterationEdition?: string;
 }
@@ -104,6 +110,9 @@ export async function getSurahArabic(
       number: a.number,
       arabic: stripBismillah(a.text, surah, a.numberInSurah),
       surahName: info.englishName,
+      ...(typeof a.page === 'number' ? { page: a.page } : {}),
+      ...(typeof a.juz === 'number' ? { juz: a.juz } : {}),
+      ...(typeof a.hizbQuarter === 'number' ? { hizbQuarter: a.hizbQuarter } : {}),
       ...spokenFields(paired?.get(a.numberInSurah), paired ? pronunciationEdition : null),
     })),
   };

@@ -1,10 +1,10 @@
 import { Bookmark, BookmarkCheck, Pause, Play } from 'lucide-react';
 import { recitationUrl } from '../shared/sources.ts';
 import type { Evidence, Hadith, Verse } from '../shared/types.ts';
-import { pauseAudio, playAudio, useAudioState } from '../lib/audio.ts';
+import { pauseAudio, playAudio, resumeAudio, useAudioState } from '../lib/audio.ts';
 import { useApp, useStored } from '../lib/store.tsx';
 import { confirmedMeaningSrc, meaningPlaybackId } from '../shared/quranenc.ts';
-import { Button, IconButton } from './ui.tsx';
+import { IconButton } from './ui.tsx';
 
 export function useReciter() {
   return useStored<string>('kf-reciter', 'ar.alafasy');
@@ -21,6 +21,8 @@ export function VerseCard({
   onMeaning,
   meaningNote,
   playback = true,
+  showArabic = true,
+  showTranslation = true,
 }: {
   verse: Verse;
   onEnded?: () => void;
@@ -35,6 +37,8 @@ export function VerseCard({
   /** A function plays this edition's listed file. Null hides the control. Omit to use the verse payload. */
   onMeaning?: (() => void) | null;
   meaningNote?: string | null;
+  showArabic?: boolean;
+  showTranslation?: boolean;
 }) {
   const { t, toggleVerse, isVerseSaved } = useApp();
   const [reciter] = useReciter();
@@ -45,6 +49,9 @@ export function VerseCard({
   const meaningSrc = confirmedMeaningSrc(verse);
   const meaningKey = verse.translationKey;
   const meaningAction = onMeaning === undefined ? (meaningSrc && meaningKey ? () => playAudio(meaningPlaybackId(meaningKey, verse.surah, verse.ayah), meaningSrc) : null) : onMeaning;
+  const meaningId = meaningKey ? meaningPlaybackId(meaningKey, verse.surah, verse.ayah) : '';
+  const meaningBusy = Boolean(meaningId) && audio.id === meaningId && (audio.status === 'playing' || audio.status === 'loading');
+  const meaningPaused = Boolean(meaningId) && audio.id === meaningId && audio.status === 'paused';
   const body = translationScale ?? scale;
 
   return (
@@ -70,25 +77,42 @@ export function VerseCard({
           </IconButton>
         </div>
       </div>
-      <p lang="ar" className={`arabic text-ink ${compact ? 'text-2xl' : scale === 'lg' ? 'text-4xl' : scale === 'sm' ? 'text-2xl' : 'text-3xl'}`}>
-        {verse.arabic}
-      </p>
-      {verse.transliteration && (
+      {showArabic && (
+        <p lang="ar" className={`arabic text-ink ${compact ? 'text-2xl' : scale === 'lg' ? 'text-4xl' : scale === 'sm' ? 'text-2xl' : 'text-3xl'}`}>
+          {verse.arabic}
+        </p>
+      )}
+      {showArabic && verse.transliteration && (
         <p lang="en" className="mt-2 text-sm leading-relaxed text-ink/80">
           <span className="font-semibold text-pine">{t.pronunciation}. </span>
           {verse.transliteration}
         </p>
       )}
-      {verse.translation.trim() ? (
-        <p lang={verse.lang} dir="ltr" className={`mt-4 max-w-prose leading-8 text-ink/90 ${body === 'lg' ? 'text-xl' : body === 'sm' ? 'text-base' : 'text-lg'}`}>
-          {verse.translation}
-        </p>
-      ) : verse.translationKey ? (
+      {showTranslation && verse.translation.trim() ? (
+        <div className="mt-4 flex items-start gap-1">
+          {meaningAction && (
+            <IconButton
+              className="mt-1 shrink-0"
+              label={meaningBusy ? t.pause : t.playMeaning}
+              onClick={() => {
+                if (meaningBusy) pauseAudio();
+                else if (meaningPaused) resumeAudio();
+                else meaningAction();
+              }}
+            >
+              {meaningBusy ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            </IconButton>
+          )}
+          <p lang={verse.lang} dir="ltr" className={`max-w-prose leading-8 text-ink/90 ${body === 'lg' ? 'text-xl' : body === 'sm' ? 'text-base' : 'text-lg'}`}>
+            {verse.translation}
+          </p>
+        </div>
+      ) : showTranslation && verse.translationKey ? (
         <p className="mt-2 text-sm text-muted" role="status">
           {t.verseTranslationUnavailable}
         </p>
       ) : null}
-      {verse.footnotes ? (
+      {showTranslation && verse.footnotes ? (
         <details className="mt-2 rounded-xl border border-pine/10 px-3 py-2">
           <summary className="cursor-pointer text-xs font-semibold uppercase tracking-widest text-muted">{t.footnotes}</summary>
           <p lang={verse.lang} className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink/70">
@@ -106,12 +130,7 @@ export function VerseCard({
           {verse.translationDescription ? <p className="leading-relaxed">{verse.translationDescription}</p> : null}
         </div>
       )}
-      {meaningAction && (
-        <Button variant="ghost" className="mt-2" onClick={meaningAction}>
-          {t.listenMeaning}
-        </Button>
-      )}
-      {meaningNote ? (
+      {showTranslation && meaningNote ? (
         <p className="mt-2 text-sm text-muted" role="status">
           {meaningNote}
         </p>

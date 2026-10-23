@@ -29,6 +29,10 @@ export interface Verse {
   meaningAudio?: string;
   lang: Lang;
   surahName: string;
+  /** Madani mushaf page, juz, and hizb quarter from AlQuran Cloud. Absent until that payload arrives. */
+  page?: number;
+  juz?: number;
+  hizbQuarter?: number;
   /** Pronunciation of this ayah from a checked transliteration edition. Not a translation. */
   transliteration?: string;
   transliterationEdition?: string;
