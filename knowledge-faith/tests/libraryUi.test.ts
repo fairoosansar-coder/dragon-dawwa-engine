@@ -2,7 +2,7 @@ import test, { before } from 'node:test';
 import assert from 'node:assert/strict';
 import { bindExternalStop, installMediaForTests, pauseAudio, playAudio, resetAudioForTests, resumeAudio, stopAudio } from '../src/lib/audio.ts';
 import { prayerQueryDate } from '../src/lib/prayerClock.ts';
-import { ayahForLoadedSurah, migrateReadingPlace, readTextSize } from '../src/lib/readingPlace.ts';
+import { ayahForLoadedSurah, migrateReadingPlace, readTextSize, readTranslationSize } from '../src/lib/readingPlace.ts';
 import { quranListQuery, showSectionSearch } from '../src/lib/route.ts';
 import { minutesInZone, nextPrayer } from '../src/shared/spiritual.ts';
 import { STRINGS } from '../src/lib/i18n.ts';
@@ -62,6 +62,9 @@ test('kf-last-surah migrates a stored surah number without dropping a saved ayah
   assert.deepEqual(migrateReadingPlace('stale'), { surah: 1, ayah: 1 });
   assert.equal(readTextSize('lg'), 'lg');
   assert.equal(readTextSize('huge'), 'md');
+  assert.equal(readTranslationSize(null, 'lg'), 'lg');
+  assert.equal(readTranslationSize('sm', 'lg'), 'sm');
+  assert.equal(readTranslationSize('huge', 'sm'), 'sm');
 });
 
 test('section search is hidden where the query is not read', () => {

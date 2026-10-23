@@ -15,6 +15,7 @@ export function VerseCard({
   onEnded,
   compact,
   scale = 'md',
+  translationScale,
   selected = false,
   cite = true,
   onMeaning,
@@ -25,6 +26,8 @@ export function VerseCard({
   onEnded?: () => void;
   compact?: boolean;
   scale?: 'sm' | 'md' | 'lg';
+  /** Translation size. Falls back to the Arabic scale when omitted. */
+  translationScale?: 'sm' | 'md' | 'lg';
   selected?: boolean;
   cite?: boolean;
   /** Study keeps one shared player. Bookmark stays on the verse. */
@@ -42,6 +45,7 @@ export function VerseCard({
   const meaningSrc = confirmedMeaningSrc(verse);
   const meaningKey = verse.translationKey;
   const meaningAction = onMeaning === undefined ? (meaningSrc && meaningKey ? () => playAudio(meaningPlaybackId(meaningKey, verse.surah, verse.ayah), meaningSrc) : null) : onMeaning;
+  const body = translationScale ?? scale;
 
   return (
     <article
@@ -76,7 +80,7 @@ export function VerseCard({
         </p>
       )}
       {verse.translation.trim() ? (
-        <p lang={verse.lang} className={`mt-4 max-w-prose leading-8 text-ink/90 ${scale === 'lg' ? 'text-xl' : scale === 'sm' ? 'text-base' : 'text-lg'}`}>
+        <p lang={verse.lang} dir="ltr" className={`mt-4 max-w-prose leading-8 text-ink/90 ${body === 'lg' ? 'text-xl' : body === 'sm' ? 'text-base' : 'text-lg'}`}>
           {verse.translation}
         </p>
       ) : verse.translationKey ? (
