@@ -4,13 +4,14 @@ import type { DragonDawwaAnalysis, SampleHadithPreset } from './types/hadith.ts'
 import type { UserAccount } from './types/wall.ts';
 import { SAMPLE_HADITHS } from './data/sampleHadiths.ts';
 import { getLocalizedAnalysis } from './utils/localizedAnalysis.ts';
+import { buildFullReportMarkdown } from './utils/agent7SourceResearch.ts';
 import type { AgentStep } from './components/AgentStatusTracker.tsx';
 import { ShareModal } from './components/ShareModal.tsx';
 import { PrintDossierReport } from './components/PrintDossierReport.tsx';
 import { useApp } from '../lib/store.tsx';
 import type { Lang } from '../shared/sources.ts';
 
-const DEFAULT_PRESET = SAMPLE_HADITHS.find(p => p.id === 'actions-by-intentions') ?? SAMPLE_HADITHS[0];
+const DEFAULT_PRESET = SAMPLE_HADITHS.find(p => p.id === 'saturday-fasting') ?? SAMPLE_HADITHS[0];
 
 const LOCALIZED_MATN: Record<string, Partial<Record<Lang, string>>> = {
   'actions-by-intentions': {
@@ -120,6 +121,7 @@ interface DossierState {
   copyReport: () => Promise<void>;
   copied: boolean;
   exportJson: () => void;
+  downloadFullReport: () => void;
   print: () => void;
 }
 
@@ -232,8 +234,8 @@ export function DossierProvider({ children }: { children: ReactNode }) {
     const s = analysis.agent_6_synthesis;
     const quote = analysis.query_hadith.length > 140 ? `${analysis.query_hadith.slice(0, 140)}…` : analysis.query_hadith;
     const data = {
-      title: `DRAGON DAWWA: ${s.final_status} (${s.purity_confidence_score}%)`,
-      text: `Hadith research report\nAuthenticity: ${s.final_status}\nPurity score: ${s.purity_confidence_score}%\n\n"${quote}"`,
+      title: `DRAGON DAWWA: ${s.final_status}`,
+      text: `Hadith research report\nSynthesis status: ${s.final_status}\nA numerical purity percentage is not included. No documented purity calculation is attached.\n\n"${quote}"`,
       url: url.toString(),
     };
     if (typeof navigator.share === 'function' && (!navigator.canShare || navigator.canShare(data))) {
@@ -248,36 +250,36 @@ export function DossierProvider({ children }: { children: ReactNode }) {
   }, [analysis, matn, preset]);
 
   const copyReport = useCallback(async () => {
-    const s = analysis.agent_6_synthesis;
-    const text = [
-      '# HADITH RESEARCH REPORT · DRAGON DAWWA',
-      `Status: ${s.final_status}`,
-      `Purity confidence score: ${s.purity_confidence_score}%`,
-      '',
-      s.executive_report_markdown,
-      '',
-      '---',
-      'PODCAST SCRIPT:',
-      s.podcast_script,
-    ].join('\n');
+    const text = buildFullReportMarkdown(displayed, lang);
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      setError('Copy is blocked in this browser. Use Export JSON instead.');
+      setError('Copy is blocked in this browser. Use Download Full Report instead.');
     }
-  }, [analysis]);
+  }, [displayed, lang]);
 
   const exportJson = useCallback(() => {
-    const blob = new Blob([JSON.stringify(analysis, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(displayed, null, 2)], { type: 'application/json' });
     const href = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = href;
     a.download = `hadith-research-${Date.now()}.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(href), 0);
-  }, [analysis]);
+  }, [displayed]);
+
+  const downloadFullReport = useCallback(() => {
+    const fullMarkdown = buildFullReportMarkdown(displayed, lang);
+    const blob = new Blob([fullMarkdown], { type: 'text/markdown;charset=utf-8' });
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = href;
+    a.download = `hadith-full-report-${Date.now()}.md`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(href), 0);
+  }, [displayed, lang]);
 
   const print = useCallback(() => setPrinting(true), []);
 
@@ -312,6 +314,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
     copyReport,
     copied,
     exportJson,
+    downloadFullReport,
     print,
   };
 

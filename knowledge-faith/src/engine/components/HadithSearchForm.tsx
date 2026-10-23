@@ -41,6 +41,7 @@ interface HadithSearchFormProps {
   isAnalyzing: boolean;
   analysisError: string | null;
   onRunEngine: (matn: string, isnad: string) => void;
+  onOpenFullReport?: () => void;
   onClearInputs?: () => void;
   onSelectBenchmark?: (benchmarkId: string) => void;
   currentLanguage?: SupportedLanguage;
@@ -52,6 +53,7 @@ export function HadithSearchForm({
   isAnalyzing,
   analysisError,
   onRunEngine,
+  onOpenFullReport,
   onClearInputs,
   onSelectBenchmark,
   currentLanguage = 'en'
@@ -585,10 +587,10 @@ export function HadithSearchForm({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
           <span className="text-xs font-bold uppercase tracking-wider text-amber-500 flex items-center gap-1.5">
             <span className="inline-block animate-pulse">⚡</span>
-            {t.recentBenchmarksTitle}
+            Sample Hadith Benchmark Dossiers (Click to Load)
           </span>
           <span className="text-xs text-slate-400">
-            {t.benchmarkSubtitle}
+            Pre-indexed narrations with 7-agent verification & HadeethEnc source retrieval
           </span>
         </div>
 
@@ -599,6 +601,7 @@ export function HadithSearchForm({
               <button
                 key={item.id}
                 type="button"
+                data-testid={`benchmark-card-${item.id}`}
                 onClick={() => handleSelectBenchmark(item)}
                 className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
                   activeBenchmark === item.id
@@ -630,10 +633,10 @@ export function HadithSearchForm({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 relative z-10">
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
-              <span className="text-amber-400">🔍</span> {t.searchTitle}
+              <span className="text-amber-400">🔍</span> Enter a Hadith for 7-Agent Research
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              {t.searchDesc}
+              Retrieves HadeethEnc records (Agent 7) and feeds them into Takhrij, Isnad, Rijal, Shawahid, Scholars & Synthesis.
             </p>
           </div>
 
@@ -646,11 +649,11 @@ export function HadithSearchForm({
               title="Clear Hadith Matn and Transmission Chain"
             >
               <Trash2 className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-400 transition-colors" />
-              <span>{t.clearInputs}</span>
+              <span>Clear Inputs</span>
             </button>
 
             <span className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-emerald-950/80 text-emerald-400 border border-emerald-600/30">
-              6-Agent Engine
+              7-Agent Engine + HadeethEnc
             </span>
           </div>
         </div>
@@ -926,40 +929,53 @@ export function HadithSearchForm({
             </div>
           )}
 
-          {/* ACTION BUTTON ROW */}
+          {/* ACTION BUTTON ROW — One clear journey: Enter a hadith -> Research -> Open Full Report */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <Sparkles className="w-4 h-4 text-emerald-400" />
-              <span>Full 6-agent audit: Takhrij, Isnad, Rijal, Shawahid, Scholars & Synthesis.</span>
+              <span>Full 7-agent audit: Takhrij, Isnad, Rijal, Shawahid, Scholars, Synthesis & HadeethEnc Source Research.</span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={handleClearInputs}
                 className="px-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white font-medium text-xs border border-slate-700/80 transition-colors cursor-pointer"
               >
-                {t.clearInputs}
+                Clear Inputs
               </button>
 
               <button
                 type="submit"
+                data-testid="run-research-btn"
                 disabled={isAnalyzing || !hadithMatn.trim()}
                 className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-[var(--on-gold)] font-bold text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-amber-500/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isAnalyzing ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin text-[var(--on-gold)]" />
-                    <span>{t.runningEngine}</span>
+                    <span>Researching…</span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4 fill-slate-950" />
-                    <span>{t.runDeepSearch}</span>
+                    <span>Research</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
+
+              {onOpenFullReport && (
+                <button
+                  type="button"
+                  data-testid="form-open-full-report-btn"
+                  onClick={onOpenFullReport}
+                  className="px-5 py-3.5 rounded-xl border border-amber-500/70 bg-slate-900 hover:bg-amber-500/20 text-amber-300 font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <BookOpen className="w-4 h-4 text-amber-400" />
+                  <span>Open Full Report</span>
+                </button>
+              )}
             </div>
           </div>
         </form>
