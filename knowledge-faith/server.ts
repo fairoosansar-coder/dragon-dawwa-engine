@@ -8,6 +8,8 @@ import { dedupeRefs, parseRefs, refKey, type HadithRef } from './src/shared/refs
 import type { PodcastLine } from './src/shared/types.ts';
 import { getSurah, getSurahArabic, getSurahMeaning, getVerses, listSurahs } from './src/server/quran.ts';
 import { audioManifestEdition, listQuranEncEditions, loadAudioManifest, loadMukhtasar, MEANING_AUDIO_NOT_LISTED } from './src/server/quranenc.ts';
+import { fetchMcpMorphology, fetchMcpTafsir, listMcpEditions, searchMcpQuran } from './src/server/quranMcp.ts';
+import { parseEditionId, readTafsirQuery, type McpEditionType } from './src/shared/quranMcp.ts';
 import { readEditionQuery } from './src/shared/quranenc.ts';
 import { getAsma } from './src/server/asma.ts';
 import { getHadith, getSection, listSections } from './src/server/hadith.ts';
@@ -183,6 +185,48 @@ app.get(
   route(async (req, res) => {
     const surah = Number(req.query.surah);
     res.json(await loadMukhtasar(toLang(req.query.lang), surah));
+  }),
+);
+
+function mcpEditionType(value: unknown): McpEditionType {
+  if (value === 'quran' || value === 'tafsir' || value === 'translation') return value;
+  throw new UpstreamError('That edition list cannot be requested.', 400);
+}
+
+app.get(
+  '/api/quran/mcp/editions',
+  route(async (req, res) => {
+    res.json(await listMcpEditions(mcpEditionType(req.query.type)));
+  }),
+);
+
+app.get(
+  '/api/quran/mcp/tafsir',
+  route(async (req, res) => {
+    const read = readTafsirQuery(req.query.ayah, req.query.edition);
+    if ('error' in read) throw new UpstreamError(read.error, 400);
+    res.json(await fetchMcpTafsir(read.ayah, read.edition));
+  }),
+);
+
+app.get(
+  '/api/quran/mcp/morphology',
+  route(async (req, res) => {
+    res.json(await fetchMcpMorphology(typeof req.query.ayah === 'string' ? req.query.ayah : ''));
+  }),
+);
+
+app.get(
+  '/api/quran/mcp/search',
+  route(async (req, res) => {
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    if (q.length < 2 || q.length > 200) throw new UpstreamError('Enter a short search.', 400);
+    const edition = req.query.edition == null || req.query.edition === '' ? null : parseEditionId(req.query.edition);
+    if (req.query.edition && !edition) throw new UpstreamError('That edition cannot be used. No other translation was substituted.', 400);
+    const surahRaw = req.query.surah;
+    const surah = surahRaw == null || surahRaw === '' ? null : Number(surahRaw);
+    if (surah != null && (!Number.isInteger(surah) || surah < 1 || surah > 114)) throw new UpstreamError('Surah must be between 1 and 114', 400);
+    res.json(await searchMcpQuran(q, edition, surah));
   }),
 );
 

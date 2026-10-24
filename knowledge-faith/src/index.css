@@ -48,6 +48,40 @@ body {
   line-height: 2.3;
 }
 
+/* Reading sheet only. The pine and sand shell stays outside this column. */
+.quran-sheet {
+  background: #fff;
+  color: #1a1a1a;
+}
+
+.quran-face {
+  font-family: 'Amiri Quran', 'Scheherazade New', 'Amiri', serif;
+  font-weight: 400;
+  line-height: 2.45;
+}
+
+.quran-bismillah {
+  font-family: 'Amiri Quran', 'Scheherazade New', 'Amiri', serif;
+  font-size: clamp(1.85rem, 4.2vw, 2.65rem);
+  line-height: 2;
+  text-align: center;
+  color: #1a1a1a;
+}
+
+.quran-prose {
+  font-family: Fraunces, 'Noto Sans Tamil', 'Noto Sans Sinhala', Georgia, serif;
+  color: #1c3d66;
+  line-height: 2.05;
+  max-width: 38rem;
+}
+
+.quran-prose[lang='ta'],
+.quran-prose[lang='si'] {
+  font-family: 'Noto Sans Tamil', 'Noto Sans Sinhala', Fraunces, Georgia, sans-serif;
+  line-height: 2.05;
+  max-width: 38rem;
+}
+
 :focus-visible {
   outline: 3px solid var(--color-gold);
   outline-offset: 2px;
