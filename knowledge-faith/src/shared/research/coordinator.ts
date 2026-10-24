@@ -7,9 +7,53 @@ const QURAN =
   /qur['’ʼ]?an|\bquran\b|\bverse\b|\bayah\b|\baya\b|\bsurah\b|\bsura\b|\btafsir\b|\btafseer\b|\bmushaf\b|குர்ஆன்|குரான்|வசனம்|ஆயத்|சூரா|தஃப்சீர்|කුර්ආන|වැකි|ආයත|සූරා|තෆ්සීර්|قرآن|آية|سورة|تفسير|\d{1,3}\s*:\s*\d{1,3}/i;
 
 const HADITH =
-  /hadith|hadeeth|\bnarration\b|\bnarrator\b|\bisnad\b|\bisnaad\b|\bsanad\b|\bbukhari\b|\bmuslim\b|\btirmidhi\b|abu dawud|nasai|nasa['’]?i|ibn majah|\bsahih\b|\bhasan\b|da['’]?if|\bmatn\b|\btakhrij\b|\brijal\b|\brawi\b|ஹதீஸ்|ஹதீத்|புகாரி|முஸ்லிம்|இஸ்னாத்|விவரிப்பாளர்|හදීස්|බුහාරි|මුස්ලිම්|ඉස්නාද්|حديث|إسناد|بخاري|مسلم/i;
+  /hadith|hadeeth|\bhadees\b|\bhadis\b|(?:true|real)\s+hades|\bnarration\b|\bnarrator\b|\bisnad\b|\bisnaad\b|\bsanad\b|\bbukhari\b|\bmuslim\b|\btirmidhi\b|abu dawud|nasai|nasa['’]?i|ibn majah|\bsahih\b|\bhasan\b|da['’]?if|\bmatn\b|\btakhrij\b|\brijal\b|\brawi\b|ஹதீஸ்|ஹதீத்|புகாரி|முஸ்லிம்|இஸ்னாத்|விவரிப்பாளர்|හදීස්|බුහාරි|මුස්ලිම්|ඉස්නාද්|حديث|إسناد|بخاري|مسلم/i;
 
 const BOOKS = /\bbooks?\b|\bkitab\b|\blibrary\b|\bvolume\b|புத்தக|நூல்|கிதாப்|පොත|පොත්|ග්‍රන්ථ|كتاب/i;
+
+const STUDY_COLLECTIONS: { id: string; pattern: RegExp }[] = [
+  { id: 'bukhari', pattern: /bukh|بخاري/i },
+  { id: 'muslim', pattern: /\bmuslim\b|مسلم/i },
+  { id: 'abudawud', pattern: /abu dawud|abudawud|أبي داود|ابي داود/i },
+  { id: 'tirmidhi', pattern: /tirmidh/i },
+  { id: 'nasai', pattern: /nasa['’]?i|\bnasai\b/i },
+  { id: 'ibnmajah', pattern: /ibn majah|\bmajah\b/i },
+  { id: 'malik', pattern: /muwatta|\bmalik\b/i },
+];
+
+export type ResearchTask = 'verify-narration' | 'book-research' | 'general';
+
+/** “People of the Book” and the Torah are scripture names, not a request to open the book library. */
+function libraryText(text: string): string {
+  return text
+    .replace(/people of the books?/gi, ' ')
+    .replace(/ahl al-?kit[aā]b/gi, ' ')
+    .replace(/أهل الكتاب/g, ' ')
+    .replace(/\b(?:torah|tawrah|taurat|tawrat)\b/gi, ' ')
+    .replace(/التوراة/g, ' ');
+}
+
+function isVerifyNarration(text: string): boolean {
+  if (/\b(?:is\s+this|is\s+it|is\s+that)\s+true\b/i.test(text)) return true;
+  if (/\b(?:true|real)\s+hades\b/i.test(text)) return true;
+  return HADITH.test(text) && /\b(?:true|authentic|verify|verified|correct)\b/i.test(text);
+}
+
+/** Classify the task before choosing a library. A narration check is not a book-catalogue request. */
+export function classifyResearchTask(question: string): ResearchTask {
+  const text = question.replace(/\s+/g, ' ').trim();
+  if (isVerifyNarration(text)) return 'verify-narration';
+  if (BOOKS.test(libraryText(text))) return 'book-research';
+  return 'general';
+}
+
+export function namedStudyCollections(text: string): string[] {
+  const found: string[] = [];
+  for (const collection of STUDY_COLLECTIONS) {
+    if (collection.pattern.test(text) && !found.includes(collection.id)) found.push(collection.id);
+  }
+  return found;
+}
 
 const VAGUE =
   /^(what about (this|that|it)|explain( this| that| it)?|why\??|how\??|what\??|இது|அது|ஏன்|මෙය|ඇයි|එය)\s*[?.!؟]*$/i;
@@ -36,7 +80,7 @@ export interface CoordinationDecision {
 function signalsOf(text: string, bookId: number | null): { quran: boolean; hadith: boolean; books: boolean } {
   const quran = QURAN.test(text);
   const hadith = HADITH.test(text);
-  const booksNamed = BOOKS.test(text);
+  const booksNamed = BOOKS.test(libraryText(text));
   const exclusiveOther = quran !== hadith && (quran || hadith) && !booksNamed;
   return {
     quran,
@@ -109,6 +153,28 @@ export function coordinateQuestion(input: CoordinationInput): CoordinationDecisi
       action: 'clarify',
       clarificationId: 'meaning',
       assignment: assignmentFor(input.entry, generalTeams(question, input.entry), bookId, null, null),
+    });
+  }
+
+  // A request to verify a narration stays with the Hadith team. Books or Qur'an specialists
+  // may be consulted without moving the reader off that investigation.
+  if (isVerifyNarration(question) && (HADITH.test(question) || input.entry === 'hadith')) {
+    const consult: ResearchTeamId[] = ['hadith'];
+    if (own.quran) consult.push('quran');
+    if (own.books) consult.push('books');
+    const shouldForward = input.entry !== 'hadith';
+    if (shouldForward && input.forwarded) {
+      const stay = generalTeams(question, input.entry);
+      return finish({
+        action: 'research',
+        clarificationId: null,
+        assignment: assignmentFor(input.entry, stay.length ? stay : [input.entry === 'knowledge' ? 'quran' : input.entry], bookId, null, null),
+      });
+    }
+    return finish({
+      action: shouldForward ? 'forward' : 'research',
+      clarificationId: null,
+      assignment: assignmentFor('hadith', consult, bookId, shouldForward ? 'forward-hadith' : null, shouldForward ? input.entry : null),
     });
   }
 

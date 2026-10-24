@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { EvidencePassage, ResearchDossierView, ResearchJobView } from '../src/shared/contracts/v1.ts';
 import { coordinateQuestion, researchFingerprint } from '../src/shared/research/coordinator.ts';
-import { buildReportModel, renderReportHtml } from '../src/shared/research/report.ts';
+import { rankEditionHadiths } from '../src/server/hadith.ts';
+import { buildReportModel, renderReportHtml, transmissionNames } from '../src/shared/research/report.ts';
 import { roundtableFromResearch } from '../src/shared/research/roundtable.ts';
 import { buildAgentContributions } from '../src/server/research/contributions.ts';
 import { executeResearch, type ResearchPorts } from '../src/server/research/engine.ts';
@@ -276,8 +277,217 @@ describe('full report', () => {
     assert.match(html, /Arabic was retrieved for Surah 2, ayah 183/);
     assert.match(html, /HadeethEnc could not be reached/);
     assert.match(html, /The chain was not in the source/);
+    assert.equal(html.includes('Incomplete research'), false);
     assert.equal(model.agentsRan.some(agent => agent.detail.includes('Invented sahih')), false);
     const contributed = html.split('Agents who did not produce a finding')[0];
     assert.equal(contributed.includes('Invented sahih chain'), false);
+  });
+
+  it('labels a failed retrieval Incomplete research without a None line', () => {
+    const job: ResearchJobView = {
+      contractVersion: '1.0.0',
+      id: 'job-empty',
+      question: 'The People of the Book used to read the Torah in Hebrew and expound on it in Arabic to the Muslims, is this true Hades ?',
+      language: 'en',
+      subquestions: [],
+      status: 'done',
+      progress: { step: 'verify', completed: 4, total: 4 },
+      coverage: [{ kind: 'no_relevant_evidence', provider: 'hadith-api', detail: 'HadeethEnc did not return this narration. The study collections were searched next and no numbered record was kept.' }],
+      errors: [],
+      startedAt: '2026-10-24T00:00:00.000Z',
+      finishedAt: '2026-10-24T00:00:01.000Z',
+      timingsMs: { totalMs: 1, sources: {} },
+      agents: [],
+    };
+    const html = renderReportHtml(buildReportModel(job, null));
+    assert.match(html, /Incomplete research/);
+    assert.equal(/Incomplete research:\s*None/i.test(html), false);
+    const incomplete = html.split('Incomplete research')[1]?.split('<h2>')[0] ?? '';
+    assert.equal(/None recorded/.test(incomplete), false);
+    assert.match(incomplete, /no numbered record was kept/);
+  });
+});
+
+const OWNER_QUESTION =
+  'The People of the Book used to read the Torah in Hebrew and expound on it in Arabic to the Muslims, is this true Hades ?';
+
+const BUKHARI_4485_EN =
+  'Narrated Abu Huraira:The people of the Scripture (Jews) used to recite the Torah in Hebrew and they used to explain it in Arabic to the Muslims. On that Allah\'s Messenger (ﷺ) said, "Do not believe the people of the Scripture or disbelieve them, but say:-- "We believe in Allah and what is revealed to us';
+
+const BUKHARI_4485_AR =
+  'حَدَّثَنَا مُحَمَّدُ بْنُ بَشَّارٍ، حَدَّثَنَا عُثْمَانُ بْنُ عُمَرَ، أَخْبَرَنَا عَلِيُّ بْنُ الْمُبَارَكِ، عَنْ يَحْيَى بْنِ أَبِي كَثِيرٍ، عَنْ أَبِي سَلَمَةَ، عَنْ أَبِي هُرَيْرَةَ ـ رضى الله عنه ـ قَالَ كَانَ أَهْلُ الْكِتَابِ يَقْرَءُونَ التَّوْرَاةَ بِالْعِبْرَانِيَّةِ، وَيُفَسِّرُونَهَا بِالْعَرَبِيَّةِ لأَهْلِ الإِسْلاَمِ، فَقَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏"‏ لاَ تُصَدِّقُوا أَهْلَ الْكِتَابِ وَلاَ تُكَذِّبُوهُمْ، وَقُولُوا ‏{‏آمَنَّا بِاللَّهِ وَمَا أُنْزِلَ‏}‏ الآيَةَ‏"‏‏.‏';
+
+describe('hadith desk routing', () => {
+  it('keeps the owner question on the Hadith desk', () => {
+    const decision = coordinateQuestion({ question: OWNER_QUESTION, entry: 'hadith', language: 'en' });
+    assert.equal(decision.action, 'research');
+    assert.equal(decision.assignment.scope, 'hadith');
+    assert.deepEqual(decision.assignment.teams, ['hadith']);
+    assert.equal(decision.assignment.noticeId, null);
+    assert.equal(decision.assignment.forwardedFrom, null);
+  });
+
+  it('recognises hadees, hadeeth, hadis, and true Hades as Hadith', () => {
+    for (const question of ['Is this hadees authentic?', 'Is this hadeeth authentic?', 'Is this hadis correct?', 'is this true Hades ?']) {
+      const decision = coordinateQuestion({ question, entry: 'quran', language: 'en' });
+      assert.equal(decision.assignment.scope, 'hadith', question);
+      assert.equal(decision.assignment.noticeId, 'forward-hadith', question);
+      assert.equal(decision.assignment.teams.includes('books'), false, question);
+    }
+  });
+
+  it('does not send People of the Book or the Torah to Books', () => {
+    const narration = coordinateQuestion({
+      question: 'The People of the Book used to read the Torah in Hebrew and expound on it in Arabic to the Muslims',
+      entry: 'knowledge',
+      language: 'en',
+    });
+    assert.equal(narration.assignment.scope, 'knowledge');
+    assert.equal(narration.assignment.teams.includes('books'), false);
+    const torah = coordinateQuestion({ question: 'What does the Torah teach about Moses?', entry: 'hadith', language: 'en' });
+    assert.equal(torah.assignment.scope, 'hadith');
+    assert.equal(torah.assignment.teams.includes('books'), false);
+  });
+
+  it('still routes a genuine book question to Books', () => {
+    const decision = coordinateQuestion({
+      question: 'What does the library say about fasting in this volume?',
+      entry: 'knowledge',
+      language: 'en',
+    });
+    assert.equal(decision.action, 'forward');
+    assert.equal(decision.assignment.scope, 'books');
+    assert.deepEqual(decision.assignment.teams, ['books']);
+    assert.equal(decision.assignment.noticeId, 'forward-books');
+  });
+
+  it('lets the Hadith team consult Books without leaving the Hadith desk', () => {
+    const decision = coordinateQuestion({
+      question: 'Is this true hadees, and what does the library say?',
+      entry: 'hadith',
+      language: 'en',
+    });
+    assert.equal(decision.action, 'research');
+    assert.equal(decision.assignment.scope, 'hadith');
+    assert.deepEqual(decision.assignment.teams, ['hadith', 'books']);
+    assert.equal(decision.assignment.noticeId, null);
+  });
+});
+
+describe('Bukhari 4485 retrieval', () => {
+  it('ranks the Torah-in-Hebrew wording to Sahih al-Bukhari 4485', () => {
+    const numbers = rankEditionHadiths(
+      OWNER_QUESTION,
+      ['Torah in Hebrew', 'People of the Book'],
+      [
+        { hadithnumber: 1, text: 'The reward of deeds depends upon the intentions.' },
+        { hadithnumber: 7542, text: 'Narrated Abu Huraira: The people of the Scripture used to read the Torah in Hebrew and explain it to the Muslims in Arabic.' },
+        { hadithnumber: 7362, text: 'Narrated Abu Huraira: The people of the Book used to read the Torah in Hebrew and then explain it in Arabic to the Muslims.' },
+        { hadithnumber: 4485, text: BUKHARI_4485_EN },
+      ],
+    );
+    assert.deepEqual(numbers, [4485, 7362, 7542]);
+  });
+
+  it('reads a source-backed chain from the Arabic isnad', () => {
+    const names = transmissionNames({
+      arabic: BUKHARI_4485_AR,
+      locator: 'Sahih al-Bukhari 4485',
+      source: { provider: 'hadith-api' } as EvidencePassage['source'],
+    });
+    assert.ok(names && names.length >= 2);
+    assert.match(names!.join(' '), /بشار/);
+    assert.match(names![names!.length - 1], /هريرة/);
+    assert.equal(names!.some(name => name.includes('قال') || name.includes('الكتاب')), false);
+  });
+
+  it('keeps the Hadith investigation and exports Bukhari 4485 when HadeethEnc has no number', async () => {
+    let studyCollections: string[] = [];
+    const result = await executeResearch({
+      question: OWNER_QUESTION,
+      language: 'en',
+      ports: ports({
+        searchHadeeth: async () => [{ id: '65046', title: 'People of the Book' }],
+        loadHadeeth: async () => ({
+          id: '65046',
+          title: 'People of the Book',
+          text: 'Abu Hurayrah reported: The People of the Book used to read the Torah in Hebrew and expound on it in Arabic to the Muslims.',
+          arabic: 'عَنْ أَبِي هُرَيْرَةَ قَالَ كَانَ أَهْلُ الْكِتَابِ',
+          grade: 'Authentic',
+          attribution: 'Narrated by Al-Bukhari',
+          explanation: 'The Prophet told his companions neither to believe nor disbelieve this report from the People of the Book when its truth is unknown.',
+          url: 'https://hadeethenc.com/en/browse/hadith/65046',
+        }),
+        searchStudyHadith: async (_lang, _question, phrases, collectionIds) => {
+          studyCollections = collectionIds;
+          assert.ok(phrases.some(phrase => /torah in hebrew|people of the book|expound in arabic/i.test(phrase)));
+          return [
+            {
+              id: 'bukhari:4485',
+              collectionName: 'Sahih al-Bukhari',
+              number: 4485,
+              book: 65,
+              inBook: 12,
+              section: "Prophetic Commentary on the Qur'an (Tafseer of the Prophet (pbuh))",
+              text: BUKHARI_4485_EN,
+              arabic: BUKHARI_4485_AR,
+              grade: null,
+              url: 'https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/eng-bukhari/4485.min.json',
+            },
+          ];
+        },
+      }),
+      assignment: { scope: 'hadith', teams: ['hadith'], bookId: null, noticeId: null, forwardedFrom: null },
+    });
+    assert.deepEqual(studyCollections, ['bukhari']);
+    const study = result.dossier.passages.find(passage => passage.locator === 'Sahih al-Bukhari 4485');
+    assert.ok(study);
+    assert.equal(study?.text, BUKHARI_4485_EN);
+    assert.equal(study?.arabic, BUKHARI_4485_AR);
+    assert.match(study?.context ?? '', /Abu Huraira/);
+    assert.match(study?.context ?? '', /book 65, hadith 12/);
+    assert.equal(result.job.assignment?.scope, 'hadith');
+    assert.equal(result.job.agents?.some(agent => agent.role === 'Isnad' && agent.status === 'ran'), true);
+    const html = renderReportHtml(buildReportModel(result.job, result.dossier));
+    assert.match(html, /Sahih al-Bukhari 4485/);
+    assert.match(html, /Abu Huraira/);
+    assert.match(html, new RegExp(BUKHARI_4485_AR.slice(0, 24)));
+    assert.equal(html.includes('Incomplete research'), false);
+    const answer = html.split('<h2>Answer</h2>')[1]?.split('<h2>')[0] ?? '';
+    assert.match(answer, /Sahih al-Bukhari 4485/);
+    const agents = html.split('<h2>Agents who contributed</h2>')[0];
+    assert.match(html, /Transmission map/);
+    assert.ok(html.indexOf('Transmission map') < html.indexOf('Agents who contributed'));
+    assert.match(agents, /Answer/);
+  });
+
+  it('continues to the study collections when HadeethEnc lacks the narration', async () => {
+    let called = false;
+    const result = await executeResearch({
+      question: OWNER_QUESTION,
+      language: 'en',
+      ports: ports({
+        searchStudyHadith: async () => {
+          called = true;
+          return [
+            {
+              id: 'bukhari:4485',
+              collectionName: 'Sahih al-Bukhari',
+              number: 4485,
+              book: 65,
+              inBook: 12,
+              section: "Prophetic Commentary on the Qur'an (Tafseer of the Prophet (pbuh))",
+              text: BUKHARI_4485_EN,
+              arabic: BUKHARI_4485_AR,
+              grade: null,
+              url: 'https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/eng-bukhari/4485.min.json',
+            },
+          ];
+        },
+      }),
+      assignment: { scope: 'hadith', teams: ['hadith'], bookId: null, noticeId: null, forwardedFrom: null },
+    });
+    assert.equal(called, true);
+    assert.ok(result.dossier.passages.some(passage => passage.locator === 'Sahih al-Bukhari 4485'));
   });
 });

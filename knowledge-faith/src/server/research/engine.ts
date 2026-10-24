@@ -14,7 +14,9 @@ import { asksScience, decomposeQuestion } from '../../shared/research/decompose.
 import { ayahsMentioned } from '../../shared/research.ts';
 import { ISLAMHOUSE_RIGHTS } from '../../shared/sourceRegistry.ts';
 import { UpstreamError } from '../http.ts';
+import { classifyResearchTask, namedStudyCollections } from '../../shared/research/coordinator.ts';
 import { themeAyahs, themeWordingSupports } from '../../shared/research/themes.ts';
+import { HADITH_COLLECTIONS } from '../../shared/sources.ts';
 import { contentHash, createContentIndex, type ContentIndex } from './contentIndex.ts';
 import { buildAgentContributions, type OpenedBook, type TafsirAttempt } from './contributions.ts';
 import type { ScienceWork } from './science.ts';
@@ -35,6 +37,14 @@ const QURAN_RIGHTS = {
   conditions: ISLAMHOUSE_RIGHTS.conditions,
   generatedWork: false,
   checkedOn: '2026-10-21',
+} as const;
+
+const STUDY_RIGHTS = {
+  source: 'hadith-api (fawazahmed0)',
+  conditions:
+    'English and Arabic text retrieved from the hadith-api edition files. The wording is quoted as stored. No words were added where an edition file ends.',
+  generatedWork: false,
+  checkedOn: '2026-10-24',
 } as const;
 
 const SCIENCE_RIGHTS = {
@@ -81,9 +91,29 @@ export interface VerseRecord {
   url: string;
 }
 
+export interface StudyHadithRecord {
+  id: string;
+  collectionName: string;
+  number: number;
+  book: number;
+  inBook: number;
+  section: string | null;
+  text: string;
+  arabic: string | null;
+  grade: string | null;
+  url: string;
+}
+
 export interface ResearchPorts {
   searchHadeeth(lang: Lang, phrase: string, page: number, signal: AbortSignal): Promise<HadithHit[]>;
   loadHadeeth(lang: Lang, id: string, signal: AbortSignal): Promise<HadithRecord>;
+  searchStudyHadith?(
+    lang: Lang,
+    question: string,
+    phrases: string[],
+    collectionIds: string[],
+    signal: AbortSignal,
+  ): Promise<StudyHadithRecord[]>;
   getVerses(refs: { surah: number; ayah: number }[], lang: Lang, signal: AbortSignal): Promise<VerseRecord[]>;
   searchScience(query: string, signal: AbortSignal): Promise<ScienceWork[] | 'not_configured'>;
   suggestSearch?(
@@ -150,6 +180,13 @@ async function attempt<T>(fn: () => Promise<T>, signal: AbortSignal): Promise<T>
 
 function variants(token: string): string[] {
   return [...(SPELLING[token] ?? [token])];
+}
+
+function supportsNarration(question: string, text: string): boolean {
+  const torah = /\b(?:torah|tawrah|taurat|tawrat)\b/i.test(question);
+  const hebrew = /\bhebrew\b/i.test(question);
+  if (torah && hebrew) return /torah|tawrah|taurat|tawrat/i.test(text) && /hebrew/i.test(text);
+  return passageSupportsTopic(question, text);
 }
 
 function score(question: string, text: string): number {
@@ -427,7 +464,7 @@ export async function executeResearch(input: {
       if (!allow('HadeethEnc')) return;
       try {
         const record = await timed('HadeethEnc', () => attempt(() => input.ports.loadHadeeth(input.language, hit.id, signal), signal));
-        if (!passageSupportsTopic(input.question, record.text) && !plan.subquestions.some(sub => passageSupportsTopic(sub.text, record.text))) {
+        if (!supportsNarration(input.question, record.text) && !plan.subquestions.some(sub => supportsNarration(sub.text, record.text))) {
           pushCoverage({
             kind: 'no_relevant_evidence',
             provider: 'HadeethEnc',
@@ -451,6 +488,63 @@ export async function executeResearch(input: {
         });
       }
     });
+    if (signal.aborted) return finish('cancelled');
+
+    const verifyNarration = classifyResearchTask(input.question) === 'verify-narration';
+    const encyclopediaKept = passages.filter(item => item.source.provider === 'HadeethEnc');
+    const numberedReference = encyclopediaKept.some(item =>
+      /(?:bukh\w*|muslim|dawud|tirmidh\w*|nasai|majah|malik)\s+\d{2,}/i.test(`${item.locator} ${item.source.title} ${item.context ?? ''}`),
+    );
+    const encyclopediaLacksNarration = encyclopediaKept.length === 0;
+    if (useHadith && input.ports.searchStudyHadith && (encyclopediaLacksNarration || (verifyNarration && !numberedReference))) {
+      const named = namedStudyCollections(
+        `${input.question}\n${encyclopediaKept.map(item => `${item.locator}\n${item.text}`).join('\n')}`,
+      );
+      const collectionIds = named.length ? named : HADITH_COLLECTIONS.map(item => item.id);
+      if (allow('hadith-api')) {
+        try {
+          const rows = await timed('hadith-api', () =>
+            attempt(
+              () => input.ports.searchStudyHadith!(input.language, input.question, ranQueries, collectionIds, signal),
+              signal,
+            ),
+          );
+          if (!rows.length) {
+            pushCoverage({
+              kind: 'no_relevant_evidence',
+              provider: 'hadith-api',
+              detail: encyclopediaLacksNarration
+                ? 'HadeethEnc did not return this narration. The study collections were searched next and no numbered record was kept.'
+                : 'HadeethEnc did not print a collection number. The study collections were searched and no numbered record was kept.',
+            });
+          }
+          for (const row of rows) {
+            const blob = `${row.text}\n${row.arabic ?? ''}`;
+            const supported =
+              supportsNarration(input.question, blob) || plan.subquestions.some(sub => supportsNarration(sub.text, blob));
+            if (!supported) {
+              pushCoverage({
+                kind: 'no_relevant_evidence',
+                provider: 'hadith-api',
+                detail: `${row.collectionName} ${row.number} was opened. Its text did not contain a content term from the question, so it is not cited.`,
+              });
+              continue;
+            }
+            const hash = remember('hadith-api', row.id, contentHash(row.text), `${row.text}\n${row.arabic ?? ''}`);
+            passages.push(studyPassage(row, input.language, clock().toISOString(), hash));
+          }
+        } catch (err) {
+          if (isAbort(err, signal)) return finish('cancelled');
+          const message = err instanceof Error ? err.message : 'The study collection could not be searched.';
+          errors.push({ provider: 'hadith-api', message });
+          pushCoverage({
+            kind: 'source_unavailable',
+            provider: 'hadith-api',
+            detail: `A source could not be reached. hadith-api search failed: ${message} This is not a finding that the narration is absent.`,
+          });
+        }
+      }
+    }
     if (signal.aborted) return finish('cancelled');
 
     const namedAyahs = useQuran ? ayahsMentioned(input.question) : [];
@@ -853,6 +947,48 @@ function claimFor(sub: ResearchSubquestion, passages: EvidencePassage[], coverag
   }
   const best = [...related].sort((a, b) => score(sub.text, b.text) - score(sub.text, a.text))[0];
   return verifyClaim(sub.text, best.id, related.map(item => ({ id: item.id, text: item.text })));
+}
+
+function studyPassage(record: StudyHadithRecord, lang: Lang, retrievedAt: string, hash: string): EvidencePassage {
+  const narrator = record.text.match(/^\s*Narrated\s+([^:]{2,80}):/i)?.[1]?.trim() ?? null;
+  const reference = `${record.collectionName} ${record.number}`;
+  const place = [record.book ? `book ${record.book}` : null, record.inBook ? `hadith ${record.inBook}` : null].filter(Boolean).join(', ');
+  const editionEnds = !/[.!?…"»]$/.test(record.text.trim());
+  const collectionId = record.id.split(':')[0] || 'bukhari';
+  return {
+    contractVersion: VERSION,
+    id: `H${record.id.replace(/[^\dA-Za-z]+/g, '-')}`,
+    source: source({
+      id: record.id,
+      provider: 'hadith-api',
+      language: lang,
+      edition: `eng-${collectionId}`,
+      version: hash,
+      title: reference,
+      credits: narrator ? [{ role: 'narrator', name: narrator }] : [],
+      canonicalUrl: record.url,
+      contentType: 'hadith',
+      rights: STUDY_RIGHTS,
+      retrievedAt,
+      contentHash: hash,
+    }),
+    text: record.text,
+    originalLanguage: lang,
+    arabic: record.arabic,
+    locator: reference,
+    context: [
+      narrator ? `Narrator: ${narrator}.` : null,
+      `Collection reference: ${reference}${place ? ` (${place})` : ''}.`,
+      record.section ? `Section: ${record.section}.` : null,
+      `Arabic text retrieved from https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/ara-${collectionId}/${record.number}.min.json.`,
+      editionEnds ? 'The English edition file ends with the wording quoted here. No words were added.' : null,
+    ]
+      .filter(Boolean)
+      .join(' '),
+    readerRoute: '#/hadith',
+    role: 'source_text',
+    publishedGrade: record.grade,
+  };
 }
 
 function hadithPassage(record: HadithRecord, lang: Lang, retrievedAt: string, hash: string): EvidencePassage {

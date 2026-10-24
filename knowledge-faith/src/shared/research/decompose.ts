@@ -74,6 +74,31 @@ function queriesFor(text: string): string[] {
   return queries;
 }
 
+/** Distinctive wording and translation variants a catalogue can match when a phrase search is too broad. */
+export function narrationVariants(question: string): string[] {
+  const variants: string[] = [];
+  const push = (query: string) => {
+    const text = query.replace(/\s+/g, ' ').trim();
+    if (text && !variants.includes(text) && variants.length < 4) variants.push(text);
+  };
+  const torah = /\b(?:torah|tawrah|taurat|tawrat)\b/i.test(question);
+  const hebrew = /\bhebrew\b/i.test(question);
+  const arabic = /\barabic\b/i.test(question);
+  const explain = /\b(?:expound|explain|interpret)\b/i.test(question);
+  const people = /people of the book/i.test(question);
+  if (people) push('People of the Book');
+  if (torah && hebrew) {
+    push('Torah in Hebrew');
+    push('Tawrah Hebrew');
+  }
+  if (explain && arabic) {
+    push('expound in Arabic');
+    push('explain in Arabic');
+  }
+  if (torah && !hebrew) push('Torah');
+  return variants;
+}
+
 /**
  * Split a question into subquestions and short search queries.
  * The full prompt is not one of the queries.
@@ -87,6 +112,13 @@ export function decomposeQuestion(question: string): RetrievalPlan {
     domain: domainOf(text),
     queries: domainOf(text) === 'science' ? [] : queriesFor(text),
   }));
+  const variants = narrationVariants(cleaned);
+  const host = subquestions.find(item => item.domain !== 'science');
+  if (host) {
+    for (const variant of variants) {
+      if (!host.queries.includes(variant) && host.queries.length < 6) host.queries.push(variant);
+    }
+  }
   const domains = new Set(subquestions.map(item => item.domain));
   const domain = domains.size === 1 ? [...domains][0] : 'mixed';
   return { domain, subquestions };

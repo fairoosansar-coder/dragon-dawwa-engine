@@ -1,4 +1,5 @@
 import type { AgentContribution, ClaimEvidence, CoverageNote, EvidencePassage, ResearchTeamId } from '../../shared/contracts/v1.ts';
+import { transmissionNames } from '../../shared/research/report.ts';
 
 export interface OpenedBook {
   id: number;
@@ -73,8 +74,8 @@ function hadithAgents(input: {
   coverage: readonly CoverageNote[];
   queries: readonly string[];
 }): AgentContribution[] {
-  const records = input.passages.filter(passage => passage.source.provider === 'HadeethEnc');
-  const notes = input.coverage.filter(note => note.provider === 'HadeethEnc' || note.provider === 'planner');
+  const records = input.passages.filter(passage => passage.source.contentType === 'hadith');
+  const notes = input.coverage.filter(note => note.provider === 'HadeethEnc' || note.provider === 'hadith-api' || note.provider === 'planner');
   const attempted = input.queries.length > 0 || notes.length > 0 || records.length > 0;
   if (!attempted) {
     return idle('hadith', HADITH_ROLES, 'The Hadith team was assigned, but no HadeethEnc search ran.');
@@ -84,7 +85,7 @@ function hadithAgents(input: {
     input.queries.length ? `Searches: ${input.queries.join(' · ')}.` : 'No search phrase was built.',
     records.length
       ? `Opened ${records.length} record(s): ${records.map(record => `${record.locator}${record.publishedGrade ? ` (grade printed by the source: ${record.publishedGrade})` : ' (no grade printed)'}`).join('; ')}.`
-      : 'No HadeethEnc record was opened.',
+      : 'No hadith record was opened.',
     ...notes.map(note => note.detail),
   ].join(' ');
 
@@ -106,9 +107,11 @@ function hadithAgents(input: {
       : 'Searches ran and no record was opened, so there is no source list to survey.',
   );
 
-  const chain = records.find(record => record.locator.split(/\s+(?:from|عن)\s+/i).length >= 2);
-  const isnad = chain
-    ? agent('hadith', 'isnad', 'Isnad', 'ran', `A narrator sequence is printed on ${chain.locator}. The map uses only those names.`)
+  const chain = records
+    .map(record => ({ record, names: transmissionNames(record) }))
+    .find(item => item.names && item.names.length >= 2);
+  const isnad = chain?.names
+    ? agent('hadith', 'isnad', 'Isnad', 'ran', `The opened record ${chain.record.locator} prints this narrator sequence: ${chain.names.join(' → ')}. The map uses only those names.`)
     : agent('hadith', 'isnad', 'Isnad', 'not_run', 'The opened records did not include a narrator-by-narrator chain, so no chain was assessed and no chain map was drawn.');
 
   const judged = records.filter(record => /thiqa|trustworthy|weak|liar|matruk|majhul|صدوق|ضعيف|ثقة/i.test(`${record.text} ${record.context ?? ''}`));
