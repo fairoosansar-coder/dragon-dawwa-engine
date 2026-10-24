@@ -36,6 +36,8 @@ export function AyahStudyPanel({
   const ayahKey = info.number >= 1 && ayah >= 1 ? `${info.number}:${ayah}` : null;
   const tafsir = useRemote<McpTafsirResult>(ayahKey && editionId ? `/api/quran/mcp/tafsir?ayah=${ayahKey}&edition=${encodeURIComponent(editionId)}` : null);
   const words = useRemote<McpMorphology>(ayahKey ? `/api/quran/mcp/morphology?ayah=${ayahKey}` : null);
+  const passage = tafsir.data && tafsir.data.ayah === ayahKey && tafsir.data.editionId === editionId ? tafsir.data : null;
+  const wordList = words.data && words.data.ayah === ayahKey ? words.data : null;
   const gap = lang === 'ta' ? t.tafsirGapTamil : lang === 'si' ? t.tafsirGapSinhala : null;
   const ordered = [...catalogue].sort((a, b) => {
     const rank = (code: string) => (code === 'en' ? 0 : code === 'ar' ? 1 : 2);
@@ -107,42 +109,37 @@ export function AyahStudyPanel({
         </label>
 
         {!editionId && !editions.loading && !editions.error && <p className="text-sm text-muted">{t.tafsirEmpty}</p>}
-        {editionId && tafsir.loading && !tafsir.data && <Loading />}
+        {editionId && tafsir.loading && !passage && <Loading />}
         {editionId && tafsir.error && <ErrorNote message={t.tafsirFailed} onRetry={tafsir.reload} />}
-        {editionId && tafsir.data && tafsir.data.editionId === editionId && tafsir.data.passages.length === 0 && !tafsir.loading && (
-          <p className="text-sm text-muted">{t.tafsirEmpty}</p>
-        )}
-        {editionId &&
-          tafsir.data &&
-          tafsir.data.editionId === editionId &&
-          tafsir.data.passages.map(passage => (
-            <article key={`${passage.range}:${passage.citationUrl}`} data-tafsir-passage className="quran-sheet px-5 py-6 sm:px-8">
-              {selected && (
-                <p data-tafsir-edition className="text-sm font-medium text-[#1c3d66]">
-                  {editionLabel(selected)}
-                </p>
-              )}
-              <p className="mt-1 text-sm">
-                <a data-tafsir-citation href={passage.citationUrl} className="text-[#1c3d66] underline">
-                  {t.quranCom}
-                </a>
+        {passage && passage.passages.length === 0 && !tafsir.loading && <p className="text-sm text-muted">{t.tafsirEmpty}</p>}
+        {passage?.passages.map(item => (
+          <article key={`${item.range}:${item.citationUrl}`} data-tafsir-passage data-tafsir-ayah={passage.ayah} className="quran-sheet px-5 py-6 sm:px-8">
+            {selected && (
+              <p data-tafsir-edition className="text-sm font-medium text-[#1c3d66]">
+                {editionLabel(selected)}
               </p>
-              <div data-tafsir-text lang={selected?.lang === 'ar' ? 'ar' : 'en'} dir={selected?.lang === 'ar' ? 'rtl' : 'ltr'} className="mt-4 whitespace-pre-wrap text-base leading-relaxed text-[#1a1a1a]">
-                {passage.text}
-              </div>
-            </article>
-          ))}
+            )}
+            <p className="mt-1 text-sm">
+              <a data-tafsir-citation href={item.citationUrl} className="text-[#1c3d66] underline">
+                {t.quranCom}
+              </a>
+            </p>
+            <div data-tafsir-text lang={selected?.lang === 'ar' ? 'ar' : 'en'} dir={selected?.lang === 'ar' ? 'rtl' : 'ltr'} className="mt-4 whitespace-pre-wrap text-base leading-relaxed text-[#1a1a1a]">
+              {item.text}
+            </div>
+          </article>
+        ))}
       </div>
 
       <div className="space-y-3">
         <h3 className="font-display text-xl font-bold text-pine">{t.wordsTitle}</h3>
-        {words.loading && !words.data && <Loading />}
+        {words.loading && !wordList && <Loading />}
         {words.error && <ErrorNote message={t.wordsFailed} onRetry={words.reload} />}
-        {words.data && words.data.words.length === 0 && !words.loading && <p className="text-sm text-muted">{t.wordsEmpty}</p>}
-        {words.data && words.data.words.length > 0 && (
+        {wordList && wordList.words.length === 0 && !words.loading && <p className="text-sm text-muted">{t.wordsEmpty}</p>}
+        {wordList && wordList.words.length > 0 && (
           <>
-            <ol className="space-y-4">
-              {words.data.words.map(word => (
+            <ol className="space-y-4" data-words-ayah={wordList.ayah}>
+              {wordList.words.map(word => (
                 <li key={word.position} className="border-b border-pine/10 pb-3">
                   <p lang="ar" dir="rtl" className="quran-face text-2xl text-ink">
                     {word.text}
@@ -161,9 +158,9 @@ export function AyahStudyPanel({
                 </li>
               ))}
             </ol>
-            {words.data.citationUrl && (
+            {wordList.citationUrl && (
               <p className="text-sm">
-                <a href={words.data.citationUrl} className="text-pine underline">
+                <a data-words-citation href={wordList.citationUrl} className="text-pine underline">
                   {t.quranCom}
                 </a>
               </p>

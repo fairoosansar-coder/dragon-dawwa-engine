@@ -35,6 +35,7 @@ export function QuranMcpSearch({
       : null;
   const remote = useRemote<McpSearchResult>(url);
   const selected = catalogue.find(item => item.editionId === editionId) ?? null;
+  const hits = remote.data && remote.data.query === debounced && remote.data.translationEditionId === (editionId || null) ? remote.data : null;
 
   return (
     <section className="space-y-4" data-mcp-search>
@@ -60,14 +61,12 @@ export function QuranMcpSearch({
       </label>
       {(lang === 'ta' || lang === 'si') && <p className="text-sm leading-relaxed text-pine">{t.searchCatalogueGap}</p>}
       {!editionId && debounced.length >= 2 && <p className="text-sm text-muted">{t.searchArabicOnly}</p>}
-      {remote.loading && <Loading />}
+      {remote.loading && !hits && <Loading />}
       {remote.error && <ErrorNote message={t.searchFailed} onRetry={remote.reload} />}
-      {remote.data && remote.data.query === debounced && remote.data.hits.length === 0 && !remote.loading && (
-        <p className="text-sm text-muted">{t.searchEmpty}</p>
-      )}
-      {remote.data && remote.data.query === debounced && remote.data.hits.length > 0 && (
+      {hits && hits.hits.length === 0 && !remote.loading && <p className="text-sm text-muted">{t.searchEmpty}</p>}
+      {hits && hits.hits.length > 0 && (
         <ol className="space-y-4">
-          {remote.data.hits.map(hit => (
+          {hits.hits.map(hit => (
             <li key={`${hit.ayah}:${hit.citationUrl}`}>
               <button type="button" onClick={() => onOpen(hit.surah, hit.verse)} className="w-full rounded-2xl bg-white px-4 py-3 text-left">
                 <p className="text-xs font-medium text-[#1c3d66]">{hit.ayah}</p>
