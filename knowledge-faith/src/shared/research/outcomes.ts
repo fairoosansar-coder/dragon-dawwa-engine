@@ -68,8 +68,8 @@ export function researchOutcome(input: {
   }
   if (lookedAndMissed) {
     return {
-      title: 'Available evidence does not sufficiently support an answer.',
-      detail: `The sources that responded did not contain enough support.${question} You can retry, or ask with different words.`,
+      title: 'The retrieved sources do not establish this claim.',
+      detail: `The sources that responded were read. They do not establish the claim.${question} You can retry, or ask with different words.`,
       retry: true,
     };
   }

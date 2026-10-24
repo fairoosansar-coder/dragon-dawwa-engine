@@ -131,6 +131,10 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
 
   const savedReport = useMemo(() => history.find(item => item.id === jobId) ?? null, [history, jobId]);
   const liveModel = model ?? (savedReport ? buildReportModel(savedReport.response.job, savedReport.response.dossier) : null);
+  const citedPassages = (liveModel?.passages ?? []).filter(
+    passage => !passage.context?.startsWith('Neighbouring') && (liveModel?.citationIds.length ? liveModel.citationIds.includes(passage.id) : true),
+  );
+  const offersPodcast = (dossier?.passages.length ?? savedReport?.response.dossier?.passages.length ?? 0) > 0;
 
   return (
     <div className="space-y-6">
@@ -175,33 +179,15 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
         {error && <div className="mt-4"><ErrorNote message={error} /></div>}
       </section>
 
-      {job && (
+      {job && running && (
         <section className="rounded-3xl border border-pine/10 bg-parchment p-5" aria-live="polite">
           <h2 className="font-display text-2xl font-bold text-pine">{t.researchProgress}</h2>
-          <p className="mt-2 text-sm text-ink/80">
-            {job.status === 'running' ? job.progress.step : job.status} · {job.progress.completed}/{job.progress.total}
-            {job.language ? ` · ${job.language}` : ''}
-          </p>
-          <ul className="mt-3 space-y-2 text-sm">
-            {(job.agents ?? []).map(agent => (
-              <li key={agent.id}>
-                <span className="font-medium text-pine">{agent.role}</span>
-                <span className="text-muted"> · {agent.status === 'ran' ? 'contributed' : agent.status === 'unavailable' ? 'source unavailable' : 'did not run'}</span>
-              </li>
-            ))}
-          </ul>
-          {job.subquestions.length > 0 && (
-            <ul className="mt-3 space-y-1 text-sm text-ink/75">
-              {job.subquestions.map(sub => (
-                <li key={sub.id}>{sub.text}{sub.queries.length ? ` · ${sub.queries.join(' · ')}` : ''}</li>
-              ))}
-            </ul>
-          )}
+          <ResearchActivity job={job} />
         </section>
       )}
       {running && <Loading label={t.researchProgress} />}
       {remote.error && <ErrorNote message={remote.error} onRetry={remote.reload} />}
-      {outcome && (dossier?.passages.length ?? 0) === 0 && (
+      {outcome && (
         <Notice>
           <span className="font-semibold">{outcome.title} </span>
           {outcome.detail}
@@ -217,9 +203,34 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
 
       {liveModel && finished && (
         <div className="space-y-4">
+          <section className="rounded-3xl border border-gold bg-white p-5" data-research-answer>
+            <h2 className="font-display text-2xl font-bold text-pine">Answer</h2>
+            {job?.interpretation?.meaning && <p className="mt-2 text-sm leading-relaxed text-ink/80">{job.interpretation.meaning}</p>}
+            {job?.interpretation?.scopes?.length ? (
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-ink/80">
+                {job.interpretation.scopes.map(scope => (
+                  <li key={scope.id}>{scope.text}</li>
+                ))}
+              </ul>
+            ) : null}
+            {liveModel.answer ? <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed">{liveModel.answer}</p> : <p className="mt-3 text-sm text-muted">No answer was written from the retrieved passages.</p>}
+            {liveModel.answerArabic && (
+              <p className="mt-3 font-arabic text-2xl leading-loose" dir="rtl" lang="ar">{liveModel.answerArabic}</p>
+            )}
+            <h3 className="mt-4 font-display text-lg font-bold text-pine">Citations</h3>
+            {citedPassages.length === 0 && <p className="mt-2 text-sm text-muted">No passage was kept.</p>}
+            <ul className="mt-2 space-y-2 text-sm">
+              {citedPassages.map(passage => (
+                <li key={passage.id}>
+                  <span className="font-semibold text-pine">{passage.locator}</span>
+                  <span className="text-muted"> · {passage.source.provider}{passage.publishedGrade ? ` · ${passage.publishedGrade}` : ''}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
           <div className="flex flex-wrap gap-3">
             <Button type="button" onClick={download}>{t.downloadReport}</Button>
-            {job && (
+            {job && offersPodcast && (
               <a href={`#/podcast?job=${job.id}&lang=${lang}`} className="inline-flex items-center rounded-full border border-pine/20 px-4 py-2 text-sm font-medium text-pine">
                 {t.makePodcast}
               </a>
@@ -227,6 +238,12 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
           </div>
           <FullReport model={liveModel} />
         </div>
+      )}
+      {job && finished && (
+        <details className="rounded-3xl border border-pine/10 bg-parchment p-5">
+          <summary className="cursor-pointer font-display text-xl font-bold text-pine">{t.researchProgress}</summary>
+          <ResearchActivity job={job} />
+        </details>
       )}
 
       {entry === 'hadith' && (
@@ -254,6 +271,32 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
         </ul>
       </section>
     </div>
+  );
+}
+
+function ResearchActivity({ job }: { job: ResearchJobResponse['job'] }) {
+  return (
+    <>
+      <p className="mt-2 text-sm text-ink/80">
+        {job.status === 'running' ? job.progress.step : job.status} · {job.progress.completed}/{job.progress.total}
+        {job.language ? ` · ${job.language}` : ''}
+      </p>
+      <ul className="mt-3 space-y-2 text-sm">
+        {(job.agents ?? []).map(agent => (
+          <li key={agent.id}>
+            <span className="font-medium text-pine">{agent.role}</span>
+            <span className="text-muted"> · {agent.status === 'ran' ? 'contributed' : agent.status === 'unavailable' ? 'source unavailable' : 'did not run'}</span>
+          </li>
+        ))}
+      </ul>
+      {job.subquestions.length > 0 && (
+        <ul className="mt-3 space-y-1 text-sm text-ink/75">
+          {job.subquestions.map(sub => (
+            <li key={sub.id}>{sub.text}{sub.queries.length ? ` · ${sub.queries.join(' · ')}` : ''}</li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }
 

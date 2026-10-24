@@ -2,15 +2,19 @@ import { randomUUID } from 'node:crypto';
 import type {
   CoverageNote,
   EvidencePassage,
+  ClaimEvidence,
+  ResearchAnswer,
   ResearchDossierView,
   ResearchJobView,
   ResearchSubquestion,
   SourceRecord,
 } from '../../shared/contracts/v1.ts';
 import type { Lang } from '../../shared/sources.ts';
+import type { Evidence } from '../../shared/types.ts';
 import { contentTokens, passageSupportsTopic } from '../../shared/research.ts';
 import { verifyClaim } from '../../shared/research/claims.ts';
 import { asksScience, decomposeQuestion } from '../../shared/research/decompose.ts';
+import { interpretQuestion } from '../../shared/research/scopes.ts';
 import { ayahsMentioned } from '../../shared/research.ts';
 import { ISLAMHOUSE_RIGHTS } from '../../shared/sourceRegistry.ts';
 import { UpstreamError } from '../http.ts';
@@ -121,6 +125,12 @@ export interface ResearchPorts {
     lang: Lang,
     signal: AbortSignal,
   ): Promise<{ available: boolean; failed: boolean; phrases: string[]; ayahs: { surah: number; ayah: number }[] }>;
+  writeAnswer?(
+    question: string,
+    lang: Lang,
+    evidence: Evidence[],
+    signal: AbortSignal,
+  ): Promise<{ paragraphs: { text: string; citations: string[] }[]; insufficientEvidence: boolean }>;
   loadCommentary?(
     lang: Lang,
     surah: number,
@@ -232,6 +242,8 @@ export async function executeResearch(input: {
   const useHadith = !input.assignment || input.assignment.teams.includes('hadith');
   const useQuran = !input.assignment || input.assignment.teams.includes('quran');
   const useBooks = Boolean(input.assignment?.teams.includes('books'));
+  const interpretation = interpretQuestion(input.question);
+  const consultHadith = useHadith || interpretation.consultHadith;
   const useScience = !input.assignment || input.assignment.scope === 'knowledge';
   const index = input.index ?? createContentIndex();
   const clock = input.now ?? (() => new Date());
@@ -247,6 +259,7 @@ export async function executeResearch(input: {
   const tafsirAttempts: TafsirAttempt[] = [];
   const ranQueries: string[] = [];
   let contextCount = 0;
+  let researchAnswer: ResearchAnswer | null = null;
   const plan = decomposeQuestion(input.question);
   const job: ResearchJobView = {
     contractVersion: VERSION,
@@ -263,6 +276,9 @@ export async function executeResearch(input: {
     timingsMs: { totalMs: 0, sources: timings },
     assignment: input.assignment ?? null,
     agents: [],
+    interpretation: interpretation.meaning
+      ? { meaning: interpretation.meaning, scopes: interpretation.scopes.map(scope => ({ id: scope.id, text: scope.text })) }
+      : null,
   };
   const publish = (step: string, completed: number) => {
     job.progress = { step, completed, total: 4 };
@@ -288,8 +304,10 @@ export async function executeResearch(input: {
     }
     if (input.assignment) {
       job.assignment = input.assignment;
+      const teams = [...input.assignment.teams];
+      if (consultHadith && !teams.includes('hadith')) teams.push('hadith');
       job.agents = buildAgentContributions({
-        teams: input.assignment.teams,
+        teams,
         question: input.question,
         passages,
         coverage,
@@ -311,6 +329,7 @@ export async function executeResearch(input: {
         disagreements,
         verificationNote:
           'Citation existence, quotation fidelity and claim support are checked separately. A citation id alone is not support. This is not a scholarly verdict and not a claim of complete coverage.',
+        answer: researchAnswer,
       },
     };
   };
@@ -394,6 +413,13 @@ export async function executeResearch(input: {
         });
       }
     }
+    if (host && interpretation.searchPhrases.length) {
+      const merged = [...interpretation.searchPhrases, ...host.queries];
+      host.queries = [];
+      for (const phrase of merged) {
+        if (phrase && !host.queries.includes(phrase) && host.queries.length < 6) host.queries.push(phrase);
+      }
+    }
     // Planning is optional. It must not consume the time kept for opening sources.
     sourceStartedMs = clock().getTime();
     const queries: { sub: ResearchSubquestion; phrase: string }[] = [];
@@ -404,7 +430,7 @@ export async function executeResearch(input: {
         if (!queries.some(item => item.phrase === phrase)) queries.push({ sub, phrase });
       }
     }
-    const unprocessed = useHadith && religious.length > 0 && queries.length === 0;
+    const unprocessed = consultHadith && religious.length > 0 && queries.length === 0;
     if (unprocessed) {
       pushCoverage({
         kind: 'no_relevant_evidence',
@@ -414,7 +440,7 @@ export async function executeResearch(input: {
     }
     publish('search', 2);
     const hits: (HadithHit & { subId: string })[] = [];
-    for (const query of useHadith ? queries : []) {
+    for (const query of consultHadith ? queries : []) {
       ranQueries.push(query.phrase);
       if (!allow('HadeethEnc')) break;
       try {
@@ -496,7 +522,7 @@ export async function executeResearch(input: {
       /(?:bukh\w*|muslim|dawud|tirmidh\w*|nasai|majah|malik)\s+\d{2,}/i.test(`${item.locator} ${item.source.title} ${item.context ?? ''}`),
     );
     const encyclopediaLacksNarration = encyclopediaKept.length === 0;
-    if (useHadith && input.ports.searchStudyHadith && (encyclopediaLacksNarration || (verifyNarration && !numberedReference))) {
+    if (consultHadith && input.ports.searchStudyHadith && (encyclopediaLacksNarration || (verifyNarration && !numberedReference))) {
       const named = namedStudyCollections(
         `${input.question}\n${encyclopediaKept.map(item => `${item.locator}\n${item.text}`).join('\n')}`,
       );
@@ -551,19 +577,15 @@ export async function executeResearch(input: {
     const ayahs = [...namedAyahs];
     const themeKeys = new Set<string>();
     if (useQuran) {
+      for (const ayah of themeAyahs(input.question)) {
+        const key = `${ayah.surah}:${ayah.ayah}`;
+        themeKeys.add(key);
+        if (ayahs.length >= 8) continue;
+        if (!ayahs.some(item => item.surah === ayah.surah && item.ayah === ayah.ayah)) ayahs.push(ayah);
+      }
       for (const ayah of suggestedAyahs) {
         if (ayahs.length >= 8) break;
         if (!ayahs.some(item => item.surah === ayah.surah && item.ayah === ayah.ayah)) ayahs.push(ayah);
-      }
-      if (input.assignment) {
-        for (const ayah of themeAyahs(input.question)) {
-          if (ayahs.length >= 8) break;
-          const key = `${ayah.surah}:${ayah.ayah}`;
-          if (!ayahs.some(item => item.surah === ayah.surah && item.ayah === ayah.ayah)) {
-            ayahs.push(ayah);
-            themeKeys.add(key);
-          }
-        }
       }
     }
     const namedKeys = new Set(namedAyahs.map(ayah => `${ayah.surah}:${ayah.ayah}`));
@@ -580,7 +602,8 @@ export async function executeResearch(input: {
             named ||
             passageSupportsTopic(input.question, verseText) ||
             plan.subquestions.some(sub => passageSupportsTopic(sub.text, verseText)) ||
-            (theme && themeWordingSupports(input.question, verseText));
+            themeWordingSupports(input.question, verseText) ||
+            (theme && interpretation.synonyms.some(word => verseText.toLocaleLowerCase('en').includes(word.toLocaleLowerCase('en'))));
           if (!supported) {
             pushCoverage({
               kind: 'no_relevant_evidence',
@@ -865,11 +888,29 @@ export async function executeResearch(input: {
         detail: `Research stopped before every planned source was opened. This is incomplete research, not a finding that the sources are silent. The question is still here: ${input.question}`,
       });
     } else if (!coverage.some(note => note.kind === 'source_unavailable' || note.kind === 'science_not_configured' || note.kind === 'language_unavailable')) {
+      const opened = coverage.some(note => /was opened/i.test(note.detail));
       pushCoverage({
         kind: 'no_relevant_evidence',
         provider: 'dossier',
-        detail: `Available evidence does not sufficiently support an answer. Your question is still here: ${input.question}`,
+        detail: opened
+          ? `The retrieved sources do not establish this claim. Your question is still here: ${input.question}`
+          : `Available evidence does not sufficiently support an answer. Your question is still here: ${input.question}`,
       });
+    }
+    if (passages.length) {
+      const packet = answerPassages(passages);
+      const evidence = packet.map(passageToEvidence);
+      let written: ResearchAnswer | null = null;
+      if (input.ports.writeAnswer && evidence.length) {
+        try {
+          const result = await timed('Gemini', () => attempt(() => input.ports.writeAnswer!(input.question, input.language, evidence, signal), signal));
+          written = acceptWrittenAnswer(input.question, result, packet);
+        } catch (err) {
+          if (isAbort(err, signal)) return finish('cancelled');
+          written = null;
+        }
+      }
+      researchAnswer = written ?? retrievedAnswer(input.question, packet);
     }
     publish('verify', 4);
     if (signal.aborted) return finish('cancelled');
@@ -883,7 +924,7 @@ export async function executeResearch(input: {
   }
 }
 
-function claimFor(sub: ResearchSubquestion, passages: EvidencePassage[], coverage: CoverageNote[]) {
+function claimFor(sub: ResearchSubquestion, passages: EvidencePassage[], coverage: CoverageNote[]): ClaimEvidence {
   if (sub.domain === 'science' || asksScience(sub.text)) {
     const papers = passages.filter(item => item.role === 'empirical');
     if (coverage.some(note => note.kind === 'science_not_configured')) {
@@ -929,7 +970,11 @@ function claimFor(sub: ResearchSubquestion, passages: EvidencePassage[], coverag
       note: 'We could not process the question. It is still here.',
     };
   }
-  const related = passages.filter(item => item.role !== 'empirical' && passageSupportsTopic(sub.text, item.text));
+  const related = passages.filter(item => {
+    if (item.role === 'empirical' || item.context?.startsWith('Neighbouring')) return false;
+    const blob = `${item.text}\n${item.arabic ?? ''}`;
+    return passageSupportsTopic(sub.text, blob) || themeWordingSupports(sub.text, blob);
+  });
   if (!related.length) {
     return {
       claim: sub.text,
@@ -946,7 +991,29 @@ function claimFor(sub: ResearchSubquestion, passages: EvidencePassage[], coverag
     };
   }
   const best = [...related].sort((a, b) => score(sub.text, b.text) - score(sub.text, a.text))[0];
-  return verifyClaim(sub.text, best.id, related.map(item => ({ id: item.id, text: item.text })));
+  const check = verifyClaim(sub.text, best.id, related.map(item => ({ id: item.id, text: item.text })));
+  const passageIds = related.map(item => item.id).slice(0, 8);
+  const onSubject = related.some(item => themeWordingSupports(sub.text, `${item.text}\n${item.arabic ?? ''}`));
+  if (check.support === 'unsupported' && onSubject) {
+    return {
+      ...check,
+      support: 'insufficient',
+      citationRelevant: true,
+      passageIds,
+      note: 'The retrieved passages are about this subject. They do not establish the claim as asked, and no number or grade was added.',
+    };
+  }
+  if (check.support === 'insufficient' || check.support === 'supported') {
+    return {
+      ...check,
+      passageIds,
+      note:
+        check.support === 'supported'
+          ? check.note
+          : 'The retrieved passages share this subject. They are cited for what they say. A word match does not add a number or a grade that they do not state.',
+    };
+  }
+  return check;
 }
 
 function studyPassage(record: StudyHadithRecord, lang: Lang, retrievedAt: string, hash: string): EvidencePassage {
@@ -1017,6 +1084,96 @@ function hadithPassage(record: HadithRecord, lang: Lang, retrievedAt: string, ha
     readerRoute: `#/hadith/${record.id}?lang=${lang}`,
     role: 'source_text',
     publishedGrade: record.grade,
+  };
+}
+
+const COUNT_QUESTION = /\bhow many\b|\bnumber of\b|\bhow much\b|எத்தனை|කීයක්|كم/i;
+
+function answerPassages(passages: readonly EvidencePassage[]): EvidencePassage[] {
+  const primary = passages.filter(passage => passage.role !== 'empirical' && !passage.context?.startsWith('Neighbouring'));
+  const study = primary.filter(passage => passage.source.provider === 'hadith-api');
+  const ordered = study.length ? [...study, ...primary.filter(passage => passage.source.provider !== 'hadith-api')] : primary;
+  return ordered.slice(0, 8);
+}
+
+function passageToEvidence(passage: EvidencePassage): Evidence {
+  const kind = passage.source.contentType === 'hadith' ? 'hadith' : passage.source.contentType === 'quran' ? 'quran' : 'guide';
+  return {
+    id: passage.id,
+    kind,
+    label: passage.locator,
+    arabic: passage.arabic,
+    text: passage.text,
+    attribution: [passage.source.provider, passage.source.title, passage.publishedGrade ? `Grade: ${passage.publishedGrade}` : '']
+      .filter(Boolean)
+      .join('. '),
+    grades: passage.publishedGrade ? [{ name: passage.source.provider, grade: passage.publishedGrade }] : [],
+    locator: passage.locator,
+    sourceUrl: passage.source.canonicalUrl,
+  };
+}
+
+function packetBlob(passages: readonly EvidencePassage[]): string {
+  return passages.map(passage => `${passage.locator}\n${passage.id}\n${passage.text}\n${passage.arabic ?? ''}\n${passage.publishedGrade ?? ''}`).join('\n');
+}
+
+function inventsNumber(question: string, paragraph: string, packet: string): boolean {
+  if (!COUNT_QUESTION.test(question)) return false;
+  const compact = packet.replace(/,/g, '');
+  for (const match of paragraph.matchAll(/\b\d{1,3}:\d{1,3}\b|\b\d[\d,]*\b/g)) {
+    const token = match[0];
+    const bare = token.replace(/,/g, '');
+    if (bare.length < 2) continue;
+    if (packet.includes(token) || compact.includes(bare)) continue;
+    return true;
+  }
+  return false;
+}
+
+function passageStatesCount(passages: readonly EvidencePassage[]): boolean {
+  return passages.some(passage => {
+    const text = `${passage.text}\n${passage.arabic ?? ''}`;
+    if (!/prophet|messenger|نبي|أنبياء|انبياء|رسل|رسول/i.test(text)) return false;
+    return /\b\d{2,}\b|[\u0660-\u0669]{2,}/.test(text);
+  });
+}
+
+function acceptWrittenAnswer(
+  question: string,
+  result: { paragraphs: { text: string; citations: string[] }[]; insufficientEvidence: boolean },
+  passages: readonly EvidencePassage[],
+): ResearchAnswer | null {
+  const ids = new Set(passages.map(passage => passage.id));
+  const packet = packetBlob(passages);
+  const paragraphs = result.paragraphs
+    .map(paragraph => ({
+      text: paragraph.text.replace(/\s+/g, ' ').trim(),
+      citations: [...new Set(paragraph.citations.filter(id => ids.has(id)))],
+    }))
+    .filter(paragraph => paragraph.text && paragraph.citations.length > 0 && !inventsNumber(question, paragraph.text, packet));
+  if (!paragraphs.length) return null;
+  const asksCount = COUNT_QUESTION.test(question);
+  return {
+    paragraphs,
+    insufficientEvidence: result.insufficientEvidence || (asksCount && !passageStatesCount(passages)),
+    writer: 'assistant',
+  };
+}
+
+function retrievedAnswer(question: string, passages: readonly EvidencePassage[]): ResearchAnswer {
+  const cited = passages.slice(0, 6);
+  const asksCount = COUNT_QUESTION.test(question);
+  const statesCount = asksCount && passageStatesCount(cited);
+  const locators = cited.map(passage => passage.locator).join('; ');
+  const lead = cited[0];
+  const text =
+    asksCount && !statesCount
+      ? `The retrieved passages do not state a total number. They are cited for what they do say: ${locators}.`
+      : `Retrieved: ${locators}. ${lead?.publishedGrade ? `Grade printed by the source: ${lead.publishedGrade}. ` : ''}The source text says: “${lead?.text.trim() ?? ''}”`;
+  return {
+    paragraphs: [{ text, citations: cited.map(passage => passage.id) }],
+    insufficientEvidence: asksCount && !statesCount,
+    writer: 'retrieved',
   };
 }
 

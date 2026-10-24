@@ -125,6 +125,11 @@ export interface ResearchTimings {
   sources: Record<string, number>;
 }
 
+export interface QuestionInterpretationView {
+  meaning: string;
+  scopes: { id: string; text: string }[];
+}
+
 export interface ResearchJobView {
   contractVersion: ContractVersion;
   id: string;
@@ -142,6 +147,8 @@ export interface ResearchJobView {
   assignment?: ResearchAssignmentView | null;
   /** Roles that were assigned. Includes roles that did not run, marked not_run. */
   agents?: AgentContribution[];
+  /** Readings of the question, recorded before search. Older jobs omit it. */
+  interpretation?: QuestionInterpretationView | null;
 }
 
 export interface ClaimEvidence {
@@ -154,6 +161,19 @@ export interface ClaimEvidence {
   note: string;
 }
 
+export interface ResearchAnswerParagraph {
+  text: string;
+  citations: string[];
+}
+
+/** A readable answer written only from retrieved passages. */
+export interface ResearchAnswer {
+  paragraphs: ResearchAnswerParagraph[];
+  insufficientEvidence: boolean;
+  /** assistant: the study model wrote from the packet. retrieved: the packet was quoted because the model did not write. */
+  writer: 'assistant' | 'retrieved';
+}
+
 export interface ResearchDossierView {
   contractVersion: ContractVersion;
   jobId: string;
@@ -162,6 +182,8 @@ export interface ResearchDossierView {
   unresolved: string[];
   disagreements: string[];
   verificationNote: string;
+  /** Older jobs omit this. Null when nothing was retrieved to write from. */
+  answer?: ResearchAnswer | null;
 }
 
 export interface ResearchJobResponse {

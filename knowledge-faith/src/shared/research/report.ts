@@ -1,4 +1,4 @@
-import type { AgentContribution, CoverageNote, EvidencePassage, ResearchDossierView, ResearchJobView } from '../contracts/v1.ts';
+import type { AgentContribution, CoverageNote, EvidencePassage, ResearchAnswer, ResearchDossierView, ResearchJobView } from '../contracts/v1.ts';
 
 export interface ReportChartRow {
   label: string;
@@ -12,6 +12,7 @@ export interface ReportModel {
   teams: string[];
   answer: string | null;
   answerArabic: string | null;
+  citationIds: string[];
   agentsRan: AgentContribution[];
   agentsIdle: AgentContribution[];
   passages: EvidencePassage[];
@@ -69,6 +70,15 @@ function chainFromPassages(passages: readonly EvidencePassage[]): string[] | nul
   return best;
 }
 
+function writtenAnswer(answer: ResearchAnswer | null | undefined, passages: readonly EvidencePassage[]): { answer: string | null; arabic: string | null; citationIds: string[] } {
+  const paragraphs = (answer?.paragraphs ?? []).filter(paragraph => paragraph.text.trim() && paragraph.citations.length > 0);
+  const fallback = evidencedAnswer(passages);
+  if (!paragraphs.length) return { ...fallback, citationIds: passages.map(passage => passage.id) };
+  const citationIds = [...new Set(paragraphs.flatMap(paragraph => paragraph.citations))];
+  const arabic = passages.find(passage => citationIds.includes(passage.id) && passage.arabic)?.arabic ?? fallback.arabic;
+  return { answer: paragraphs.map(paragraph => paragraph.text.trim()).join('\n\n'), arabic, citationIds };
+}
+
 function evidencedAnswer(passages: readonly EvidencePassage[]): { answer: string | null; arabic: string | null } {
   if (!passages.length) return { answer: null, arabic: null };
   const hadiths = passages.filter(passage => passage.source.contentType === 'hadith');
@@ -98,7 +108,7 @@ export function buildReportModel(job: ResearchJobView, dossier: ResearchDossierV
   const failureNotes = coverage.filter(note =>
     ['source_unavailable', 'language_unavailable', 'budget_exhausted', 'no_relevant_evidence'].includes(note.kind),
   );
-  const answer = evidencedAnswer(passages);
+  const answer = writtenAnswer(dossier?.answer, passages);
   return {
     question: job.question,
     language: job.language,
@@ -106,6 +116,7 @@ export function buildReportModel(job: ResearchJobView, dossier: ResearchDossierV
     teams: job.assignment?.teams ?? [],
     answer: answer.answer,
     answerArabic: answer.arabic,
+    citationIds: answer.citationIds,
     agentsRan: agents.filter(agent => agent.status === 'ran'),
     agentsIdle: agents.filter(agent => agent.status !== 'ran'),
     passages,

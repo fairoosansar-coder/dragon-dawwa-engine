@@ -491,3 +491,120 @@ describe('Bukhari 4485 retrieval', () => {
     assert.ok(result.dossier.passages.some(passage => passage.locator === 'Sahih al-Bukhari 4485'));
   });
 });
+
+const QURAN_DESK = { scope: 'quran' as const, teams: ['quran' as const], bookId: null, noticeId: null, forwardedFrom: null };
+
+describe('prophet-count retrieval', () => {
+  it('cites messenger verses for how many prophets and does not invent a number', async () => {
+    const phrases: string[] = [];
+    const result = await executeResearch({
+      question: 'how many prophets in islam?',
+      language: 'en',
+      ports: ports({
+        searchHadeeth: async (_lang, phrase) => {
+          phrases.push(phrase);
+          return [];
+        },
+        getVerses: async refs =>
+          refs.map(ref => ({
+            surah: ref.surah,
+            ayah: ref.ayah,
+            arabic: 'ورسلا قد قصصناهم عليك',
+            translation:
+              ref.ayah === 164
+                ? 'And messengers We have related to you before, and messengers We have not related to you.'
+                : 'We sent messengers before you. Some of them We have related.',
+            translator: 'Test',
+            version: '1',
+            edition: 'english_rwwad',
+            url: `https://quranenc.com/api/v1/translation/aya/english_rwwad/${ref.surah}/${ref.ayah}`,
+          })),
+        loadCommentary: async () => ({
+          ok: true as const,
+          spans: [
+            {
+              locator: 'Al-Mukhtasar 4:163–164',
+              text: 'Allah named some messengers and did not name others. This passage does not give a total.',
+              url: 'https://quranenc.com/en/browse/english_mokhtasar/4',
+            },
+          ],
+        }),
+      }),
+      assignment: QURAN_DESK,
+    });
+    assert.ok(phrases.includes('prophets'));
+    assert.ok(phrases.includes('messengers'));
+    assert.ok(result.dossier.passages.some(passage => passage.text.includes('messengers We have not related')));
+    assert.equal(result.job.agents?.find(agent => agent.role === 'Qur’an text')?.status, 'ran');
+    assert.equal(result.job.agents?.find(agent => agent.role === 'Translation')?.status, 'ran');
+    assert.equal(result.job.agents?.find(agent => agent.role === 'Tafsir')?.status, 'ran');
+    assert.equal(result.job.agents?.find(agent => agent.role === 'Contextual research')?.status, 'ran');
+    assert.equal(result.job.agents?.find(agent => agent.role === 'Evidence review')?.status, 'ran');
+    assert.equal(result.dossier.answer?.insufficientEvidence, true);
+    assert.match(result.dossier.answer?.paragraphs[0]?.text ?? '', /do not state a total number/);
+    assert.equal(/\b124[,.]?000\b|\b25 prophets\b/i.test(JSON.stringify(result.dossier.answer)), false);
+    assert.ok(result.job.interpretation?.scopes.some(scope => scope.id === 'total'));
+    assert.equal(result.job.assignment?.scope, 'quran');
+  });
+
+  it('still searches hadith when the Qur’an source fails', async () => {
+    let hadith = 0;
+    const result = await executeResearch({
+      question: 'how many prophets in islam?',
+      language: 'en',
+      ports: ports({
+        searchHadeeth: async () => {
+          hadith += 1;
+          return [{ id: '77', title: 'Prophets' }];
+        },
+        loadHadeeth: async () => ({
+          id: '77',
+          title: 'Prophets',
+          text: 'The prophets are many and their exact total is not in this record.',
+          arabic: null,
+          grade: null,
+          attribution: 'A collection',
+          explanation: null,
+          url: 'https://hadeethenc.com/en/browse/hadith/77',
+        }),
+        getVerses: async () => {
+          throw new Error('QuranEnc down');
+        },
+      }),
+      assignment: QURAN_DESK,
+    });
+    assert.ok(hadith > 0);
+    assert.ok(result.job.coverage.some(note => note.kind === 'source_unavailable' && note.provider === 'QuranEnc'));
+    assert.equal(result.job.agents?.find(agent => agent.role === 'Qur’an text')?.status, 'unavailable');
+    assert.ok(result.dossier.passages.some(passage => passage.text.includes('exact total is not')));
+    assert.equal(result.dossier.answer?.insufficientEvidence, true);
+    assert.equal(JSON.stringify(result.dossier.answer).includes('124000'), false);
+  });
+
+  it('does not call a retrieved verse a missing source when its wording is not kept', async () => {
+    const result = await executeResearch({
+      question: 'What is the serial number of the bicycle I lost in Colombo?',
+      language: 'en',
+      ports: ports({
+        suggestSearch: async () => ({ available: true, failed: false, phrases: [], ayahs: [{ surah: 2, ayah: 2 }] }),
+        getVerses: async refs =>
+          refs.map(ref => ({
+            surah: ref.surah,
+            ayah: ref.ayah,
+            arabic: 'ذلك الكتاب',
+            translation: 'This is the Book about which there is no doubt.',
+            translator: 'Test',
+            version: '1',
+            edition: 'en',
+            url: 'https://quranenc.com/example',
+          })),
+      }),
+      assignment: QURAN_DESK,
+    });
+    assert.equal(result.dossier.passages.length, 0);
+    assert.equal(result.job.agents?.find(agent => agent.role === 'Qur’an text')?.status, 'not_run');
+    assert.equal(result.job.agents?.find(agent => agent.role === 'Translation')?.status, 'not_run');
+    assert.equal(result.job.agents?.find(agent => agent.role === 'Evidence review')?.status, 'not_run');
+    assert.equal(result.job.agents?.some(agent => agent.status === 'unavailable'), false);
+  });
+});

@@ -1,6 +1,7 @@
 import type { Lang } from '../../shared/sources.ts';
 import { worshipTopicForQuestion } from '../../shared/research/themes.ts';
-import { suggestSearchPlan } from '../gemini.ts';
+import { geminiConfigured, generateJson, suggestSearchPlan, writeAnswer as writeGroundedAnswer } from '../gemini.ts';
+import type { Evidence } from '../../shared/types.ts';
 import { findStudyHadiths } from '../hadith.ts';
 import { loadHadeeth, searchHadeeth } from '../hadeethenc.ts';
 import { loadKnowledgeShelf, loadLibrary } from '../islamhouse.ts';
@@ -80,6 +81,18 @@ export function defaultResearchPorts(): ResearchPorts {
       } catch (err) {
         if (signal.aborted) throw err;
         return { available: true, failed: true, phrases: [], ayahs: [] };
+      }
+    },
+    async writeAnswer(question, lang, evidence: Evidence[], signal) {
+      if (signal.aborted) throw aborted(signal);
+      if (!geminiConfigured() || !evidence.length) return { paragraphs: [], insufficientEvidence: true };
+      const limited = AbortSignal.any([signal, AbortSignal.timeout(12_000)]);
+      try {
+        const written = await writeGroundedAnswer(question, lang, evidence, (prompt, schema) => generateJson(prompt, schema, limited));
+        return { paragraphs: written.paragraphs, insufficientEvidence: written.insufficientEvidence };
+      } catch (err) {
+        if (signal.aborted) throw err;
+        return { paragraphs: [], insufficientEvidence: true };
       }
     },
     async loadCommentary(lang, surah, ayahs, signal) {

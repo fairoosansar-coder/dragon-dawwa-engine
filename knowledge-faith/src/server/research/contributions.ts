@@ -173,13 +173,33 @@ function quranAgents(input: {
     return idle('quran', QURAN_ROLES, 'No verse was identified, so the Qur’an team did not open a text.');
   }
   const locators = verses.map(passage => passage.locator).join('; ');
+  const opened = input.coverage.some(note => note.provider === 'QuranEnc' && /was opened/i.test(note.detail));
+  const fetchFailed = input.coverage.some(
+    note => note.provider === 'QuranEnc' && (note.kind === 'source_unavailable' || note.kind === 'language_unavailable'),
+  );
   const text = arabic.length
     ? agent('quran', 'text', 'Qur’an text', 'ran', `Arabic was retrieved for ${locators}.`)
-    : agent('quran', 'text', 'Qur’an text', 'unavailable', 'A verse was requested and the Arabic text did not come back.');
+    : opened
+      ? agent('quran', 'text', 'Qur’an text', 'not_run', 'Verses were opened. Their wording was not kept, and the Arabic text was not missing.')
+      : agent(
+          'quran',
+          'text',
+          'Qur’an text',
+          fetchFailed ? 'unavailable' : 'not_run',
+          fetchFailed ? 'A verse was requested and the Arabic text did not come back.' : 'No verse was kept.',
+        );
   const translators = [...new Set(translated.flatMap(passage => passage.source.credits.map(credit => credit.name).filter(Boolean)))];
   const translation = translated.length
     ? agent('quran', 'translation', 'Translation', 'ran', `Translation retrieved${translators.length ? ` (${translators.join(', ')})` : ''} for ${locators}.`)
-    : agent('quran', 'translation', 'Translation', 'unavailable', 'The verse request did not include a translation.');
+    : opened
+      ? agent('quran', 'translation', 'Translation', 'not_run', 'Verses were opened. No translation was kept as a finding.')
+      : agent(
+          'quran',
+          'translation',
+          'Translation',
+          fetchFailed ? 'unavailable' : 'not_run',
+          fetchFailed ? 'The verse request did not include a translation.' : 'No translation was kept.',
+        );
   const tafsirFailed = input.tafsir.filter(item => !item.ok);
   const tafsir = commentary.length
     ? agent('quran', 'tafsir', 'Tafsir', 'ran', `Al-Mukhtasar was opened for the cited ayahs. ${commentary.map(passage => passage.locator).join('; ')}.`)
@@ -189,15 +209,18 @@ function quranAgents(input: {
   const context = input.contextCount
     ? agent('quran', 'context', 'Contextual research', 'ran', `${input.contextCount} neighbouring ayah(s) were opened so the cited verse is not read alone.`)
     : agent('quran', 'context', 'Contextual research', 'not_run', 'No neighbouring ayah was opened.');
-  const evidence = agent(
-    'quran',
-    'evidence',
-    'Evidence review',
-    'ran',
-    input.claims.length
-      ? input.claims.map(claim => `${claim.support}: ${claim.note}`).join(' ')
-      : 'The retrieved verses were checked against the question. A citation is not support by itself.',
-  );
+  const reviewed = verses.length > 0 || commentary.length > 0 || input.claims.some(claim => claim.passageIds.length > 0);
+  const evidence = reviewed
+    ? agent(
+        'quran',
+        'evidence',
+        'Evidence review',
+        'ran',
+        input.claims.length
+          ? input.claims.map(claim => `${claim.support}: ${claim.note}`).join(' ')
+          : 'The retrieved verses were checked against the question. A citation is not support by itself.',
+      )
+    : agent('quran', 'evidence', 'Evidence review', 'not_run', 'No passage was kept, so evidence review did not produce a finding.');
   return [text, translation, tafsir, context, evidence];
 }
 

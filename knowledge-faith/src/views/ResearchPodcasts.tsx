@@ -89,6 +89,10 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
       ? remote.data
       : readResearchHistory().find(item => item.id === jobId)?.response;
     if (!response?.dossier || response.job.status !== 'done') return;
+    if (!response.dossier.passages.length) {
+      setError('No retrieved passage was kept, so a roundtable was not written.');
+      return;
+    }
     const created = episodeFromJob(response);
     if (!created) {
       setError('No contributing agent was recorded, so a roundtable was not written.');
@@ -106,6 +110,7 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
 
   function episodeFromJob(response: ResearchJobResponse): LocalEpisode | null {
     const job = response.job;
+    if (!response.dossier?.passages.length) return null;
     const script = roundtableFromResearch({ question: job.question, language: job.language, agents: job.agents ?? [] });
     if (!script || !response.dossier) return null;
     const model = buildReportModel(job, response.dossier);

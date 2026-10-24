@@ -68,6 +68,18 @@ export const RESEARCH_THEMES: readonly ResearchTheme[] = [
       { surah: 2, ayah: 267 },
     ],
   },
+  {
+    id: 'prophets',
+    worshipTopic: null,
+    test: /prophet|messenger|\bnabi\b|anbiya|\brasul\b|\brusul\b|نبي|أنبياء|انبياء|رسل|رسول|தீர்க்கதரிசி|இறைத்தூதர்|නබි|රසූල්/i,
+    synonyms: ['prophet', 'prophets', 'messenger', 'messengers', 'nabi', 'anbiya', 'rasul', 'rusul', 'نبي', 'أنبياء', 'انبياء', 'رسل', 'رسول'],
+    ayahs: [
+      { surah: 4, ayah: 163 },
+      { surah: 4, ayah: 164 },
+      { surah: 40, ayah: 78 },
+      { surah: 33, ayah: 40 },
+    ],
+  },
 ];
 
 export function matchingThemes(text: string): ResearchTheme[] {
