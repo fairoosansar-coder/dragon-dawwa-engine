@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { BookOpen, Check, Globe, Search, Settings } from 'lucide-react';
+import { BookOpen, Check, ChevronDown, Globe, Search, Settings } from 'lucide-react';
 import { getJson, useRemote } from '../../lib/api.ts';
 import { useApp } from '../../lib/store.tsx';
 import type { TextSize } from '../../lib/readingPlace.ts';
@@ -26,6 +26,10 @@ export function ReadingBar({
   onReciter,
   reciters,
   onPlace,
+  translator,
+  showTranslation,
+  onTranslation,
+  onOpenTranslations,
 }: {
   surah: number;
   englishName: string;
@@ -43,6 +47,10 @@ export function ReadingBar({
   onReciter: (id: string) => void;
   reciters: { id: string; name: string; style?: string }[];
   onPlace: (surah: number, ayah: number) => void;
+  translator: string;
+  showTranslation: boolean;
+  onTranslation: (show: boolean) => void;
+  onOpenTranslations: () => void;
 }) {
   const { t, lang, setLang } = useApp();
   const surahs = useRemote<SurahInfo[]>('/api/quran/surahs');
@@ -117,7 +125,7 @@ export function ReadingBar({
   );
 
   return (
-    <div ref={barRef} data-reading-bar className="sticky top-0 z-20 -mx-1 border-b border-[#d5deea] bg-[#f7f8f6]/95 px-1 py-2 backdrop-blur relative">
+    <div ref={barRef} data-reading-bar className="reading-bar sticky top-0 z-30 -mx-1 border-b border-[#d5deea] bg-sand px-1 py-2">
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -160,6 +168,14 @@ export function ReadingBar({
             onClick={() => onVerseByVerse(false)}
           >
             {t.sheetReading}
+          </button>
+        </div>
+        <div className={`inline-flex max-w-full items-center gap-1 rounded-full px-3 py-1 text-sm ${showTranslation ? 'bg-[#10233f] text-white' : 'border border-[#c5d0de] bg-white text-[#1c3d66]'}`}>
+          <button type="button" data-translation-pill aria-pressed={showTranslation} onClick={() => onTranslation(!showTranslation)} className="min-w-0 text-left leading-tight">
+            {translator || t.sheetTranslation}
+          </button>
+          <button type="button" data-translation-open aria-label={t.menuTranslations} onClick={onOpenTranslations} className="shrink-0">
+            <ChevronDown className="h-4 w-4" aria-hidden />
           </button>
         </div>
         <div className="ml-auto flex items-center gap-1" data-reading-cluster>

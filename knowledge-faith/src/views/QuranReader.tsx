@@ -402,6 +402,7 @@ function Edition({
   const [verseStored, setVerseStored] = useStored<unknown>('kf-verse-by-verse', false);
   const verseByVerse = verseStored === true;
   const [settingsTick, setSettingsTick] = useState(0);
+  const [translationTick, setTranslationTick] = useState(0);
   const audio = useAudioState();
   const arabicUrl = withPronunciation(`/api/quran/surah/${surah}/arabic`, pronunciation);
   const meaningUrl = editionKey ? `/api/quran/surah/${surah}/meaning?lang=${lang}&edition=${encodeURIComponent(editionKey)}` : null;
@@ -674,6 +675,10 @@ function Edition({
               onReciter={onReciter}
               reciters={reciters}
               onPlace={(number, verse) => goSurah(number, verse)}
+              translator={current?.translationTitle || current?.translator || ''}
+              showTranslation={showTranslation}
+              onTranslation={value => setStoredTranslation(value)}
+              onOpenTranslations={() => setTranslationTick(value => value + 1)}
             />
             <ReadingSheet
               info={loaded.info}
@@ -698,6 +703,7 @@ function Edition({
               onNext={() => moveRef.current(1)}
               onOpenSettings={() => setSettingsTick(value => value + 1)}
               onChooseEdition={onChooseEdition}
+              openTranslations={translationTick}
               reciters={reciters}
             />
           </div>

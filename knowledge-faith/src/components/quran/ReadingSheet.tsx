@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Bookmark, ChevronDown, Info, MoreHorizontal, Pause, Play, Repeat, SkipBack, SkipForward } from 'lucide-react';
+import { Bookmark, Info, MoreHorizontal, Pause, Play, Repeat, SkipBack, SkipForward } from 'lucide-react';
 import { useRemote } from '../../lib/api.ts';
 import { pauseAudio, useAudioState } from '../../lib/audio.ts';
 import { useApp } from '../../lib/store.tsx';
@@ -76,6 +76,7 @@ export function ReadingSheet({
   onNext,
   onOpenSettings,
   onChooseEdition,
+  openTranslations = 0,
   reciters,
 }: {
   info: SurahInfo;
@@ -96,6 +97,7 @@ export function ReadingSheet({
   onNext: () => void;
   onOpenSettings: () => void;
   onChooseEdition: (lang: Lang, key: string) => void;
+  openTranslations?: number;
   reciters: { id: string; name: string; style?: string }[];
 }) {
   const { t, notes, setVerseNote, toggleVerse, isVerseSaved } = useApp();
@@ -139,6 +141,10 @@ export function ReadingSheet({
     setChoice(null);
     setMoreAyah(null);
   }, [verseByVerse]);
+
+  useEffect(() => {
+    if (openTranslations > 0) setPicker(true);
+  }, [openTranslations]);
 
   useEffect(() => {
     if (!choice && moreAyah == null && !picker) return;
@@ -236,18 +242,10 @@ export function ReadingSheet({
             )}
           </div>
         )}
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <div className="mt-4">
           <button type="button" data-arabic-pill aria-pressed={showArabic} onClick={() => onArabic(!showArabic)} className={pill(showArabic)}>
             {t.sheetArabic}
           </button>
-          <div className={`${pill(showTranslation)} flex items-center gap-2`}>
-            <button type="button" data-translation-pill aria-pressed={showTranslation} onClick={() => onTranslation(!showTranslation)} className="min-w-0 flex-1 text-left">
-              {translator || t.sheetTranslation}
-            </button>
-            <button type="button" data-translation-open aria-label={t.menuTranslations} onClick={() => setPicker(true)} className="shrink-0">
-              <ChevronDown className="h-4 w-4" aria-hidden />
-            </button>
-          </div>
         </div>
         {showBismillah && (
           <div data-bismillah-block className="mt-6 scroll-mt-28 pt-3">
