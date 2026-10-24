@@ -263,6 +263,7 @@ function Library({
         tabs={[
           { href: '#/quran', label: t.surahs, active: tab === 'surahs' },
           { href: '#/quran/bookmarks', label: t.bookmarks, active: tab === 'bookmarks' },
+          { href: '#/quran/research', label: t.researchQuran, active: false },
         ]}
       />
       {tab === 'bookmarks' ? (

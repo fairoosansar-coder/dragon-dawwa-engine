@@ -12,6 +12,7 @@ import { getPurityLevel } from './utils/gradeUtils.ts';
 import type { DragonDawwaAnalysis } from './types/hadith.ts';
 import { EngineFrame } from './EngineFrame.tsx';
 import { useDossier } from './DossierContext.tsx';
+import { useApp } from '../lib/store.tsx';
 
 function VerdictReport({ analysis }: { analysis: DragonDawwaAnalysis }) {
   const s = analysis.agent_6_synthesis;
@@ -70,7 +71,9 @@ export function DossierActions() {
 
 export default function DossierWorkbench() {
   const d = useDossier();
+  const { t } = useApp();
   const data = d.displayed;
+  const showReport = d.reportOrigin !== 'idle';
   return (
     <EngineFrame className="space-y-6">
       <ArchBanner
@@ -92,7 +95,9 @@ export default function DossierWorkbench() {
         onSelectBenchmark={d.selectBenchmark}
         currentLanguage={d.lang}
       />
-      <div className="space-y-6">
+      {d.reportOrigin === 'example' && <p className="rounded-2xl bg-amber-100 px-4 py-3 text-sm text-amber-950">{t.dossierExample}</p>}
+      {d.reportOrigin === 'idle' && <p className="rounded-2xl bg-parchment px-4 py-3 text-sm text-ink/80">{t.dossierIdle}</p>}
+      {showReport && <div className="space-y-6">
         <StarDivider label="تحقيق الحديث" />
         <AgentStatusTracker currentTab={d.step} onSelectTab={d.setStep} isLoading={d.isAnalyzing} />
         {d.step === 'overview' && (
@@ -110,7 +115,7 @@ export default function DossierWorkbench() {
         {d.step === 'shawahid' && <ShawahidMatnView shawahid={data.agent_4_shawahid_matn} />}
         {d.step === 'scholars' && <ScholarsVerdictMatrix verdicts={data.agent_5_scholars_verdict} />}
         {d.step === 'report' && <VerdictReport analysis={data} />}
-      </div>
+      </div>}
     </EngineFrame>
   );
 }

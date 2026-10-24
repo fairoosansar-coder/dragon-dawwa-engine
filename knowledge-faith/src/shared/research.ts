@@ -203,7 +203,18 @@ export function contentTokens(text: string): string[] {
 
 const WEAK_LATIN = new Set([
   'number', 'said', 'being', 'taught', 'about', 'someone', 'something', 'anything', 'people', 'person',
+  'isnad', 'isnaad', 'sanad', 'narration', 'narrations', 'narrator', 'narrators', 'hadith', 'hadeeth',
+  'sahih', 'bukhari', 'tirmidhi', 'tafsir', 'tafseer', 'verse', 'verses', 'ayah', 'ayahs', 'surah', 'quran',
+  'kitab', 'chain', 'chains', 'matn', 'takhrij', 'rijal', 'shawahid',
 ]);
+
+function tokenForms(token: string): string[] {
+  const forms = new Set<string>([token]);
+  if (token.endsWith('ies') && token.length > 8) forms.add(`${token.slice(0, -3)}y`);
+  else if (token.endsWith('s') && !token.endsWith('ss') && token.length > 8) forms.add(token.slice(0, -1));
+  else if (!token.endsWith('s') && token.length > 8) forms.add(`${token}s`);
+  return [...forms].filter(form => form.length >= 3);
+}
 
 /** A passage supports a topic when its own text contains the question’s content terms. Titles are ignored. */
 export function passageSupportsTopic(topic: string, passage: string): boolean {
@@ -212,7 +223,7 @@ export function passageSupportsTopic(topic: string, passage: string): boolean {
   const usable = distinctive.length ? distinctive : tokens;
   if (!usable.length) return false;
   const haystack = comparable(passage).toLocaleLowerCase('en');
-  const matched = usable.filter(token => haystack.includes(token));
+  const matched = usable.filter(token => tokenForms(token).some(form => haystack.includes(form)));
   // One incidental word is not enough when the question named several content words.
   if (usable.length >= 3) return matched.length >= 2;
   return matched.length >= 1;
