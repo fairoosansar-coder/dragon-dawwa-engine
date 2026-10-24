@@ -6,7 +6,7 @@ import path from 'node:path';
 import { HADITH_COLLECTIONS, PRAYER_METHODS, RECITERS, quranPronunciationEdition, toLang } from './src/shared/sources.ts';
 import { dedupeRefs, parseRefs, refKey, type HadithRef } from './src/shared/refs.ts';
 import type { PodcastLine } from './src/shared/types.ts';
-import { getSurah, getSurahArabic, getSurahMeaning, getVerses, listSurahs } from './src/server/quran.ts';
+import { getSurah, getSurahArabic, getSurahMeaning, getVerses, listSurahs, locateJuz, locatePage } from './src/server/quran.ts';
 import { audioManifestEdition, listQuranEncEditions, loadAudioManifest, loadMukhtasar, MEANING_AUDIO_NOT_LISTED } from './src/server/quranenc.ts';
 import { fetchMcpMorphology, fetchMcpTafsir, listMcpEditions, searchMcpQuran } from './src/server/quranMcp.ts';
 import { parseEditionId, readTafsirQuery, type McpEditionType } from './src/shared/quranMcp.ts';
@@ -159,6 +159,8 @@ function editionKeyFrom(value: unknown): string | undefined {
 }
 
 app.get('/api/quran/surahs', route(async (_req, res) => res.json(await listSurahs())));
+app.get('/api/quran/page/:n', route(async (req, res) => res.json(await locatePage(Number(req.params.n)))));
+app.get('/api/quran/juz/:n', route(async (req, res) => res.json(await locateJuz(Number(req.params.n)))));
 app.get('/api/quran/editions', route(async (req, res) => res.json(await listQuranEncEditions(toLang(req.query.lang)))));
 app.get(
   '/api/quran/audio-manifest',

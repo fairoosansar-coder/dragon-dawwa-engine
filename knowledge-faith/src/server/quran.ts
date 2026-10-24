@@ -1,5 +1,6 @@
 import { DAY, fetchJson, UpstreamError } from './http.ts';
 import { attachQuranEnc } from '../shared/quranenc.ts';
+import { mushafMark, type MushafMark } from '../shared/readingNav.ts';
 import { QURAN_ARABIC_EDITION, type Lang } from '../shared/sources.ts';
 import { isValidRef, refKey, type AyahRef } from '../shared/refs.ts';
 import type { SurahInfo, Verse } from '../shared/types.ts';
@@ -28,6 +29,32 @@ interface RawEdition {
   ayahs: RawAyah[];
   number: number;
   englishName: string;
+}
+
+const PLACE_MISSING = 'That place was not returned. No verse was substituted.';
+
+async function firstMark(url: string, expect: (mark: MushafMark) => boolean): Promise<MushafMark> {
+  const res = await fetchJson<Envelope<{ ayahs?: RawAyah[] }>>(url, 7 * DAY);
+  const first = res.data?.ayahs?.[0];
+  const mark = mushafMark({
+    surah: first?.surah?.number,
+    ayah: first?.numberInSurah,
+    page: first?.page,
+    juz: first?.juz,
+    hizbQuarter: first?.hizbQuarter,
+  });
+  if (!mark || !expect(mark)) throw new UpstreamError(PLACE_MISSING, 502);
+  return mark;
+}
+
+export async function locatePage(page: number): Promise<MushafMark> {
+  if (!Number.isInteger(page) || page < 1 || page > 604) throw new UpstreamError('Pages are 1 to 604.', 400);
+  return firstMark(`${BASE}/page/${page}/${QURAN_ARABIC_EDITION}`, mark => mark.page === page);
+}
+
+export async function locateJuz(juz: number): Promise<MushafMark> {
+  if (!Number.isInteger(juz) || juz < 1 || juz > 30) throw new UpstreamError('Juz are 1 to 30.', 400);
+  return firstMark(`${BASE}/juz/${juz}/${QURAN_ARABIC_EDITION}`, mark => mark.juz === juz);
 }
 
 export async function listSurahs(): Promise<SurahInfo[]> {

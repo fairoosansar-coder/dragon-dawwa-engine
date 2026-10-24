@@ -26,7 +26,8 @@ import type { SurahInfo, Verse } from '../shared/types.ts';
 import { useReciter } from '../components/cards.tsx';
 import { AyahStudyPanel } from '../components/quran/AyahStudyPanel.tsx';
 import { QuranMcpSearch } from '../components/quran/QuranMcpSearch.tsx';
-import { ReadingSheet } from '../components/quran/ReadingSheet.tsx';
+import { ReadingBar } from '../components/quran/ReadingBar.tsx';
+import { pagePlace, ReadingSheet } from '../components/quran/ReadingSheet.tsx';
 import { audioStatusLabel, EmptyState, HeaderSettingsMenu, PronunciationStatus, quranSectionId, type QuranSectionId } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, Loading } from '../components/ui.tsx';
 
@@ -175,6 +176,10 @@ export default function QuranReader({ sub }: ViewProps) {
       editions={quranEdition.editions}
       editionKey={viewEdition}
       onEdition={quranEdition.choose}
+      onChooseEdition={(language, key) => {
+        quranEdition.accept(language, key);
+        setLang(language);
+      }}
       editionsError={editionsError}
       onEditionsRetry={quranEdition.error ? quranEdition.reload : undefined}
     />
@@ -362,6 +367,7 @@ function Edition({
   editions,
   editionKey,
   onEdition,
+  onChooseEdition,
   editionsError,
   onEditionsRetry,
 }: {
@@ -380,6 +386,7 @@ function Edition({
   editions: ReturnType<typeof useQuranEdition>['editions'];
   editionKey: string;
   onEdition: (key: string) => void;
+  onChooseEdition: (lang: Lang, key: string) => void;
   editionsError: string | null;
   onEditionsRetry?: () => void;
 }) {
@@ -392,6 +399,9 @@ function Edition({
   const [storedTranslation, setStoredTranslation] = useStored<unknown>('kf-show-translation', true);
   const showArabic = storedArabic !== false;
   const showTranslation = storedTranslation !== false;
+  const [verseStored, setVerseStored] = useStored<unknown>('kf-verse-by-verse', false);
+  const verseByVerse = verseStored === true;
+  const [settingsTick, setSettingsTick] = useState(0);
   const audio = useAudioState();
   const arabicUrl = withPronunciation(`/api/quran/surah/${surah}/arabic`, pronunciation);
   const meaningUrl = editionKey ? `/api/quran/surah/${surah}/meaning?lang=${lang}&edition=${encodeURIComponent(editionKey)}` : null;
@@ -506,6 +516,28 @@ function Edition({
       if (next) playRef.current(next.ayah);
     });
   };
+  const repeatRef = useRef<(n: number) => void>(() => undefined);
+  repeatRef.current = (ayahNumber: number) => {
+    if (!loaded || loaded.info.number !== surah) return;
+    const verse = versesRef.current.find(item => item.ayah === ayahNumber);
+    if (!verse) return;
+    setAyah(verse.ayah);
+    void playAudio(`ayah-${verse.number}`, recitationUrl(reciter, verse.number), () => repeatRef.current(ayahNumber));
+  };
+  const moveRef = useRef<(delta: number) => void>(() => undefined);
+  moveRef.current = (delta: number) => {
+    const list = versesRef.current;
+    const index = list.findIndex(item => item.ayah === ayah);
+    const next = list[index + delta];
+    const playing = audio.status === 'playing' || audio.status === 'loading';
+    if (next) {
+      setAyah(next.ayah);
+      if (playing) playRef.current(next.ayah);
+      return;
+    }
+    if (delta < 0 && surah > 1) goSurah(surah - 1, 0);
+    if (delta > 0 && surah < 114) goSurah(surah + 1, 1);
+  };
 
   useEffect(() => {
     if (mode !== 'book') return;
@@ -569,29 +601,31 @@ function Edition({
 
   return (
     <div data-reader className="min-w-0">
-      <HeaderSettingsMenu
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-        mode={mode}
-        textSize={textSize}
-        onTextSize={onTextSize}
-        translationSize={translationSize}
-        onTranslationSize={onTranslationSize}
-        reciter={reciter}
-        onReciter={onReciter}
-        reciters={reciters}
-        onMode={next => {
-          window.location.hash = next === 'study' ? '#/quran/study' : '#/quran/book';
-        }}
-        editions={editions}
-        editionKey={editionKey}
-        onEdition={onEdition}
-        editionsError={editionsError}
-        onQuiet={() => {
-          setSettingsOpen(false);
-          setFocus(true);
-        }}
-      />
+      {mode !== 'book' && (
+        <HeaderSettingsMenu
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          mode={mode}
+          textSize={textSize}
+          onTextSize={onTextSize}
+          translationSize={translationSize}
+          onTranslationSize={onTranslationSize}
+          reciter={reciter}
+          onReciter={onReciter}
+          reciters={reciters}
+          onMode={next => {
+            window.location.hash = next === 'study' ? '#/quran/study' : '#/quran/book';
+          }}
+          editions={editions}
+          editionKey={editionKey}
+          onEdition={onEdition}
+          editionsError={editionsError}
+          onQuiet={() => {
+            setSettingsOpen(false);
+            setFocus(true);
+          }}
+        />
+      )}
       <div className="mx-auto min-w-0 max-w-[46rem] space-y-4">
         {playbackStatus && (
           <p className="text-sm text-muted" role="status">
@@ -622,26 +656,48 @@ function Edition({
               step(dx < 0 ? 1 : -1);
             }}
           >
+            <ReadingBar
+              surah={loaded.info.number}
+              englishName={loaded.info.englishName}
+              page={pagePlace(current)?.page ?? null}
+              juz={pagePlace(current)?.juz ?? null}
+              hizb={pagePlace(current)?.hizb ?? null}
+              verseByVerse={verseByVerse}
+              onVerseByVerse={value => setVerseStored(value)}
+              openSettings={settingsTick}
+              textSize={textSize}
+              onTextSize={onTextSize}
+              translationSize={translationSize}
+              onTranslationSize={onTranslationSize}
+              reciter={reciter}
+              onReciter={onReciter}
+              reciters={reciters}
+              onPlace={(number, verse) => goSurah(number, verse)}
+            />
             <ReadingSheet
               info={loaded.info}
               verses={verses}
               showArabic={showArabic}
               onArabic={value => setStoredArabic(value)}
-              editions={editions}
-              editionKey={editionKey}
-              onEdition={onEdition}
+              showTranslation={showTranslation}
+              onTranslation={value => setStoredTranslation(value)}
+              verseByVerse={verseByVerse}
               textSize={textSize}
               translationSize={translationSize}
               lang={lang}
               selectedAyah={ayah}
               onPlayAyah={next => playRef.current(next)}
+              onRepeatAyah={next => repeatRef.current(next)}
               onListen={() => {
                 if (audio.id?.startsWith('ayah-') && (audio.status === 'playing' || audio.status === 'loading')) pauseAudio();
                 else if (audio.id?.startsWith('ayah-') && audio.status === 'paused') resumeAudio();
-                else playRef.current(1);
+                else playRef.current(ayah >= 1 ? ayah : 1);
               }}
-              onBookmark={toggleVerse}
-              saved={isVerseSaved}
+              onPrevious={() => moveRef.current(-1)}
+              onNext={() => moveRef.current(1)}
+              onOpenSettings={() => setSettingsTick(value => value + 1)}
+              onChooseEdition={onChooseEdition}
+              reciters={reciters}
             />
           </div>
         )}

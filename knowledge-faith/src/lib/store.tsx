@@ -52,6 +52,7 @@ export interface AppConfig {
 interface Saved {
   verses: string[];
   hadith: HadithRef[];
+  notes?: Record<string, string>;
 }
 
 interface AppState {
@@ -64,6 +65,8 @@ interface AppState {
   toggleHadith: (ref: HadithRef) => void;
   isVerseSaved: (key: string) => boolean;
   isHadithSaved: (ref: HadithRef) => boolean;
+  notes: Record<string, string>;
+  setVerseNote: (key: string, note: string) => void;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -89,6 +92,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const sameHadith = (a: HadithRef, b: HadithRef) => a.collection === b.collection && a.number === b.number;
 
+  const setVerseNote = useCallback((key: string, note: string) => {
+    const text = note.trim().slice(0, 2000);
+    setSaved(current => {
+      const notes = { ...(current.notes ?? {}) };
+      if (text) notes[key] = text;
+      else delete notes[key];
+      return { ...current, notes };
+    });
+  }, [setSaved]);
+
   const toggleHadith = useCallback(
     (ref: HadithRef) =>
       setSaved(s => ({
@@ -109,8 +122,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toggleHadith,
       isVerseSaved: key => saved.verses.includes(key),
       isHadithSaved: ref => saved.hadith.some(h => sameHadith(h, ref)),
+      notes: saved.notes ?? {},
+      setVerseNote,
     }),
-    [lang, setLang, config, saved, toggleVerse, toggleHadith],
+    [lang, setLang, config, saved, toggleVerse, toggleHadith, setVerseNote],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

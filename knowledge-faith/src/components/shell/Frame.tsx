@@ -146,7 +146,7 @@ export function AppFrame({ path, section, segments = [], showSearch, children }:
           <div className="mx-auto max-w-6xl pb-10">{children}</div>
         </main>
         {player && !(path === 'quran' && (segments[0] === 'book' || segments[0] === 'study')) && <AudioMiniPlayer safe={focus} />}
-        {!focus && (
+        {!focus && !(path === 'quran' && segments[0] === 'book') && (
           <nav aria-label="Sections" className="shrink-0 border-t border-gold/40 bg-pine pb-[env(safe-area-inset-bottom)] lg:hidden">
           <ul className="grid grid-cols-3">
             {NAV.map(item => {

@@ -82,6 +82,37 @@ body {
   max-width: 38rem;
 }
 
+.quran-page {
+  background: #eef3f8;
+  border-radius: 16px;
+}
+
+.quran-header-card {
+  background: #e7eef6;
+  border: 1px solid #c5d4e8;
+  border-radius: 16px;
+}
+
+.quran-ayah-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.45em;
+  height: 1.45em;
+  margin-inline: 0.2em;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-family: Inter, sans-serif;
+  font-size: 0.42em;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.quran-band {
+  background: #e4edf7;
+  border-radius: 0.4em;
+}
+
 :focus-visible {
   outline: 3px solid var(--color-gold);
   outline-offset: 2px;
