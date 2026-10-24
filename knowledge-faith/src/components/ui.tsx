@@ -5,7 +5,7 @@ import { useApp } from '../lib/store.tsx';
 type Variant = 'primary' | 'ghost' | 'soft';
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-pine text-white hover:bg-moss disabled:bg-pine/50',
+  primary: 'bg-moss text-white hover:bg-pine disabled:bg-moss/50',
   soft: 'bg-mint text-pine hover:bg-mint/70 disabled:opacity-50',
   ghost: 'text-pine hover:bg-mint/60 disabled:opacity-50',
 };
@@ -111,7 +111,7 @@ export function Select({
       <select
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="rounded-xl border border-pine/20 bg-white px-3 py-2 text-sm text-ink"
+        className="rounded-xl border border-pine/20 bg-parchment px-3 py-2 text-sm text-ink"
       >
         {options.map(o => (
           <option key={o.value} value={o.value}>

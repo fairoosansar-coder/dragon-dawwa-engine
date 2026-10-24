@@ -6,24 +6,32 @@
   --font-sans: 'Inter', 'Noto Sans Tamil', 'Noto Sans Sinhala', ui-sans-serif, system-ui, sans-serif;
   --font-display: 'Fraunces', 'Noto Sans Tamil', 'Noto Sans Sinhala', Georgia, serif;
   --font-arabic: 'Amiri Quran', 'Amiri', 'Scheherazade New', serif;
-  --color-ink: #0f2a24;
-  --color-pine: #134e40;
-  --color-moss: #1f6b57;
-  --color-mint: #d8efe6;
-  --color-sand: #f7f2e8;
-  --color-parchment: #fffdf8;
-  --color-gold: #b8862f;
+  --color-ink: #172720;
+  --color-muted: #637069;
+  --color-pine: #064936;
+  --color-moss: #07533f;
+  --color-mint: #e7f2ec;
+  --color-sand: #faf6ec;
+  --color-parchment: #f4ecd8;
+  --color-gold: #c9a14e;
+  --color-lapis: #244875;
   --color-dd-emerald: #064936;
   --color-dd-ivory: #faf6ec;
   --color-dd-gold: #c9a14e;
   --color-dd-gold-soft: #f3e6c2;
-  --color-dd-lapis: #1e4d78;
-  --color-dd-ink: #1c1612;
+  --color-dd-lapis: #244875;
+  --color-dd-ink: #172720;
+}
+
+:root {
+  --gold-leaf: #c9a14e;
+  --gold-border: #c9a14e;
 }
 
 html {
   background: var(--color-sand);
   color: var(--color-ink);
+  overflow-x: clip;
 }
 
 body {

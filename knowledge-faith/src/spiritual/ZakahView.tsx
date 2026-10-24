@@ -63,7 +63,7 @@ function toInput(row: Row, base: string): ZakahAssetInput {
 }
 
 export function ZakahCalculator({ segments }: { segments: string[] }) {
-  const { s, config } = useSp();
+  const { s, config, lang } = useSp();
   const [currency, setCurrency] = useState('LKR');
   const [valuationDate, setValuationDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [priceDate, setPriceDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -112,7 +112,7 @@ export function ZakahCalculator({ segments }: { segments: string[] }) {
     setAiBusy(true);
     setAiError(null);
     try {
-      setSuggestion(await postJson<ZakahSuggestion>('/api/spiritual/zakah-draft', { description }));
+      setSuggestion(await postJson<ZakahSuggestion>('/api/spiritual/zakah-draft', { description, lang }));
     } catch (error) {
       setSuggestion(null);
       setAiError((error as Error).message);

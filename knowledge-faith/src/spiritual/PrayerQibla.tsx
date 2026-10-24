@@ -5,12 +5,7 @@ import { useRemote } from '../lib/api.ts';
 import { useStored } from '../lib/store.tsx';
 import { applyPrayerOffsets, latitudeAdjustmentId, type ClockName, type PrayerOffsets } from './prayerAdjust.ts';
 import { Banner, Field, PageBack, Panel, control, useSp } from './chrome.tsx';
-
-interface Place {
-  name: string;
-  lat: number;
-  lng: number;
-}
+import { usePlace, type Place } from './place.ts';
 
 const CITIES: Place[] = [
   { name: 'Colombo', lat: 6.9271, lng: 79.8612 },
@@ -38,10 +33,6 @@ function useNow() {
     return () => clearInterval(id);
   }, []);
   return now;
-}
-
-export function usePlace() {
-  return useStored<Place | null>('kf-place', null);
 }
 
 export function PrayerTimesView({ segments }: { segments: string[] }) {

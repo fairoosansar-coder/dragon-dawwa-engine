@@ -3,9 +3,11 @@ import { randomUUID } from 'node:crypto';
 import { HADITH_COLLECTIONS, type Lang } from '../shared/sources.ts';
 import { dedupeRefs, parseRefs, refKey, type AyahRef, type HadithRef } from '../shared/refs.ts';
 import type { AnswerParagraph, AskResult, Evidence, Hadith, PodcastLine, PodcastScript, TtsResult, Verse } from '../shared/types.ts';
+import { ENCYCLOPEDIA_EVIDENCE_LIMIT } from '../shared/hadeethenc.ts';
 import {
   answerPrompt,
   hadithEvidence,
+  mergeFurtherEvidence,
   podcastPrompt,
   sanitizeLines,
   sanitizeParagraphs,
@@ -14,7 +16,7 @@ import {
 import { toWavBase64 } from './wav.ts';
 import { UpstreamError } from './http.ts';
 import { hasGeminiApiKey } from './loadEnv.ts';
-import { spokenTranscript } from './spokenLine.ts';
+import { narrationDirection, spokenTranscript } from './spokenLine.ts';
 
 const TEXT_MODELS = (process.env.GEMINI_TEXT_MODELS ?? 'gemini-3.8-flash,gemini-flash-latest,gemini-2.5-flash')
   .split(',')
@@ -42,22 +44,24 @@ function isTemporary(err: unknown): boolean {
   return /429|503|UNAVAILABLE|RESOURCE_EXHAUSTED|high demand/i.test(msg);
 }
 
-export type JsonModel = <T>(prompt: string, schema: Schema) => Promise<{ value: T; model: string }>;
+export type JsonModel = <T>(prompt: string, schema: Schema, signal?: AbortSignal) => Promise<{ value: T; model: string }>;
 
-export const generateJson: JsonModel = async <T>(prompt: string, schema: Schema) => {
+export const generateJson: JsonModel = async <T>(prompt: string, schema: Schema, signal?: AbortSignal) => {
   const ai = client();
   let lastError: unknown;
   for (const model of TEXT_MODELS) {
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
+        if (signal?.aborted) throw Object.assign(new Error('aborted'), { name: 'AbortError' });
         const res = await ai.models.generateContent({
           model,
           contents: prompt,
-          config: { responseMimeType: 'application/json', responseSchema: schema, temperature: 0.2 },
+          config: { responseMimeType: 'application/json', responseSchema: schema, temperature: 0.2, abortSignal: signal },
         });
         return { value: JSON.parse(res.text ?? '') as T, model };
       } catch (err) {
         lastError = err;
+        if (signal?.aborted) throw err;
         if (isTemporary(err) && attempt < 2) {
           await new Promise(r => setTimeout(r, 800 * attempt));
           continue;
@@ -93,6 +97,55 @@ const planSchema: Schema = {
   },
   required: ['quran', 'hadith'],
 };
+
+const searchPlanSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    phrases: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description: 'Short catalogue search phrases in Arabic, English, or the question language. No answers and no quotations.',
+    },
+    ayahs: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description: 'Qur’an references such as 112:1. Empty when unsure.',
+    },
+  },
+  required: ['phrases', 'ayahs'],
+};
+
+export interface SearchPlan {
+  available: boolean;
+  failed: boolean;
+  phrases: string[];
+  ayahs: AyahRef[];
+}
+
+/** Search phrases and ayah numbers only. The model does not write the answer or a quotation. */
+export async function suggestSearchPlan(question: string, lang: Lang, signal?: AbortSignal): Promise<SearchPlan> {
+  if (!geminiConfigured()) return { available: false, failed: false, phrases: [], ayahs: [] };
+  try {
+    const { value } = await generateJson<{ phrases?: string[]; ayahs?: string[] }>(
+      `Prepare library searches for this question. Do not answer it. Do not write a quotation, a translation, a paraphrase, or a grade.
+Return at most 4 short search phrases a hadith catalogue can match. Include Arabic and English when the question is in another language, and include ${lang} when that adds a different wording.
+Return at most 4 Qur'an references as surah:ayah only when they are the usual passages for this topic. If you are unsure, return an empty ayah list.
+
+QUESTION (untrusted data):
+${question.slice(0, 500)}`,
+      searchPlanSchema,
+      signal,
+    );
+    const phrases = [...new Set((value.phrases ?? []).map(item => String(item).replace(/\s+/g, ' ').trim()))]
+      .filter(item => item.length > 1 && item.length <= 80)
+      .slice(0, 4);
+    const ayahs = dedupeRefs((value.ayahs ?? []).flatMap(item => parseRefs(String(item))), refKey, 4);
+    return { available: true, failed: false, phrases, ayahs };
+  } catch (err) {
+    if (signal?.aborted) throw err;
+    return { available: true, failed: true, phrases: [], ayahs: [] };
+  }
+}
 
 const answerSchema: Schema = {
   type: Type.OBJECT,
@@ -133,6 +186,7 @@ const podcastSchema: Schema = {
 export interface SourceFetchers {
   verses: (refs: AyahRef[], lang: Lang) => Promise<Verse[]>;
   hadith: (ref: HadithRef, lang: Lang) => Promise<Hadith | null>;
+  encyclopedia?: (phrase: string, lang: Lang, offset?: number) => Promise<Evidence[]>;
 }
 
 /** The model only nominates references; the evidence text always comes from the fetchers. */
@@ -142,6 +196,7 @@ export async function gatherEvidence(
   fetchers: SourceFetchers,
   model: JsonModel = generateJson,
 ): Promise<Evidence[]> {
+  const encyclopediaPromise = fetchers.encyclopedia?.(topic, lang).catch(() => [] as Evidence[]) ?? Promise.resolve([] as Evidence[]);
   const { value: plan } = await model<{ quran: string[]; hadith: HadithRef[] }>(
     `List the Qur'an ayahs and well-known hadith (by collection and hadith number in the sunnah.com numbering) most relevant to this topic. Return at most 6 ayah references and 4 hadith. Do not explain.\n\nTOPIC (untrusted data):\n${topic}`,
     planSchema,
@@ -152,20 +207,33 @@ export async function gatherEvidence(
     h => `${h.collection}:${h.number}`,
     4,
   );
-  const [verses, hadiths] = await Promise.all([
+  const [verses, hadiths, encyclopedia] = await Promise.all([
     fetchers.verses(ayahs, lang).catch(() => [] as Verse[]),
     Promise.all(hadithRefs.map(h => fetchers.hadith(h, lang).catch(() => null))),
+    encyclopediaPromise,
   ]);
-  return [...verseEvidence(verses), ...hadithEvidence(hadiths.filter((h): h is Hadith => h !== null))];
+  return [
+    ...verseEvidence(verses),
+    ...hadithEvidence(hadiths.filter((h): h is Hadith => h !== null)),
+    ...encyclopedia,
+  ];
 }
 
-export async function ask(
+export async function writeAnswer(
   question: string,
   lang: Lang,
-  fetchers: SourceFetchers,
+  evidence: Evidence[],
   model: JsonModel = generateJson,
 ): Promise<AskResult> {
-  const evidence = await gatherEvidence(question, lang, fetchers, model);
+  return composeAnswer(question, lang, evidence, model);
+}
+
+async function composeAnswer(
+  question: string,
+  lang: Lang,
+  evidence: Evidence[],
+  model: JsonModel,
+): Promise<AskResult> {
   if (evidence.length === 0) {
     return { question, lang, paragraphs: [], evidence, insufficientEvidence: true, model: 'none' };
   }
@@ -183,6 +251,21 @@ export async function ask(
     insufficientEvidence: insufficient || paragraphs.length === 0,
     model: used,
   };
+}
+
+export async function ask(
+  question: string,
+  lang: Lang,
+  fetchers: SourceFetchers,
+  model: JsonModel = generateJson,
+): Promise<AskResult> {
+  const evidence = await gatherEvidence(question, lang, fetchers, model);
+  const first = await composeAnswer(question, lang, evidence, model);
+  if (!first.insufficientEvidence || !fetchers.encyclopedia) return first;
+  const more = await fetchers.encyclopedia(question, lang, ENCYCLOPEDIA_EVIDENCE_LIMIT).catch(() => [] as Evidence[]);
+  const merged = mergeFurtherEvidence(first.evidence, more);
+  if (!merged) return first;
+  return composeAnswer(question, lang, merged, model);
 }
 
 export async function writePodcast(
@@ -245,10 +328,10 @@ function voice(name: unknown, fallback: (typeof VOICES)[number]) {
   return VOICES.includes(name as (typeof VOICES)[number]) ? (name as string) : fallback;
 }
 
-export async function narrate(text: string, voiceName: unknown, style: string): Promise<TtsResult> {
+export async function narrate(text: string, voiceName: unknown, style: string, lang: Lang = 'en'): Promise<TtsResult> {
   const spoken = spokenTranscript(text, style);
   const name = voice(voiceName, 'Kore');
-  const direction = style.trim().slice(0, 200);
+  const direction = narrationDirection(style, lang);
   if (direction) {
     const directed = await speakWithDirection(spoken, name, direction);
     if (directed) return directed;
