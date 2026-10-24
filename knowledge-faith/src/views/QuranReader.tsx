@@ -559,7 +559,8 @@ function Edition({
 
   useEffect(() => {
     if (ayah < 1 || loaded?.info.number !== surah) return;
-    const mark = document.getElementById(`v-${surah}-${ayah}`);
+    const opening = ayah === 1 ? document.querySelector('[data-bismillah]') : null;
+    const mark = opening instanceof HTMLElement ? opening : document.getElementById(`v-${surah}-${ayah}`);
     if (!mark) return;
     scrollMarkIntoMain(mark);
   }, [ayah, mode, surah, lang, loaded]);

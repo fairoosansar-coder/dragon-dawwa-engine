@@ -63,7 +63,8 @@ body {
 .quran-bismillah {
   font-family: 'Amiri Quran', 'Scheherazade New', 'Amiri', serif;
   font-size: clamp(1.85rem, 4.2vw, 2.65rem);
-  line-height: 2;
+  line-height: 2.45;
+  padding-top: 0.35em;
   text-align: center;
   color: #1a1a1a;
 }

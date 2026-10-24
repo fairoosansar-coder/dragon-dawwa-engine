@@ -250,7 +250,7 @@ export function ReadingSheet({
           </div>
         </div>
         {showBismillah && (
-          <div className="mt-6">
+          <div data-bismillah-block className="mt-6 scroll-mt-28 pt-3">
             <p data-bismillah lang="ar" dir="rtl" className="quran-bismillah">
               {BISMILLAH}
             </p>
@@ -305,7 +305,7 @@ export function ReadingSheet({
       )}
 
       {showArabic && !verseByVerse && (
-        <div data-mushaf className={`quran-face mt-6 text-center leading-[2.7] text-[#1e3a5f] ${ARABIC_SIZE[textSize]}`}>
+        <div data-mushaf className={`quran-face mt-6 scroll-mt-28 px-3 pt-6 text-center leading-[2.7] text-[#1e3a5f] ${ARABIC_SIZE[textSize]}`}>
           <p dir="rtl">
             {pageVerses.map(verse => (
               <span key={verse.key} id={`v-${verse.surah}-${verse.ayah}`} data-ayah={verse.ayah}>
