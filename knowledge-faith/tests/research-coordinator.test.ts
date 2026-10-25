@@ -130,8 +130,18 @@ describe('specialist contributions', () => {
     const source = agents.find(agent => agent.role === 'HadeethEnc Source Research');
     assert.equal(source?.status, 'ran');
     const script = roundtableFromResearch({ question: 'intentions', language: 'en', agents });
-    assert.equal(script?.participants.some(agent => agent.role === 'Isnad'), false);
-    assert.equal(script?.participants.some(agent => agent.role === 'HadeethEnc Source Research'), true);
+    assert.equal(script, null);
+    const spoken = roundtableFromResearch({
+      question: 'intentions',
+      language: 'en',
+      agents,
+      status: 'done',
+      answer: 'The opened hadith discusses intentions.',
+      passages: [{ locator: 'Sahih al-Bukhari 1', text: 'Actions are by intentions.', provider: 'HadeethEnc' }],
+    });
+    assert.equal(spoken?.participants.some(agent => agent.role === 'Isnad'), false);
+    assert.equal(spoken?.lines.some(line => line.text === source?.detail || /Search returned|The language is|Arabic was retrieved/.test(line.text)), false);
+    assert.match(spoken?.lines.map(line => line.text).join(' ') ?? '', /intentions/i);
   });
 });
 

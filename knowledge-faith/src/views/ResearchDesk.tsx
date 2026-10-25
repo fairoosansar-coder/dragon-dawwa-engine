@@ -5,6 +5,7 @@ import { researchOutcome } from '../shared/research/outcomes.ts';
 import { toLang, type Lang } from '../shared/sources.ts';
 import { useRemote } from '../lib/api.ts';
 import { beginResearch, noticeText, readResearchHistory, rememberResearch, researchHref, type StoredResearch } from '../lib/researchDesk.ts';
+import { questionsToResearch, separateQuestions } from '../shared/research/questions.ts';
 import { useApp } from '../lib/store.tsx';
 import { Button, ErrorNote, Loading, Notice } from '../components/ui.tsx';
 import { FullReport } from './FullReport.tsx';
@@ -25,6 +26,7 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
   const [clarified, setClarified] = useState(params.get('clarified') === '1');
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<StoredResearch[]>([]);
+  const [chapters, setChapters] = useState<{ id: string; scope: ResearchScope; question: string; forwarded?: boolean }[]>([]);
   const remote = useRemote<ResearchJobResponse>(jobId ? `/api/research/jobs/${jobId}` : null);
   const running = remote.data?.job.status === 'running' || remote.data?.job.status === 'queued';
 
@@ -34,8 +36,19 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
 
   useEffect(() => {
     setJobId(jobParam);
-    if (askedParam) setQuestion(askedParam);
+    if (!askedParam) return;
+    const parts = separateQuestions(askedParam);
+    setQuestion(parts[0] ?? askedParam);
   }, [jobParam, askedParam]);
+
+  useEffect(() => {
+    try {
+      const parsed = JSON.parse(sessionStorage.getItem('kf-research-chapters') || '[]') as { id: string; scope: ResearchScope; question: string; forwarded?: boolean }[];
+      setChapters(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      setChapters([]);
+    }
+  }, [jobId]);
 
   useEffect(() => {
     setHistory(readResearchHistory().filter(item => item.scope === entry));
@@ -69,29 +82,67 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
     if (text) setNotice(text);
   }, [remote.data?.job.assignment?.noticeId, t]);
 
+  async function researchOne(asked: string, extra?: { clarified?: boolean; prior?: string | null; force?: boolean }) {
+    return beginResearch({
+      question: asked,
+      entry,
+      lang,
+      bookId: selectedBook,
+      forwarded: params.get('fwd') === '1',
+      clarified: extra?.clarified ?? clarified,
+      priorQuestion: extra?.clarified ? extra.prior ?? null : null,
+      force: extra?.force,
+    });
+  }
+
   async function submit(event?: FormEvent, extra?: { clarified?: boolean; prior?: string | null; force?: boolean }) {
     event?.preventDefault();
-    const asked = question.trim();
-    if (asked.length < 3) return;
+    const clarifying = extra?.clarified === true;
+    const pieces = questionsToResearch(question, clarifying ? null : remote.data?.job.question ?? null, clarifying);
+    if (!pieces.length) return;
     setError(null);
     try {
-      const started = await beginResearch({
-        question: asked,
-        entry,
-        lang,
-        bookId: selectedBook,
-        forwarded: params.get('fwd') === '1',
-        clarified: extra?.clarified ?? clarified,
-        priorQuestion: extra?.prior ?? remote.data?.job.question ?? null,
-        force: extra?.force,
-      });
+      const startedChapters: { id: string; scope: ResearchScope; question: string; forwarded: boolean }[] = [];
+      for (const piece of pieces) {
+        const started = await researchOne(piece, extra);
+        if (started.action === 'clarify' || !started.id || !started.scope) {
+          setClarify(true);
+          setQuestion(piece);
+          return;
+        }
+        startedChapters.push({ id: started.id, scope: started.scope, question: piece, forwarded: started.action === 'forward' });
+      }
+      setClarify(false);
+      setQuestion(startedChapters[0].question);
+      if (startedChapters.length > 1) {
+        sessionStorage.setItem('kf-research-chapters', JSON.stringify(startedChapters));
+        setChapters(startedChapters);
+      }
+      const first = startedChapters[0];
+      const href = researchHref(first.scope, first.id, lang, first.forwarded, selectedBook, first.question);
+      if (first.scope !== entry || window.location.hash !== href) {
+        window.location.hash = href;
+        return;
+      }
+      setJobId(first.id);
+      remote.reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The research job could not be started.');
+    }
+  }
+
+  async function researchSeparate(piece: string) {
+    setError(null);
+    try {
+      const started = await researchOne(piece, { force: true });
       if (started.action === 'clarify' || !started.id || !started.scope) {
         setClarify(true);
+        setQuestion(piece);
         return;
       }
       setClarify(false);
-      const forwarded = started.action === 'forward';
-      const href = researchHref(started.scope, started.id, lang, forwarded, selectedBook, asked);
+      setQuestion(piece);
+      const href = researchHref(started.scope, started.id, lang, started.action === 'forward', selectedBook, piece);
       if (started.scope !== entry || window.location.hash !== href) {
         window.location.hash = href;
         return;
@@ -134,7 +185,8 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
   const citedPassages = (liveModel?.passages ?? []).filter(
     passage => !passage.context?.startsWith('Neighbouring') && (liveModel?.citationIds.length ? liveModel.citationIds.includes(passage.id) : true),
   );
-  const offersPodcast = (dossier?.passages.length ?? savedReport?.response.dossier?.passages.length ?? 0) > 0;
+  const otherQuestions = job ? separateQuestions(job.question).slice(1) : [];
+  const offersPodcast = otherQuestions.length === 0 && (dossier?.passages.length ?? savedReport?.response.dossier?.passages.length ?? 0) > 0;
 
   return (
     <div className="space-y-6">
@@ -157,6 +209,27 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
             {t.researchMyQuestion}
           </Button>
         </form>
+        {otherQuestions.length > 0 && (
+          <div className="mt-4 space-y-2">
+            <p className="text-sm leading-relaxed text-ink/75">This record joined more than one question. Each question keeps its own research.</p>
+            {otherQuestions.map(item => (
+              <Button key={item} type="button" variant="soft" onClick={() => void researchSeparate(item)}>
+                {item}
+              </Button>
+            ))}
+          </div>
+        )}
+        {chapters.length > 1 && (
+          <ul className="mt-4 space-y-2">
+            {chapters.map((chapter, index) => (
+              <li key={chapter.id}>
+                <a href={researchHref(chapter.scope, chapter.id, lang, chapter.forwarded === true, selectedBook, chapter.question)} className="text-sm font-medium text-pine hover:underline">
+                  Chapter {index + 1}. {chapter.question}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
         {notice && <div className="mt-4"><Notice>{notice}</Notice></div>}
         {clarify && (
           <form
@@ -193,7 +266,7 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
           {outcome.detail}
           {outcome.retry && (
             <span className="mt-3 block">
-              <Button type="button" variant="soft" onClick={() => void submit(undefined, { force: true, prior: job?.question ?? null })}>
+              <Button type="button" variant="soft" onClick={() => void submit(undefined, { force: true })}>
                 {t.retry}
               </Button>
             </span>

@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { ResearchJobResponse } from '../shared/contracts/v1.ts';
 import { buildReportModel, renderReportHtml } from '../shared/research/report.ts';
-import { roundtableFromResearch, type RoundtableScript } from '../shared/research/roundtable.ts';
+import { roundtableFromResearch, scriptMayBeSpoken, type RoundtableScript } from '../shared/research/roundtable.ts';
+import { separateQuestions } from '../shared/research/questions.ts';
 import type { Lang } from '../shared/sources.ts';
 import { postJson, useRemote } from '../lib/api.ts';
 import { readResearchHistory } from '../lib/researchDesk.ts';
@@ -17,6 +18,7 @@ interface LocalEpisode {
   language: Lang;
   participants: RoundtableScript['participants'];
   lines: RoundtableScript['lines'];
+  sources?: string[];
   reportHtml: string;
   state: EpisodeState;
   audioBase64?: string;
@@ -40,7 +42,9 @@ function readEpisodes(): LocalEpisode[] {
   try {
     const parsed = JSON.parse(localStorage.getItem(KEY) || '[]') as LocalEpisode[];
     return Array.isArray(parsed)
-      ? parsed.map(item => (item.state === 'audio-generating' ? { ...item, state: 'failed', error: item.error || 'Audio generation was interrupted.' } : item))
+      ? parsed
+          .filter(item => scriptMayBeSpoken(item.lines ?? [], item.question ?? ''))
+          .map(item => (item.state === 'audio-generating' ? { ...item, state: 'failed' as const, error: item.error || 'Audio generation was interrupted.' } : item))
       : [];
   } catch {
     return [];
@@ -88,14 +92,22 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
     const response = remote.data?.job.status === 'done'
       ? remote.data
       : readResearchHistory().find(item => item.id === jobId)?.response;
+    if (response?.job.status === 'error' || response?.job.status === 'cancelled') {
+      setError('This research did not finish, so no episode was made from its status messages.');
+      return;
+    }
     if (!response?.dossier || response.job.status !== 'done') return;
+    if (separateQuestions(response.job.question).length !== 1) {
+      setError('This record joined more than one question. Ask each question on its own before making an episode.');
+      return;
+    }
     if (!response.dossier.passages.length) {
       setError('No retrieved passage was kept, so a roundtable was not written.');
       return;
     }
     const created = episodeFromJob(response);
     if (!created) {
-      setError('No contributing agent was recorded, so a roundtable was not written.');
+      setError('The dossier did not produce a spoken script, so no episode was written.');
       return;
     }
     const next = [created, ...readEpisodes()];
@@ -110,17 +122,32 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
 
   function episodeFromJob(response: ResearchJobResponse): LocalEpisode | null {
     const job = response.job;
-    if (!response.dossier?.passages.length) return null;
-    const script = roundtableFromResearch({ question: job.question, language: job.language, agents: job.agents ?? [] });
-    if (!script || !response.dossier) return null;
-    const model = buildReportModel(job, response.dossier);
+    const dossier = response.dossier;
+    if (job.status !== 'done' || !dossier?.passages.length) return null;
+    const model = buildReportModel(job, dossier);
+    const script = roundtableFromResearch({
+      question: job.question,
+      language: job.language,
+      agents: job.agents ?? [],
+      answer: model.answer,
+      passages: dossier.passages.map(passage => ({
+        locator: passage.locator,
+        text: passage.text,
+        context: passage.context,
+        provider: passage.source.provider,
+      })),
+      insufficientEvidence: dossier.answer?.insufficientEvidence === true,
+      status: job.status,
+    });
+    if (!script) return null;
     return {
       id: `pod-${job.id}`,
       jobId: job.id,
-      question: job.question,
+      question: script.question,
       language: job.language,
       participants: script.participants,
       lines: script.lines,
+      sources: script.sources,
       reportHtml: renderReportHtml(model),
       state: 'script-ready',
     };
@@ -132,22 +159,28 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
     if (mine.some(item => item.jobId === response.job.id)) return;
     const created = episodeFromJob(response);
     if (!created) {
-      setError('No contributing agent was recorded, so a roundtable was not written.');
+      setError('The dossier did not produce a spoken script, so no episode was written.');
       return;
     }
     save([created, ...mine]);
   }
 
   async function generate(episode: LocalEpisode) {
+    if (!scriptMayBeSpoken(episode.lines, episode.question)) {
+      save(readEpisodes().map(item => (item.id === episode.id ? { ...item, state: 'failed', error: 'This script is not safe to speak.' } : item)));
+      return;
+    }
     const current = readEpisodes().map(item => (item.id === episode.id ? { ...item, state: 'audio-generating' as const, error: undefined } : item));
     save(current);
-    const spoken = episode.lines.map(line => `${line.speaker}: ${line.text}`).join('\n\n').slice(0, 2800);
+    const dialogue = episode.lines.map(line => ({
+      speaker: /^host\b/i.test(line.speaker) ? ('Host' as const) : ('Guest' as const),
+      text: line.text,
+    }));
     try {
-      const audio = await postJson<{ audioBase64: string; mimeType: string }>('/api/voice/narrate', {
-        text: spoken,
-        lang: episode.language,
-        voice: 'Kore',
-        style: 'Calm research roundtable',
+      const audio = await postJson<{ audioBase64: string; mimeType: string }>('/api/voice/dialogue', {
+        lines: dialogue,
+        hostVoice: 'Kore',
+        guestVoice: 'Charon',
       });
       save(readEpisodes().map(item => (item.id === episode.id ? { ...item, state: 'playable', audioBase64: audio.audioBase64, mimeType: audio.mimeType, error: undefined } : item)));
     } catch (err) {
@@ -198,6 +231,7 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
               language={episode.language}
               participants={episode.participants}
               lines={episode.lines}
+              sources={episode.sources}
               reportHtml={episode.reportHtml}
               stateLabel={stateLabel(episode.state, t)}
               state={episode.state}
@@ -248,6 +282,7 @@ function EpisodeCard({
   language,
   participants,
   lines,
+  sources = [],
   reportHtml,
   stateLabel: label,
   state,
@@ -260,6 +295,7 @@ function EpisodeCard({
   language: string;
   participants: RoundtableScript['participants'];
   lines: RoundtableScript['lines'];
+  sources?: string[];
   reportHtml: string;
   stateLabel: string;
   state: EpisodeState;
@@ -273,7 +309,7 @@ function EpisodeCard({
     <article className="rounded-3xl border border-pine/10 bg-parchment p-5">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">{label}</p>
       <h3 className="mt-2 font-display text-2xl font-bold text-pine">{question}</h3>
-      <p className="mt-1 text-sm text-ink/70">{language}</p>
+      <p className="mt-1 text-sm text-ink/70">Generated presenters. They are not scholars.</p>
       <ul className="mt-3 space-y-1 text-sm">
         {participants.map(agent => (
           <li key={agent.id}>
@@ -295,6 +331,16 @@ function EpisodeCard({
           </p>
         ))}
       </div>
+      <section className="mt-4">
+        <h4 className="font-display text-lg font-bold text-pine">Sources</h4>
+        <p className="mt-1 text-sm text-ink/60">Research language: {language}. These citations are not read aloud.</p>
+        {sources.length === 0 && <p className="mt-2 text-sm text-muted">The full report holds the citation list.</p>}
+        <ul className="mt-2 space-y-1 text-sm">
+          {sources.map(source => (
+            <li key={source}>{source}</li>
+          ))}
+        </ul>
+      </section>
       {actions && <div className="mt-4">{actions}</div>}
       <button type="button" className="mt-4 text-sm font-medium text-pine" onClick={() => setShowReport(open => !open)}>
         {showReport ? 'Hide full report' : 'Full report'}
