@@ -386,10 +386,10 @@
 }
 .hr-footer {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: 1.4fr auto auto;
   gap: 0.35rem 0.8rem;
   align-items: end;
-  margin-top: 1.8rem;
+  margin-top: 1.2rem;
   padding-top: 0.7rem;
   border-top: 2px solid var(--hr-gold);
   font-size: 0.72rem;
