@@ -950,7 +950,7 @@ export function HadithSearchForm({
                       <button
                         type="button"
                         onClick={() => handleSelectRecentSearch(item)}
-                        className="rounded-lg border border-[#c4a46a] bg-white px-2 py-1 text-[10px] font-bold text-[#0c3d2e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0f6b4c]"
+                        className="rounded-lg border border-[#0f6b4c] bg-[#0f6b4c] px-2.5 py-1.5 text-xs font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0c3d2e]"
                       >
                         Open podcast
                       </button>

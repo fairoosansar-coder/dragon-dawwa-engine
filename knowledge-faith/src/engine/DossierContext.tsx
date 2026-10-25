@@ -317,7 +317,23 @@ export function DossierProvider({ children }: { children: ReactNode }) {
           if (stamped.research_job_id) p.set('dossier', stamped.research_job_id);
         });
       } catch (err) {
-        if (controller.signal.aborted || !stillCurrent()) return;
+        if (controller.signal.aborted || !stillCurrent()) {
+          const existing = readSavedResearch().find(item => item.language === requestLang && item.question.trim() === question);
+          if (existing?.status === 'researching') {
+            rememberSelection({
+              question,
+              language: requestLang,
+              isnad: nextIsnad,
+              status: existing.analysis ? 'ready' : 'idle',
+              analysis: existing.analysis,
+              audioReady: existing.audioReady,
+              reportId: existing.reportId,
+              revision: existing.revision,
+              jobId: existing.jobId,
+            });
+          }
+          return;
+        }
         const e = err as Error;
         const message = e.name === 'TimeoutError' ? 'Research timed out. Please retry.' : e.message || 'Live research failed. Please retry.';
         setReportOrigin('failed');
