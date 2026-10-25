@@ -33,6 +33,9 @@ export function startResearchJob(work: () => Promise<unknown>, describeError: (e
     .then(result => {
       const current = jobs.get(id);
       if (!current || current.status !== 'running') return;
+      if (result && typeof result === 'object' && 'query_hadith' in result) {
+        (result as { research_job_id?: string }).research_job_id = id;
+      }
       current.status = 'done';
       current.result = result;
     })

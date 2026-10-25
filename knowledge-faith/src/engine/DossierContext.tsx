@@ -150,6 +150,35 @@ export function DossierProvider({ children }: { children: ReactNode }) {
     setMatn(current => (isPresetMatn(preset, current) ? presetMatn(preset, lang) : current));
   }, [lang, preset]);
 
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('dossier');
+    if (!id) return;
+    let cancel = false;
+    setIsAnalyzing(true);
+    fetch(`/api/analyze/${encodeURIComponent(id)}`, { cache: 'no-store' })
+      .then(async response => {
+        const body = (await response.json().catch(() => ({}))) as { analysis?: DragonDawwaAnalysis; error?: string };
+        if (cancel) return;
+        if (!response.ok || !body.analysis) {
+          setError(body.error || 'This report could not be opened.');
+          setReportOrigin('idle');
+          return;
+        }
+        setAnalysis(body.analysis);
+        setMatn(body.analysis.query_hadith || '');
+        setReportOrigin('live');
+      })
+      .catch(() => {
+        if (!cancel) setError('This report could not be opened.');
+      })
+      .finally(() => {
+        if (!cancel) setIsAnalyzing(false);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, []);
+
   useEffect(() => () => inFlight.current?.abort(), []);
 
   const selectBenchmark = useCallback(
@@ -209,6 +238,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
         setUrlParams(p => {
           p.delete('preset');
           p.set('q', nextMatn.slice(0, 80));
+          if (analysis.research_job_id) p.set('dossier', analysis.research_job_id);
         });
       } catch (err) {
         if (controller.signal.aborted) return;

@@ -1,6 +1,7 @@
 import type { DragonDawwaAnalysis } from '../types/hadith.ts';
 import { scrubVanakkam } from './tamilGreeting.ts';
 import { attachAgent7ToAnalysis } from './agent7SourceResearch.ts';
+import { isChinaQuestion, isIntentionsQuestion, isSaturdayFastingQuestion } from './reportBinding.ts';
 
 /**
  * Returns localized dynamic analysis benchmarks for Tamil (தமிழ்) and Sinhala (සිංහල).
@@ -178,7 +179,7 @@ BROTHER FEROZ (HOST): மாஷா அல்லாஹ்! அனைத்து 
     }
 
     // 2. Saturday Fasting Benchmark
-    if (query.includes('saturday') || query.includes('fasting') || query.includes('sabt') || query.includes('சனிக்கிழமை') || query.includes('கடமையாக்கப்பட்ட')) {
+    if (isSaturdayFastingQuestion(query)) {
       return {
         ...analysis,
         agent_1_takhrij: {
@@ -415,15 +416,8 @@ BROTHER FEROZ (HOST): எனவே, டிராகன் தஃவா ஆய்
       };
     }
 
-    // Default translation wrapper for dynamic queries in Tamil
-    return {
-      ...analysis,
-      agent_6_synthesis: {
-        ...analysis.agent_6_synthesis,
-        final_status: `${analysis.agent_6_synthesis.final_status} (சரிபார்க்கப்பட்டது)`,
-        consensus_and_disagreements: "குதுபுஸ் ஸித்தாஹ் நூல்களின் அடிப்படையில் ஆராயப்பட்டு அறிஞர்களின் ஒருமித்த கருத்தின்படி வகைப்படுத்தப்பட்டுள்ளது."
-      }
-    };
+    // Keep this job's own synthesis. Do not replace it with a canned consensus.
+    return analysis;
   }
 
   if (lang === 'si') {
@@ -584,7 +578,7 @@ BROTHER FEROZ (HOST): මාෂා අල්ලාහ්! පර්යේෂණ 
     }
 
     // 2. Saturday Fasting Benchmark
-    if (query.includes('saturday') || query.includes('fasting') || query.includes('sabt') || query.includes('සෙනසුරාදා') || query.includes('උපවාස')) {
+    if (isSaturdayFastingQuestion(query)) {
       return {
         ...analysis,
         agent_1_takhrij: {
@@ -783,15 +777,8 @@ BROTHER FEROZ (HOST): එමනිසා ඩ්‍රැගන් දඃවා �
       };
     }
 
-    // Default translation wrapper for dynamic queries in Sinhala
-    return {
-      ...analysis,
-      agent_6_synthesis: {
-        ...analysis.agent_6_synthesis,
-        final_status: `${analysis.agent_6_synthesis.final_status} (සත්‍යාපනය කරන ලදී)`,
-        consensus_and_disagreements: "කුතුබ් අල්-සිත්තාහ් මූලාශ්‍ර මත පදනම්ව විද්වත් තීන්දු සංසන්දනය කර වර්ගීකරණය කර ඇත."
-      }
-    };
+    // Keep this job's own synthesis. Do not replace it with a canned consensus.
+    return analysis;
   }
 
   return analysis;

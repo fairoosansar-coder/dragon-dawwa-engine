@@ -10,7 +10,7 @@ import { buildFullReportMarkdown } from '../src/engine/utils/agent7SourceResearc
 function fixture(): DragonDawwaAnalysis {
   return {
     app_name: 'Dragon Dawwa',
-    query_hadith: 'Sample narration for the paper.',
+    query_hadith: 'Do not fast on Saturday except what is obligatory, and do not precede Ramadan.',
     agent_1_takhrij: {
       variants_summary: 'Bukhari adds a clause.',
       sources: [

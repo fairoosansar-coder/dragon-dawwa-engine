@@ -4,6 +4,14 @@ import type {
   HadeethEncRetrievedRecord,
 } from '../types/hadith.ts';
 import { publishedAuthenticity } from './reportPresentation.ts';
+import {
+  bindReport,
+  isChinaQuestion,
+  isCannedSaturdayAgent,
+  isIntentionsQuestion,
+  isSaturdayFastingQuestion,
+  recordIsRelevant,
+} from './reportBinding.ts';
 
 export type LangCode = 'en' | 'ta' | 'si';
 
@@ -19,17 +27,8 @@ export function buildPresetAgent7SourceResearch(
     duration_ms: number;
   },
 ): { agent7: Agent7SourceResearch; additionalRoundtableLines: string; synthesisAddendum: string } {
-  const q = queryHadith.toLowerCase();
-  const isIntentions =
-    q.includes('intentions') ||
-    q.includes('niyyat') ||
-    q.includes('எண்ணங்களைப்') ||
-    q.includes('செயல்கள்') ||
-    q.includes('චේතනා');
-  const isChina =
-    q.includes('china') ||
-    q.includes('சீனா') ||
-    q.includes('චීනය');
+  const isIntentions = isIntentionsQuestion(queryHadith);
+  const isChina = isChinaQuestion(queryHadith);
 
   if (isIntentions) {
     const defaultRecords: HadeethEncRetrievedRecord[] =
@@ -327,7 +326,11 @@ export function buildPresetAgent7SourceResearch(
     return { agent7, additionalRoundtableLines, synthesisAddendum };
   }
 
-  // Default / Saturday Fasting (`saturday-fasting`) — includes the Tamil hadith sentence from the screenshots!
+  if (!isSaturdayFastingQuestion(queryHadith)) {
+    return buildQuestionAgent7(queryHadith, lang, liveRecords, liveActivity);
+  }
+
+  // Saturday fasting benchmark only. Other questions must not receive this dossier.
   // "கடமையாக்கப்பட்ட நோன்பைத் தவிர வேறு எதற்காகவும் சனிக்கிழமை நோன்பு நோற்காதீர்கள்; ஒரு திராட்சைத் தோல் அல்லது மரத்தின் கிளையைத் தவிர வேறெதுவும் கிடைக்காவிட்டாலும் அதனை மென்று விடவும்."
   const defaultFastingRecords: HadeethEncRetrievedRecord[] =
     lang === 'ta'
@@ -521,6 +524,73 @@ export function buildPresetAgent7SourceResearch(
   return { agent7, additionalRoundtableLines, synthesisAddendum };
 }
 
+function buildQuestionAgent7(
+  queryHadith: string,
+  lang: LangCode,
+  liveRecords?: HadeethEncRetrievedRecord[],
+  liveActivity?: {
+    queries_run: string[];
+    candidates_found: number;
+    records_opened: string[];
+    unopened_count: number;
+    duration_ms: number;
+  },
+): { agent7: Agent7SourceResearch; additionalRoundtableLines: string; synthesisAddendum: string } {
+  const relevant = (liveRecords ?? []).filter(record => recordIsRelevant(queryHadith, record).ok).map(record => ({
+    ...record,
+    match_reason: recordIsRelevant(queryHadith, record).reason,
+  }));
+  const queries = liveActivity?.queries_run?.length ? liveActivity.queries_run : [queryHadith.slice(0, 180)];
+  const summary = relevant.length
+    ? `Agent 7 opened ${relevant.map(record => `#${record.id}`).join(', ')} because each record uses this question’s own wording. A shared word such as fasting was not treated as relevance.`
+    : 'Agent 7 searched this question. No opened record used its own wording, so none was copied from another job.';
+  const agent7: Agent7SourceResearch = {
+    persona_name: 'Dr. Amina al-Kindi',
+    role_title: 'Source Research & HadeethEnc Specialist (Agent 7)',
+    summary_established: summary,
+    retrieved_records: relevant,
+    attributed_opinions: relevant.filter(record => record.published_grade).map(record => ({
+      author_or_source: record.collection_attribution || `HadeethEnc #${record.id}`,
+      opinion_text: record.published_grade || 'Not supplied',
+      reference: record.source_url,
+    })),
+    agent_interpretation: 'These notes follow only the records kept for this question. They do not treat a transmission grade as a legal ruling, and they do not import another question’s findings.',
+    responses_to_agents: relevant.length
+      ? [{
+          target_agent: 'Agents 1–6',
+          response_text: `The records kept for this question are ${relevant.map(record => `HadeethEnc #${record.id}`).join(', ')}. Cross-agent comments cite those records only.`,
+          cited_references: relevant.map(record => `HadeethEnc #${record.id}`),
+        }]
+      : [{
+          target_agent: 'Agents 1–6',
+          response_text: 'No HadeethEnc record passed the relevance check for this question, so Agent 7 does not attribute another narration’s findings to these agents.',
+          cited_references: [],
+        }],
+    unresolved_questions: relevant.length
+      ? ['A transmission grade on a kept record is not, by itself, a legal conclusion.']
+      : ['The search did not open a record that explains this question. That absence is not evidence taken from another job.'],
+    research_activity: {
+      queries_run: queries,
+      candidates_found: liveActivity?.candidates_found ?? relevant.length,
+      records_opened: relevant.map(record => record.id),
+      unopened_count: liveActivity?.unopened_count ?? 0,
+      duration_ms: liveActivity?.duration_ms ?? 0,
+      note: 'Relevance requires the question’s own wording. A shared word such as fasting is not enough.',
+    },
+  };
+  const names = relevant.length ? relevant.map(record => `#${record.id}`).join(', ') : 'no record that uses this question’s wording';
+  const line = lang === 'ta'
+    ? `DR. AMINA: அஸ்ஸலாமு அலைக்கும். இந்தக் கேள்விக்கான ஆதாரங்கள் மட்டுமே இங்கே. ${names}. நோன்பு என்ற பொதுச் சொல் மட்டும் ஒரு ஆதாரத்தை இந்த ஆய்வுக்குள் கொண்டுவராது.`
+    : lang === 'si'
+      ? `DR. AMINA: අස්සලාමු අලයිකුම්. මෙම ප්‍රශ්නයට අදාළ වාර්තා පමණයි. ${names}. උපවාසය යන පොදු වචනය පමණක් ප්‍රමාණවත් නොවේ.`
+      : `DR. AMINA: Assalamu alaikum. For this question I kept ${names}. A shared word such as fasting is not enough, and another job’s Saturday-fasting records are not read here.`;
+  return {
+    agent7,
+    additionalRoundtableLines: `\nBROTHER FEROZ (HOST): Dr. Amina, what did the source search keep for this question?\n\n${line}`,
+    synthesisAddendum: `\n\n#### 4. Agent 7 — Source research for this question\n${summary}`,
+  };
+}
+
 /**
  * Ensures any DragonDawwaAnalysis object includes Agent 7 (Source Research) and its participation
  * in the executive synthesis and podcast roundtable in the active language.
@@ -544,7 +614,18 @@ export function attachAgent7ToAnalysis(
     liveActivity,
   );
 
+  const question = analysis.query_hadith || '';
+  const foreign = isCannedSaturdayAgent(analysis.agent_7_source_research, question);
   let script = analysis.agent_6_synthesis.podcast_script || '';
+  if (!isSaturdayFastingQuestion(question)) {
+    script = script
+      .split(/\n{2,}/)
+      .filter(part => !/4508|3546|சனிக்கிழமை|Saturday fasting|Abu Dawud #2421|அப்துல்லாஹ் இப்னு புஸ்ர்/.test(part))
+      .join('\n\n');
+  }
+  if (liveRecords?.length) {
+    script = script.replace(/\n*BROTHER FEROZ \(HOST\): Dr\. Amina, what did the source search keep[\s\S]*?(?=\n\[AUDIO CUE: OUTRO|$)/, '\n');
+  }
   if (!/DR\.\s*AMINA:/i.test(script)) {
     const outroMarker = '[AUDIO CUE: OUTRO';
     const outroIdx = script.indexOf(outroMarker);
@@ -556,24 +637,20 @@ export function attachAgent7ToAnalysis(
   }
 
   let execMd = analysis.agent_6_synthesis.executive_report_markdown || '';
+  if (foreign) {
+    execMd = execMd
+      .split(/\n{2,}/)
+      .filter(part => !/4508|3546|சனிக்கிழமை|Saturday fasting/.test(part))
+      .join('\n\n');
+  }
   if (!execMd.includes('Agent 7') && !execMd.includes('முகவர் 7')) {
     execMd = `${execMd.trimEnd()}${synthesisAddendum}`;
   }
 
+  const replaceAgent = foreign || Boolean(liveRecords?.length) || !analysis.agent_7_source_research;
   return {
     ...analysis,
-    agent_7_source_research: analysis.agent_7_source_research
-      ? {
-          ...agent7,
-          ...analysis.agent_7_source_research,
-          retrieved_records:
-            liveRecords && liveRecords.length > 0
-              ? agent7.retrieved_records
-              : analysis.agent_7_source_research.retrieved_records?.length
-                ? analysis.agent_7_source_research.retrieved_records
-                : agent7.retrieved_records,
-        }
-      : agent7,
+    agent_7_source_research: replaceAgent ? agent7 : analysis.agent_7_source_research,
     agent_6_synthesis: {
       ...analysis.agent_6_synthesis,
       executive_report_markdown: execMd,
@@ -588,7 +665,7 @@ export function attachAgent7ToAnalysis(
  * disagreements, unresolved questions, final synthesis, and the 7-participant roundtable script.
  */
 export function buildFullReportMarkdown(analysis: DragonDawwaAnalysis, lang: LangCode = 'en'): string {
-  const enriched = analysis.agent_7_source_research ? analysis : attachAgent7ToAnalysis(analysis, lang);
+  const enriched = bindReport(analysis.agent_7_source_research ? analysis : attachAgent7ToAnalysis(analysis, lang));
   const a1 = enriched.agent_1_takhrij;
   const a2 = enriched.agent_2_isnad;
   const a3 = enriched.agent_3_rijal;

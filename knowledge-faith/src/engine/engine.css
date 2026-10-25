@@ -42,6 +42,49 @@
   .print-only { display: none !important; }
 }
 
+@font-face {
+  font-family: "Noto Naskh Arabic";
+  src: url("/fonts/NotoNaskhArabic-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Noto Naskh Arabic";
+  src: url("/fonts/NotoNaskhArabic-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Noto Sans Tamil";
+  src: url("/fonts/NotoSansTamil-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Noto Sans Tamil";
+  src: url("/fonts/NotoSansTamil-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Noto Sans Sinhala";
+  src: url("/fonts/NotoSansSinhala-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Noto Sans Sinhala";
+  src: url("/fonts/NotoSansSinhala-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Full hadith report paper — screen and print share this sheet. */
 .hadith-report-paper {
   --hr-ivory: #f6f1e4;
@@ -52,8 +95,8 @@
   --hr-emerald: #0c3b2e;
   background: var(--hr-ivory);
   color: var(--hr-ink);
-  font-family: Inter, "Noto Sans Tamil", "Noto Sans Sinhala", ui-sans-serif, sans-serif;
-  line-height: 1.65;
+  font-family: "Noto Sans Tamil", "Noto Sans Sinhala", Inter, ui-sans-serif, sans-serif;
+  line-height: 1.75;
   max-width: 920px;
   margin: 0 auto;
   padding: 1.25rem 1.25rem 1.5rem;
@@ -97,6 +140,27 @@
 }
 .hr-meta span { display: block; }
 .hr-meta strong { display: block; font-weight: 650; color: #fffaf0; }
+.hr-question {
+  margin: 0.85rem 0 0;
+  font-size: 1rem;
+  line-height: 1.8;
+  color: #fffaf0;
+}
+.hr-contents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.8rem;
+  margin-top: 0.9rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--hr-gold);
+}
+.hr-contents a {
+  color: var(--hr-emerald);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
 .hr-verdict {
   display: grid;
   grid-template-columns: minmax(11rem, 16rem) 1fr;
@@ -233,19 +297,32 @@
   color: var(--hr-accent, var(--hr-emerald));
 }
 .hr-arabic {
-  font-family: "Amiri Quran", "Scheherazade New", Amiri, serif;
-  font-size: 1.35rem;
-  line-height: 2.15;
+  font-family: "Noto Naskh Arabic", "Amiri Quran", serif;
+  font-size: 1.45rem;
+  line-height: 2.35;
   direction: rtl;
   text-align: right;
   margin: 0.45rem 0;
   color: var(--hr-ink);
+  break-inside: auto;
+  page-break-inside: auto;
+}
+.hr-source-card {
+  margin-top: 0.9rem;
+  padding: 0.85rem 0 0.2rem;
+  border-top: 1px solid var(--hr-gold);
+  break-inside: auto;
+  page-break-inside: auto;
+}
+.hr-source-ref {
+  margin: 0;
+  color: var(--hr-emerald);
+  font-weight: 650;
 }
 .hr-table-wrap { margin-top: 0.75rem; }
 .hr-table {
   width: 100%;
   border-collapse: collapse;
-  table-layout: fixed;
   background: #fffdf8;
   font-size: 0.84rem;
 }
@@ -264,9 +341,13 @@
   text-transform: uppercase;
   color: var(--hr-emerald);
 }
-.hr-table tr, .hr-record, .hr-node, .hr-link, .hr-chart-row {
+.hr-compare tr, .hr-node, .hr-chart-row {
   break-inside: avoid;
   page-break-inside: avoid;
+}
+.hr-record, .hr-link, .hr-source-card, .hr-prose, .hr-transcript {
+  break-inside: auto;
+  page-break-inside: auto;
 }
 .hr-chain { margin-top: 0.8rem; }
 .hr-node {
@@ -316,7 +397,7 @@
 }
 .hr-footer .hr-page { text-align: center; color: var(--hr-ink); font-weight: 650; }
 .hr-footer .hr-review { grid-column: 1 / -1; }
-.hr-page-num::before { content: "1"; }
+.hr-page-num::before { content: counter(page); }
 .hr-designed { margin: 0.45rem 0 0; font-size: 0.75rem; color: var(--hr-muted); }
 @media (max-width: 720px) {
   .hr-verdict { grid-template-columns: 1fr; }
@@ -342,20 +423,14 @@
     box-shadow: none;
   }
   .hr-footer {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    margin: 0;
-    padding: 1.5mm 0 0;
-    background: #f6f1e4;
-    grid-template-columns: auto minmax(0, 1fr);
+    margin-top: 8mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
-  .hr-footer > span:first-child { white-space: nowrap; }
-  .hr-page { display: none; }
-  .hr-footer .hr-review { grid-column: auto; text-align: end; }
-  .hr-section, .hr-record, .hr-transcript { break-inside: auto; page-break-inside: auto; }
-  .hr-node, .hr-link, .hr-chart-row, .hr-table tr, .hr-header, .hr-verdict, .hr-ring {
+  .hr-section h2, .hr-block-label { break-after: avoid; page-break-after: avoid; }
+  .hr-section h2 + p, .hr-section h2 + .hr-prose { break-before: avoid; page-break-before: avoid; }
+  .hr-section, .hr-record, .hr-transcript, .hr-source-card, .hr-arabic { break-inside: auto; page-break-inside: auto; }
+  .hr-node, .hr-chart-row, .hr-compare tr, .hr-header, .hr-ring {
     break-inside: avoid;
     page-break-inside: avoid;
   }

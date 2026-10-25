@@ -6,6 +6,7 @@ import { SAMPLE_HADITHS } from "../data/sampleHadiths.ts";
 import { loadHadeeth, searchHadeeth } from "../../server/hadeethenc.ts";
 import { decomposeQuestion } from "../../shared/research/decompose.ts";
 import { hasGeminiApiKey } from "../../server/loadEnv.ts";
+import { isChinaQuestion, isIntentionsQuestion, isSaturdayFastingQuestion, questionBoundShell, recordIsRelevant } from "../utils/reportBinding.ts";
 
 export function getDragonDawwaSystemInstruction(targetLang: 'en' | 'ta' | 'si' = 'en'): string {
   const langName = targetLang === 'ta' ? 'Tamil (தமிழ்)' : targetLang === 'si' ? 'Sinhala (සිංහල)' : 'English';
@@ -264,13 +265,12 @@ async function retrieveLiveHadeethEncForDossier(
   }
 
   // Also include known canonical HadeethEnc IDs for benchmark themes so thematic corroboration is always opened alongside keyword candidates
-  const qLower = hadithInput.toLowerCase();
   const seedIds: string[] = [];
-  if (qLower.includes('intentions') || qLower.includes('niyyat') || qLower.includes('எண்ணங்களைப்') || qLower.includes('செயல்கள்') || qLower.includes('චේතනා')) {
+  if (isIntentionsQuestion(hadithInput)) {
     seedIds.push('4560', '66511');
-  } else if (qLower.includes('saturday') || qLower.includes('fasting') || qLower.includes('sabt') || qLower.includes('சனிக்கிழமை') || qLower.includes('கடமையாக்கப்பட்ட') || qLower.includes('நோன்பைத்') || qLower.includes('සෙනසුරාදා')) {
+  } else if (isSaturdayFastingQuestion(hadithInput)) {
     seedIds.push('4508', '3546');
-  } else if (qLower.includes('china') || qLower.includes('சீனா') || qLower.includes('චීනය')) {
+  } else if (isChinaQuestion(hadithInput)) {
     seedIds.push('9944');
   }
 
@@ -353,9 +353,13 @@ function enrichAnalysisWithHadeethEnc(
 ): DragonDawwaAnalysis {
   const localized = getLocalizedAnalysis(base, lang);
   const withAgent7 = attachAgent7ToAnalysis(localized, lang, liveRecords, liveActivity);
+  const question = withAgent7.query_hadith || '';
+  const usableRecords = isSaturdayFastingQuestion(question) || isIntentionsQuestion(question) || isChinaQuestion(question)
+    ? liveRecords
+    : liveRecords.filter(record => recordIsRelevant(question, record).ok);
 
-  // Also feed the primary HadeethEnc records into Agent 1 (Takhrij), Agent 4 (Shawahid), and Agent 5 (Scholars' Verdicts) without duplicating existing rows
-  const extraTakhrij = liveRecords
+  // Also feed the primary HadeethEnc records into Agent 1 (Takhrij) and Agent 5 without duplicating existing rows
+  const extraTakhrij = usableRecords
     .filter(r => !withAgent7.agent_1_takhrij.sources.some(s => s.hadith_number.includes(r.id)))
     .slice(0, 2)
     .map(r => ({
@@ -367,7 +371,7 @@ function enrichAnalysisWithHadeethEnc(
       wording_differences: `[Agent 7 Source Research · ${r.match_status}] Published Grade: ${r.published_grade ?? 'Not supplied'}.`,
     }));
 
-  const extraGradings = liveRecords
+  const extraGradings = usableRecords
     .filter(r => r.published_grade && !withAgent7.agent_5_scholars_verdict.gradings.some(g => g.reference.includes(`HadeethEnc #${r.id}`)))
     .slice(0, 2)
     .map(r => ({
@@ -389,46 +393,20 @@ function enrichAnalysisWithHadeethEnc(
   };
 }
 
-function selectBaseDossierForInput(hadithInput: string, lang: 'en' | 'ta' | 'si', liveRecords: HadeethEncRetrievedRecord[]): DragonDawwaAnalysis {
-  const q = hadithInput.toLowerCase();
-  if (q.includes('saturday') || q.includes('sabt') || q.includes('சனிக்கிழமை') || q.includes('கடமையாக்கப்பட்ட') || q.includes('සෙනසුරාදා')) {
+function selectBaseDossierForInput(hadithInput: string, _lang: 'en' | 'ta' | 'si', liveRecords: HadeethEncRetrievedRecord[]): DragonDawwaAnalysis {
+  if (isSaturdayFastingQuestion(hadithInput)) {
     const preset = SAMPLE_HADITHS.find(p => p.id === 'saturday-fasting') ?? SAMPLE_HADITHS[0];
     return { ...structuredClone(preset.defaultData), query_hadith: hadithInput };
   }
-  if (q.includes('china') || q.includes('சீனா') || q.includes('චීනය')) {
+  if (isChinaQuestion(hadithInput)) {
     const preset = SAMPLE_HADITHS.find(p => p.id === 'seek-knowledge-china') ?? SAMPLE_HADITHS[0];
     return { ...structuredClone(preset.defaultData), query_hadith: hadithInput };
   }
-  if (q.includes('intentions') || q.includes('niyyat') || q.includes('எண்ணங்களைப்') || q.includes('செயல்கள்') || q.includes('චේතනා')) {
+  if (isIntentionsQuestion(hadithInput)) {
     const preset = SAMPLE_HADITHS.find(p => p.id === 'actions-by-intentions') ?? SAMPLE_HADITHS[0];
     return { ...structuredClone(preset.defaultData), query_hadith: hadithInput };
   }
-  // For any other custom hadith query when Gemini is not configured, ground the dossier in the live HadeethEnc records
-  const primary = liveRecords[0];
-  const preset = SAMPLE_HADITHS.find(p => p.id === 'actions-by-intentions') ?? SAMPLE_HADITHS[0];
-  const fallback = structuredClone(preset.defaultData);
-  fallback.query_hadith = hadithInput;
-  if (primary) {
-    fallback.agent_1_takhrij = {
-      sources: liveRecords.map(r => ({
-        collection: r.collection_attribution || 'HadeethEnc',
-        hadith_number: `#${r.id}`,
-        exact_wording: r.arabic || r.translation,
-        exact_wording_arabic: r.arabic ?? undefined,
-        exact_wording_english: r.translation,
-        wording_differences: r.match_reason,
-      })),
-      variants_summary: primary.explanation || primary.translation,
-    };
-    fallback.agent_5_scholars_verdict = {
-      gradings: liveRecords.map(r => ({
-        scholar: r.collection_attribution || 'HadeethEnc',
-        grading: r.published_grade || 'Not supplied by source',
-        reference: `HadeethEnc #${r.id}`,
-      })),
-    };
-  }
-  return fallback;
+  return questionBoundShell(hadithInput, liveRecords);
 }
 
 export async function executeDragonDawwaAnalysis(

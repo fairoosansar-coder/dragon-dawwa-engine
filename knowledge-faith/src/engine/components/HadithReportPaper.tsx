@@ -9,6 +9,8 @@ import {
   reportIdFor,
   type EvidenceCounts,
 } from '../utils/reportPresentation.ts';
+import { authenticityAndLaw, bindReport, splitNarration } from '../utils/reportBinding.ts';
+import type { SourceTakhrij } from '../types/hadith.ts';
 
 const AGENTS = [
   { n: '01', accent: '#0f6e56', persona: 'Dr. Tariq al-Mansoor', role: 'Takhrij and textual variants' },
@@ -48,7 +50,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="hr-section" style={{ ['--hr-accent' as string]: accent }} data-testid={testId}>
+    <section id={`hr-section-${n}`} className="hr-section" style={{ ['--hr-accent' as string]: accent }} data-testid={testId}>
       <h2>
         <span className="hr-num">{n}</span>
         <span>
@@ -108,14 +110,37 @@ function EvidenceChart({ counts }: { counts: EvidenceCounts }) {
   );
 }
 
+const LANG_NAME: Record<SupportedLanguage, string> = { en: 'English', ta: 'Tamil', si: 'Sinhala' };
+
+function translationOf(source: SourceTakhrij, lang: SupportedLanguage): string {
+  const wording = source.exact_wording || '';
+  const english = source.exact_wording_english || '';
+  if (lang === 'ta' && /[\u0B80-\u0BFF]/.test(wording)) return wording;
+  if (lang === 'si' && /[\u0D80-\u0DFF]/.test(wording)) return wording;
+  if (lang === 'en') return english || wording;
+  return english || wording;
+}
+
+function arabicOf(source: SourceTakhrij): string {
+  if (source.exact_wording_arabic) return source.exact_wording_arabic;
+  if (/[\u0600-\u06FF]/.test(source.exact_wording)) return source.exact_wording;
+  return '';
+}
+
+function sourceHref(source: SourceTakhrij, lang: SupportedLanguage): string | null {
+  const id = source.hadith_number.match(/(\d{3,})/);
+  if (/hadeethenc/i.test(source.collection) && id) return `https://hadeethenc.com/${lang}/browse/hadith/${id[1]}`;
+  return null;
+}
+
 export const HadithReportPaper: React.FC<{
   analysis: DragonDawwaAnalysis;
   currentLanguage?: SupportedLanguage;
   readerName?: string;
 }> = ({ analysis, currentLanguage = 'en', readerName }) => {
-  const enriched = analysis.agent_7_source_research
-    ? analysis
-    : attachAgent7ToAnalysis(analysis, currentLanguage);
+  const enriched = bindReport(
+    analysis.agent_7_source_research ? analysis : attachAgent7ToAnalysis(analysis, currentLanguage),
+  );
   const a1 = enriched.agent_1_takhrij;
   const a2 = enriched.agent_2_isnad;
   const a3 = enriched.agent_3_rijal;
@@ -127,9 +152,9 @@ export const HadithReportPaper: React.FC<{
   const counts = evidenceCounts(enriched);
   const reportId = reportIdFor(enriched.query_hadith);
   const when = generatedAt();
-  const showArabic = a1.sources.some(s => s.exact_wording_arabic);
-  const showEnglish = a1.sources.some(s => s.exact_wording_english);
   const sequence = a2.narrator_sequence ?? [];
+  const claims = authenticityAndLaw(enriched);
+  const languageName = LANG_NAME[currentLanguage] ?? currentLanguage;
 
   return (
     <article className="hadith-report-paper" lang={currentLanguage} data-testid="hadith-report-paper">
@@ -138,10 +163,20 @@ export const HadithReportPaper: React.FC<{
         <h1 className="hr-title">Complete Hadith Research Report</h1>
         <div className="hr-meta">
           <span>Date<strong>{when}</strong></span>
+          <span>Language<strong>{languageName}</strong></span>
           <span>Report ID<strong>{reportId}</strong></span>
+          {enriched.research_job_id ? <span>Job<strong>{enriched.research_job_id}</strong></span> : null}
           {readerName ? <span>Reader<strong>{readerName}</strong></span> : null}
         </div>
+        <p className="hr-question" lang={currentLanguage}>{enriched.query_hadith}</p>
       </header>
+
+      <nav className="hr-contents" aria-label="Contents">
+        {AGENTS.map(agent => (
+          <a key={agent.n} href={`#hr-section-${agent.n}`}>{agent.n} {agent.role}</a>
+        ))}
+        <a href="#hr-section-completeness">Research completeness</a>
+      </nav>
 
       <div className="hr-verdict">
         <div className="hr-ring-wrap">
@@ -170,6 +205,11 @@ export const HadithReportPaper: React.FC<{
       <div className="hr-status">
         <p className="hr-block-label">Synthesis status</p>
         <p>{a6.final_status}</p>
+        <p className="hr-block-label">Authenticity of the narration</p>
+        <p className="hr-prose">{claims.authenticity}</p>
+        <p className="hr-block-label">Legal conclusions drawn from it</p>
+        <p className="hr-prose">{claims.law}</p>
+        <p className="hr-block-label">Recorded synthesis</p>
         <p className="hr-prose">{a6.consensus_and_disagreements}</p>
       </div>
 
@@ -180,36 +220,39 @@ export const HadithReportPaper: React.FC<{
 
       <Section n={AGENTS[0].n} accent={AGENTS[0].accent} kicker={`Agent 1 · ${AGENTS[0].persona}`} title={AGENTS[0].role}>
         <p className="hr-prose">{a1.variants_summary}</p>
-        <div className="hr-table-wrap">
-          <table className="hr-table">
-            <thead>
-              <tr>
-                <th>Collection</th>
-                <th>Reference</th>
-                <th>Recorded wording</th>
-                {showArabic ? <th>Arabic wording</th> : null}
-                {showEnglish ? <th>English wording</th> : null}
-                <th>Wording differences</th>
-              </tr>
-            </thead>
-            <tbody>
-              {a1.sources.map((src, i) => (
-                <tr key={i}>
-                  <td>{src.collection}</td>
-                  <td>{src.hadith_number}</td>
-                  <td>{src.exact_wording}</td>
-                  {showArabic ? <td className="hr-arabic" lang="ar">{src.exact_wording_arabic || '—'}</td> : null}
-                  {showEnglish ? <td>{src.exact_wording_english || '—'}</td> : null}
-                  <td>{src.wording_differences || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {a1.sources.map((src, i) => {
+          const arabic = arabicOf(src);
+          const parts = splitNarration(arabic);
+          const href = sourceHref(src, currentLanguage);
+          return (
+            <article className="hr-source-card" data-testid="narration-source-card" key={`${src.collection}-${src.hadith_number}-${i}`}>
+              <p className="hr-source-ref"><strong>{src.collection}</strong> · {src.hadith_number}</p>
+              {parts.chain ? (
+                <>
+                  <p className="hr-block-label">Narrator chain</p>
+                  <p className="hr-arabic" lang="ar">{parts.chain}</p>
+                </>
+              ) : null}
+              {parts.text ? (
+                <>
+                  <p className="hr-block-label">Narration text</p>
+                  <p className="hr-arabic" lang="ar">{parts.text}</p>
+                </>
+              ) : null}
+              <p className="hr-block-label">Translation ({languageName})</p>
+              <p className="hr-prose" lang={currentLanguage}>{translationOf(src, currentLanguage)}</p>
+              <p className="hr-block-label">Wording differences</p>
+              <p className="hr-prose">{src.wording_differences || 'None recorded for this source.'}</p>
+              {href ? <p><a href={href}>Source link</a></p> : null}
+            </article>
+          );
+        })}
       </Section>
 
       <Section n={AGENTS[1].n} accent={AGENTS[1].accent} kicker={`Agent 2 · ${AGENTS[1].persona}`} title={AGENTS[1].role}>
         <p className="hr-prose"><strong>Chain status. </strong>{a2.overall_chain_status}</p>
+        <h3 className="hr-block-label">Transmission map</h3>
+        <p className="hr-note">This map is the narrator chain. It is separate from the narration text. It is shown when the dossier records one.</p>
         <div className="hr-chain" data-testid="hadith-transmission-diagram">
           {sequence.map((name, i) => {
             const next = sequence[i + 1];
@@ -230,32 +273,6 @@ export const HadithReportPaper: React.FC<{
             );
           })}
         </div>
-        {a2.chain_links.length > 0 && (
-          <div className="hr-table-wrap">
-            <table className="hr-table">
-              <thead>
-                <tr>
-                  <th>Teacher</th>
-                  <th>Student</th>
-                  <th>Formula</th>
-                  <th>Connection</th>
-                  <th>Source-backed note</th>
-                </tr>
-              </thead>
-              <tbody>
-                {a2.chain_links.map((link, i) => (
-                  <tr key={i}>
-                    <td>{link.teacher}</td>
-                    <td>{link.student}</td>
-                    <td>{link.transmission_mode}</td>
-                    <td>{link.connection_status}</td>
-                    <td>{link.historical_reasoning}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </Section>
 
       <Section n={AGENTS[2].n} accent={AGENTS[2].accent} kicker={`Agent 3 · ${AGENTS[2].persona}`} title={AGENTS[2].role}>
@@ -292,7 +309,7 @@ export const HadithReportPaper: React.FC<{
 
       <Section n={AGENTS[4].n} accent={AGENTS[4].accent} kicker={`Agent 5 · ${AGENTS[4].persona}`} title={AGENTS[4].role}>
         <div className="hr-table-wrap">
-          <table className="hr-table">
+          <table className="hr-table hr-compare">
             <thead>
               <tr>
                 <th>Scholar</th>
@@ -356,26 +373,13 @@ export const HadithReportPaper: React.FC<{
               </div>
             ))}
             <h3 className="hr-block-label" style={{ marginTop: '1rem' }}>Attributed published opinions</h3>
-            <div className="hr-table-wrap">
-              <table className="hr-table">
-                <thead>
-                  <tr>
-                    <th>Author or source</th>
-                    <th>Opinion</th>
-                    <th>Reference</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {a7.attributed_opinions.map((op, i) => (
-                    <tr key={i}>
-                      <td>{op.author_or_source}</td>
-                      <td>{op.opinion_text}</td>
-                      <td>{op.reference}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {a7.attributed_opinions.map((op, i) => (
+              <article className="hr-source-card" key={`${op.author_or_source}-${i}`}>
+                <p className="hr-source-ref"><strong>{op.author_or_source}</strong></p>
+                <p className="hr-prose">{op.opinion_text}</p>
+                {op.reference.startsWith('http') ? <p><a href={op.reference}>Source link</a></p> : <p>{op.reference}</p>}
+              </article>
+            ))}
             <h3 className="hr-block-label" style={{ marginTop: '1rem' }}>Agent interpretation</h3>
             <p className="hr-prose">{a7.agent_interpretation}</p>
             <h3 className="hr-block-label" style={{ marginTop: '1rem' }}>Cross-agent responses</h3>
@@ -395,7 +399,7 @@ export const HadithReportPaper: React.FC<{
       </Section>
 
       {a7 && (
-        <section className="hr-section" data-testid="hadith-research-completeness">
+        <section id="hr-section-completeness" className="hr-section" data-testid="hadith-research-completeness">
           <h2>
             <span className="hr-num">·</span>
             <span>
