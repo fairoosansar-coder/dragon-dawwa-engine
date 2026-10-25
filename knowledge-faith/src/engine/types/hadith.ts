@@ -154,6 +154,8 @@ export interface DragonDawwaAnalysis {
   designed_and_created_by?: string;
   query_hadith: string;
   research_job_id?: string;
+  /** ISO time recorded when this research job finished. Absent on example dossiers. */
+  generated_at?: string;
   agent_1_takhrij: Agent1Takhrij;
   agent_2_isnad: Agent2Isnad;
   agent_3_rijal: Agent3Rijal;

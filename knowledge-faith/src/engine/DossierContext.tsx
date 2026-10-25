@@ -5,6 +5,10 @@ import type { UserAccount } from './types/wall.ts';
 import { SAMPLE_HADITHS } from './data/sampleHadiths.ts';
 import { getLocalizedAnalysis } from './utils/localizedAnalysis.ts';
 import { buildFullReportMarkdown } from './utils/agent7SourceResearch.ts';
+import { humanVerificationMarkdown } from './components/HumanVerification.tsx';
+import { reportIdFor } from './utils/reportPresentation.ts';
+import { reportIdentity } from '../shared/research/revision.ts';
+import { bindReport } from './utils/reportBinding.ts';
 import type { AgentStep } from './components/AgentStatusTracker.tsx';
 import { ShareModal } from './components/ShareModal.tsx';
 import { PrintDossierReport } from './components/PrintDossierReport.tsx';
@@ -306,7 +310,15 @@ export function DossierProvider({ children }: { children: ReactNode }) {
   }, [displayed]);
 
   const downloadFullReport = useCallback(() => {
-    const fullMarkdown = buildFullReportMarkdown(displayed, lang);
+    const bound = bindReport(displayed);
+    const identity = reportIdentity(bound, reportIdFor(bound.query_hadith), lang);
+    const fullMarkdown = buildFullReportMarkdown(displayed, lang) + humanVerificationMarkdown({
+      question: bound.query_hadith,
+      reportId: identity.reportId,
+      revision: identity.revision,
+      languageLabel: lang,
+      generatedAt: bound.generated_at ?? '',
+    });
     const blob = new Blob([fullMarkdown], { type: 'text/markdown;charset=utf-8' });
     const href = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -316,7 +328,17 @@ export function DossierProvider({ children }: { children: ReactNode }) {
     setTimeout(() => URL.revokeObjectURL(href), 0);
   }, [displayed, lang]);
 
-  const print = useCallback(() => setPrinting(true), []);
+  const print = useCallback(() => {
+    const jobId = displayed.research_job_id;
+    if (jobId) {
+      void fetch(`/api/reports/${encodeURIComponent(jobId)}/review/export`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lang }),
+      }).catch(() => undefined);
+    }
+    setPrinting(true);
+  }, [displayed.research_job_id, lang]);
 
   useEffect(() => {
     if (!printing) return;

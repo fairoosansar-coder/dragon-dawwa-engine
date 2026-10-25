@@ -10,6 +10,8 @@ import {
   type EvidenceCounts,
 } from '../utils/reportPresentation.ts';
 import { authenticityAndLaw, bindReport, splitNarration } from '../utils/reportBinding.ts';
+import { reportIdentity } from '../../shared/research/revision.ts';
+import { HumanVerification } from './HumanVerification.tsx';
 import type { SourceTakhrij } from '../types/hadith.ts';
 
 const AGENTS = [
@@ -22,7 +24,10 @@ const AGENTS = [
   { n: '07', accent: '#9f1239', persona: 'Dr. Amina al-Kindi', role: 'Source research' },
 ] as const;
 
-function generatedAt(): string {
+function reportWhen(iso?: string): string {
+  if (!iso) return 'Not recorded on this dossier';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return 'Not recorded on this dossier';
   return new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Asia/Dubai',
     day: 'numeric',
@@ -31,7 +36,7 @@ function generatedAt(): string {
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',
-  }).format(new Date()) + ' Gulf (UTC+4)';
+  }).format(date) + ' Gulf (UTC+4)';
 }
 
 function Section({
@@ -127,9 +132,21 @@ function arabicOf(source: SourceTakhrij): string {
   return '';
 }
 
+const SUNNAH_COLLECTIONS: { pattern: RegExp; slug: string }[] = [
+  { pattern: /bukhari|bukhārī/i, slug: 'bukhari' },
+  { pattern: /muslim/i, slug: 'muslim' },
+  { pattern: /nasa['’]?i/i, slug: 'nasai' },
+  { pattern: /abu da'?ud|abi da'?ud|abū dāwūd/i, slug: 'abudawud' },
+  { pattern: /tirmidhi|tirmidhī/i, slug: 'tirmidhi' },
+  { pattern: /ibn majah|ibn mājah/i, slug: 'ibnmajah' },
+];
+
 function sourceHref(source: SourceTakhrij, lang: SupportedLanguage): string | null {
-  const id = source.hadith_number.match(/(\d{3,})/);
-  if (/hadeethenc/i.test(source.collection) && id) return `https://hadeethenc.com/${lang}/browse/hadith/${id[1]}`;
+  const id = source.hadith_number.match(/(\d+)/);
+  if (!id) return null;
+  if (/hadeethenc/i.test(source.collection)) return `https://hadeethenc.com/${lang}/browse/hadith/${id[1]}`;
+  const sunnah = SUNNAH_COLLECTIONS.find(item => item.pattern.test(source.collection));
+  if (sunnah) return `https://sunnah.com/${sunnah.slug}:${id[1]}`;
   return null;
 }
 
@@ -138,6 +155,7 @@ export const HadithReportPaper: React.FC<{
   currentLanguage?: SupportedLanguage;
   readerName?: string;
 }> = ({ analysis, currentLanguage = 'en', readerName }) => {
+  const [reviewLabel, setReviewLabel] = React.useState('Awaiting human verification');
   const enriched = bindReport(
     analysis.agent_7_source_research ? analysis : attachAgent7ToAnalysis(analysis, currentLanguage),
   );
@@ -151,7 +169,8 @@ export const HadithReportPaper: React.FC<{
   const grade = publishedAuthenticity(enriched);
   const counts = evidenceCounts(enriched);
   const reportId = reportIdFor(enriched.query_hadith);
-  const when = generatedAt();
+  const identity = reportIdentity(enriched, reportId, currentLanguage);
+  const when = reportWhen(enriched.generated_at);
   const sequence = a2.narrator_sequence ?? [];
   const claims = authenticityAndLaw(enriched);
   const languageName = LANG_NAME[currentLanguage] ?? currentLanguage;
@@ -161,10 +180,15 @@ export const HadithReportPaper: React.FC<{
       <header className="hr-header">
         <p className="hr-brand">DRAGON DAWWA · By Aegis Intelligence</p>
         <h1 className="hr-title">Complete Hadith Research Report</h1>
+        <p className="hr-verify-chip">
+          <strong data-testid="human-review-status">{reviewLabel}</strong>
+          <a href="#hr-section-signoff">View human review</a>
+        </p>
         <div className="hr-meta">
           <span>Date<strong>{when}</strong></span>
           <span>Language<strong>{languageName}</strong></span>
           <span>Report ID<strong>{reportId}</strong></span>
+          <span>Revision<strong>{identity.revision}</strong></span>
           {enriched.research_job_id ? <span>Job<strong>{enriched.research_job_id}</strong></span> : null}
           {readerName ? <span>Reader<strong>{readerName}</strong></span> : null}
         </div>
@@ -176,6 +200,7 @@ export const HadithReportPaper: React.FC<{
           <a key={agent.n} href={`#hr-section-${agent.n}`}>{agent.n} {agent.role}</a>
         ))}
         <a href="#hr-section-completeness">Research completeness</a>
+        <a href="#hr-section-signoff">Human verification</a>
       </nav>
 
       <div className="hr-verdict">
@@ -243,7 +268,8 @@ export const HadithReportPaper: React.FC<{
               <p className="hr-prose" lang={currentLanguage}>{translationOf(src, currentLanguage)}</p>
               <p className="hr-block-label">Wording differences</p>
               <p className="hr-prose">{src.wording_differences || 'None recorded for this source.'}</p>
-              {href ? <p><a href={href}>Source link</a></p> : null}
+              <p className="hr-block-label">Source link</p>
+              {href ? <p><a href={href}>Source link</a></p> : <p className="hr-note">None recorded for this source.</p>}
             </article>
           );
         })}
@@ -421,11 +447,16 @@ export const HadithReportPaper: React.FC<{
         </section>
       )}
 
-      <footer className="hr-footer">
-        <span>{reportId}</span>
-        <span className="hr-page">Page <span className="hr-page-num" /></span>
-        <span className="hr-review">Machine-assisted research. Not a published scholarly certification. {when}</span>
-      </footer>
+      <HumanVerification
+        jobId={enriched.research_job_id}
+        question={enriched.query_hadith}
+        reportId={reportId}
+        revision={identity.revision}
+        language={currentLanguage}
+        languageLabel={languageName}
+        generatedAt={enriched.generated_at ?? ''}
+        onStatus={setReviewLabel}
+      />
       <p className="hr-designed">Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prime Dragon Technologies</p>
     </article>
   );

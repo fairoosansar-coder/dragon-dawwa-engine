@@ -150,6 +150,21 @@ describe('hadith report presentation', () => {
     assert.equal(link?.transmission_mode, "Sami'tu");
   });
 
+  it('joins a chain step when the dossier name is Tamil with the English name in parentheses', () => {
+    const link = linkBetween(
+      'இமாம் புகாரி (Imam al-Bukhari)',
+      'முஸ்லிம் பின் இப்ராஹீம் (Muslim ibn Ibrahim)',
+      [{
+        teacher: 'Muslim ibn Ibrahim',
+        student: 'Imam al-Bukhari',
+        transmission_mode: 'Haddathana',
+        connection_status: 'Muttasil',
+        historical_reasoning: 'Bukhari heard Muslim ibn Ibrahim directly.',
+      }],
+    );
+    assert.equal(link?.historical_reasoning, 'Bukhari heard Muslim ibn Ibrahim directly.');
+  });
+
   it('counts findings without treating a denial of conflict as a conflict', () => {
     const counts = evidenceCounts(fixture());
     assert.equal(counts.supporting, 3);

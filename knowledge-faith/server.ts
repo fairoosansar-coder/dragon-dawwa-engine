@@ -45,7 +45,8 @@ import {
   type SourceFetchers,
 } from './src/server/gemini.ts';
 import { executeDragonDawwaAnalysis } from './src/engine/server/hadithEngine.ts';
-import { getResearchJob, startResearchJob } from './src/engine/server/researchJobs.ts';
+import { randomUUID } from 'node:crypto';
+import { getResearchJob, seedResearchJob, startResearchJob } from './src/engine/server/researchJobs.ts';
 import { synthesizeRoundtableVoice } from './src/engine/server/geminiTtsService.ts';
 import { extractHadithFromMedia } from './src/engine/server/hadithOcrService.ts';
 import { transcribeAudioWithGemini } from './src/engine/server/geminiAudioTranscribe.ts';
@@ -55,6 +56,8 @@ import { publicAppUrl, viteDevServerOptions } from './src/server/publicUrl.ts';
 import { EditorialStore, parseEditorAccounts } from './src/server/spiritual/editorialStore.ts';
 import { spiritualRouter } from './src/server/spiritual/routes.ts';
 import { studioRouter } from './src/server/studio/routes.ts';
+import { HumanReviewStore } from './src/server/research/humanReviewStore.ts';
+import { humanReviewRouter } from './src/server/research/humanReviewRoutes.ts';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -725,6 +728,20 @@ app.use(
     aiLimiter,
   }),
 );
+
+const reviewStore = new HumanReviewStore(path.join(dataDir, 'human-reviews.json'));
+app.use(humanReviewRouter({ accounts: editorAccounts, reviews: reviewStore }));
+if (process.env.REVIEW_DEMO === '1') {
+  app.post('/api/review-demo/seed', (req, res) => {
+    const id = typeof req.body?.id === 'string' && /^[A-Za-z0-9-]{8,80}$/.test(req.body.id) ? req.body.id : randomUUID();
+    if (!req.body?.analysis || typeof req.body.analysis !== 'object') {
+      res.status(400).json({ error: 'analysis is required' });
+      return;
+    }
+    seedResearchJob(id, req.body.analysis);
+    res.status(201).json({ id, status: 'done' });
+  });
+}
 
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'Not found' });

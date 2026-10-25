@@ -105,12 +105,26 @@ function samePerson(a: string, b: string): boolean {
   return longer.startsWith(`${shorter} `);
 }
 
+/** A dossier name often pairs a Tamil or Arabic form with an English name in parentheses. */
+function nameAliases(name: string): string[] {
+  const found = new Set<string>();
+  const add = (value: string) => {
+    const key = nameKey(value);
+    if (key) found.add(key);
+  };
+  add(name);
+  for (const match of name.matchAll(/\(([^)]*)\)/g)) add(match[1]);
+  return [...found];
+}
+
+function peopleMatch(left: string, right: string): boolean {
+  return nameAliases(left).some(a => nameAliases(right).some(b => samePerson(a, b)));
+}
+
 export function linkBetween(from: string, to: string, links: ChainLink[]): ChainLink | undefined {
-  const a = nameKey(from);
-  const b = nameKey(to);
   return links.find(link => {
-    const teacher = nameKey(link.teacher);
-    const student = nameKey(link.student);
-    return (samePerson(student, a) && samePerson(teacher, b)) || (samePerson(teacher, a) && samePerson(student, b));
+    const forward = peopleMatch(link.student, from) && peopleMatch(link.teacher, to);
+    const reverse = peopleMatch(link.teacher, from) && peopleMatch(link.student, to);
+    return forward || reverse;
   });
 }

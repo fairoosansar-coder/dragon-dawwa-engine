@@ -395,15 +395,128 @@
   font-size: 0.72rem;
   color: var(--hr-muted);
 }
-.hr-footer .hr-page { text-align: center; color: var(--hr-ink); font-weight: 650; }
 .hr-footer .hr-review { grid-column: 1 / -1; }
-.hr-page-num::before { content: counter(page); }
 .hr-designed { margin: 0.45rem 0 0; font-size: 0.75rem; color: var(--hr-muted); }
+.hr-verify-chip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.9rem;
+  margin: 0.7rem 0 0;
+  font-size: 0.82rem;
+}
+.hr-verify-chip strong {
+  color: #e7d7a8;
+  font-weight: 700;
+}
+.hr-verify-chip a { color: #f6f1e4; }
+.hr-signoff-sheet {
+  margin-top: 1.4rem;
+  padding: 1rem 1rem 0.8rem;
+  background: #fffdf8;
+  border: 1px solid var(--hr-gold);
+  color: var(--hr-ink);
+}
+.hr-signoff-sheet h2 {
+  margin: 0;
+  color: var(--hr-emerald);
+  font-size: 1.35rem;
+  line-height: 1.3;
+}
+.hr-signoff-rule {
+  height: 12px;
+  margin: 0.45rem 0 0.75rem;
+  border-bottom: 1px solid var(--hr-gold);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='12' viewBox='0 0 22 12'%3E%3Cpath d='M11 1.2 12.1 4.4h3.4l-2.7 2 1 3.2L11 7.8 8.2 9.6l1-3.2-2.7-2h3.4z' fill='none' stroke='%23c4a35a' stroke-width='0.7'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: center;
+  background-size: 22px 12px;
+}
+.hr-sign-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem 1rem;
+  margin: 0.8rem 0;
+}
+.hr-sign-meta div { min-width: 0; }
+.hr-sign-meta dt {
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--hr-emerald);
+  font-weight: 700;
+}
+.hr-sign-meta dd { margin: 0.1rem 0 0; overflow-wrap: anywhere; }
+.hr-sign-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+.hr-sign-panel {
+  background: #fffdf8;
+  border: 1px solid var(--hr-line);
+  padding: 0.75rem 0.8rem 0.9rem;
+  min-width: 0;
+}
+.hr-sign-panel h3 {
+  margin: 0 0 0.55rem;
+  color: var(--hr-emerald);
+  font-size: 1rem;
+}
+.hr-sign-field { margin: 0.45rem 0; }
+.hr-sign-value {
+  display: block;
+  min-height: 1.4rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.7;
+}
+.hr-sign-line {
+  min-height: 2.8rem;
+  margin: 0.25rem 0 0.7rem;
+  border-bottom: 1px solid #1f1a14;
+}
+.hr-sign-date { min-height: 1.8rem; }
+.hr-sign-declaration, .hr-sign-note {
+  margin: 0.45rem 0;
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--hr-muted);
+  overflow-wrap: anywhere;
+}
+.hr-sign-form {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.6rem;
+}
+.hr-sign-form label { display: grid; gap: 0.2rem; font-size: 0.78rem; font-weight: 700; color: var(--hr-emerald); }
+.hr-sign-form input, .hr-sign-form select, .hr-sign-form textarea {
+  width: 100%;
+  font: inherit;
+  font-weight: 400;
+  color: var(--hr-ink);
+  background: #fff;
+  border: 1px solid var(--hr-line);
+  padding: 0.4rem 0.5rem;
+}
+.hr-sign-check { font-weight: 400 !important; color: var(--hr-ink) !important; grid-template-columns: auto 1fr; align-items: start; }
+.hr-sign-form button, .hr-reviewer-signin button {
+  justify-self: start;
+  border: 1px solid var(--hr-emerald);
+  background: var(--hr-emerald);
+  color: #f6f1e4;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+}
+.hr-sign-error { color: #8a2a1a; font-size: 0.82rem; }
+.hr-reviewer-signin, .hr-signoff-history { margin-top: 0.8rem; }
+.hr-signoff-history article { margin-top: 0.45rem; overflow-wrap: anywhere; }
 @media (max-width: 720px) {
   .hr-verdict { grid-template-columns: 1fr; }
   .hr-chart-row { grid-template-columns: 6.4rem 1fr 1.6rem; }
   .hr-footer { grid-template-columns: 1fr; }
-  .hr-footer .hr-page { text-align: start; }
+  .hr-sign-grid, .hr-sign-meta { grid-template-columns: 1fr; }
 }
 @media print {
   @page {
@@ -434,4 +547,12 @@
     break-inside: avoid;
     page-break-inside: avoid;
   }
+  .hr-signoff-sheet {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    break-before: auto;
+  }
+  .hr-sign-grid, .hr-sign-meta { grid-template-columns: 1fr 1fr !important; }
+  .hr-sign-line { min-height: 28mm; }
+  .hr-sign-form, .hr-reviewer-signin { display: none !important; }
 }
