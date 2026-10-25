@@ -18,11 +18,11 @@ import {
   acceptedCampaign,
   capOccurrences,
   corpusPassageContext,
+  distinctWordings,
   fallbackWordings,
   formatCorpusCount,
   groupCampaigns,
   occurrenceContext,
-  sanitizeWordings,
   wordingInText,
   type CampaignGroup,
   type WordingOccurrence,
@@ -313,6 +313,7 @@ export async function executeResearch(input: {
   let researchAnswer: ResearchAnswer | null = null;
   const occurrenceItems: WordingOccurrence[] = [];
   let occurrenceUnlisted = 0;
+  let searchTruncated = false;
   let countedEnglish: string[] = [];
   let countedArabic: string[] = [];
   const campaignHits: { key: string; label: string; surah: number; ayah: number }[] = [];
@@ -334,6 +335,7 @@ export async function executeResearch(input: {
       campaigns: groupCampaigns(campaignHits),
       unnamed: [...unnamedEvents].sort((a, b) => a.surah - b.surah || a.ayah - b.ayah),
       unlisted: occurrenceUnlisted + capped.unlisted,
+      truncated: searchTruncated,
     };
   };
   const plan = decomposeQuestion(input.question);
@@ -659,7 +661,7 @@ export async function executeResearch(input: {
           const listed = await timed('Gemini', () =>
             attempt(() => input.ports.listWordings!(input.question, interpretation.subject, signal), signal),
           );
-          const cleaned = sanitizeWordings(listed.english, listed.arabic);
+          const cleaned = distinctWordings(listed.english, listed.arabic);
           if (!listed.available || listed.failed || (cleaned.english.length === 0 && cleaned.arabic.length === 0)) {
             pushCoverage({
               kind: 'scholarly_review_required',
@@ -690,7 +692,7 @@ export async function executeResearch(input: {
             const found = await timed('AlQuran', () => attempt(() => input.ports.searchQuran!(phrase.wording, signal), signal));
             const hits = found.hits;
             if (hits) {
-              if (hits.length < found.total) occurrenceUnlisted += found.total - hits.length;
+              if (hits.length < found.total) searchTruncated = true;
               for (const hit of hits) {
                 if (!hit.text || !wordingInText(phrase.wording, hit.text)) continue;
                 occurrenceItems.push({

@@ -279,7 +279,7 @@ export async function searchQuranAyahs(phrase: string): Promise<{ total: number;
   const query = phrase.replace(/\s+/g, ' ').trim();
   const arabic = /[\u0600-\u06FF]/.test(query);
   if ((arabic ? query.length < 2 : query.length < 3) || query.length > 32) return { total: 0, refs: [], hits: [] };
-  const edition = arabic ? QURAN_ARABIC_EDITION : 'en';
+  const edition = arabic ? QURAN_ARABIC_EDITION : 'en.sahih';
   try {
     const res = await fetchJson<Envelope<{ matches?: { numberInSurah?: number; text?: string; surah?: { number?: number } }[] }>>(
       `${BASE}/search/${encodeURIComponent(query)}/all/${edition}`,
@@ -295,7 +295,7 @@ export async function searchQuranAyahs(phrase: string): Promise<{ total: number;
       if (!keys.has(key)) keys.set(key, { surah, ayah, text });
     }
     const all = [...keys.values()];
-    const hits = all.slice(0, 80);
+    const hits = all.slice(0, 120);
     return { total: all.length, refs: hits.map(({ surah, ayah }) => ({ surah, ayah })), hits };
   } catch (err) {
     if (err instanceof UpstreamError && err.status === 404) return { total: 0, refs: [], hits: [] };

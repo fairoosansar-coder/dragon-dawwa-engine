@@ -17,7 +17,7 @@ const GENERIC = new Set([
   'one', 'two', 'its', 'she', 'him', 'out', 'off', 'between', 'among', 'already', 'believers',
 ]);
 
-export const OCCURRENCE_CAP = 40;
+export const OCCURRENCE_CAP = 250;
 
 export interface WordingOccurrence {
   surah: number;
@@ -87,6 +87,16 @@ export function fallbackWordings(subject: string): { english: string[]; arabic: 
     }
   }
   return { english, arabic };
+}
+
+/** Drop الحرب when حرب is already counted. The article is not a second wording. */
+export function distinctWordings(english: readonly string[], arabic: readonly string[]): { english: string[]; arabic: string[] } {
+  const cleaned = sanitizeWordings(english, arabic);
+  const stems = cleaned.arabic.filter(word => {
+    const stem = word.replace(/^(?:[\u0648\u0641])?(?:[\u0628\u0643\u0644])?(?:\u0627\u0644|\u0644)?/u, '');
+    return stem === word || !cleaned.arabic.includes(stem);
+  });
+  return { english: cleaned.english, arabic: stems };
 }
 
 /** One word each. No verse numbers, no counts, no phrases. */
@@ -200,7 +210,7 @@ function refLine(surah: number, ayah: number): string {
   return `Qur’an ${surah}:${ayah}`;
 }
 
-/** Two paragraphs when both readings have something to list. The numbers are the lengths of the lists. */
+/** The two counts come first. The reference lists follow. The numbers are the lengths of the lists. */
 export function formatCorpusCount(input: {
   english: readonly string[];
   arabic: readonly string[];
@@ -208,28 +218,33 @@ export function formatCorpusCount(input: {
   campaigns: readonly CampaignGroup[];
   unnamed: readonly { surah: number; ayah: number }[];
   unlisted: number;
+  truncated?: boolean;
 }): { text: string; citations: string[] }[] {
   const occurrences = dedupeOccurrences(input.occurrences);
   const english = input.english.length ? input.english.join(', ') : 'none';
   const arabic = input.arabic.length ? input.arabic.join(', ') : 'none';
   const count = occurrences.length;
   const census =
-    input.unlisted > 0
-      ? `${count} distinct ${count === 1 ? 'occurrence is' : 'occurrences are'} listed after the same wording in the same verse was counted once. ${input.unlisted} further corpus ${input.unlisted === 1 ? 'match was' : 'matches were'} not listed, so this is not a complete census.`
+    input.unlisted > 0 || input.truncated
+      ? `${count} distinct ${count === 1 ? 'occurrence is' : 'occurrences are'} listed after the same wording in the same verse was counted once. ${
+          input.unlisted > 0
+            ? input.unlisted === 1
+              ? `${input.unlisted} further distinct occurrence was retrieved and is not listed, so this is not a complete census.`
+              : `${input.unlisted} further distinct occurrences were retrieved and are not listed, so this is not a complete census.`
+            : 'The corpus search returned more matches than were read, so this is not a complete census.'
+        }`
       : `${count} distinct ${count === 1 ? 'occurrence remains' : 'occurrences remain'} after the same wording in the same verse was counted once.`;
   const lines = occurrences.map(item => {
     const script = item.script === 'arabic' ? 'Arabic' : 'English';
     return `${refLine(item.surah, item.ayah)} — ${script} “${item.wording}”.`;
   });
-  let text = `Word occurrence. English wordings counted: ${english}. Arabic wordings counted: ${arabic}. ${census}`;
-  if (lines.length) text += `\n${lines.join('\n')}`;
   const occurrenceIds = [...new Set(occurrences.map(item => `Q${item.surah}-${item.ayah}`))];
   const unnamed = [...input.unnamed].sort((a, b) => a.surah - b.surah || a.ayah - b.ayah);
-  if (!input.campaigns.length && !unnamed.length) {
-    text += '\nHistorical events. No retrieved passage names a campaign, so this reading has no second count.';
-    return [{ text, citations: occurrenceIds }];
-  }
   const named = input.campaigns.length;
+  const eventSummary = named || unnamed.length
+    ? `Historical events. ${named} ${named === 1 ? 'campaign is' : 'campaigns are'} named in the retrieved passages. This count is not the word count.`
+    : 'Historical events. No retrieved passage names a campaign, so this reading has no second count.';
+  const summary = `Word occurrence. English wordings counted: ${english}. Arabic wordings counted: ${arabic}. ${census}\n${eventSummary}`;
   const eventLines = [
     ...input.campaigns.map(group => `${group.label} — ${group.verses.map(verse => refLine(verse.surah, verse.ayah)).join('; ')}.`),
     ...unnamed.map(verse => `${refLine(verse.surah, verse.ayah)} narrates a conflict and does not name the campaign.`),
@@ -238,11 +253,13 @@ export function formatCorpusCount(input: {
     ...input.campaigns.flatMap(group => group.verses.map(verse => `Q${verse.surah}-${verse.ayah}`)),
     ...unnamed.map(verse => `Q${verse.surah}-${verse.ayah}`),
   ];
+  const sections = [
+    eventLines.length ? `Campaigns\n${eventLines.join('\n')}` : '',
+    lines.length ? `Word occurrences\n${lines.join('\n')}` : '',
+  ].filter(Boolean);
+  if (!sections.length) return [{ text: summary, citations: occurrenceIds }];
   return [
-    { text, citations: occurrenceIds },
-    {
-      text: `Historical events. ${named} ${named === 1 ? 'campaign is' : 'campaigns are'} named in the retrieved passages. This count is not the word count.\n${eventLines.join('\n')}`,
-      citations: [...new Set(eventIds)],
-    },
+    { text: summary, citations: occurrenceIds },
+    { text: sections.join('\n\n'), citations: [...new Set([...occurrenceIds, ...eventIds])] },
   ];
 }
