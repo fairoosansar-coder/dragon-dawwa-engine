@@ -6,7 +6,7 @@ import { rankEditionHadiths } from '../src/server/hadith.ts';
 import { buildReportModel, renderReportHtml, transmissionNames } from '../src/shared/research/report.ts';
 import { roundtableFromResearch } from '../src/shared/research/roundtable.ts';
 import { buildAgentContributions } from '../src/server/research/contributions.ts';
-import { acceptedCampaign, distinctWordings, wordingInText } from '../src/shared/research/counts.ts';
+import { acceptedCampaign, campaignEventsFromLines, distinctWordings, wordingInText } from '../src/shared/research/counts.ts';
 import { executeResearch, type ResearchPorts } from '../src/server/research/engine.ts';
 import { clearSharedResearchJobs, startSharedResearchJob } from '../src/server/research/jobs.ts';
 
@@ -645,6 +645,14 @@ describe('corpus counts', () => {
     assert.equal(wordingInText('قتال', 'للقتال'), true);
     assert.equal(acceptedCampaign('Battle of Badr', 'victory at Badr', ['battle', 'war'])?.label, 'Badr');
     assert.equal(acceptedCampaign('battle', 'the battle of Uhud', ['battle', 'war']), null);
+    assert.equal(acceptedCampaign('Uhud', 'to position the believers for the battle [of ’Uhud]', ['battle']), null);
+    assert.equal(acceptedCampaign('Badr', 'Allah had helped you at Badr when you were weak', ['battle'])?.label, 'Badr');
+    assert.equal(acceptedCampaign('Hunayn', 'on the day of Hunayn[1] when you took pride', ['battle'])?.label, 'Hunayn');
+    assert.deepEqual(campaignEventsFromLines(['3:123|Badr', '9:25 — Hunayn', '33:9|unnamed', 'not a ref']), [
+      { id: '3:123', campaign: 'Badr' },
+      { id: '9:25', campaign: 'Hunayn' },
+      { id: '33:9', campaign: 'unnamed' },
+    ]);
     assert.deepEqual(distinctWordings(['battle'], ['حرب', 'الحرب', 'قتال', 'القتال']).arabic, ['حرب', 'قتال']);
   });
 

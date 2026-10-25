@@ -122,6 +122,21 @@ export function sanitizeWordings(english: readonly string[], arabic: readonly st
  * A campaign name must be copied from the passage.
  * Generic war words and the counted wordings are not a campaign.
  */
+/** "3:123|Badr" or "33:9|unnamed". The passage check still has to accept the name. */
+export function campaignEventsFromLines(lines: readonly string[]): { id: string; campaign: string }[] {
+  const events: { id: string; campaign: string }[] = [];
+  for (const raw of lines) {
+    const text = String(raw).replace(/\s+/g, ' ').trim();
+    const match = text.match(/^(\d+:\d+)\s*[|:—–-]\s*(.+)$/);
+    if (!match) continue;
+    const campaign = match[2].trim();
+    if (!campaign || campaign.length > 80) continue;
+    events.push({ id: match[1], campaign });
+    if (events.length >= 12) break;
+  }
+  return events;
+}
+
 export function acceptedCampaign(
   campaign: string,
   text: string,
@@ -135,12 +150,12 @@ export function acceptedCampaign(
     .split(/[^\p{L}\p{M}\p{N}]+/u)
     .filter(token => token.length >= 3 && !GENERIC.has(token) && !blocked.has(token));
   if (!tokens.length) return null;
-  const hay = strip(text);
-  const hayLower = hay.toLocaleLowerCase('en');
-  if (!tokens.every(token => hayLower.includes(token))) return null;
+  const visible = strip(text).replace(/\[[^\]]*\]/g, ' ');
+  const visibleLower = visible.toLocaleLowerCase('en');
+  if (!tokens.every(token => visibleLower.includes(token))) return null;
   const surfaces: string[] = [];
   for (const token of tokens) {
-    const match = hay.match(new RegExp(escapeRegExp(token), 'i'));
+    const match = visible.match(new RegExp(escapeRegExp(token), 'i'));
     if (!match) return null;
     surfaces.push(match[0]);
   }

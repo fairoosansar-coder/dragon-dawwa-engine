@@ -13,7 +13,7 @@ import {
   sanitizeParagraphs,
   verseEvidence,
 } from './grounding.ts';
-import { sanitizeWordings } from '../shared/research/counts.ts';
+import { campaignEventsFromLines, sanitizeWordings } from '../shared/research/counts.ts';
 import { toWavBase64 } from './wav.ts';
 import { UpstreamError } from './http.ts';
 import { hasGeminiApiKey } from './loadEnv.ts';
@@ -158,15 +158,8 @@ const relevanceSchema: Schema = {
     },
     events: {
       type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          id: { type: Type.STRING },
-          campaign: { type: Type.STRING },
-        },
-        required: ['id', 'campaign'],
-      },
-      description: 'Opened passages that narrate one campaign. Empty when none do.',
+      items: { type: Type.STRING },
+      description: 'Each item is surah:ayah|name, or surah:ayah|unnamed. Empty when none narrate a campaign.',
     },
   },
   required: ['keep', 'events'],
@@ -222,11 +215,12 @@ export async function assessRelevance(
     .map(passage => `${passage.id}\n${passage.text.replace(/\s+/g, ' ').trim().slice(0, 500)}`)
     .join('\n\n');
   try {
-    const { value } = await generateJson<{ keep?: string[]; events?: { id?: string; campaign?: string }[] }>(
+    const { value } = await generateJson<{ keep?: string[]; events?: string[] }>(
       `Do not answer the question. Do not give a count. Do not invent an id. Return keep as an empty array.
-events lists only a passage that narrates a specific campaign, battle, or expedition.
-campaign is the name copied from that passage. Do not supply a name the passage does not contain.
-If the passage narrates a conflict and does not name the campaign, set campaign to unnamed.
+events is an array of strings. Include one only for a passage that narrates a specific campaign, battle, or expedition.
+Each string is the passage id, a vertical bar, and the campaign name copied from that passage, such as 3:123|Badr.
+Do not supply a name the passage does not contain. A name that appears only inside square brackets is not the passage's name; use unnamed for that passage.
+If the passage narrates a conflict and does not name the campaign, use unnamed, such as 33:9|unnamed.
 Omit a passage that only uses a war word and does not narrate a campaign.
 Return ids exactly as given.
 
@@ -241,13 +235,7 @@ ${body}`,
       relevanceSchema,
       signal,
     );
-    const events = (value.events ?? [])
-      .map(item => ({
-        id: String(item?.id ?? ''),
-        campaign: String(item?.campaign ?? '').replace(/\s+/g, ' ').trim(),
-      }))
-      .filter(item => item.id && item.campaign && item.campaign.length <= 80)
-      .slice(0, 12);
+    const events = campaignEventsFromLines(value.events ?? []);
     return { available: true, failed: false, keep: [], events };
   } catch (err) {
     if (signal?.aborted) throw err;
