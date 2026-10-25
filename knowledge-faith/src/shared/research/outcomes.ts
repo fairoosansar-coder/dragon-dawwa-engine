@@ -68,8 +68,8 @@ export function researchOutcome(input: {
   }
   if (lookedAndMissed) {
     return {
-      title: 'The retrieved sources do not establish this claim.',
-      detail: `The sources that responded were read. They do not establish the claim.${question} You can retry, or ask with different words.`,
+      title: 'The opened passages do not address this question.',
+      detail: `They were read and were not kept. The sources that responded were available. This is not a missing source.${question} You can retry, or ask with different words.`,
       retry: true,
     };
   }

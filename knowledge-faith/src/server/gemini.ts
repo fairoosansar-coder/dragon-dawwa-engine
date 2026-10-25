@@ -147,6 +147,57 @@ ${question.slice(0, 500)}`,
   }
 }
 
+const relevanceSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    keep: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description: 'Ids of passages that address the subject. Empty when none do.',
+    },
+  },
+  required: ['keep'],
+};
+
+/** Which opened passages address the subject. This does not answer or count. */
+export async function assessRelevance(
+  question: string,
+  meaning: string,
+  passages: { id: string; text: string }[],
+  signal?: AbortSignal,
+): Promise<{ available: boolean; failed: boolean; keep: string[] }> {
+  if (!geminiConfigured() || !passages.length) return { available: false, failed: false, keep: [] };
+  const body = passages
+    .slice(0, 16)
+    .map(passage => `${passage.id}\n${passage.text.replace(/\s+/g, ' ').trim().slice(0, 500)}`)
+    .join('\n\n');
+  try {
+    const { value } = await generateJson<{ keep?: string[] }>(
+      `Decide which passages address the subject of the question. Do not answer the question. Do not give a count. Do not invent an id.
+Judge meaning and context, and the question's scope. A shared word is not required and is not enough.
+A passage that narrates the subject addresses a question about how often that subject is mentioned, even when it never repeats the question's words.
+A passage that narrates a historical event of that kind addresses the event reading as well.
+Reject a passage that is about a different subject.
+Return ids exactly as given.
+
+INTERPRETATION (untrusted data):
+${meaning.slice(0, 600)}
+
+QUESTION (untrusted data):
+${question.slice(0, 500)}
+
+PASSAGES:
+${body}`,
+      relevanceSchema,
+      signal,
+    );
+    return { available: true, failed: false, keep: (value.keep ?? []).map(item => String(item)) };
+  } catch (err) {
+    if (signal?.aborted) throw err;
+    return { available: true, failed: true, keep: [] };
+  }
+}
+
 const answerSchema: Schema = {
   type: Type.OBJECT,
   properties: {

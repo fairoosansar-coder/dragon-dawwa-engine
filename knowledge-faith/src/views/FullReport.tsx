@@ -52,7 +52,7 @@ export function FullReport({ model }: { model: ReportModel }) {
 
       <section className="rounded-3xl border border-gold/70 bg-white p-5">
         <h3 className="font-display text-xl font-bold text-pine">{t.evidenceChart}</h3>
-        {model.chart.length === 0 && <p className="mt-2 text-sm text-muted">{t.chainMissing}</p>}
+        {model.chart.length === 0 && <p className="mt-2 text-sm text-muted">No passage was kept.</p>}
         <ul className="mt-4 space-y-3">
           {model.chart.map(row => (
             <li key={row.label}>
@@ -95,17 +95,9 @@ export function FullReport({ model }: { model: ReportModel }) {
         ))}
       </section>
 
-      <Gap title="Sources that could not be reached" lines={model.unavailable.map(note => note.detail)} />
-      <Gap title="Incomplete research" lines={model.incomplete.map(note => note.detail)} />
-      <Gap title="Evidence that does not yet support an answer" lines={model.insufficient.map(note => note.detail)} />
-      <Gap title="Other notes" lines={model.otherNotes.map(note => note.detail)} />
-      {model.verificationNote && (
-        <p className="text-sm leading-relaxed text-muted">{model.verificationNote}</p>
-      )}
-
-      <section className="rounded-3xl border-l-4 border-lapis bg-white p-5">
-        <h3 className="font-display text-xl font-bold text-pine">Transmission map</h3>
-        {model.chain ? (
+      {model.chain && (
+        <section className="rounded-3xl border-l-4 border-lapis bg-white p-5">
+          <h3 className="font-display text-xl font-bold text-pine">Transmission map</h3>
           <ol className="mt-4 flex flex-wrap items-center gap-2">
             {model.chain.map((name, index) => (
               <li key={`${name}-${index}`} className="flex items-center gap-2">
@@ -114,10 +106,25 @@ export function FullReport({ model }: { model: ReportModel }) {
               </li>
             ))}
           </ol>
-        ) : (
+        </section>
+      )}
+      {!model.chain && model.passages.some(passage => passage.source.contentType === 'hadith') && (
+        <section className="rounded-3xl border-l-4 border-lapis bg-white p-5">
+          <h3 className="font-display text-xl font-bold text-pine">Transmission map</h3>
           <p className="mt-2 text-sm text-muted">{t.chainMissing}</p>
-        )}
-      </section>
+        </section>
+      )}
+
+      <details className="rounded-3xl border border-pine/10 bg-parchment p-5" data-research-activity>
+        <summary className="cursor-pointer font-display text-xl font-bold text-pine">Research activity</summary>
+        <div className="mt-4 space-y-4">
+          <Gap title="Sources that could not be reached" lines={model.unavailable.map(note => note.detail)} />
+          <Gap title="Incomplete research" lines={model.incomplete.map(note => note.detail)} />
+          <Gap title="Evidence that does not yet support an answer" lines={model.insufficient.map(note => note.detail)} />
+          <Gap title="Other notes" lines={model.otherNotes.map(note => note.detail)} />
+          {model.verificationNote && <p className="text-sm leading-relaxed text-muted">{model.verificationNote}</p>}
+        </div>
+      </details>
 
       <section className="rounded-3xl border border-gold bg-white p-5">
         <h3 className="font-display text-xl font-bold text-pine">{t.agentsRan}</h3>

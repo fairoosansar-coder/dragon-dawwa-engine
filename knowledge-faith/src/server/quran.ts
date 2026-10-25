@@ -262,3 +262,27 @@ export async function getVerses(
     }),
   );
 }
+
+/** Candidate ayahs for a short retrieval phrase. The phrase does not decide which ones are relevant. */
+export async function searchQuranAyahs(phrase: string): Promise<{ total: number; refs: AyahRef[] }> {
+  const query = phrase.replace(/\s+/g, ' ').trim();
+  if (query.length < 3 || query.length > 32) return { total: 0, refs: [] };
+  try {
+    const res = await fetchJson<Envelope<{ matches?: { numberInSurah?: number; surah?: { number?: number } }[] }>>(
+      `${BASE}/search/${encodeURIComponent(query)}/all/en`,
+      DAY,
+    );
+    const keys = new Map<string, AyahRef>();
+    for (const match of res.data?.matches ?? []) {
+      const surah = match.surah?.number;
+      const ayah = match.numberInSurah;
+      if (!surah || !ayah) continue;
+      const key = `${surah}:${ayah}`;
+      if (!keys.has(key)) keys.set(key, { surah, ayah });
+    }
+    return { total: keys.size, refs: [...keys.values()].slice(0, 40) };
+  } catch (err) {
+    if (err instanceof UpstreamError && err.status === 404) return { total: 0, refs: [] };
+    throw err;
+  }
+}

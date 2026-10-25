@@ -14,7 +14,7 @@ import type { Evidence } from '../../shared/types.ts';
 import { contentTokens, passageSupportsTopic } from '../../shared/research.ts';
 import { verifyClaim } from '../../shared/research/claims.ts';
 import { asksScience, decomposeQuestion } from '../../shared/research/decompose.ts';
-import { interpretQuestion } from '../../shared/research/scopes.ts';
+import { interpretQuestion, retrievalPhrases, type QuestionInterpretation } from '../../shared/research/scopes.ts';
 import { ayahsMentioned } from '../../shared/research.ts';
 import { ISLAMHOUSE_RIGHTS } from '../../shared/sourceRegistry.ts';
 import { UpstreamError } from '../http.ts';
@@ -125,6 +125,13 @@ export interface ResearchPorts {
     lang: Lang,
     signal: AbortSignal,
   ): Promise<{ available: boolean; failed: boolean; phrases: string[]; ayahs: { surah: number; ayah: number }[] }>;
+  searchQuran?(phrase: string, signal: AbortSignal): Promise<{ total: number; refs: { surah: number; ayah: number }[] }>;
+  assessRelevance?(
+    question: string,
+    meaning: string,
+    passages: { id: string; text: string }[],
+    signal: AbortSignal,
+  ): Promise<{ available: boolean; failed: boolean; keep: string[] }>;
   writeAnswer?(
     question: string,
     lang: Lang,
@@ -199,6 +206,15 @@ function supportsNarration(question: string, text: string): boolean {
   return passageSupportsTopic(question, text);
 }
 
+function refFromJudgement(value: string): string | null {
+  const match = value.match(/(\d{1,3})\s*[:/\-]\s*(\d{1,3})/);
+  if (!match) return null;
+  const surah = Number(match[1]);
+  const ayah = Number(match[2]);
+  if (surah < 1 || surah > 114 || ayah < 1 || ayah > 286) return null;
+  return `${surah}:${ayah}`;
+}
+
 function score(question: string, text: string): number {
   const haystack = text.toLocaleLowerCase('en');
   return contentTokens(question).reduce((total, token) => {
@@ -235,15 +251,22 @@ export async function executeResearch(input: {
   assignment?: ResearchAssignmentView | null;
 }): Promise<ResearchRun> {
   const signal = input.signal ?? new AbortController().signal;
+  const interpretation = interpretQuestion(input.question);
   const budget =
-    input.assignment && input.assignment.teams.length > 1
-      ? { queries: 8, opens: 6, callsPerSource: 16, timeMs: 45_000, concurrency: 2 }
-      : BUDGET;
+    interpretation.kind === 'corpus-count'
+      ? { queries: 6, opens: 4, callsPerSource: 16, timeMs: 35_000, concurrency: 2 }
+      : input.assignment && input.assignment.teams.length > 1
+        ? { queries: 8, opens: 6, callsPerSource: 16, timeMs: 45_000, concurrency: 2 }
+        : BUDGET;
   const useHadith = !input.assignment || input.assignment.teams.includes('hadith');
   const useQuran = !input.assignment || input.assignment.teams.includes('quran');
   const useBooks = Boolean(input.assignment?.teams.includes('books'));
-  const interpretation = interpretQuestion(input.question);
-  const consultHadith = useHadith || interpretation.consultHadith;
+  const consultHadith =
+    interpretation.corpus === 'quran'
+      ? false
+      : interpretation.corpus === 'hadith'
+        ? true
+        : useHadith || interpretation.consultHadith;
   const useScience = !input.assignment || input.assignment.scope === 'knowledge';
   const index = input.index ?? createContentIndex();
   const clock = input.now ?? (() => new Date());
@@ -259,6 +282,7 @@ export async function executeResearch(input: {
   const tafsirAttempts: TafsirAttempt[] = [];
   const ranQueries: string[] = [];
   let contextCount = 0;
+  let corpusOmitted = 0;
   let researchAnswer: ResearchAnswer | null = null;
   const plan = decomposeQuestion(input.question);
   const job: ResearchJobView = {
@@ -292,7 +316,7 @@ export async function executeResearch(input: {
     job.timingsMs = { totalMs: Math.max(0, clock().getTime() - startedMs), sources: { ...timings } };
     job.coverage = coverage;
     job.errors = errors;
-    const claims = plan.subquestions.map(sub => claimFor(sub, passages, coverage));
+    const claims = plan.subquestions.map(sub => claimFor(sub, passages, coverage, interpretation));
     const unresolved = claims.filter(claim => claim.support !== 'supported').map(claim => `${claim.claim} — ${claim.note}`);
     if (status === 'cancelled') unresolved.unshift('The research job was cancelled. Any passages below are partial.');
     const disagreements: string[] = [];
@@ -576,16 +600,47 @@ export async function executeResearch(input: {
     const namedAyahs = useQuran ? ayahsMentioned(input.question) : [];
     const ayahs = [...namedAyahs];
     const themeKeys = new Set<string>();
+    const nominatedKeys = new Set(suggestedAyahs.map(ayah => `${ayah.surah}:${ayah.ayah}`));
+    const ayahCap = interpretation.kind === 'corpus-count' ? 12 : 8;
+    const searchKeys = new Set<string>();
+    if (interpretation.kind === 'corpus-count' && interpretation.corpus !== 'hadith' && useQuran && input.ports.searchQuran) {
+      for (const phrase of retrievalPhrases(interpretation, host?.queries ?? [])) {
+        if (!allow('AlQuran')) break;
+        try {
+          const found = await timed('AlQuran', () => attempt(() => input.ports.searchQuran!(phrase, signal), signal));
+          corpusOmitted += Math.max(0, found.total - found.refs.length);
+          for (const ayah of found.refs) searchKeys.add(`${ayah.surah}:${ayah.ayah}`);
+        } catch (err) {
+          if (isAbort(err, signal)) return finish('cancelled');
+          const message = err instanceof Error ? err.message : 'The Qur’an search did not respond.';
+          errors.push({ provider: 'AlQuran', message });
+          pushCoverage({
+            kind: 'source_unavailable',
+            provider: 'AlQuran',
+            detail: `A source could not be reached. The Qur’an search failed: ${message} Passages already nominated are still opened. This is not a finding that the subject is absent.`,
+          });
+        }
+      }
+    }
     if (useQuran) {
       for (const ayah of themeAyahs(input.question)) {
         const key = `${ayah.surah}:${ayah.ayah}`;
         themeKeys.add(key);
-        if (ayahs.length >= 8) continue;
+        if (ayahs.length >= ayahCap) continue;
         if (!ayahs.some(item => item.surah === ayah.surah && item.ayah === ayah.ayah)) ayahs.push(ayah);
       }
       for (const ayah of suggestedAyahs) {
-        if (ayahs.length >= 8) break;
+        if (ayahs.length >= ayahCap) break;
         if (!ayahs.some(item => item.surah === ayah.surah && item.ayah === ayah.ayah)) ayahs.push(ayah);
+      }
+      for (const key of searchKeys) {
+        const [surah, ayah] = key.split(':').map(Number);
+        if (ayahs.some(item => item.surah === surah && item.ayah === ayah)) continue;
+        if (ayahs.length >= ayahCap) {
+          corpusOmitted += 1;
+          continue;
+        }
+        ayahs.push({ surah, ayah });
       }
     }
     const namedKeys = new Set(namedAyahs.map(ayah => `${ayah.surah}:${ayah.ayah}`));
@@ -593,22 +648,57 @@ export async function executeResearch(input: {
       try {
         const verses = await timed('QuranEnc', () => attempt(() => input.ports.getVerses(ayahs, input.language, signal), signal));
         const found = new Set(verses.map(verse => `${verse.surah}:${verse.ayah}`));
+        let keepKeys: Set<string> | null = null;
+        if (interpretation.kind === 'corpus-count' && input.ports.assessRelevance && verses.length) {
+          try {
+            const judged = await timed('Gemini', () =>
+              attempt(
+                () =>
+                  input.ports.assessRelevance!(
+                    input.question,
+                    interpretation.meaning,
+                    verses.map(verse => ({ id: `${verse.surah}:${verse.ayah}`, text: `${verse.arabic}\n${verse.translation}` })),
+                    signal,
+                  ),
+                signal,
+              ),
+            );
+            if (!judged.available || judged.failed) {
+              pushCoverage({
+                kind: 'scholarly_review_required',
+                provider: 'Gemini',
+                detail: 'Meaning review did not return. Passages nominated for this subject were kept. They were not discarded for a missing shared word.',
+              });
+            } else {
+              keepKeys = new Set(judged.keep.map(refFromJudgement).filter((key): key is string => Boolean(key)));
+            }
+          } catch (err) {
+            if (isAbort(err, signal)) return finish('cancelled');
+            pushCoverage({
+              kind: 'scholarly_review_required',
+              provider: 'Gemini',
+              detail: 'Meaning review did not return. Passages nominated for this subject were kept. They were not discarded for a missing shared word.',
+            });
+          }
+        }
         for (const verse of verses) {
           const key = `${verse.surah}:${verse.ayah}`;
           const named = namedKeys.has(key);
           const theme = themeKeys.has(key);
           const verseText = `${verse.arabic}\n${verse.translation}`;
           const supported =
-            named ||
-            passageSupportsTopic(input.question, verseText) ||
-            plan.subquestions.some(sub => passageSupportsTopic(sub.text, verseText)) ||
-            themeWordingSupports(input.question, verseText) ||
-            (theme && interpretation.synonyms.some(word => verseText.toLocaleLowerCase('en').includes(word.toLocaleLowerCase('en'))));
+            interpretation.kind === 'corpus-count'
+              ? named || (keepKeys ? keepKeys.has(key) : nominatedKeys.has(key) || theme)
+              : named ||
+                passageSupportsTopic(input.question, verseText) ||
+                plan.subquestions.some(sub => passageSupportsTopic(sub.text, verseText)) ||
+                themeWordingSupports(input.question, verseText) ||
+                (theme && interpretation.synonyms.some(word => verseText.toLocaleLowerCase('en').includes(word.toLocaleLowerCase('en'))));
           if (!supported) {
             pushCoverage({
               kind: 'no_relevant_evidence',
               provider: 'QuranEnc',
-              detail: `Qur’an ${key} was opened. Its wording did not share a content term with the question, so it is not cited.`,
+              detail: `Qur’an ${key} was opened. Read for meaning and context, it does not address this question, so it is not cited. The source was available.`,
             });
             continue;
           }
@@ -677,7 +767,7 @@ export async function executeResearch(input: {
           list.push(ayah);
           bySurah.set(surah, list);
         }
-        for (const [surah, ayahList] of [...bySurah.entries()].slice(0, 2)) {
+        for (const [surah, ayahList] of [...bySurah.entries()].slice(0, interpretation.kind === 'corpus-count' ? 4 : 2)) {
           if (!allow('QuranEnc')) break;
           try {
             const commentary = await timed('QuranEnc', () =>
@@ -893,24 +983,36 @@ export async function executeResearch(input: {
         kind: 'no_relevant_evidence',
         provider: 'dossier',
         detail: opened
-          ? `The retrieved sources do not establish this claim. Your question is still here: ${input.question}`
+          ? `The opened passages do not address this question. The sources were available. Your question is still here: ${input.question}`
           : `Available evidence does not sufficiently support an answer. Your question is still here: ${input.question}`,
       });
     }
     if (passages.length) {
       const packet = answerPassages(passages);
       const evidence = packet.map(passageToEvidence);
+      const counted = corpusCountAnswer(interpretation, passages, corpusOmitted);
       let written: ResearchAnswer | null = null;
-      if (input.ports.writeAnswer && evidence.length) {
+      if (!counted && input.ports.writeAnswer && evidence.length) {
         try {
           const result = await timed('Gemini', () => attempt(() => input.ports.writeAnswer!(input.question, input.language, evidence, signal), signal));
-          written = acceptWrittenAnswer(input.question, result, packet);
+          written = acceptWrittenAnswer(input.question, result, packet, interpretation);
         } catch (err) {
           if (isAbort(err, signal)) return finish('cancelled');
           written = null;
         }
       }
-      researchAnswer = written ?? retrievedAnswer(input.question, packet);
+      if (counted && input.ports.writeAnswer && evidence.length) {
+        try {
+          const result = await timed('Gemini', () => attempt(() => input.ports.writeAnswer!(input.question, input.language, evidence, signal), signal));
+          const extra = acceptWrittenAnswer(input.question, result, packet, interpretation);
+          researchAnswer = mergeCountedAnswer(counted, extra, passages);
+        } catch (err) {
+          if (isAbort(err, signal)) return finish('cancelled');
+          researchAnswer = counted;
+        }
+      } else {
+        researchAnswer = counted ?? written ?? retrievedAnswer(input.question, packet, interpretation);
+      }
     }
     publish('verify', 4);
     if (signal.aborted) return finish('cancelled');
@@ -924,7 +1026,12 @@ export async function executeResearch(input: {
   }
 }
 
-function claimFor(sub: ResearchSubquestion, passages: EvidencePassage[], coverage: CoverageNote[]): ClaimEvidence {
+function claimFor(
+  sub: ResearchSubquestion,
+  passages: EvidencePassage[],
+  coverage: CoverageNote[],
+  interpretation: QuestionInterpretation,
+): ClaimEvidence {
   if (sub.domain === 'science' || asksScience(sub.text)) {
     const papers = passages.filter(item => item.role === 'empirical');
     if (coverage.some(note => note.kind === 'science_not_configured')) {
@@ -957,6 +1064,32 @@ function claimFor(sub: ResearchSubquestion, passages: EvidencePassage[], coverag
         check.support === 'supported'
           ? 'The OpenAlex record contains words from this question. The paper was not read. This is not causation and not a religious verdict.'
           : check.note,
+    };
+  }
+  if (interpretation.kind === 'corpus-count') {
+    const counted = countedPassages(passages);
+    if (!counted.length) {
+      const unavailable = coverage.some(note => note.kind === 'source_unavailable' || note.kind === 'language_unavailable');
+      return {
+        claim: sub.text,
+        passageIds: [] as string[],
+        support: 'insufficient' as const,
+        citationExists: false,
+        quotationFaithful: null,
+        citationRelevant: false,
+        note: unavailable
+          ? 'A source could not be reached, so this count was not finished.'
+          : 'No passage that addresses this subject was kept. The sources that responded were available.',
+      };
+    }
+    return {
+      claim: sub.text,
+      passageIds: counted.map(passage => passage.id).slice(0, 12),
+      support: 'supported' as const,
+      citationExists: true,
+      quotationFaithful: true,
+      citationRelevant: true,
+      note: `${counted.length} passage(s) were kept after duplicates were removed. The count is calculated from that list. No passage was required to state the total.`,
     };
   }
   if (!sub.queries.length) {
@@ -1142,6 +1275,7 @@ function acceptWrittenAnswer(
   question: string,
   result: { paragraphs: { text: string; citations: string[] }[]; insufficientEvidence: boolean },
   passages: readonly EvidencePassage[],
+  interpretation: QuestionInterpretation,
 ): ResearchAnswer | null {
   const ids = new Set(passages.map(passage => passage.id));
   const packet = packetBlob(passages);
@@ -1152,17 +1286,106 @@ function acceptWrittenAnswer(
     }))
     .filter(paragraph => paragraph.text && paragraph.citations.length > 0 && !inventsNumber(question, paragraph.text, packet));
   if (!paragraphs.length) return null;
-  const asksCount = COUNT_QUESTION.test(question);
+  const asksStatedTotal = interpretation.kind === 'stated-total' || (interpretation.kind !== 'corpus-count' && COUNT_QUESTION.test(question));
   return {
     paragraphs,
-    insufficientEvidence: result.insufficientEvidence || (asksCount && !passageStatesCount(passages)),
+    insufficientEvidence: result.insufficientEvidence || (asksStatedTotal && !passageStatesCount(passages)),
     writer: 'assistant',
   };
 }
 
-function retrievedAnswer(question: string, passages: readonly EvidencePassage[]): ResearchAnswer {
+function countedPassages(passages: readonly EvidencePassage[]): EvidencePassage[] {
+  const seen = new Set<string>();
+  const counted: EvidencePassage[] = [];
+  for (const passage of passages) {
+    if (passage.source.provider !== 'QuranEnc' || passage.role !== 'translation') continue;
+    if (passage.context?.startsWith('Neighbouring')) continue;
+    if (seen.has(passage.source.id)) continue;
+    seen.add(passage.source.id);
+    counted.push(passage);
+  }
+  return counted;
+}
+
+function corpusCountAnswer(
+  interpretation: QuestionInterpretation,
+  passages: readonly EvidencePassage[],
+  omitted: number,
+): ResearchAnswer | null {
+  if (interpretation.kind !== 'corpus-count') return null;
+  const counted = countedPassages(passages);
+  if (!counted.length) return null;
+  const refs = counted.map(passage => `${passage.locator} (${passage.source.id})`).join('; ');
+  const partial =
+    omitted > 0
+      ? ` ${omitted} further corpus match(es) were not opened, so this is not a complete census.`
+      : '';
+  return {
+    paragraphs: [
+      {
+        text: `${counted.length} ${counted.length === 1 ? 'passage was' : 'passages were'} retrieved and kept after duplicates were removed: ${refs}. This number is calculated from those entries. It is not a sentence in the sources that already states a total. One reading counts passages that speak about the subject. The other asks which historical events they narrate; the passages are listed for that reading, and no event was added.${partial}`,
+        citations: counted.map(passage => passage.id),
+      },
+    ],
+    insufficientEvidence: false,
+    writer: 'retrieved',
+  };
+}
+
+const NUMBER_WORDS: Record<string, number> = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+};
+
+function conflictsWithCount(paragraph: string, count: number, packet: string): boolean {
+  const compact = packet.replace(/,/g, '').toLocaleLowerCase('en');
+  for (const match of paragraph.matchAll(/\b\d[\d,]*\b/g)) {
+    const token = match[0];
+    const bare = token.replace(/,/g, '');
+    if (bare === String(count) || packet.includes(token) || compact.includes(bare)) continue;
+    return true;
+  }
+  const lower = paragraph.toLocaleLowerCase('en');
+  for (const [word, value] of Object.entries(NUMBER_WORDS)) {
+    if (!new RegExp(`\\b${word}\\b`).test(lower)) continue;
+    if (value === count || compact.includes(word)) continue;
+    return true;
+  }
+  return /do not state a total|does not state a total|no passage was kept|does not mention the total/i.test(paragraph);
+}
+
+function mergeCountedAnswer(
+  counted: ResearchAnswer,
+  extra: ResearchAnswer | null,
+  passages: readonly EvidencePassage[],
+): ResearchAnswer {
+  const count = counted.paragraphs[0]?.citations.length ?? 0;
+  const packet = packetBlob(passages);
+  const additions = (extra?.paragraphs ?? []).filter(paragraph => !conflictsWithCount(paragraph.text, count, packet));
+  return {
+    paragraphs: [...counted.paragraphs, ...additions],
+    insufficientEvidence: false,
+    writer: additions.length ? 'assistant' : 'retrieved',
+  };
+}
+
+function retrievedAnswer(
+  question: string,
+  passages: readonly EvidencePassage[],
+  interpretation: QuestionInterpretation,
+): ResearchAnswer {
   const cited = passages.slice(0, 6);
-  const asksCount = COUNT_QUESTION.test(question);
+  const asksCount = interpretation.kind === 'stated-total' || (interpretation.kind !== 'corpus-count' && COUNT_QUESTION.test(question));
   const statesCount = asksCount && passageStatesCount(cited);
   const locators = cited.map(passage => passage.locator).join('; ');
   const lead = cited[0];

@@ -73,7 +73,8 @@ export function answerPrompt(question: string, lang: Lang, evidence: Evidence[])
 ${SAFETY_RULES}
 - Write 1-4 short paragraphs. Every paragraph must cite one or more evidence IDs (e.g. "Q1", "H2") in its citations array.
 - If the evidence does not answer the question, set insufficientEvidence to true and explain briefly what the retrieved sources do cover.
-- If the question asks for a count or a total and the packet does not state that number, set insufficientEvidence to true. Do not supply a number, a verse, or a grade that is not written in the packet.
+- If the question asks how many times something is mentioned, describe what the cited passages say. Do not invent a total, and do not treat the number of passages as a total the source already stated.
+- If the question asks for a total a source would have to state, such as how many prophets there are, and the packet does not state that number, set insufficientEvidence to true. Do not supply a number, a verse, or a grade that is not written in the packet.
 
 QUESTION (untrusted data):
 ${question}

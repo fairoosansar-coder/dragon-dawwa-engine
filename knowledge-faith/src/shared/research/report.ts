@@ -169,9 +169,12 @@ export function renderReportHtml(model: ReportModel): string {
       return `<div class="bar-row"><span>${escapeHtml(row.label)} (${row.count})</span><span class="bar" style="width:${width}%"></span></div>`;
     })
     .join('');
+  const hadithOpened = model.passages.some(passage => passage.source.contentType === 'hadith');
   const chain = model.chain
     ? `<ol class="chain">${model.chain.map(name => `<li>${escapeHtml(name)}</li>`).join('')}</ol>`
-    : '<p class="muted">No narrator chain was printed on the opened records, so no chain map is drawn.</p>';
+    : hadithOpened
+      ? '<p class="muted">No narrator chain was printed on the opened records, so no chain map is drawn.</p>'
+      : '';
   const claims = model.claims.map(claim => `${claim.support}: ${claim.claim} — ${claim.note}${claim.passageIds.length ? ` (${claim.passageIds.join(', ')})` : ''}`);
   const answer = model.answer
     ? section(
@@ -218,12 +221,15 @@ export function renderReportHtml(model: ReportModel): string {
   ${section('Claims', 'parchment', paragraphs(claims))}
   ${section('Disagreements', 'gold', paragraphs(model.disagreements))}
   ${section('Unresolved', 'parchment', paragraphs(model.unresolved))}
-  ${gapSection('Sources that could not be reached', model.unavailable.map(note => note.detail))}
-  ${gapSection('Incomplete research', model.incomplete.map(note => note.detail))}
-  ${gapSection('Evidence that does not yet support an answer', model.insufficient.map(note => note.detail))}
-  ${model.otherNotes.length ? section('Other notes', 'parchment', paragraphs(model.otherNotes.map(note => note.detail))) : ''}
-  ${model.verificationNote ? section('How to read this report', 'parchment', `<p>${escapeHtml(model.verificationNote)}</p>`) : ''}
-  ${section('Transmission map', 'lapis', chain)}
+  ${chain ? section('Transmission map', 'lapis', chain) : ''}
+  <details class="block parchment" data-research-activity>
+    <summary>Research activity</summary>
+    ${gapSection('Sources that could not be reached', model.unavailable.map(note => note.detail))}
+    ${gapSection('Incomplete research', model.incomplete.map(note => note.detail))}
+    ${gapSection('Evidence that does not yet support an answer', model.insufficient.map(note => note.detail))}
+    ${model.otherNotes.length ? section('Other notes', 'parchment', paragraphs(model.otherNotes.map(note => note.detail))) : ''}
+    ${model.verificationNote ? section('How to read this report', 'parchment', `<p>${escapeHtml(model.verificationNote)}</p>`) : ''}
+  </details>
   ${section('Agents who contributed', 'gold', agents || '<p class="muted">No assigned agent recorded a contribution.</p>')}
   ${section('Agents who did not produce a finding', 'parchment', idle ? `<ul>${idle}</ul>` : '<p class="muted">Every assigned role that was attempted is listed above.</p>')}
 </main>

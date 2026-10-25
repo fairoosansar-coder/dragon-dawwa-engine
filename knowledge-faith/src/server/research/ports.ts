@@ -1,12 +1,12 @@
 import type { Lang } from '../../shared/sources.ts';
 import { worshipTopicForQuestion } from '../../shared/research/themes.ts';
-import { geminiConfigured, generateJson, suggestSearchPlan, writeAnswer as writeGroundedAnswer } from '../gemini.ts';
+import { assessRelevance, geminiConfigured, generateJson, suggestSearchPlan, writeAnswer as writeGroundedAnswer } from '../gemini.ts';
 import type { Evidence } from '../../shared/types.ts';
 import { findStudyHadiths } from '../hadith.ts';
 import { loadHadeeth, searchHadeeth } from '../hadeethenc.ts';
 import { loadKnowledgeShelf, loadLibrary } from '../islamhouse.ts';
 import { readLibraryItem } from '../libraryRead.ts';
-import { getVerses } from '../quran.ts';
+import { getVerses, searchQuranAyahs } from '../quran.ts';
 import { loadMukhtasar } from '../quranenc.ts';
 import type { BookRead, ResearchPorts } from './engine.ts';
 import { searchOpenAlex } from './science.ts';
@@ -73,6 +73,22 @@ export function defaultResearchPorts(): ResearchPorts {
       }));
     },
     searchScience: searchOpenAlex,
+    async searchQuran(phrase, signal) {
+      if (signal.aborted) throw aborted(signal);
+      const found = await searchQuranAyahs(phrase);
+      if (signal.aborted) throw aborted(signal);
+      return found;
+    },
+    async assessRelevance(question, meaning, passages, signal) {
+      if (signal.aborted) throw aborted(signal);
+      const limited = AbortSignal.any([signal, AbortSignal.timeout(12_000)]);
+      try {
+        return await assessRelevance(question, meaning, passages, limited);
+      } catch (err) {
+        if (signal.aborted) throw err;
+        return { available: true, failed: true, keep: [] };
+      }
+    },
     async suggestSearch(question, lang, signal) {
       if (signal.aborted) throw aborted(signal);
       const limited = AbortSignal.any([signal, AbortSignal.timeout(10_000)]);

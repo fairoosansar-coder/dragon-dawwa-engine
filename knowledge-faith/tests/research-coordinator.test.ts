@@ -606,5 +606,144 @@ describe('prophet-count retrieval', () => {
     assert.equal(result.job.agents?.find(agent => agent.role === 'Translation')?.status, 'not_run');
     assert.equal(result.job.agents?.find(agent => agent.role === 'Evidence review')?.status, 'not_run');
     assert.equal(result.job.agents?.some(agent => agent.status === 'unavailable'), false);
+    assert.equal(JSON.stringify(result.job.coverage).includes('do not establish this claim'), false);
+    assert.equal(JSON.stringify(result.job.coverage).includes('share a content term'), false);
+  });
+});
+
+describe('corpus counts', () => {
+  const battle = (surah: number, ayah: number, translation: string) => ({
+    surah,
+    ayah,
+    arabic: 'قتال',
+    translation,
+    translator: 'Test',
+    version: '1',
+    edition: 'english_rwwad',
+    url: `https://quranenc.com/api/v1/translation/aya/english_rwwad/${surah}/${ayah}`,
+  });
+
+  it('counts opened war passages by meaning and does not search hadith', async () => {
+    let hadith = 0;
+    const result = await executeResearch({
+      question: 'how many wars mentions in quran?',
+      language: 'en',
+      ports: ports({
+        searchHadeeth: async () => {
+          hadith += 1;
+          return [{ id: '1', title: 'A narrator chain' }];
+        },
+        searchStudyHadith: async () => {
+          hadith += 1;
+          return [];
+        },
+        suggestSearch: async () => ({
+          available: true,
+          failed: false,
+          phrases: ['battles mentioned in Quran'],
+          ayahs: [
+            { surah: 3, ayah: 121 },
+            { surah: 3, ayah: 123 },
+            { surah: 33, ayah: 9 },
+            { surah: 9, ayah: 25 },
+            { surah: 2, ayah: 2 },
+          ],
+        }),
+        searchQuran: async () => ({ total: 1, refs: [{ surah: 8, ayah: 73 }] }),
+        assessRelevance: async (_question, _meaning, passages) => ({
+          available: true,
+          failed: false,
+          keep: passages.filter(passage => /battle|Badr|Hunayn|forces came/i.test(passage.text)).map(passage => passage.id),
+        }),
+        getVerses: async refs =>
+          refs.map(ref => {
+            if (ref.surah === 3 && ref.ayah === 121) return battle(3, 121, 'Remember when you set forth to the battle stations.');
+            if (ref.surah === 3 && ref.ayah === 123) return battle(3, 123, 'Allah had already given you victory at Badr.');
+            if (ref.surah === 33 && ref.ayah === 9) return battle(33, 9, 'When forces came against you and We sent a wind.');
+            if (ref.surah === 9 && ref.ayah === 25) return battle(9, 25, 'Allah gave you victory on the day of Hunayn.');
+            return battle(ref.surah, ref.ayah, 'This is the Book about which there is no doubt.');
+          }),
+        loadCommentary: async (_lang, surah) => ({
+          ok: true as const,
+          spans: [{ locator: `Al-Mukhtasar ${surah}:1`, text: 'The commentary describes the campaign in this passage.', url: 'https://quranenc.com/en/browse/english_mokhtasar/3' }],
+        }),
+        writeAnswer: async () => ({
+          paragraphs: [{ text: 'The Qur’an mentions six wars.', citations: ['Q3-121'] }],
+          insufficientEvidence: false,
+        }),
+      }),
+      assignment: QURAN_DESK,
+    });
+    assert.equal(hadith, 0);
+    assert.equal(result.job.interpretation?.scopes.some(scope => scope.id === 'occurrence'), true);
+    assert.equal(result.job.interpretation?.scopes.some(scope => scope.id === 'event'), true);
+    assert.equal(result.job.agents?.some(agent => agent.team === 'hadith'), false);
+    const kept = result.dossier.passages.filter(passage => passage.role === 'translation' && !passage.context);
+    assert.deepEqual(
+      kept.map(passage => passage.source.id).sort(),
+      ['3:121', '3:123', '33:9', '9:25'].sort(),
+    );
+    assert.equal(result.job.agents?.find(agent => agent.role === 'Qur’an text')?.status, 'ran');
+    assert.equal(result.job.agents?.find(agent => agent.role === 'Translation')?.status, 'ran');
+    assert.equal(result.job.agents?.find(agent => agent.role === 'Tafsir')?.status, 'ran');
+    assert.equal(result.dossier.answer?.insufficientEvidence, false);
+    assert.match(result.dossier.answer?.paragraphs[0]?.text ?? '', /4 passages were retrieved/);
+    assert.match(result.dossier.answer?.paragraphs[0]?.text ?? '', /3:121/);
+    assert.match(result.dossier.answer?.paragraphs[0]?.text ?? '', /9:25/);
+    assert.equal(/six/i.test(JSON.stringify(result.dossier.answer)), false);
+    assert.equal(JSON.stringify(result.job.coverage).includes('share a content term'), false);
+    assert.equal(JSON.stringify(result.job.coverage).includes('do not establish this claim'), false);
+    const html = renderReportHtml(buildReportModel(result.job, result.dossier));
+    assert.equal(html.includes('Transmission map'), false);
+    assert.match(html, /Research activity/);
+  });
+
+  it('counts a paraphrase from the passages it retrieves, not a fixed war list', async () => {
+    const result = await executeResearch({
+      question: 'How often does the Qur’an speak about orphans?',
+      language: 'en',
+      ports: ports({
+        suggestSearch: async () => ({ available: true, failed: false, phrases: ['orphan'], ayahs: [{ surah: 93, ayah: 9 }] }),
+        searchQuran: async () => ({ total: 0, refs: [] }),
+        assessRelevance: async (_question, _meaning, passages) => ({
+          available: true,
+          failed: false,
+          keep: passages.filter(passage => /orphan/i.test(passage.text)).map(passage => passage.id),
+        }),
+        getVerses: async refs =>
+          refs.map(ref => battle(ref.surah, ref.ayah, 'So as for the orphan, do not oppress him.')),
+      }),
+      assignment: QURAN_DESK,
+    });
+    assert.match(result.dossier.answer?.paragraphs[0]?.text ?? '', /1 passage was retrieved/);
+    assert.match(result.dossier.answer?.paragraphs[0]?.text ?? '', /93:9/);
+    assert.equal(JSON.stringify(result.dossier).includes('3:123'), false);
+    assert.equal(JSON.stringify(result.dossier).includes('Badr'), false);
+    assert.equal(result.dossier.answer?.insufficientEvidence, false);
+  });
+
+  it('keeps a nominated passage when meaning review does not return', async () => {
+    const result = await executeResearch({
+      question: 'how many wars mentions in quran?',
+      language: 'en',
+      ports: ports({
+        suggestSearch: async () => ({ available: true, failed: false, phrases: [], ayahs: [{ surah: 3, ayah: 123 }] }),
+        searchQuran: async () => ({ total: 1, refs: [{ surah: 2, ayah: 2 }] }),
+        assessRelevance: async () => ({ available: true, failed: true, keep: [] }),
+        getVerses: async refs =>
+          refs.map(ref =>
+            battle(
+              ref.surah,
+              ref.ayah,
+              ref.ayah === 123 ? 'Allah had already given you victory at Badr.' : 'This is the Book about which there is no doubt.',
+            ),
+          ),
+      }),
+      assignment: QURAN_DESK,
+    });
+    assert.ok(result.dossier.passages.some(passage => passage.source.id === '3:123'));
+    assert.equal(result.dossier.passages.some(passage => passage.source.id === '2:2'), false);
+    assert.match(result.dossier.answer?.paragraphs[0]?.text ?? '', /1 passage was retrieved/);
+    assert.match(JSON.stringify(result.job.coverage), /Meaning review did not return/);
   });
 });
