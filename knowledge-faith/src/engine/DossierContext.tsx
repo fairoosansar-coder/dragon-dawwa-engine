@@ -53,7 +53,8 @@ const READER: UserAccount = {
 
 async function waitForResearch(id: string, signal: AbortSignal): Promise<DragonDawwaAnalysis> {
   if (!id) throw new Error('Research did not start. Please retry.');
-  const deadline = Date.now() + 240_000;
+  // Three model attempts can each use the 180s Gemini timeout before a Sinhala script returns.
+  const deadline = Date.now() + 600_000;
   while (Date.now() < deadline) {
     await new Promise<void>((resolve, reject) => {
       if (signal.aborted) {
