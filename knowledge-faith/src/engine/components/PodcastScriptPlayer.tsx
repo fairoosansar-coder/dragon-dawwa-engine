@@ -27,6 +27,7 @@ import {
 import { audioStudio, StudioFxType } from '../utils/audioStudio';
 import { withoutVanakkam } from '../utils/tamilGreeting';
 import { cancelBrowserSpeech } from '../utils/browserVoice';
+import { concatWavBase64, decodeBase64, downloadBytes, readResponseBytes } from '../../lib/episodeWav.ts';
 
 interface PodcastScriptPlayerProps {
   script: string;
@@ -75,6 +76,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
   const [isSynthesizing, setIsSynthesizing] = useState<boolean>(false);
   const [testingPersonaVoice, setTestingPersonaVoice] = useState<PersonaId | null>(null);
   const [imranVoice, setImranVoice] = useState<string>('Orus');
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
 
   const isPlayingRef = useRef<boolean>(false);
   const currentItemIndexRef = useRef<number>(-1);
@@ -795,6 +797,58 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadEpisode = async () => {
+    if (downloadProgress !== null) return;
+    const speeches = dialogueItems
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => item.type === 'speech')
+      .map(({ item, index }) => ({
+        index,
+        speaker: item.speaker,
+        text: item.text.replace(/\[[^\]]+\]/g, '').trim(),
+      }))
+      .filter(item => item.text);
+    if (!speeches.length) return;
+    setVoiceError(null);
+    setDownloadProgress(0);
+    try {
+      const clips: string[] = [];
+      for (let i = 0; i < speeches.length; i += 1) {
+        const line = speeches[i];
+        let audio = audioCacheRef.current.get(line.index) ?? null;
+        if (!audio && pendingFetchesRef.current.has(line.index)) {
+          audio = await pendingFetchesRef.current.get(line.index)!;
+        }
+        if (!audio) {
+          const targetVoice = personasConfig[line.speaker]?.geminiVoice;
+          const response = await fetch('/api/tts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: line.text, speaker: line.speaker, voiceName: targetVoice }),
+          });
+          const bytes = await readResponseBytes(response, (loaded, total) => {
+            const fraction = total > 0 ? Math.min(1, loaded / total) : 0;
+            setDownloadProgress(Math.min(99, Math.round(((i + fraction) / speeches.length) * 100)));
+          });
+          const payload = JSON.parse(new TextDecoder().decode(bytes)) as { audioBase64?: string; error?: string };
+          if (!response.ok) throw new Error(payload.error || `Gemini voice request failed (${response.status}).`);
+          if (!payload.audioBase64) throw new Error('Gemini returned no audio.');
+          audio = payload.audioBase64;
+          audioCacheRef.current.set(line.index, audio);
+        }
+        clips.push(audio);
+        setDownloadProgress(Math.min(99, Math.round(((i + 1) / speeches.length) * 100)));
+      }
+      const wav = decodeBase64(concatWavBase64(clips));
+      setDownloadProgress(100);
+      downloadBytes(wav, 'dragon-dawwa-episode.wav', 'audio/wav');
+    } catch (err) {
+      setVoiceError(err instanceof Error ? err.message : 'The episode audio could not be downloaded.');
+    } finally {
+      setDownloadProgress(null);
+    }
+  };
+
   const handleTestFx = (fx: StudioFxType) => {
     audioStudio.playFx(fx);
   };
@@ -1115,6 +1169,22 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                   <span>Download .TXT</span>
                 </button>
 
+                <button
+                  type="button"
+                  data-testid="download-episode-wav"
+                  onClick={() => void handleDownloadEpisode()}
+                  disabled={downloadProgress !== null}
+                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-60 text-slate-300 text-xs font-medium border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+                  title="Download the full episode as one WAV file"
+                >
+                  {downloadProgress !== null ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-300" />
+                  ) : (
+                    <Download className="w-3.5 h-3.5 text-amber-300" />
+                  )}
+                  <span>Download .WAV</span>
+                </button>
+
                 {onShare && (
                   <button
                     type="button"
@@ -1127,6 +1197,24 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                   </button>
                 )}
               </div>
+              {downloadProgress !== null && (
+                <div className="basis-full" data-testid="episode-wav-progress">
+                  <div className="mb-1 flex items-center justify-between text-[11px] font-mono text-amber-300">
+                    <span>Preparing .WAV</span>
+                    <span>{downloadProgress}%</span>
+                  </div>
+                  <div
+                    className="h-2 overflow-hidden rounded-full bg-slate-800"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={downloadProgress}
+                    aria-label="Episode download"
+                  >
+                    <div className="h-full bg-amber-400" style={{ width: `${downloadProgress}%` }} />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Procedural Sound FX Soundboard Preview */}

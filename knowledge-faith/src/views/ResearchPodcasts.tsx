@@ -5,6 +5,7 @@ import { roundtableFromResearch, scriptMayBeSpoken, type RoundtableScript } from
 import { separateQuestions } from '../shared/research/questions.ts';
 import type { Lang } from '../shared/sources.ts';
 import { postJson, useRemote } from '../lib/api.ts';
+import { decodeBase64, downloadBytes, readResponseBytes } from '../lib/episodeWav.ts';
 import { readResearchHistory } from '../lib/researchDesk.ts';
 import { useApp } from '../lib/store.tsx';
 import { Button, ErrorNote, Notice } from '../components/ui.tsx';
@@ -138,6 +139,7 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
   const community = useRemote<{ episodes: CommunityEpisode[] }>('/api/research/podcasts');
   const [mine, setMine] = useState<LocalEpisode[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [download, setDownload] = useState<{ id: string; percent: number } | null>(null);
 
   useEffect(() => setMine(readEpisodes()), []);
 
@@ -219,32 +221,71 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
     save([created, ...mine]);
   }
 
-  async function generate(episode: LocalEpisode) {
+  async function generate(episode: LocalEpisode, onProgress?: (percent: number) => void): Promise<{ audioBase64: string; mimeType: string } | null> {
     if (!scriptMayBeSpoken(episode.lines, episode.question)) {
       save(readEpisodes().map(item => (item.id === episode.id ? { ...item, state: 'failed', error: 'This script is not safe to speak.' } : item)));
-      return;
+      return null;
     }
     const current = readEpisodes().map(item => (item.id === episode.id ? { ...item, state: 'audio-generating' as const, error: undefined } : item));
     save(current);
     try {
       const clips: string[] = [];
-      for (const line of episode.lines) {
-        const audio = await postJson<{ audioBase64: string; mimeType: string }>('/api/voice/narrate', {
-          text: line.text,
-          lang: episode.language,
-          voice: voiceFor(line.speaker),
-          style: 'Calm and clear',
+      for (let index = 0; index < episode.lines.length; index += 1) {
+        const line = episode.lines[index];
+        const response = await fetch('/api/voice/narrate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: line.text,
+            lang: episode.language,
+            voice: voiceFor(line.speaker),
+            style: 'Calm and clear',
+          }),
         });
+        const bytes = await readResponseBytes(response, (loaded, total) => {
+          const fraction = total > 0 ? Math.min(1, loaded / total) : 0;
+          onProgress?.(Math.min(99, Math.round(((index + fraction) / episode.lines.length) * 100)));
+        });
+        const audio = JSON.parse(new TextDecoder().decode(bytes)) as { audioBase64?: string; mimeType?: string; error?: string };
+        if (!response.ok || !audio.audioBase64) throw new Error(audio.error || 'Audio failed.');
         clips.push(audio.audioBase64);
+        onProgress?.(Math.min(99, Math.round(((index + 1) / episode.lines.length) * 100)));
       }
-      const audio = { audioBase64: concatWavBase64(clips), mimeType: 'audio/wav' };
-      save(readEpisodes().map(item => (item.id === episode.id ? { ...item, state: 'playable', audioBase64: audio.audioBase64, mimeType: audio.mimeType, error: undefined } : item)));
+      const ready = { audioBase64: concatWavBase64(clips), mimeType: 'audio/wav' };
+      save(readEpisodes().map(item => (item.id === episode.id ? { ...item, state: 'playable', audioBase64: ready.audioBase64, mimeType: ready.mimeType, error: undefined } : item)));
+      onProgress?.(100);
+      return ready;
     } catch (err) {
       save(
         readEpisodes().map(item =>
           item.id === episode.id ? { ...item, state: 'failed', error: err instanceof Error ? err.message : 'Audio failed.' } : item,
         ),
       );
+      return null;
+    }
+  }
+
+  async function downloadWav(episode: LocalEpisode) {
+    if (download?.id === episode.id) return;
+    setError(null);
+    setDownload({ id: episode.id, percent: 0 });
+    try {
+      const ready = episode.audioBase64
+        ? { audioBase64: episode.audioBase64, mimeType: episode.mimeType || 'audio/wav' }
+        : await generate(episode, percent => setDownload({ id: episode.id, percent }));
+      if (!ready?.audioBase64) return;
+      const bytes = decodeBase64(ready.audioBase64);
+      const step = 256 * 1024;
+      for (let offset = 0; offset < bytes.length; offset += step) {
+        setDownload({ id: episode.id, percent: Math.min(100, Math.round((Math.min(offset + step, bytes.length) / bytes.length) * 100)) });
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+      }
+      const slug = episode.question.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'episode';
+      downloadBytes(bytes, `${slug}.wav`, 'audio/wav');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The episode audio could not be downloaded.');
+    } finally {
+      setDownload(null);
     }
   }
 
@@ -294,11 +335,20 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
               error={episode.error}
               audioBase64={episode.audioBase64}
               mimeType={episode.mimeType}
+              downloadPercent={download?.id === episode.id ? download.percent : null}
               actions={
                 <div className="flex flex-wrap gap-2">
                   {episode.state !== 'audio-generating' && episode.state !== 'playable' && (
                     <Button type="button" onClick={() => void generate(episode)}>{t.generateAudio}</Button>
                   )}
+                  <Button
+                    type="button"
+                    data-testid="download-research-wav"
+                    onClick={() => void downloadWav(episode)}
+                    disabled={download?.id === episode.id || episode.state === 'audio-generating'}
+                  >
+                    Download .WAV
+                  </Button>
                   {!episode.shared && (
                     <Button type="button" variant="soft" onClick={() => void share(episode)}>{t.shareEpisode}</Button>
                   )}
@@ -345,6 +395,7 @@ function EpisodeCard({
   error,
   audioBase64,
   mimeType,
+  downloadPercent = null,
   actions,
 }: {
   question: string;
@@ -358,6 +409,7 @@ function EpisodeCard({
   error?: string;
   audioBase64?: string;
   mimeType?: string;
+  downloadPercent?: number | null;
   actions?: ReactNode;
 }) {
   const [showReport, setShowReport] = useState(false);
@@ -378,6 +430,17 @@ function EpisodeCard({
       {state === 'failed' && error && <div className="mt-3"><Notice>{error}</Notice></div>}
       {state === 'playable' && audioBase64 && (
         <audio className="mt-3 w-full" controls src={`data:${mimeType || 'audio/wav'};base64,${audioBase64}`} />
+      )}
+      {downloadPercent !== null && (
+        <div className="mt-3" data-testid="research-wav-progress">
+          <div className="mb-1 flex items-center justify-between text-xs text-pine">
+            <span>Preparing .WAV</span>
+            <span>{downloadPercent}%</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-pine/10" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={downloadPercent} aria-label="Episode download">
+            <div className="h-full bg-pine" style={{ width: `${downloadPercent}%` }} />
+          </div>
+        </div>
       )}
       <div className="mt-4 space-y-2 text-sm leading-relaxed">
         {lines.map((line, index) => (
