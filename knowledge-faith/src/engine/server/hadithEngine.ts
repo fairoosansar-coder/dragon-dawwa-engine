@@ -7,6 +7,7 @@ import { loadHadeeth, searchHadeeth } from "../../server/hadeethenc.ts";
 import { decomposeQuestion } from "../../shared/research/decompose.ts";
 import { hasGeminiApiKey } from "../../server/loadEnv.ts";
 import { isChinaQuestion, isIntentionsQuestion, isSaturdayFastingQuestion, questionBoundShell, recordIsRelevant } from "../utils/reportBinding.ts";
+import { scriptMatchesLanguage } from "../utils/contentLanguage.ts";
 
 export function getDragonDawwaSystemInstruction(targetLang: 'en' | 'ta' | 'si' = 'en'): string {
   const langName = targetLang === 'ta' ? 'Tamil (தமிழ்)' : targetLang === 'si' ? 'Sinhala (සිංහල)' : 'English';
@@ -478,6 +479,9 @@ Isnad / Chain (if provided): ${isnadInput && isnadInput.trim().length > 0 ? isna
             if (parsed.agent_6_synthesis?.executive_report_markdown && !parsed.agent_6_synthesis.executive_report_markdown.includes("Aegis Intelligence")) {
               parsed.agent_6_synthesis.executive_report_markdown += `\n\n---\n*Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prime Dragon Technologies*`;
             }
+            const spoken = `${parsed.agent_6_synthesis?.podcast_script ?? ''}\n${parsed.agent_6_synthesis?.executive_report_markdown ?? ''}`;
+            parsed.content_language = scriptMatchesLanguage(spoken, preferredLanguage) ? preferredLanguage : undefined;
+            if (!parsed.content_language) break;
             return enrichAnalysisWithHadeethEnc(parsed, preferredLanguage, liveRecords, liveActivity);
           }
         } catch (err: any) {
@@ -494,7 +498,8 @@ Isnad / Chain (if provided): ${isnadInput && isnadInput.trim().length > 0 ? isna
     }
   }
 
-  // When GEMINI_API_KEY is not configured or unavailable, complete the 7-agent dossier using live HadeethEnc retrieval + canonical analysis
+  // Offline English dossier. The client rejects it for a Tamil or Sinhala request instead of playing it as that language.
   const baseDossier = selectBaseDossierForInput(hadithInput, preferredLanguage, liveRecords);
+  baseDossier.content_language = 'en';
   return enrichAnalysisWithHadeethEnc(baseDossier, preferredLanguage, liveRecords, liveActivity);
 }

@@ -13,6 +13,7 @@ import { ArchBanner, StarDivider } from './ds/ornaments.tsx';
 import { EngineFrame } from './EngineFrame.tsx';
 import { useDossier } from './DossierContext.tsx';
 import { useApp } from '../lib/store.tsx';
+import { languageLabel } from './utils/contentLanguage.ts';
 
 export function DossierActions() {
   const d = useDossier();
@@ -90,8 +91,8 @@ export default function DossierWorkbench() {
   const d = useDossier();
   const { t, config } = useApp();
   const data = d.displayed;
-  const agent7 = data.agent_7_source_research;
-  const showReport = d.reportOrigin !== 'idle';
+  const agent7 = data?.agent_7_source_research;
+  const showReport = data != null && (d.reportOrigin === 'live' || d.reportOrigin === 'saved' || d.reportOrigin === 'example');
 
   const openFullReport = () => {
     d.setStep('report');
@@ -118,14 +119,39 @@ export default function DossierWorkbench() {
         isAnalyzing={d.isAnalyzing}
         analysisError={d.error}
         onRunEngine={(matn, isnad) => void d.run(matn, isnad)}
+        onOpenSaved={d.openSaved}
+        onResearchAgain={item => void d.run(item.question, item.isnad, item.language)}
         onOpenFullReport={openFullReport}
         onClearInputs={d.clear}
         onSelectBenchmark={d.selectBenchmark}
         currentLanguage={d.lang}
+        activeQuestion={d.matn}
       />
       {d.reportOrigin === 'example' && <p className="rounded-2xl bg-amber-100 px-4 py-3 text-sm text-amber-950">{t.dossierExample}</p>}
       {d.reportOrigin === 'idle' && <p className="rounded-2xl bg-parchment px-4 py-3 text-sm text-ink/80">{t.dossierIdle}</p>}
-      {showReport && <div id="dossier-results-anchor" className="space-y-6">
+      {d.reportOrigin === 'researching' && (
+        <p role="status" data-testid="research-language-status" className="rounded-2xl border border-[#c4a46a] bg-[#f6efe2] px-4 py-3 text-sm text-[#1c1915]">
+          Research is running in {languageLabel(d.lang)}. The previous episode is stopped and will not replace this one.
+        </p>
+      )}
+      {d.reportOrigin === 'failed' && (
+        <div data-testid="research-language-failed" className="rounded-2xl border border-amber-700/40 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p>{d.error || `Research in ${languageLabel(d.lang)} did not finish.`}</p>
+          <button
+            type="button"
+            className="mt-3 rounded-xl bg-[#0f6b4c] px-4 py-2 text-xs font-bold text-white"
+            onClick={() => void d.run(d.matn, d.isnad, d.lang)}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+      {d.reportOrigin === 'saved' && data && !d.audioReady && (
+        <p data-testid="saved-podcast-pending" className="rounded-2xl bg-[#f6efe2] px-4 py-3 text-sm text-[#1c1915]">
+          Saved {languageLabel(data.content_language ?? d.lang)} research is open. Generate Podcast when you want audio. Opening this item did not start research or narration.
+        </p>
+      )}
+      {data && showReport && <div id="dossier-results-anchor" className="space-y-6">
         <StarDivider label="تحقيق الحديث" />
 
         {/* Unified 7-Agent Journey Callout Bar */}
@@ -188,11 +214,15 @@ export default function DossierWorkbench() {
         )}
         {d.step === 'roundtable' && (
           <PodcastScriptPlayer
-            key={`${data.query_hadith}-${d.lang}`}
+            key={`${data.query_hadith}-${data.content_language ?? d.lang}-${data.research_job_id ?? 'saved'}`}
             script={data.agent_6_synthesis.podcast_script}
             executiveReport={data.agent_6_synthesis.executive_report_markdown}
             onShare={() => void d.share()}
             neuralVoice={config == null || config.ai === true}
+            language={data.content_language ?? d.lang}
+            audioReady={d.audioReady}
+            savedClips={d.savedClips}
+            onClip={d.rememberClip}
           />
         )}
       </div>}

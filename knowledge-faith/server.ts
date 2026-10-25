@@ -656,9 +656,10 @@ app.post(
     const body = text(req.body?.text, 3000, 'text');
     const speaker = typeof req.body?.speaker === 'string' ? req.body.speaker.slice(0, 80) : 'Host';
     const voice = typeof req.body?.voiceName === 'string' ? req.body.voiceName.slice(0, 40) : undefined;
+    const lang = toLang(req.body?.lang);
     requireAi();
     try {
-      res.json(await synthesizeRoundtableVoice(body, speaker, voice));
+      res.json(await synthesizeRoundtableVoice(body, speaker, voice, lang));
     } catch (err) {
       throw engineFailure(err, 'Gemini neural voice failed. The robotic system voice is not used. Please retry.');
     }

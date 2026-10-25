@@ -153,7 +153,17 @@ export function questionBoundShell(question: string, records: HadeethEncRetrieve
   };
 }
 
-function scrubScript(script: string, question: string, records: HadeethEncRetrievedRecord[]): string {
+function aminaLine(lang: 'en' | 'ta' | 'si' | undefined, subject: string): string {
+  if (lang === 'si') {
+    return `DR. AMINA: අස්සලාමු අලයිකුම්. මෙම ප්‍රශ්නයට අදාළ වාර්තා පමණයි. ${subject}. උපවාසය යන පොදු වචනය පමණක් ප්‍රමාණවත් නොවේ.`;
+  }
+  if (lang === 'ta') {
+    return `DR. AMINA: அஸ்ஸலாமு அலைக்கும். இந்தக் கேள்விக்கான ஆதாரங்கள் மட்டுமே இங்கே. ${subject}. நோன்பு என்ற பொதுச் சொல் மட்டும் ஒரு ஆதாரத்தை இந்த ஆய்வுக்குள் கொண்டுவராது.`;
+  }
+  return `DR. AMINA: Assalamu alaikum. For this question I kept only records that use its own wording. ${subject}. A shared word such as fasting is not enough, and the Saturday-fasting example is not this job.`;
+}
+
+function scrubScript(script: string, question: string, records: HadeethEncRetrievedRecord[], lang?: 'en' | 'ta' | 'si'): string {
   if (isSaturdayFastingQuestion(question) || isKnownBenchmark(question)) return script;
   const kept = script
     .split(/\n{2,}/)
@@ -162,8 +172,12 @@ function scrubScript(script: string, question: string, records: HadeethEncRetrie
   if (!/DR\.\s*AMINA:/i.test(next)) {
     const subject = records.length
       ? records.map(record => `HadeethEnc #${record.id}`).join(', ')
-      : 'no opened record used this question’s own wording';
-    const line = `DR. AMINA: Assalamu alaikum. For this question I kept only records that use its own wording. ${subject}. A shared word such as fasting is not enough, and the Saturday-fasting example is not this job.`;
+      : lang === 'si'
+        ? 'මෙම ප්‍රශ්නයේ වචන භාවිතා කළ විවෘත වාර්තාවක් නැත'
+        : lang === 'ta'
+          ? 'இந்தக் கேள்வியின் சொற்களைப் பயன்படுத்திய திறந்த பதிவு இல்லை'
+          : 'no opened record used this question’s own wording';
+    const line = aminaLine(lang, subject);
     const outro = next.indexOf('[AUDIO CUE: OUTRO');
     next = outro >= 0 ? `${next.slice(0, outro).trimEnd()}\n\n${line}\n\n${next.slice(outro)}` : `${next}\n\n${line}`;
   }
@@ -227,10 +241,15 @@ export function bindReport(analysis: DragonDawwaAnalysis): DragonDawwaAnalysis {
     const consensus = next.agent_6_synthesis.consensus_and_disagreements?.trim() ?? '';
     next.agent_6_synthesis = {
       ...next.agent_6_synthesis,
-      consensus_and_disagreements: CANNED_CONSENSUS.has(consensus)
+      consensus_and_disagreements: CANNED_CONSENSUS.has(consensus) && next.content_language !== 'si' && next.content_language !== 'ta'
         ? 'A grade says whether this narration is reliably transmitted. It does not say that every legal conclusion drawn from it is agreed.'
         : consensus,
-      podcast_script: scrubScript(next.agent_6_synthesis.podcast_script || '', question, next.agent_7_source_research?.retrieved_records ?? []),
+      podcast_script: scrubScript(
+        next.agent_6_synthesis.podcast_script || '',
+        question,
+        next.agent_7_source_research?.retrieved_records ?? [],
+        next.content_language,
+      ),
     };
   }
   return next;

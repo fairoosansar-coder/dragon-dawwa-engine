@@ -9,6 +9,9 @@ import { humanVerificationMarkdown } from './components/HumanVerification.tsx';
 import { reportIdFor } from './utils/reportPresentation.ts';
 import { reportIdentity } from '../shared/research/revision.ts';
 import { bindReport } from './utils/reportBinding.ts';
+import { languageFailureMessage, languageLabel, scriptMatchesLanguage, selectionStillCurrent, type SelectionStamp } from './utils/contentLanguage.ts';
+import { episodeAudioKey, loadEpisodeClips, saveEpisodeClip } from './utils/episodeAudio.ts';
+import { readSavedResearch, upsertSavedResearch, writeSavedResearch, type SavedResearchRecord } from './utils/savedResearch.ts';
 import type { AgentStep } from './components/AgentStatusTracker.tsx';
 import { ShareModal } from './components/ShareModal.tsx';
 import { PrintDossierReport } from './components/PrintDossierReport.tsx';
@@ -113,15 +116,19 @@ interface DossierState {
   matn: string;
   isnad: string;
   analysis: DragonDawwaAnalysis;
-  displayed: DragonDawwaAnalysis;
+  displayed: DragonDawwaAnalysis | null;
   step: AgentStep;
   setStep: (step: AgentStep) => void;
   isAnalyzing: boolean;
   error: string | null;
-  run: (matn: string, isnad: string) => Promise<void>;
+  run: (matn: string, isnad: string, language?: Lang) => Promise<void>;
   selectBenchmark: (id: string) => void;
   clear: () => void;
-  reportOrigin: 'idle' | 'example' | 'live';
+  reportOrigin: 'idle' | 'example' | 'live' | 'saved' | 'researching' | 'failed';
+  savedClips: Record<string, string>;
+  audioReady: boolean;
+  openSaved: (record: SavedResearchRecord) => void;
+  rememberClip: (index: number, audio: string) => void;
   share: () => Promise<void>;
   copyReport: () => Promise<void>;
   copied: boolean;
@@ -133,7 +140,10 @@ interface DossierState {
 const DossierContext = createContext<DossierState | null>(null);
 
 export function DossierProvider({ children }: { children: ReactNode }) {
-  const { lang } = useApp();
+  const { lang, setLang } = useApp();
+  const langRef = useRef(lang);
+  const tokenRef = useRef(0);
+  const selectionRef = useRef<SelectionStamp>({ token: 0, question: '', language: lang });
   const [start] = useState(initialPreset);
   const [preset, setPreset] = useState(start.preset);
   const [matn, setMatn] = useState(start.query ?? presetMatn(start.preset, lang));
@@ -145,14 +155,36 @@ export function DossierProvider({ children }: { children: ReactNode }) {
   const [shareOpen, setShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [printing, setPrinting] = useState(false);
-  const [reportOrigin, setReportOrigin] = useState<'idle' | 'example' | 'live'>('idle');
+  const [reportOrigin, setReportOrigin] = useState<'idle' | 'example' | 'live' | 'saved' | 'researching' | 'failed'>('idle');
+  const [savedClips, setSavedClips] = useState<Record<string, string>>({});
+  const [audioReady, setAudioReady] = useState(false);
   const inFlight = useRef<AbortController | null>(null);
 
-  const displayed = useMemo(() => getLocalizedAnalysis(analysis, lang), [analysis, lang]);
+  const displayed = useMemo(() => {
+    if (reportOrigin === 'researching' || reportOrigin === 'failed') return null;
+    if (analysis.content_language && analysis.content_language !== lang) return null;
+    return getLocalizedAnalysis(analysis, analysis.content_language ?? lang);
+  }, [analysis, lang, reportOrigin]);
 
   useEffect(() => {
     setMatn(current => (isPresetMatn(preset, current) ? presetMatn(preset, lang) : current));
   }, [lang, preset]);
+
+  useEffect(() => {
+    const previous = langRef.current;
+    langRef.current = lang;
+    if (previous === lang) return;
+    if (!inFlight.current) return;
+    tokenRef.current += 1;
+    selectionRef.current = { token: tokenRef.current, question: selectionRef.current.question, language: lang };
+    inFlight.current.abort();
+    inFlight.current = null;
+    setIsAnalyzing(false);
+    setAudioReady(false);
+    setSavedClips({});
+    setReportOrigin('failed');
+    setError(`The ${languageLabel(previous)} request was stopped because the content language changed to ${languageLabel(lang)}. It will not replace this selection. Generate again in ${languageLabel(lang)}.`);
+  }, [lang]);
 
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get('dossier');
@@ -189,7 +221,9 @@ export function DossierProvider({ children }: { children: ReactNode }) {
     (id: string) => {
       const found = SAMPLE_HADITHS.find(p => p.id === (BENCHMARK_ALIASES[id] ?? id));
       if (!found) return;
+      tokenRef.current += 1;
       inFlight.current?.abort();
+      inFlight.current = null;
       setPreset(found);
       setMatn(presetMatn(found, lang));
       setIsnad(found.isnad_text ?? '');
@@ -206,24 +240,43 @@ export function DossierProvider({ children }: { children: ReactNode }) {
     [lang],
   );
 
+  const rememberSelection = useCallback((record: Partial<SavedResearchRecord> & { question: string; language: Lang }) => {
+    writeSavedResearch(upsertSavedResearch(readSavedResearch(), record));
+  }, []);
+
   const run = useCallback(
-    async (nextMatn: string, nextIsnad: string) => {
-      if (!nextMatn.trim()) return;
+    async (nextMatn: string, nextIsnad: string, language?: Lang) => {
+      const question = nextMatn.trim();
+      if (!question) return;
+      const requestLang = language ?? langRef.current;
+      if (requestLang !== langRef.current) {
+        langRef.current = requestLang;
+        setLang(requestLang);
+      }
       inFlight.current?.abort();
       const controller = new AbortController();
       inFlight.current = controller;
-      setMatn(nextMatn);
+      const token = ++tokenRef.current;
+      const incoming: SelectionStamp = { token, question, language: requestLang };
+      selectionRef.current = incoming;
+      setMatn(question);
       setIsnad(nextIsnad);
       setIsAnalyzing(true);
       setError(null);
+      setAudioReady(false);
+      setSavedClips({});
+      setReportOrigin('researching');
+      rememberSelection({ question, isnad: nextIsnad, language: requestLang, status: 'researching' });
+      const stillCurrent = () => selectionStillCurrent(selectionRef.current, incoming);
       try {
         const res = await fetch('/api/analyze', {
           method: 'POST',
           signal: controller.signal,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ hadith_input: nextMatn, isnad_input: nextIsnad, preferred_language: lang }),
+          body: JSON.stringify({ hadith_input: question, isnad_input: nextIsnad, preferred_language: requestLang }),
         });
         const body = (await res.json().catch(() => ({}))) as { id?: string; error?: string; agent_6_synthesis?: unknown };
+        if (!stillCurrent()) return;
         if (!res.ok) {
           throw new Error(
             typeof body.error === 'string'
@@ -233,21 +286,43 @@ export function DossierProvider({ children }: { children: ReactNode }) {
                 : `Research failed (${res.status})`,
           );
         }
-        const analysis = body.agent_6_synthesis
+        const result = body.agent_6_synthesis
           ? (body as DragonDawwaAnalysis)
           : await waitForResearch(String(body.id ?? ''), controller.signal);
-        setAnalysis(analysis);
+        if (!stillCurrent()) return;
+        const spoken = `${result.agent_6_synthesis?.podcast_script ?? ''}\n${result.agent_6_synthesis?.executive_report_markdown ?? ''}`;
+        if ((result.content_language && result.content_language !== requestLang) || !scriptMatchesLanguage(spoken, requestLang)) {
+          throw new Error(languageFailureMessage(requestLang));
+        }
+        const stamped: DragonDawwaAnalysis = { ...result, query_hadith: question, content_language: requestLang };
+        const identity = reportIdentity(stamped, reportIdFor(question), requestLang);
+        setAnalysis(stamped);
         setReportOrigin('live');
-        setStep('overview');
+        setStep('roundtable');
+        rememberSelection({
+          question,
+          isnad: nextIsnad,
+          language: requestLang,
+          status: 'ready',
+          analysis: stamped,
+          reportId: identity.reportId,
+          revision: identity.revision,
+          jobId: stamped.research_job_id,
+          audioReady: false,
+        });
         setUrlParams(p => {
           p.delete('preset');
-          p.set('q', nextMatn.slice(0, 80));
-          if (analysis.research_job_id) p.set('dossier', analysis.research_job_id);
+          p.set('q', question.slice(0, 80));
+          p.set('lang', requestLang);
+          if (stamped.research_job_id) p.set('dossier', stamped.research_job_id);
         });
       } catch (err) {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || !stillCurrent()) return;
         const e = err as Error;
-        setError(e.name === 'TimeoutError' ? 'Research timed out. Please retry.' : e.message || 'Live research failed. Please retry.');
+        const message = e.name === 'TimeoutError' ? 'Research timed out. Please retry.' : e.message || 'Live research failed. Please retry.';
+        setReportOrigin('failed');
+        setError(message);
+        rememberSelection({ question, isnad: nextIsnad, language: requestLang, status: 'failed', error: message });
       } finally {
         if (inFlight.current === controller) {
           inFlight.current = null;
@@ -255,8 +330,63 @@ export function DossierProvider({ children }: { children: ReactNode }) {
         }
       }
     },
-    [lang],
+    [rememberSelection, setLang],
   );
+
+  const openSaved = useCallback((record: SavedResearchRecord) => {
+    tokenRef.current += 1;
+    inFlight.current?.abort();
+    inFlight.current = null;
+    setIsAnalyzing(false);
+    if (record.language !== langRef.current) {
+      langRef.current = record.language;
+      setLang(record.language);
+    }
+    setMatn(record.question);
+    setIsnad(record.isnad || '');
+    setAudioReady(false);
+    setSavedClips({});
+    selectionRef.current = { token: tokenRef.current, question: record.question, language: record.language };
+    if (record.status === 'ready' && record.analysis) {
+      const stamped = { ...record.analysis, query_hadith: record.question, content_language: record.language };
+      setAnalysis(stamped);
+      setReportOrigin('saved');
+      setError(null);
+      setStep('roundtable');
+      const identity = reportIdentity(stamped, record.reportId || reportIdFor(record.question), record.language);
+      const key = episodeAudioKey(record.language, record.revision || identity.revision, record.question);
+      void loadEpisodeClips(key).then(clips => {
+        if (selectionRef.current.question !== record.question || selectionRef.current.language !== record.language) return;
+        setSavedClips(clips);
+        setAudioReady(Object.keys(clips).length > 0 || record.audioReady === true);
+      });
+      return;
+    }
+    setReportOrigin('failed');
+    setError(record.error || 'This saved question has no report yet. Run Research Again to create one. Another language was not substituted.');
+    setStep('roundtable');
+  }, [setLang]);
+
+  const rememberClip = useCallback((index: number, audio: string) => {
+    const current = displayed;
+    if (!current) return;
+    const language = current.content_language ?? langRef.current;
+    const identity = reportIdentity(current, reportIdFor(current.query_hadith), language);
+    const key = episodeAudioKey(language, identity.revision, current.query_hadith);
+    setSavedClips(prev => ({ ...prev, [String(index)]: audio }));
+    setAudioReady(true);
+    void saveEpisodeClip(key, index, audio);
+    rememberSelection({
+      question: current.query_hadith,
+      language,
+      status: 'ready',
+      analysis: current,
+      revision: identity.revision,
+      reportId: identity.reportId,
+      jobId: current.research_job_id,
+      audioReady: true,
+    });
+  }, [displayed, rememberSelection]);
 
   const clear = useCallback(() => {
     setMatn('');
@@ -289,7 +419,8 @@ export function DossierProvider({ children }: { children: ReactNode }) {
   }, [analysis, matn, preset]);
 
   const copyReport = useCallback(async () => {
-    const text = buildFullReportMarkdown(displayed, lang);
+    if (!displayed) return;
+    const text = buildFullReportMarkdown(displayed, displayed.content_language ?? lang);
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -300,6 +431,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
   }, [displayed, lang]);
 
   const exportJson = useCallback(() => {
+    if (!displayed) return;
     const blob = new Blob([JSON.stringify(displayed, null, 2)], { type: 'application/json' });
     const href = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -310,13 +442,14 @@ export function DossierProvider({ children }: { children: ReactNode }) {
   }, [displayed]);
 
   const downloadFullReport = useCallback(() => {
+    if (!displayed) return;
     const bound = bindReport(displayed);
-    const identity = reportIdentity(bound, reportIdFor(bound.query_hadith), lang);
-    const fullMarkdown = buildFullReportMarkdown(displayed, lang) + humanVerificationMarkdown({
+    const identity = reportIdentity(bound, reportIdFor(bound.query_hadith), displayed.content_language ?? lang);
+    const fullMarkdown = buildFullReportMarkdown(displayed, displayed.content_language ?? lang) + humanVerificationMarkdown({
       question: bound.query_hadith,
       reportId: identity.reportId,
       revision: identity.revision,
-      languageLabel: lang,
+      languageLabel: displayed.content_language ?? lang,
       generatedAt: bound.generated_at ?? '',
     });
     const blob = new Blob([fullMarkdown], { type: 'text/markdown;charset=utf-8' });
@@ -329,16 +462,17 @@ export function DossierProvider({ children }: { children: ReactNode }) {
   }, [displayed, lang]);
 
   const print = useCallback(() => {
+    if (!displayed) return;
     const jobId = displayed.research_job_id;
     if (jobId) {
       void fetch(`/api/reports/${encodeURIComponent(jobId)}/review/export`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lang }),
+        body: JSON.stringify({ lang: displayed.content_language ?? lang }),
       }).catch(() => undefined);
     }
     setPrinting(true);
-  }, [displayed.research_job_id, lang]);
+  }, [displayed, lang]);
 
   useEffect(() => {
     if (!printing) return;
@@ -367,6 +501,10 @@ export function DossierProvider({ children }: { children: ReactNode }) {
     run,
     selectBenchmark,
     clear,
+    savedClips,
+    audioReady,
+    openSaved,
+    rememberClip,
     share,
     copyReport,
     copied,
@@ -388,10 +526,10 @@ export function DossierProvider({ children }: { children: ReactNode }) {
           presetTitle={preset.title}
         />
       </div>
-      {printing &&
+      {printing && displayed &&
         createPortal(
           <div className="print-only">
-            <PrintDossierReport analysis={displayed} currentUser={READER} currentLanguage={lang} />
+            <PrintDossierReport analysis={displayed} currentUser={READER} currentLanguage={displayed.content_language ?? lang} />
           </div>,
           document.body,
         )}

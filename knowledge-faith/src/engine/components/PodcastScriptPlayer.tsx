@@ -28,6 +28,7 @@ import { audioStudio, StudioFxType } from '../utils/audioStudio';
 import { withoutVanakkam } from '../utils/tamilGreeting';
 import { cancelBrowserSpeech } from '../utils/browserVoice';
 import { concatWavBase64, decodeBase64, downloadBytes, readResponseBytes } from '../../lib/episodeWav.ts';
+import type { Lang } from '../../shared/sources.ts';
 
 interface PodcastScriptPlayerProps {
   script: string;
@@ -35,6 +36,10 @@ interface PodcastScriptPlayerProps {
   onShare?: () => void;
   /** When false, Gemini is off — Play shows an error instead of the robotic system voice. */
   neuralVoice?: boolean;
+  language?: Lang;
+  audioReady?: boolean;
+  savedClips?: Record<string, string>;
+  onClip?: (index: number, audio: string) => void;
 }
 
 export type PersonaId = 
@@ -64,6 +69,10 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
   executiveReport,
   onShare,
   neuralVoice = true,
+  language = 'en',
+  audioReady = false,
+  savedClips,
+  onClip,
 }) => {
   const [activeTab, setActiveTab] = useState<'podcast' | 'report'>('podcast');
   const [isPlaying, setIsPlaying] = useState(false);
@@ -87,6 +96,24 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
   const audioCacheRef = useRef<Map<number, string>>(new Map());
   const pendingFetchesRef = useRef<Map<number, Promise<string | null>>>(new Map());
   const preloadedAudioElementsRef = useRef<Map<number, HTMLAudioElement>>(new Map());
+  const generationRef = useRef(0);
+  const onClipRef = useRef(onClip);
+  onClipRef.current = onClip;
+
+  useEffect(() => {
+    generationRef.current += 1;
+    currentAudioRef.current?.pause();
+    currentAudioRef.current = null;
+    isPlayingRef.current = false;
+    setIsPlaying(false);
+  }, [script, language]);
+
+  useEffect(() => {
+    if (!savedClips) return;
+    for (const [index, audio] of Object.entries(savedClips)) {
+      if (audio) audioCacheRef.current.set(Number(index), audio);
+    }
+  }, [savedClips]);
 
   // Allows switching Sheikh Imran's voice profile with instant cache invalidation
   const handleImranVoiceChange = (newVoice: string) => {
@@ -380,6 +407,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
 
     const targetVoice = personasConfig[nextItem.speaker]?.geminiVoice;
 
+    const generationAtFetch = generationRef.current;
     const fetchPromise = (async () => {
       try {
         const res = await fetch('/api/tts', {
@@ -388,13 +416,15 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
           body: JSON.stringify({
             text: clean,
             speaker: nextItem.speaker,
-            voiceName: targetVoice
+            voiceName: targetVoice,
+            lang: language,
           })
         });
         if (res.ok) {
           const data = await res.json();
-          if (data.audioBase64) {
+          if (data.audioBase64 && generationAtFetch === generationRef.current) {
             audioCacheRef.current.set(nextIndex, data.audioBase64);
+            onClipRef.current?.(nextIndex, data.audioBase64);
             // Pre-create and buffer the HTMLAudioElement so it is 100% ready to run instantly
             const preloadedAudio = new Audio(`data:audio/wav;base64,${data.audioBase64}`);
             preloadedAudio.preload = 'auto';
@@ -416,6 +446,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
 
   // Fetch or retrieve Gemini Neural voice audio
   const getGeminiAudioForLine = async (index: number, text: string, speaker: string): Promise<string> => {
+    const generationAtFetch = generationRef.current;
     if (audioCacheRef.current.has(index)) {
       return audioCacheRef.current.get(index)!;
     }
@@ -432,7 +463,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, speaker, voiceName: targetVoice })
+        body: JSON.stringify({ text, speaker, voiceName: targetVoice, lang: language })
       });
 
       if (!res.ok) {
@@ -442,7 +473,9 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
 
       const data = await res.json();
       if (data.audioBase64) {
+        if (generationRef.current !== generationAtFetch) return data.audioBase64;
         audioCacheRef.current.set(index, data.audioBase64);
+        onClipRef.current?.(index, data.audioBase64);
         return data.audioBase64;
       }
       throw new Error('Gemini returned no audio.');
@@ -596,8 +629,9 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
         let audio: HTMLAudioElement | null = preloadedAudioElementsRef.current.get(index) || null;
 
         if (!audio) {
+          const generationAtPlay = generationRef.current;
           const base64Audio = await getGeminiAudioForLine(index, cleanSpeech, item.speaker);
-          if (!isPlayingRef.current) return;
+          if (!isPlayingRef.current || generationAtPlay !== generationRef.current) return;
           if (base64Audio) {
             audio = new Audio(`data:audio/wav;base64,${base64Audio}`);
           }
@@ -697,7 +731,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: phrase, speaker: personaId, voiceName: targetVoice })
+        body: JSON.stringify({ text: phrase, speaker: personaId, voiceName: targetVoice, lang: language })
       });
       if (!res.ok) {
         const problem = await res.json().catch(() => ({}));
@@ -824,7 +858,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
           const response = await fetch('/api/tts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: line.text, speaker: line.speaker, voiceName: targetVoice }),
+            body: JSON.stringify({ text: line.text, speaker: line.speaker, voiceName: targetVoice, lang: language }),
           });
           const bytes = await readResponseBytes(response, (loaded, total) => {
             const fraction = total > 0 ? Math.min(1, loaded / total) : 0;
@@ -835,6 +869,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
           if (!payload.audioBase64) throw new Error('Gemini returned no audio.');
           audio = payload.audioBase64;
           audioCacheRef.current.set(line.index, audio);
+          onClipRef.current?.(line.index, audio);
         }
         clips.push(audio);
         setDownloadProgress(Math.min(99, Math.round(((i + 1) / speeches.length) * 100)));
@@ -1043,18 +1078,29 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
               <div className="flex flex-wrap items-center gap-2.5">
                 <button
                   type="button"
+                  data-testid="podcast-primary-action"
                   onClick={handleTogglePlay}
                   className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-[var(--on-gold)] font-extrabold text-xs flex items-center gap-2 shadow-xl shadow-amber-500/20 transition-all cursor-pointer"
                 >
                   {isPlaying ? (
                     <>
                       <Pause className="w-4 h-4 fill-slate-950" />
-                      Pause Broadcast
+                      Pause
+                    </>
+                  ) : currentItemIndex >= 0 ? (
+                    <>
+                      <Play className="w-4 h-4 fill-slate-950" />
+                      Resume
+                    </>
+                  ) : audioReady || Object.keys(savedClips ?? {}).length > 0 ? (
+                    <>
+                      <Play className="w-4 h-4 fill-slate-950" />
+                      Play
                     </>
                   ) : (
                     <>
                       <Play className="w-4 h-4 fill-slate-950" />
-                      Start Studio Broadcast
+                      Generate Podcast
                     </>
                   )}
                 </button>

@@ -1,6 +1,8 @@
 
 import { narrate } from '../../server/gemini.ts';
 import { hasGeminiApiKey } from '../../server/loadEnv.ts';
+import { narrationDirection } from '../../server/spokenLine.ts';
+import type { Lang } from '../../shared/sources.ts';
 
 /**
  * Dragon Dawwa - Gemini Multilingual Speech Generation Engine
@@ -250,7 +252,8 @@ export async function synthesizeGeminiVoice(
   text: string,
   speaker: string,
   customVoice?: string,
-  apiKey: string | undefined = process.env.GEMINI_API_KEY
+  apiKey: string | undefined = process.env.GEMINI_API_KEY,
+  lang: Lang = 'en',
 ): Promise<TtsResult> {
   if (!hasGeminiApiKey(apiKey)) {
     throw new Error("GEMINI_API_KEY is not configured on the server.");
@@ -280,7 +283,8 @@ export async function synthesizeGeminiVoice(
     voiceName: effectiveVoice,
   };
 
-  const cacheKey = `${profile.voiceName}:${profile.id}:${cleanText}`;
+  const cacheKey = `${lang}:${profile.voiceName}:${profile.id}:${cleanText}`;
+  const speechStyle = narrationDirection(profile.style, lang);
 
   if (audioCache.has(cacheKey)) {
     return audioCache.get(cacheKey)!;
@@ -304,7 +308,7 @@ export async function synthesizeGeminiVoice(
           body: JSON.stringify({
             model,
             input: [{ type: 'user_input', content: [{ type: 'text', text: cleanText,
-              annotations: [{ type: 'speech_metadata', style: profile.style }] }] }],
+              annotations: [{ type: 'speech_metadata', style: speechStyle }] }] }],
             response_format: { type: 'audio' },
             generation_config: { speech_config: [{ voice: profile.voiceName }] },
           }),
@@ -374,9 +378,10 @@ export async function synthesizeRoundtableVoice(
   text: string,
   speaker: string,
   customVoice?: string,
+  lang: Lang = 'en',
 ): Promise<TtsResult> {
   try {
-    return await synthesizeGeminiVoice(text, speaker, customVoice);
+    return await synthesizeGeminiVoice(text, speaker, customVoice, undefined, lang);
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     console.warn(`Interactions TTS failed (${reason}); trying generateContent AUDIO.`);
@@ -386,7 +391,7 @@ export async function synthesizeRoundtableVoice(
       customVoice && validVoices.includes(customVoice as PrebuiltVoiceName)
         ? (customVoice as PrebuiltVoiceName)
         : profile.voiceName;
-    const generated = await narrate(text, voiceName, '');
+    const generated = await narrate(text, voiceName, '', lang);
     return {
       audioBase64: generated.audioBase64,
       mimeType: generated.mimeType || 'audio/wav',

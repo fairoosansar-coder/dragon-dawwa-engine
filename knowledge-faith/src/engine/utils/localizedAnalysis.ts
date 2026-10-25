@@ -789,6 +789,9 @@ export function getLocalizedAnalysis(
   lang: 'en' | 'ta' | 'si'
 ): DragonDawwaAnalysis {
   const cleaned = scrubVanakkam(analysis);
+  // A finished job is already written in one language. Do not recast it into another
+  // language or into a canned dossier for a different question.
+  if (cleaned.content_language) return cleaned;
   const core = buildLocalizedAnalysisCore(cleaned, lang);
   return scrubVanakkam(attachAgent7ToAnalysis(core, lang));
 }
