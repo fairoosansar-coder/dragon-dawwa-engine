@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { HadithReportPaper } from '../src/engine/components/HadithReportPaper.tsx';
 import { executeDragonDawwaAnalysis } from '../src/engine/server/hadithEngine.ts';
 import type { DragonDawwaAnalysis } from '../src/engine/types/hadith.ts';
+import { buildPresetAgent7SourceResearch } from '../src/engine/utils/agent7SourceResearch.ts';
 import { alignCitation, bindReport, recordIsRelevant } from '../src/engine/utils/reportBinding.ts';
 
 const SATURDAY = 'கடமையாக்கப்பட்ட நோன்பைத் தவிர வேறு எதற்காகவும் சனிக்கிழமை நோன்பு நோற்காதீர்கள்';
@@ -82,6 +83,9 @@ describe('report binding', () => {
     const blob = JSON.stringify(bound.agent_7_source_research);
     assert.equal(blob.includes('4508'), false);
     assert.equal(blob.includes('2421'), false);
+    assert.match(blob, /6261/);
+    assert.match(blob, /65094/);
+    assert.match(blob, /2621/);
     assert.equal(blob.includes('சனிக்கிழமை'), false);
     assert.match(bound.agent_6_synthesis.podcast_script, /this question/i);
     assert.equal(/4508|சனிக்கிழமை/.test(bound.agent_6_synthesis.podcast_script), false);
@@ -90,6 +94,21 @@ describe('report binding', () => {
     assert.match(tirmidhi.exact_wording_english ?? '', /covenant/i);
     assert.equal(/polytheism/.test(tirmidhi.exact_wording_english ?? ''), false);
     assert.equal(bound.research_job_id, 'asr-job');
+  });
+
+  it('opens the Asr narration and aligns Tirmidhi 2621 instead of the Saturday dossier', () => {
+    const { agent7 } = buildPresetAgent7SourceResearch(ASR, 'en');
+    const blob = JSON.stringify(agent7);
+    assert.match(blob, /6261/);
+    assert.match(blob, /65094/);
+    assert.match(blob, /2621/);
+    assert.match(blob, /الْعَهْدَ الَّذِي بَيْنَنَا/);
+    assert.match(blob, /مَنْ تَرَكَ صَلَاةَ الْعَصْرِ/);
+    assert.equal(blob.includes('4508'), false);
+    assert.equal(blob.includes('3546'), false);
+    assert.equal(/510/.test(String(agent7.research_activity?.duration_ms)), false);
+    assert.deepEqual(agent7.research_activity?.records_opened, ['6261', '65094']);
+    assert.match(agent7.agent_interpretation, /legal conclusion/i);
   });
 
   it('does not treat a shared word as relevance', () => {

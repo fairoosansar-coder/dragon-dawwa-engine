@@ -7,11 +7,13 @@ import { publishedAuthenticity } from './reportPresentation.ts';
 import {
   bindReport,
   isChinaQuestion,
+  isAsrPrayerQuestion,
   isCannedSaturdayAgent,
   isIntentionsQuestion,
   isSaturdayFastingQuestion,
   recordIsRelevant,
 } from './reportBinding.ts';
+import { buildAsrAgent7 } from './asrPrayerSources.ts';
 
 export type LangCode = 'en' | 'ta' | 'si';
 
@@ -324,6 +326,10 @@ export function buildPresetAgent7SourceResearch(
         : `\n\n#### 4. Agent 7 — HadeethEnc Source Research Corroboration (Dr. Amina al-Kindi)\nHadeethEnc excludes the fabricated "even unto China" wording while preserving authentic narrations on seeking religious understanding (#9944).`;
 
     return { agent7, additionalRoundtableLines, synthesisAddendum };
+  }
+
+  if (isAsrPrayerQuestion(queryHadith)) {
+    return buildAsrAgent7(queryHadith, lang, liveActivity);
   }
 
   if (!isSaturdayFastingQuestion(queryHadith)) {

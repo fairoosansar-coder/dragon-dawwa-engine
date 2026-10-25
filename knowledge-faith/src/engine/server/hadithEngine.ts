@@ -6,7 +6,8 @@ import { SAMPLE_HADITHS } from "../data/sampleHadiths.ts";
 import { loadHadeeth, searchHadeeth } from "../../server/hadeethenc.ts";
 import { decomposeQuestion } from "../../shared/research/decompose.ts";
 import { hasGeminiApiKey } from "../../server/loadEnv.ts";
-import { isChinaQuestion, isIntentionsQuestion, isSaturdayFastingQuestion, questionBoundShell, recordIsRelevant } from "../utils/reportBinding.ts";
+import { isAsrPrayerQuestion, isChinaQuestion, isIntentionsQuestion, isSaturdayFastingQuestion, questionBoundShell, recordIsRelevant } from "../utils/reportBinding.ts";
+import { ASR_LEGAL_NOTE, asrCitationSources } from "../utils/asrPrayerSources.ts";
 import { scriptMatchesLanguage } from "../utils/contentLanguage.ts";
 
 export function getDragonDawwaSystemInstruction(targetLang: 'en' | 'ta' | 'si' = 'en'): string {
@@ -273,6 +274,8 @@ async function retrieveLiveHadeethEncForDossier(
     seedIds.push('4508', '3546');
   } else if (isChinaQuestion(hadithInput)) {
     seedIds.push('9944');
+  } else if (isAsrPrayerQuestion(hadithInput)) {
+    seedIds.push('6261', '65094');
   }
 
   const candidateIds = new Set<string>(seedIds);
@@ -381,11 +384,22 @@ function enrichAnalysisWithHadeethEnc(
       reference: `HadeethEnc #${r.id} (${r.source_url})`,
     }));
 
+  const asrSources = isAsrPrayerQuestion(question)
+    ? asrCitationSources(lang).filter(source => !withAgent7.agent_1_takhrij.sources.some(existing => existing.hadith_number.replace(/\D/g, '') === source.hadith_number))
+    : [];
+  const asrLaw = isAsrPrayerQuestion(question) && !(withAgent7.agent_4_shawahid_matn?.contradictions ?? []).some(item => /2621|legal conclusion/i.test(item))
+    ? [ASR_LEGAL_NOTE]
+    : [];
+
   return {
     ...withAgent7,
     agent_1_takhrij: {
       ...withAgent7.agent_1_takhrij,
-      sources: [...withAgent7.agent_1_takhrij.sources, ...extraTakhrij],
+      sources: [...asrSources, ...withAgent7.agent_1_takhrij.sources, ...extraTakhrij],
+    },
+    agent_4_shawahid_matn: {
+      ...withAgent7.agent_4_shawahid_matn,
+      contradictions: [...(withAgent7.agent_4_shawahid_matn?.contradictions ?? []), ...asrLaw],
     },
     agent_5_scholars_verdict: {
       ...withAgent7.agent_5_scholars_verdict,

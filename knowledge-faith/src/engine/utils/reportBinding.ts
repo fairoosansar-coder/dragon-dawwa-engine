@@ -4,6 +4,7 @@ import type {
   HadeethEncRetrievedRecord,
   SourceTakhrij,
 } from '../types/hadith.ts';
+import { buildAsrAgent7 } from './asrPrayerSources.ts';
 
 const GENERIC = new Set([
   'fasting', 'fast', 'prayer', 'prayers', 'salah', 'hadith', 'narration', 'narrations', 'day', 'days',
@@ -39,6 +40,11 @@ export function isIntentionsQuestion(question: string): boolean {
 export function isChinaQuestion(question: string): boolean {
   const q = question.toLowerCase();
   return q.includes('china') || q.includes('சீனா') || q.includes('චීනය') || q.includes('الصين');
+}
+
+export function isAsrPrayerQuestion(question: string): boolean {
+  const q = question.toLowerCase();
+  return q.includes('صلاة العصر') || q.includes('صَلَاةَ الْعَصْر') || q.includes('حبط عمله') || q.includes('asr prayer') || q.includes('அஸ்ர்') || q.includes('අසර්');
 }
 
 export function isKnownBenchmark(question: string): boolean {
@@ -196,7 +202,18 @@ export function bindReport(analysis: DragonDawwaAnalysis): DragonDawwaAnalysis {
     }),
   };
   const agent = next.agent_7_source_research;
-  if (agent && isCannedSaturdayAgent(agent, question)) {
+  if (isAsrPrayerQuestion(question) && (!agent || isCannedSaturdayAgent(agent, question) || !agent.retrieved_records.some(record => record.id === '6261'))) {
+    const built = buildAsrAgent7(question, next.content_language === 'ta' || next.content_language === 'si' ? next.content_language : 'en');
+    next.agent_7_source_research = built.agent7;
+    if (next.agent_6_synthesis && !/6261/.test(next.agent_6_synthesis.podcast_script || '')) {
+      const kept = (next.agent_6_synthesis.podcast_script || '')
+        .split(/\n{2,}/)
+        .filter(part => !foreignSaturday(part, question))
+        .join('\n\n')
+        .trim();
+      next.agent_6_synthesis.podcast_script = `${kept}\n${built.additionalRoundtableLines}`.trim();
+    }
+  } else if (agent && isCannedSaturdayAgent(agent, question)) {
     const kept = agent.retrieved_records.filter(record => recordIsRelevant(question, record).ok);
     next.agent_7_source_research = {
       ...agent,
@@ -224,6 +241,23 @@ export function bindReport(analysis: DragonDawwaAnalysis): DragonDawwaAnalysis {
         duration_ms: agent.research_activity?.duration_ms && agent.research_activity.duration_ms !== 510 ? agent.research_activity.duration_ms : 0,
         note: 'This log is for the current question only. The canned Saturday-fasting search is not part of this job.',
       },
+    };
+  } else if (agent && isAsrPrayerQuestion(question)) {
+    const kept = agent.retrieved_records.filter(record => {
+      if (record.id === '6261' || record.id === '65094') return true;
+      const blob = `${record.id} ${record.title} ${record.translation} ${record.explanation ?? ''}`;
+      return recordIsRelevant(question, record).ok && !foreignSaturday(blob, question);
+    });
+    next.agent_7_source_research = {
+      ...agent,
+      retrieved_records: kept,
+      research_activity: agent.research_activity
+        ? {
+            ...agent.research_activity,
+            queries_run: agent.research_activity.queries_run.filter(item => !foreignSaturday(item, question)),
+            records_opened: kept.map(record => record.id),
+          }
+        : agent.research_activity,
     };
   } else if (agent && !isKnownBenchmark(question)) {
     const checked = agent.retrieved_records.map(record => {

@@ -110,7 +110,7 @@ export interface HadeethEncRetrievedRecord {
   source_url: string;
   reader_route: string;
   /** A word match identifies a candidate passage; it never automatically labels a claim "Supported". */
-  match_status: 'Direct Hadith Match' | 'Candidate Passage (Word Match — Not Automatic Support)' | 'Corroborating Theme Passage';
+  match_status: 'Direct Hadith Match' | 'Candidate Passage (Word Match — Not Automatic Support)' | 'Corroborating Theme Passage' | 'Distinct narration (own citation)';
   match_reason: string;
 }
 
