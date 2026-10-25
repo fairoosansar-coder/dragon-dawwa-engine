@@ -71,7 +71,10 @@ function chainFromPassages(passages: readonly EvidencePassage[]): string[] | nul
 }
 
 function writtenAnswer(answer: ResearchAnswer | null | undefined, passages: readonly EvidencePassage[]): { answer: string | null; arabic: string | null; citationIds: string[] } {
-  const paragraphs = (answer?.paragraphs ?? []).filter(paragraph => paragraph.text.trim() && paragraph.citations.length > 0);
+  const paragraphs = (answer?.paragraphs ?? []).filter(paragraph => {
+    const text = paragraph.text.trim();
+    return Boolean(text) && (paragraph.citations.length > 0 || text.startsWith('Word occurrence.'));
+  });
   const fallback = evidencedAnswer(passages);
   if (!paragraphs.length) return { ...fallback, citationIds: passages.map(passage => passage.id) };
   const citationIds = [...new Set(paragraphs.flatMap(paragraph => paragraph.citations))];

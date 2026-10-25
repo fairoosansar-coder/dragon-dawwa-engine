@@ -6,6 +6,7 @@ import { rankEditionHadiths } from '../src/server/hadith.ts';
 import { buildReportModel, renderReportHtml, transmissionNames } from '../src/shared/research/report.ts';
 import { roundtableFromResearch } from '../src/shared/research/roundtable.ts';
 import { buildAgentContributions } from '../src/server/research/contributions.ts';
+import { acceptedCampaign, wordingInText } from '../src/shared/research/counts.ts';
 import { executeResearch, type ResearchPorts } from '../src/server/research/engine.ts';
 import { clearSharedResearchJobs, startSharedResearchJob } from '../src/server/research/jobs.ts';
 
@@ -612,10 +613,10 @@ describe('prophet-count retrieval', () => {
 });
 
 describe('corpus counts', () => {
-  const battle = (surah: number, ayah: number, translation: string) => ({
+  const verse = (surah: number, ayah: number, translation: string, arabic = 'نص') => ({
     surah,
     ayah,
-    arabic: 'قتال',
+    arabic,
     translation,
     translator: 'Test',
     version: '1',
@@ -623,8 +624,22 @@ describe('corpus counts', () => {
     url: `https://quranenc.com/api/v1/translation/aya/english_rwwad/${surah}/${ayah}`,
   });
 
-  it('counts opened war passages by meaning and does not search hadith', async () => {
+  it('counts a war word on a word boundary and a campaign only from the passage', () => {
+    assert.equal(wordingInText('war', 'a warning'), false);
+    assert.equal(wordingInText('war', 'in war'), true);
+    assert.equal(wordingInText('battle', 'many battlefields'), false);
+    assert.equal(wordingInText('battle', 'many battles'), false);
+    assert.equal(wordingInText('battle', 'the battle of Uhud'), true);
+    assert.equal(wordingInText('حرب', 'في الحرب'), true);
+    assert.equal(wordingInText('حرب', 'محراب'), false);
+    assert.equal(wordingInText('قتال', 'للقتال'), true);
+    assert.equal(acceptedCampaign('Battle of Badr', 'victory at Badr', ['battle', 'war'])?.label, 'Badr');
+    assert.equal(acceptedCampaign('battle', 'the battle of Uhud', ['battle', 'war']), null);
+  });
+
+  it('counts word occurrences and campaigns as separate lists', async () => {
     let hadith = 0;
+    let wrote = 0;
     const result = await executeResearch({
       question: 'how many wars mentions in quran?',
       language: 'en',
@@ -649,80 +664,128 @@ describe('corpus counts', () => {
             { surah: 2, ayah: 2 },
           ],
         }),
-        searchQuran: async () => ({ total: 1, refs: [{ surah: 8, ayah: 73 }] }),
+        listWordings: async () => ({ available: true, failed: false, english: ['battle', 'war'], arabic: ['حرب'] }),
+        searchQuran: async phrase => {
+          if (phrase === 'battle') {
+            return {
+              total: 2,
+              refs: [
+                { surah: 3, ayah: 121 },
+                { surah: 21, ayah: 80 },
+              ],
+              hits: [
+                { surah: 3, ayah: 121, text: 'Remember when you set forth to the battle of Uhud.' },
+                { surah: 21, ayah: 80, text: 'coats of mail to use in battle' },
+              ],
+            };
+          }
+          if (phrase === 'war') {
+            return {
+              total: 1,
+              refs: [{ surah: 2, ayah: 216 }],
+              hits: [{ surah: 2, ayah: 216, text: 'Prescribed for you is war, though it is hateful.' }],
+            };
+          }
+          return { total: 0, refs: [], hits: [] };
+        },
         assessRelevance: async (_question, _meaning, passages) => ({
           available: true,
           failed: false,
-          keep: passages.filter(passage => /battle|Badr|Hunayn|forces came/i.test(passage.text)).map(passage => passage.id),
+          keep: [],
+          events: passages.flatMap(passage => {
+            if (/Uhud/i.test(passage.text)) return [{ id: passage.id, campaign: 'Uhud' }];
+            if (/Badr/i.test(passage.text)) return [{ id: passage.id, campaign: 'Badr' }];
+            if (/Hunayn/i.test(passage.text)) return [{ id: passage.id, campaign: 'Hunayn' }];
+            if (/Confederate/i.test(passage.text)) return [{ id: passage.id, campaign: 'Confederate' }];
+            return [];
+          }),
         }),
         getVerses: async refs =>
           refs.map(ref => {
-            if (ref.surah === 3 && ref.ayah === 121) return battle(3, 121, 'Remember when you set forth to the battle stations.');
-            if (ref.surah === 3 && ref.ayah === 123) return battle(3, 123, 'Allah had already given you victory at Badr.');
-            if (ref.surah === 33 && ref.ayah === 9) return battle(33, 9, 'When forces came against you and We sent a wind.');
-            if (ref.surah === 9 && ref.ayah === 25) return battle(9, 25, 'Allah gave you victory on the day of Hunayn.');
-            return battle(ref.surah, ref.ayah, 'This is the Book about which there is no doubt.');
+            if (ref.surah === 3 && ref.ayah === 121) return verse(3, 121, 'Remember when you set forth to the battle of Uhud.');
+            if (ref.surah === 3 && ref.ayah === 123) return verse(3, 123, 'Allah had already given you victory at Badr.');
+            if (ref.surah === 33 && ref.ayah === 9) return verse(33, 9, 'When the Confederate forces came against you.');
+            if (ref.surah === 9 && ref.ayah === 25) return verse(9, 25, 'Allah gave you victory on the day of Hunayn.');
+            return verse(ref.surah, ref.ayah, 'This is the Book about which there is no doubt.');
           }),
         loadCommentary: async (_lang, surah) => ({
           ok: true as const,
           spans: [{ locator: `Al-Mukhtasar ${surah}:1`, text: 'The commentary describes the campaign in this passage.', url: 'https://quranenc.com/en/browse/english_mokhtasar/3' }],
         }),
-        writeAnswer: async () => ({
-          paragraphs: [{ text: 'The Qur’an mentions six wars.', citations: ['Q3-121'] }],
-          insufficientEvidence: false,
-        }),
+        writeAnswer: async () => {
+          wrote += 1;
+          return {
+            paragraphs: [{ text: 'The Qur’an mentions six wars.', citations: ['Q3-121'] }],
+            insufficientEvidence: false,
+          };
+        },
       }),
       assignment: QURAN_DESK,
     });
     assert.equal(hadith, 0);
-    assert.equal(result.job.interpretation?.scopes.some(scope => scope.id === 'occurrence'), true);
-    assert.equal(result.job.interpretation?.scopes.some(scope => scope.id === 'event'), true);
+    assert.equal(wrote, 0);
+    assert.match(result.job.interpretation?.meaning ?? '', /word-occurrence/i);
+    assert.doesNotMatch(result.job.interpretation?.meaning ?? '', /listed for that reading/);
+    assert.match(result.job.interpretation?.scopes.find(scope => scope.id === 'occurrence')?.text ?? '', /wording/i);
+    assert.match(result.job.interpretation?.scopes.find(scope => scope.id === 'event')?.text ?? '', /apart from the word count/);
     assert.equal(result.job.agents?.some(agent => agent.team === 'hadith'), false);
-    const kept = result.dossier.passages.filter(passage => passage.role === 'translation' && !passage.context);
-    assert.deepEqual(
-      kept.map(passage => passage.source.id).sort(),
-      ['3:121', '3:123', '33:9', '9:25'].sort(),
-    );
+    const word = result.dossier.answer?.paragraphs[0]?.text ?? '';
+    const events = result.dossier.answer?.paragraphs[1]?.text ?? '';
+    assert.match(word, /Word occurrence/);
+    assert.match(word, /English wordings counted: battle, war/);
+    assert.match(word, /Arabic wordings counted: حرب/);
+    assert.match(word, /3 distinct occurrences remain/);
+    assert.match(word, /Qur’an 3:121 — English “battle”/);
+    assert.match(word, /Qur’an 21:80 — English “battle”/);
+    assert.match(word, /Qur’an 2:216 — English “war”/);
+    assert.equal(word.includes('3:123'), false);
+    assert.match(events, /Historical events/);
+    assert.match(events, /4 campaigns are named/);
+    assert.match(events, /not the word count/);
+    assert.match(events, /Uhud — Qur’an 3:121/);
+    assert.match(events, /Badr — Qur’an 3:123/);
+    assert.match(events, /Hunayn — Qur’an 9:25/);
+    assert.match(events, /Confederate — Qur’an 33:9/);
+    assert.equal(events.includes('21:80'), false);
+    assert.equal(events.includes('2:216'), false);
     assert.equal(result.job.agents?.find(agent => agent.role === 'Qur’an text')?.status, 'ran');
     assert.equal(result.job.agents?.find(agent => agent.role === 'Translation')?.status, 'ran');
     assert.equal(result.job.agents?.find(agent => agent.role === 'Tafsir')?.status, 'ran');
     assert.equal(result.dossier.answer?.insufficientEvidence, false);
-    assert.match(result.dossier.answer?.paragraphs[0]?.text ?? '', /4 passages were retrieved/);
-    assert.match(result.dossier.answer?.paragraphs[0]?.text ?? '', /3:121/);
-    assert.match(result.dossier.answer?.paragraphs[0]?.text ?? '', /9:25/);
     assert.equal(/six/i.test(JSON.stringify(result.dossier.answer)), false);
     assert.equal(JSON.stringify(result.job.coverage).includes('share a content term'), false);
     assert.equal(JSON.stringify(result.job.coverage).includes('do not establish this claim'), false);
     const html = renderReportHtml(buildReportModel(result.job, result.dossier));
     assert.equal(html.includes('Transmission map'), false);
     assert.match(html, /Research activity/);
+    assert.match(html, /3 distinct occurrences remain/);
+    assert.match(html, /4 campaigns are named/);
   });
 
-  it('counts a paraphrase from the passages it retrieves, not a fixed war list', async () => {
+  it('counts a paraphrase from the wording it retrieves, not a fixed war list', async () => {
     const result = await executeResearch({
       question: 'How often does the Qur’an speak about orphans?',
       language: 'en',
       ports: ports({
         suggestSearch: async () => ({ available: true, failed: false, phrases: ['orphan'], ayahs: [{ surah: 93, ayah: 9 }] }),
-        searchQuran: async () => ({ total: 0, refs: [] }),
-        assessRelevance: async (_question, _meaning, passages) => ({
-          available: true,
-          failed: false,
-          keep: passages.filter(passage => /orphan/i.test(passage.text)).map(passage => passage.id),
-        }),
-        getVerses: async refs =>
-          refs.map(ref => battle(ref.surah, ref.ayah, 'So as for the orphan, do not oppress him.')),
+        searchQuran: async () => ({ total: 0, refs: [], hits: [] }),
+        assessRelevance: async () => ({ available: true, failed: false, keep: [], events: [] }),
+        getVerses: async refs => refs.map(ref => verse(ref.surah, ref.ayah, 'So as for the orphan, do not oppress him.')),
       }),
       assignment: QURAN_DESK,
     });
-    assert.match(result.dossier.answer?.paragraphs[0]?.text ?? '', /1 passage was retrieved/);
-    assert.match(result.dossier.answer?.paragraphs[0]?.text ?? '', /93:9/);
-    assert.equal(JSON.stringify(result.dossier).includes('3:123'), false);
-    assert.equal(JSON.stringify(result.dossier).includes('Badr'), false);
+    const text = result.dossier.answer?.paragraphs.map(paragraph => paragraph.text).join('\n') ?? '';
+    assert.match(text, /1 distinct occurrence remains/);
+    assert.match(text, /English “orphan”/);
+    assert.match(text, /93:9/);
+    assert.match(text, /No retrieved passage names a campaign/);
+    assert.equal(text.includes('3:123'), false);
+    assert.equal(text.includes('Badr'), false);
     assert.equal(result.dossier.answer?.insufficientEvidence, false);
+    assert.equal(result.job.agents?.some(agent => agent.team === 'hadith'), false);
   });
 
-  it('keeps a nominated passage when meaning review does not return', async () => {
+  it('does not keep a battle verse when review names no campaign and the wording is absent', async () => {
     const result = await executeResearch({
       question: 'how many wars mentions in quran?',
       language: 'en',
@@ -732,7 +795,7 @@ describe('corpus counts', () => {
         assessRelevance: async () => ({ available: true, failed: true, keep: [] }),
         getVerses: async refs =>
           refs.map(ref =>
-            battle(
+            verse(
               ref.surah,
               ref.ayah,
               ref.ayah === 123 ? 'Allah had already given you victory at Badr.' : 'This is the Book about which there is no doubt.',
@@ -741,9 +804,13 @@ describe('corpus counts', () => {
       }),
       assignment: QURAN_DESK,
     });
-    assert.ok(result.dossier.passages.some(passage => passage.source.id === '3:123'));
+    assert.equal(result.dossier.passages.some(passage => passage.source.id === '3:123'), false);
     assert.equal(result.dossier.passages.some(passage => passage.source.id === '2:2'), false);
-    assert.match(result.dossier.answer?.paragraphs[0]?.text ?? '', /1 passage was retrieved/);
-    assert.match(JSON.stringify(result.job.coverage), /Meaning review did not return/);
+    const text = result.dossier.answer?.paragraphs[0]?.text ?? '';
+    assert.match(text, /Word occurrence/);
+    assert.match(text, /0 distinct occurrences remain/);
+    assert.match(text, /No retrieved passage names a campaign/);
+    assert.match(JSON.stringify(result.job.coverage), /Meaning review did not name a campaign/);
+    assert.equal(/six/i.test(JSON.stringify(result.dossier.answer)), false);
   });
 });

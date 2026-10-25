@@ -14,7 +14,20 @@ import type { Evidence } from '../../shared/types.ts';
 import { contentTokens, passageSupportsTopic } from '../../shared/research.ts';
 import { verifyClaim } from '../../shared/research/claims.ts';
 import { asksScience, decomposeQuestion } from '../../shared/research/decompose.ts';
-import { interpretQuestion, retrievalPhrases, type QuestionInterpretation } from '../../shared/research/scopes.ts';
+import {
+  acceptedCampaign,
+  capOccurrences,
+  corpusPassageContext,
+  fallbackWordings,
+  formatCorpusCount,
+  groupCampaigns,
+  occurrenceContext,
+  sanitizeWordings,
+  wordingInText,
+  type CampaignGroup,
+  type WordingOccurrence,
+} from '../../shared/research/counts.ts';
+import { interpretQuestion, type QuestionInterpretation } from '../../shared/research/scopes.ts';
 import { ayahsMentioned } from '../../shared/research.ts';
 import { ISLAMHOUSE_RIGHTS } from '../../shared/sourceRegistry.ts';
 import { UpstreamError } from '../http.ts';
@@ -41,6 +54,13 @@ const QURAN_RIGHTS = {
   conditions: ISLAMHOUSE_RIGHTS.conditions,
   generatedWork: false,
   checkedOn: '2026-10-21',
+} as const;
+
+const ALQURAN_RIGHTS = {
+  source: 'AlQuran Cloud',
+  conditions: 'Ayah text retrieved from the AlQuran Cloud search edition. The wording is quoted as stored.',
+  generatedWork: false,
+  checkedOn: '2026-10-25',
 } as const;
 
 const STUDY_RIGHTS = {
@@ -125,13 +145,21 @@ export interface ResearchPorts {
     lang: Lang,
     signal: AbortSignal,
   ): Promise<{ available: boolean; failed: boolean; phrases: string[]; ayahs: { surah: number; ayah: number }[] }>;
-  searchQuran?(phrase: string, signal: AbortSignal): Promise<{ total: number; refs: { surah: number; ayah: number }[] }>;
+  searchQuran?(
+    phrase: string,
+    signal: AbortSignal,
+  ): Promise<{ total: number; refs: { surah: number; ayah: number }[]; hits?: { surah: number; ayah: number; text: string }[] }>;
+  listWordings?(
+    question: string,
+    subject: string,
+    signal: AbortSignal,
+  ): Promise<{ available: boolean; failed: boolean; english: string[]; arabic: string[] }>;
   assessRelevance?(
     question: string,
     meaning: string,
     passages: { id: string; text: string }[],
     signal: AbortSignal,
-  ): Promise<{ available: boolean; failed: boolean; keep: string[] }>;
+  ): Promise<{ available: boolean; failed: boolean; keep: string[]; events?: { id: string; campaign: string }[] }>;
   writeAnswer?(
     question: string,
     lang: Lang,
@@ -282,8 +310,32 @@ export async function executeResearch(input: {
   const tafsirAttempts: TafsirAttempt[] = [];
   const ranQueries: string[] = [];
   let contextCount = 0;
-  let corpusOmitted = 0;
   let researchAnswer: ResearchAnswer | null = null;
+  const occurrenceItems: WordingOccurrence[] = [];
+  let occurrenceUnlisted = 0;
+  let countedEnglish: string[] = [];
+  let countedArabic: string[] = [];
+  const campaignHits: { key: string; label: string; surah: number; ayah: number }[] = [];
+  const unnamedEvents: { surah: number; ayah: number }[] = [];
+  let corpusSplit: {
+    english: string[];
+    arabic: string[];
+    occurrences: WordingOccurrence[];
+    campaigns: CampaignGroup[];
+    unnamed: { surah: number; ayah: number }[];
+    unlisted: number;
+  } | null = null;
+  const publishSplit = () => {
+    const capped = capOccurrences(occurrenceItems);
+    corpusSplit = {
+      english: countedEnglish,
+      arabic: countedArabic,
+      occurrences: capped.listed,
+      campaigns: groupCampaigns(campaignHits),
+      unnamed: [...unnamedEvents].sort((a, b) => a.surah - b.surah || a.ayah - b.ayah),
+      unlisted: occurrenceUnlisted + capped.unlisted,
+    };
+  };
   const plan = decomposeQuestion(input.question);
   const job: ResearchJobView = {
     contractVersion: VERSION,
@@ -316,7 +368,7 @@ export async function executeResearch(input: {
     job.timingsMs = { totalMs: Math.max(0, clock().getTime() - startedMs), sources: { ...timings } };
     job.coverage = coverage;
     job.errors = errors;
-    const claims = plan.subquestions.map(sub => claimFor(sub, passages, coverage, interpretation));
+    const claims = plan.subquestions.map(sub => claimFor(sub, passages, coverage, interpretation, corpusSplit));
     const unresolved = claims.filter(claim => claim.support !== 'supported').map(claim => `${claim.claim} — ${claim.note}`);
     if (status === 'cancelled') unresolved.unshift('The research job was cancelled. Any passages below are partial.');
     const disagreements: string[] = [];
@@ -597,31 +649,77 @@ export async function executeResearch(input: {
     }
     if (signal.aborted) return finish('cancelled');
 
-    const namedAyahs = useQuran ? ayahsMentioned(input.question) : [];
-    const ayahs = [...namedAyahs];
-    const themeKeys = new Set<string>();
-    const nominatedKeys = new Set(suggestedAyahs.map(ayah => `${ayah.surah}:${ayah.ayah}`));
-    const ayahCap = interpretation.kind === 'corpus-count' ? 12 : 8;
-    const searchKeys = new Set<string>();
-    if (interpretation.kind === 'corpus-count' && interpretation.corpus !== 'hadith' && useQuran && input.ports.searchQuran) {
-      for (const phrase of retrievalPhrases(interpretation, host?.queries ?? [])) {
-        if (!allow('AlQuran')) break;
+    const countingCorpus = interpretation.kind === 'corpus-count' && interpretation.corpus !== 'hadith' && useQuran;
+    if (countingCorpus) {
+      const fallback = fallbackWordings(interpretation.subject);
+      countedEnglish = fallback.english;
+      countedArabic = fallback.arabic;
+      if (input.ports.listWordings) {
         try {
-          const found = await timed('AlQuran', () => attempt(() => input.ports.searchQuran!(phrase, signal), signal));
-          corpusOmitted += Math.max(0, found.total - found.refs.length);
-          for (const ayah of found.refs) searchKeys.add(`${ayah.surah}:${ayah.ayah}`);
+          const listed = await timed('Gemini', () =>
+            attempt(() => input.ports.listWordings!(input.question, interpretation.subject, signal), signal),
+          );
+          const cleaned = sanitizeWordings(listed.english, listed.arabic);
+          if (!listed.available || listed.failed || (cleaned.english.length === 0 && cleaned.arabic.length === 0)) {
+            pushCoverage({
+              kind: 'scholarly_review_required',
+              provider: 'Gemini',
+              detail: 'A wording list was not returned. The subject’s own word and its singular or plural were counted instead.',
+            });
+          } else {
+            countedEnglish = cleaned.english;
+            countedArabic = cleaned.arabic;
+          }
         } catch (err) {
           if (isAbort(err, signal)) return finish('cancelled');
-          const message = err instanceof Error ? err.message : 'The Qur’an search did not respond.';
-          errors.push({ provider: 'AlQuran', message });
           pushCoverage({
-            kind: 'source_unavailable',
-            provider: 'AlQuran',
-            detail: `A source could not be reached. The Qur’an search failed: ${message} Passages already nominated are still opened. This is not a finding that the subject is absent.`,
+            kind: 'scholarly_review_required',
+            provider: 'Gemini',
+            detail: 'A wording list was not returned. The subject’s own word and its singular or plural were counted instead.',
           });
         }
       }
+      const wordings = [
+        ...countedEnglish.map(wording => ({ wording, script: 'english' as const })),
+        ...countedArabic.map(wording => ({ wording, script: 'arabic' as const })),
+      ];
+      if (input.ports.searchQuran) {
+        for (const phrase of wordings) {
+          if (!allow('AlQuran')) break;
+          try {
+            const found = await timed('AlQuran', () => attempt(() => input.ports.searchQuran!(phrase.wording, signal), signal));
+            const hits = found.hits;
+            if (hits) {
+              if (hits.length < found.total) occurrenceUnlisted += found.total - hits.length;
+              for (const hit of hits) {
+                if (!hit.text || !wordingInText(phrase.wording, hit.text)) continue;
+                occurrenceItems.push({
+                  surah: hit.surah,
+                  ayah: hit.ayah,
+                  wording: phrase.wording,
+                  script: phrase.script,
+                  text: hit.text,
+                });
+              }
+            }
+          } catch (err) {
+            if (isAbort(err, signal)) return finish('cancelled');
+            const message = err instanceof Error ? err.message : 'The Qur’an search did not respond.';
+            errors.push({ provider: 'AlQuran', message });
+            pushCoverage({
+              kind: 'source_unavailable',
+              provider: 'AlQuran',
+              detail: `A source could not be reached. The Qur’an search failed: ${message} Passages already nominated are still opened. This is not a finding that the subject is absent.`,
+            });
+          }
+        }
+      }
+      publishSplit();
     }
+    const namedAyahs = useQuran ? ayahsMentioned(input.question) : [];
+    const ayahs = [...namedAyahs];
+    const themeKeys = new Set<string>();
+    const ayahCap = 8;
     if (useQuran) {
       for (const ayah of themeAyahs(input.question)) {
         const key = `${ayah.surah}:${ayah.ayah}`;
@@ -633,23 +731,13 @@ export async function executeResearch(input: {
         if (ayahs.length >= ayahCap) break;
         if (!ayahs.some(item => item.surah === ayah.surah && item.ayah === ayah.ayah)) ayahs.push(ayah);
       }
-      for (const key of searchKeys) {
-        const [surah, ayah] = key.split(':').map(Number);
-        if (ayahs.some(item => item.surah === surah && item.ayah === ayah)) continue;
-        if (ayahs.length >= ayahCap) {
-          corpusOmitted += 1;
-          continue;
-        }
-        ayahs.push({ surah, ayah });
-      }
     }
     const namedKeys = new Set(namedAyahs.map(ayah => `${ayah.surah}:${ayah.ayah}`));
     if (ayahs.length && allow('QuranEnc')) {
       try {
         const verses = await timed('QuranEnc', () => attempt(() => input.ports.getVerses(ayahs, input.language, signal), signal));
         const found = new Set(verses.map(verse => `${verse.surah}:${verse.ayah}`));
-        let keepKeys: Set<string> | null = null;
-        if (interpretation.kind === 'corpus-count' && input.ports.assessRelevance && verses.length) {
+        if (countingCorpus && input.ports.assessRelevance && verses.length) {
           try {
             const judged = await timed('Gemini', () =>
               attempt(
@@ -667,43 +755,81 @@ export async function executeResearch(input: {
               pushCoverage({
                 kind: 'scholarly_review_required',
                 provider: 'Gemini',
-                detail: 'Meaning review did not return. Passages nominated for this subject were kept. They were not discarded for a missing shared word.',
+                detail: 'Meaning review did not name a campaign. A verse is counted only when its text contains a counted wording.',
               });
             } else {
-              keepKeys = new Set(judged.keep.map(refFromJudgement).filter((key): key is string => Boolean(key)));
+              const wordings = [...countedEnglish, ...countedArabic];
+              for (const event of judged.events ?? []) {
+                const ref = refFromJudgement(event.id);
+                const verse = ref ? verses.find(item => `${item.surah}:${item.ayah}` === ref) : undefined;
+                if (!verse || !ref) continue;
+                const campaign = event.campaign.replace(/\s+/g, ' ').trim();
+                if (!campaign || /^unnamed$/i.test(campaign)) {
+                  const named = campaignHits.some(item => item.surah === verse.surah && item.ayah === verse.ayah);
+                  if (!named && !unnamedEvents.some(item => item.surah === verse.surah && item.ayah === verse.ayah)) {
+                    unnamedEvents.push({ surah: verse.surah, ayah: verse.ayah });
+                  }
+                  continue;
+                }
+                const accepted = acceptedCampaign(campaign, `${verse.translation}\n${verse.arabic}`, wordings);
+                if (!accepted) continue;
+                unnamedEvents.splice(
+                  0,
+                  unnamedEvents.length,
+                  ...unnamedEvents.filter(item => item.surah !== verse.surah || item.ayah !== verse.ayah),
+                );
+                campaignHits.push({ key: accepted.key, label: accepted.label, surah: verse.surah, ayah: verse.ayah });
+              }
             }
           } catch (err) {
             if (isAbort(err, signal)) return finish('cancelled');
             pushCoverage({
               kind: 'scholarly_review_required',
               provider: 'Gemini',
-              detail: 'Meaning review did not return. Passages nominated for this subject were kept. They were not discarded for a missing shared word.',
+              detail: 'Meaning review did not name a campaign. A verse is counted only when its text contains a counted wording.',
             });
           }
+        }
+        if (countingCorpus) {
+          for (const verse of verses) {
+            for (const wording of countedEnglish) {
+              if (!wordingInText(wording, verse.translation)) continue;
+              occurrenceItems.push({ surah: verse.surah, ayah: verse.ayah, wording, script: 'english', text: verse.translation });
+            }
+            for (const wording of countedArabic) {
+              if (!wordingInText(wording, verse.arabic)) continue;
+              occurrenceItems.push({ surah: verse.surah, ayah: verse.ayah, wording, script: 'arabic', text: verse.arabic });
+            }
+          }
+          publishSplit();
         }
         for (const verse of verses) {
           const key = `${verse.surah}:${verse.ayah}`;
           const named = namedKeys.has(key);
           const theme = themeKeys.has(key);
           const verseText = `${verse.arabic}\n${verse.translation}`;
-          const supported =
-            interpretation.kind === 'corpus-count'
-              ? named || (keepKeys ? keepKeys.has(key) : nominatedKeys.has(key) || theme)
-              : named ||
-                passageSupportsTopic(input.question, verseText) ||
-                plan.subquestions.some(sub => passageSupportsTopic(sub.text, verseText)) ||
-                themeWordingSupports(input.question, verseText) ||
-                (theme && interpretation.synonyms.some(word => verseText.toLocaleLowerCase('en').includes(word.toLocaleLowerCase('en'))));
+          const inCount = Boolean(corpusSplit && splitMentions(corpusSplit, verse.surah, verse.ayah));
+          const supported = countingCorpus
+            ? inCount
+            : named ||
+              passageSupportsTopic(input.question, verseText) ||
+              plan.subquestions.some(sub => passageSupportsTopic(sub.text, verseText)) ||
+              themeWordingSupports(input.question, verseText) ||
+              (theme && interpretation.synonyms.some(word => verseText.toLocaleLowerCase('en').includes(word.toLocaleLowerCase('en'))));
           if (!supported) {
             pushCoverage({
               kind: 'no_relevant_evidence',
               provider: 'QuranEnc',
-              detail: `Qur’an ${key} was opened. Read for meaning and context, it does not address this question, so it is not cited. The source was available.`,
+              detail: countingCorpus
+                ? `Qur’an ${key} was opened. It does not contain a counted wording and it does not narrate a named campaign, so it is in neither count. The source was available.`
+                : `Qur’an ${key} was opened. Read for meaning and context, it does not address this question, so it is not cited. The source was available.`,
             });
             continue;
           }
           const hash = remember('QuranEnc', key, verse.version ?? contentHash(verse.translation), verse.translation);
-          passages.push(versePassage(verse, input.language, clock().toISOString(), hash));
+          const passage = versePassage(verse, input.language, clock().toISOString(), hash);
+          if (countingCorpus && corpusSplit) passage.context = corpusPassageContext(verse.surah, verse.ayah, corpusSplit);
+          passages.push(passage);
         }
         for (const ayah of ayahs) {
           if (!found.has(`${ayah.surah}:${ayah.ayah}`)) {
@@ -723,6 +849,15 @@ export async function executeResearch(input: {
           provider: 'QuranEnc',
           detail: `A source could not be reached. QuranEnc did not respond: ${message} The hadith search is not cancelled by this.`,
         });
+      }
+    }
+    if (countingCorpus) {
+      if (!corpusSplit) publishSplit();
+      for (const group of groupOccurrenceVerses(corpusSplit?.occurrences ?? [])) {
+        const key = `${group[0].surah}:${group[0].ayah}`;
+        if (passages.some(passage => passage.role === 'translation' && passage.source.id === key)) continue;
+        const hash = remember('AlQuran', key, contentHash(group.map(item => item.text).join('\n')), group[0].text);
+        passages.push(occurrenceSnippet(group, input.language, clock().toISOString(), hash));
       }
     }
 
@@ -761,7 +896,7 @@ export async function executeResearch(input: {
       if (input.ports.loadCommentary) {
         const bySurah = new Map<number, number[]>();
         for (const passage of passages) {
-          if (passage.source.provider !== 'QuranEnc' || passage.context) continue;
+          if (passage.source.provider !== 'QuranEnc' || passage.context?.startsWith('Neighbouring')) continue;
           const [surah, ayah] = passage.source.id.split(':').map(Number);
           const list = bySurah.get(surah) ?? [];
           list.push(ayah);
@@ -987,12 +1122,17 @@ export async function executeResearch(input: {
           : `Available evidence does not sufficiently support an answer. Your question is still here: ${input.question}`,
       });
     }
-    if (passages.length) {
+    if (corpusSplit) {
+      researchAnswer = {
+        paragraphs: formatCorpusCount(corpusSplit),
+        insufficientEvidence: false,
+        writer: 'retrieved',
+      };
+    } else if (passages.length) {
       const packet = answerPassages(passages);
       const evidence = packet.map(passageToEvidence);
-      const counted = corpusCountAnswer(interpretation, passages, corpusOmitted);
       let written: ResearchAnswer | null = null;
-      if (!counted && input.ports.writeAnswer && evidence.length) {
+      if (input.ports.writeAnswer && evidence.length) {
         try {
           const result = await timed('Gemini', () => attempt(() => input.ports.writeAnswer!(input.question, input.language, evidence, signal), signal));
           written = acceptWrittenAnswer(input.question, result, packet, interpretation);
@@ -1001,18 +1141,7 @@ export async function executeResearch(input: {
           written = null;
         }
       }
-      if (counted && input.ports.writeAnswer && evidence.length) {
-        try {
-          const result = await timed('Gemini', () => attempt(() => input.ports.writeAnswer!(input.question, input.language, evidence, signal), signal));
-          const extra = acceptWrittenAnswer(input.question, result, packet, interpretation);
-          researchAnswer = mergeCountedAnswer(counted, extra, passages);
-        } catch (err) {
-          if (isAbort(err, signal)) return finish('cancelled');
-          researchAnswer = counted;
-        }
-      } else {
-        researchAnswer = counted ?? written ?? retrievedAnswer(input.question, packet, interpretation);
-      }
+      researchAnswer = written ?? retrievedAnswer(input.question, packet, interpretation);
     }
     publish('verify', 4);
     if (signal.aborted) return finish('cancelled');
@@ -1031,6 +1160,11 @@ function claimFor(
   passages: EvidencePassage[],
   coverage: CoverageNote[],
   interpretation: QuestionInterpretation,
+  split: {
+    occurrences: readonly WordingOccurrence[];
+    campaigns: readonly CampaignGroup[];
+    unnamed: readonly { surah: number; ayah: number }[];
+  } | null,
 ): ClaimEvidence {
   if (sub.domain === 'science' || asksScience(sub.text)) {
     const papers = passages.filter(item => item.role === 'empirical');
@@ -1067,8 +1201,10 @@ function claimFor(
     };
   }
   if (interpretation.kind === 'corpus-count') {
-    const counted = countedPassages(passages);
-    if (!counted.length) {
+    const words = split?.occurrences.length ?? 0;
+    const campaigns = split?.campaigns.length ?? 0;
+    const unnamed = split?.unnamed.length ?? 0;
+    if (!words && !campaigns && !unnamed) {
       const unavailable = coverage.some(note => note.kind === 'source_unavailable' || note.kind === 'language_unavailable');
       return {
         claim: sub.text,
@@ -1079,17 +1215,22 @@ function claimFor(
         citationRelevant: false,
         note: unavailable
           ? 'A source could not be reached, so this count was not finished.'
-          : 'No passage that addresses this subject was kept. The sources that responded were available.',
+          : 'No counted wording and no named campaign was found in the retrieved text. The sources that responded were available.',
       };
     }
+    const ids = [
+      ...(split?.occurrences ?? []).map(item => `Q${item.surah}-${item.ayah}`),
+      ...(split?.campaigns ?? []).flatMap(group => group.verses.map(verse => `Q${verse.surah}-${verse.ayah}`)),
+      ...(split?.unnamed ?? []).map(verse => `Q${verse.surah}-${verse.ayah}`),
+    ];
     return {
       claim: sub.text,
-      passageIds: counted.map(passage => passage.id).slice(0, 12),
+      passageIds: [...new Set(ids)].filter(id => passages.some(passage => passage.id === id)).slice(0, 12),
       support: 'supported' as const,
       citationExists: true,
       quotationFaithful: true,
       citationRelevant: true,
-      note: `${counted.length} passage(s) were kept after duplicates were removed. The count is calculated from that list. No passage was required to state the total.`,
+      note: `Word occurrences and named campaigns are counted separately. ${words} wording occurrence(s) and ${campaigns} named campaign(s) are listed. Neither count is a sentence in the sources.`,
     };
   }
   if (!sub.queries.length) {
@@ -1294,88 +1435,59 @@ function acceptWrittenAnswer(
   };
 }
 
-function countedPassages(passages: readonly EvidencePassage[]): EvidencePassage[] {
-  const seen = new Set<string>();
-  const counted: EvidencePassage[] = [];
-  for (const passage of passages) {
-    if (passage.source.provider !== 'QuranEnc' || passage.role !== 'translation') continue;
-    if (passage.context?.startsWith('Neighbouring')) continue;
-    if (seen.has(passage.source.id)) continue;
-    seen.add(passage.source.id);
-    counted.push(passage);
-  }
-  return counted;
+function splitMentions(
+  split: { occurrences: readonly WordingOccurrence[]; campaigns: readonly CampaignGroup[]; unnamed: readonly { surah: number; ayah: number }[] },
+  surah: number,
+  ayah: number,
+): boolean {
+  return (
+    split.occurrences.some(item => item.surah === surah && item.ayah === ayah) ||
+    split.campaigns.some(group => group.verses.some(verse => verse.surah === surah && verse.ayah === ayah)) ||
+    split.unnamed.some(verse => verse.surah === surah && verse.ayah === ayah)
+  );
 }
 
-function corpusCountAnswer(
-  interpretation: QuestionInterpretation,
-  passages: readonly EvidencePassage[],
-  omitted: number,
-): ResearchAnswer | null {
-  if (interpretation.kind !== 'corpus-count') return null;
-  const counted = countedPassages(passages);
-  if (!counted.length) return null;
-  const refs = counted.map(passage => `${passage.locator} (${passage.source.id})`).join('; ');
-  const partial =
-    omitted > 0
-      ? ` ${omitted} further corpus match(es) were not opened, so this is not a complete census.`
-      : '';
+function groupOccurrenceVerses(items: readonly WordingOccurrence[]): WordingOccurrence[][] {
+  const groups = new Map<string, WordingOccurrence[]>();
+  for (const item of items) {
+    const key = `${item.surah}:${item.ayah}`;
+    const list = groups.get(key) ?? [];
+    list.push(item);
+    groups.set(key, list);
+  }
+  return [...groups.values()];
+}
+
+function occurrenceSnippet(items: readonly WordingOccurrence[], lang: Lang, retrievedAt: string, hash: string): EvidencePassage {
+  const first = items[0];
+  const english = items.find(item => item.script === 'english');
+  const arabic = items.find(item => item.script === 'arabic');
+  const edition = arabic && !english ? 'quran-uthmani' : 'en';
   return {
-    paragraphs: [
-      {
-        text: `${counted.length} ${counted.length === 1 ? 'passage was' : 'passages were'} retrieved and kept after duplicates were removed: ${refs}. This number is calculated from those entries. It is not a sentence in the sources that already states a total. One reading counts passages that speak about the subject. The other asks which historical events they narrate; the passages are listed for that reading, and no event was added.${partial}`,
-        citations: counted.map(passage => passage.id),
-      },
-    ],
-    insufficientEvidence: false,
-    writer: 'retrieved',
-  };
-}
-
-const NUMBER_WORDS: Record<string, number> = {
-  one: 1,
-  two: 2,
-  three: 3,
-  four: 4,
-  five: 5,
-  six: 6,
-  seven: 7,
-  eight: 8,
-  nine: 9,
-  ten: 10,
-  eleven: 11,
-  twelve: 12,
-};
-
-function conflictsWithCount(paragraph: string, count: number, packet: string): boolean {
-  const compact = packet.replace(/,/g, '').toLocaleLowerCase('en');
-  for (const match of paragraph.matchAll(/\b\d[\d,]*\b/g)) {
-    const token = match[0];
-    const bare = token.replace(/,/g, '');
-    if (bare === String(count) || packet.includes(token) || compact.includes(bare)) continue;
-    return true;
-  }
-  const lower = paragraph.toLocaleLowerCase('en');
-  for (const [word, value] of Object.entries(NUMBER_WORDS)) {
-    if (!new RegExp(`\\b${word}\\b`).test(lower)) continue;
-    if (value === count || compact.includes(word)) continue;
-    return true;
-  }
-  return /do not state a total|does not state a total|no passage was kept|does not mention the total/i.test(paragraph);
-}
-
-function mergeCountedAnswer(
-  counted: ResearchAnswer,
-  extra: ResearchAnswer | null,
-  passages: readonly EvidencePassage[],
-): ResearchAnswer {
-  const count = counted.paragraphs[0]?.citations.length ?? 0;
-  const packet = packetBlob(passages);
-  const additions = (extra?.paragraphs ?? []).filter(paragraph => !conflictsWithCount(paragraph.text, count, packet));
-  return {
-    paragraphs: [...counted.paragraphs, ...additions],
-    insufficientEvidence: false,
-    writer: additions.length ? 'assistant' : 'retrieved',
+    contractVersion: VERSION,
+    id: `Q${first.surah}-${first.ayah}`,
+    source: source({
+      id: `${first.surah}:${first.ayah}`,
+      provider: 'AlQuran',
+      language: lang,
+      edition,
+      version: null,
+      title: `Qur'an ${first.surah}:${first.ayah}`,
+      credits: [{ role: 'source', name: 'AlQuran Cloud' }],
+      canonicalUrl: `https://api.alquran.cloud/v1/ayah/${first.surah}:${first.ayah}/${edition}`,
+      contentType: 'quran',
+      rights: ALQURAN_RIGHTS,
+      retrievedAt,
+      contentHash: hash,
+    }),
+    text: english?.text || arabic?.text || first.text,
+    originalLanguage: arabic && !english ? 'ar' : lang,
+    arabic: arabic?.text ?? null,
+    locator: `Surah ${first.surah}, ayah ${first.ayah}`,
+    context: occurrenceContext(items),
+    readerRoute: `#/quran/${first.surah}?ayah=${first.ayah}`,
+    role: 'translation',
+    publishedGrade: null,
   };
 }
 

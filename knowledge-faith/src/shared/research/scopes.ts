@@ -150,16 +150,16 @@ export function interpretQuestion(question: string): QuestionInterpretation {
     const place = corpus === 'hadith' ? 'Hadith' : 'Qur’an';
     const topic = subject || 'this subject';
     return {
-      meaning: `This asks about “${topic}” in the ${place}. One reading counts the retrieved passages that speak about it. The other reading asks which historical events those passages narrate. Those counts are calculated from the passages that are kept, after duplicates are removed. A passage does not have to state the total.`,
+      meaning: `This asks how “${topic}” is mentioned in the ${place}. The word-occurrence reading counts Arabic and English wordings in the corpus, after the same wording in the same verse is counted once. The historical-event reading lists the campaigns the retrieved passages narrate, apart from that word count. A battle verse that does not contain a counted wording is not a word occurrence. A wording hit that does not narrate a campaign is not a battle. Neither count is a sentence that already states a total.`,
       scopes: [
         {
           id: 'occurrence',
-          text: `Which retrieved ${place} passages speak about ${topic}?`,
+          text: `Which Arabic and English wordings occur, and which verse holds each after the same wording in the same verse is counted once?`,
           sources,
         },
         {
           id: 'event',
-          text: 'Which historical events do those passages narrate?',
+          text: 'Which campaigns do the retrieved passages narrate, apart from the word count?',
           sources,
         },
       ],

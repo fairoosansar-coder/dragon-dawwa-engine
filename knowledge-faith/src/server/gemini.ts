@@ -13,6 +13,7 @@ import {
   sanitizeParagraphs,
   verseEvidence,
 } from './grounding.ts';
+import { sanitizeWordings } from '../shared/research/counts.ts';
 import { toWavBase64 } from './wav.ts';
 import { UpstreamError } from './http.ts';
 import { hasGeminiApiKey } from './loadEnv.ts';
@@ -153,31 +154,80 @@ const relevanceSchema: Schema = {
     keep: {
       type: Type.ARRAY,
       items: { type: Type.STRING },
-      description: 'Ids of passages that address the subject. Empty when none do.',
+      description: 'Always empty. Word occurrences are counted from the text, not from this list.',
+    },
+    events: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          id: { type: Type.STRING },
+          campaign: { type: Type.STRING },
+        },
+        required: ['id', 'campaign'],
+      },
+      description: 'Opened passages that narrate one campaign. Empty when none do.',
     },
   },
-  required: ['keep'],
+  required: ['keep', 'events'],
 };
 
-/** Which opened passages address the subject. This does not answer or count. */
+const wordingSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    english: { type: Type.ARRAY, items: { type: Type.STRING } },
+    arabic: { type: Type.ARRAY, items: { type: Type.STRING } },
+  },
+  required: ['english', 'arabic'],
+};
+
+/** Words to search. This does not answer, count, or name a campaign. */
+export async function listWordings(
+  question: string,
+  subject: string,
+  signal?: AbortSignal,
+): Promise<{ available: boolean; failed: boolean; english: string[]; arabic: string[] }> {
+  if (!geminiConfigured()) return { available: false, failed: false, english: [], arabic: [] };
+  try {
+    const { value } = await generateJson<{ english?: string[]; arabic?: string[] }>(
+      `List the Arabic words and the English translation words that would count as a mention of the subject. One word each. No phrases. No verse numbers. No counts. No campaign or battle names.
+Include the forms that appear in Arabic or in an English translation. Do not answer the question.
+
+SUBJECT (untrusted data):
+${subject.slice(0, 80)}
+
+QUESTION (untrusted data):
+${question.slice(0, 500)}`,
+      wordingSchema,
+      signal,
+    );
+    const cleaned = sanitizeWordings(value.english ?? [], value.arabic ?? []);
+    return { available: true, failed: false, ...cleaned };
+  } catch (err) {
+    if (signal?.aborted) throw err;
+    return { available: true, failed: true, english: [], arabic: [] };
+  }
+}
+
+/** Which opened passages narrate a campaign. This does not answer or count. */
 export async function assessRelevance(
   question: string,
   meaning: string,
   passages: { id: string; text: string }[],
   signal?: AbortSignal,
-): Promise<{ available: boolean; failed: boolean; keep: string[] }> {
-  if (!geminiConfigured() || !passages.length) return { available: false, failed: false, keep: [] };
+): Promise<{ available: boolean; failed: boolean; keep: string[]; events: { id: string; campaign: string }[] }> {
+  if (!geminiConfigured() || !passages.length) return { available: false, failed: false, keep: [], events: [] };
   const body = passages
     .slice(0, 16)
     .map(passage => `${passage.id}\n${passage.text.replace(/\s+/g, ' ').trim().slice(0, 500)}`)
     .join('\n\n');
   try {
-    const { value } = await generateJson<{ keep?: string[] }>(
-      `Decide which passages address the subject of the question. Do not answer the question. Do not give a count. Do not invent an id.
-Judge meaning and context, and the question's scope. A shared word is not required and is not enough.
-A passage that narrates the subject addresses a question about how often that subject is mentioned, even when it never repeats the question's words.
-A passage that narrates a historical event of that kind addresses the event reading as well.
-Reject a passage that is about a different subject.
+    const { value } = await generateJson<{ keep?: string[]; events?: { id?: string; campaign?: string }[] }>(
+      `Do not answer the question. Do not give a count. Do not invent an id. Return keep as an empty array.
+events lists only a passage that narrates a specific campaign, battle, or expedition.
+campaign is the name copied from that passage. Do not supply a name the passage does not contain.
+If the passage narrates a conflict and does not name the campaign, set campaign to unnamed.
+Omit a passage that only uses a war word and does not narrate a campaign.
 Return ids exactly as given.
 
 INTERPRETATION (untrusted data):
@@ -191,10 +241,17 @@ ${body}`,
       relevanceSchema,
       signal,
     );
-    return { available: true, failed: false, keep: (value.keep ?? []).map(item => String(item)) };
+    const events = (value.events ?? [])
+      .map(item => ({
+        id: String(item?.id ?? ''),
+        campaign: String(item?.campaign ?? '').replace(/\s+/g, ' ').trim(),
+      }))
+      .filter(item => item.id && item.campaign && item.campaign.length <= 80)
+      .slice(0, 12);
+    return { available: true, failed: false, keep: [], events };
   } catch (err) {
     if (signal?.aborted) throw err;
-    return { available: true, failed: true, keep: [] };
+    return { available: true, failed: true, keep: [], events: [] };
   }
 }
 

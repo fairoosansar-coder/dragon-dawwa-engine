@@ -1,4 +1,5 @@
 import { DAY, fetchJson, UpstreamError } from './http.ts';
+import { wordingInText } from '../shared/research/counts.ts';
 import { attachQuranEnc } from '../shared/quranenc.ts';
 import { mushafMark, type MushafMark } from '../shared/readingNav.ts';
 import { QURAN_ARABIC_EDITION, type Lang } from '../shared/sources.ts';
@@ -263,26 +264,41 @@ export async function getVerses(
   );
 }
 
-/** Candidate ayahs for a short retrieval phrase. The phrase does not decide which ones are relevant. */
-export async function searchQuranAyahs(phrase: string): Promise<{ total: number; refs: AyahRef[] }> {
+export interface QuranSearchHit {
+  surah: number;
+  ayah: number;
+  text: string;
+}
+
+/**
+ * Whole-word matches for one wording.
+ * `total` is the filtered unique count. `hits` is capped; the remainder is `total - hits.length`.
+ * Arabic is searched in the Uthmani text. A 404 means the wording was not found.
+ */
+export async function searchQuranAyahs(phrase: string): Promise<{ total: number; refs: AyahRef[]; hits: QuranSearchHit[] }> {
   const query = phrase.replace(/\s+/g, ' ').trim();
-  if (query.length < 3 || query.length > 32) return { total: 0, refs: [] };
+  const arabic = /[\u0600-\u06FF]/.test(query);
+  if ((arabic ? query.length < 2 : query.length < 3) || query.length > 32) return { total: 0, refs: [], hits: [] };
+  const edition = arabic ? QURAN_ARABIC_EDITION : 'en';
   try {
-    const res = await fetchJson<Envelope<{ matches?: { numberInSurah?: number; surah?: { number?: number } }[] }>>(
-      `${BASE}/search/${encodeURIComponent(query)}/all/en`,
+    const res = await fetchJson<Envelope<{ matches?: { numberInSurah?: number; text?: string; surah?: { number?: number } }[] }>>(
+      `${BASE}/search/${encodeURIComponent(query)}/all/${edition}`,
       DAY,
     );
-    const keys = new Map<string, AyahRef>();
+    const keys = new Map<string, QuranSearchHit>();
     for (const match of res.data?.matches ?? []) {
       const surah = match.surah?.number;
       const ayah = match.numberInSurah;
-      if (!surah || !ayah) continue;
+      const text = match.text ?? '';
+      if (!surah || !ayah || !text || !wordingInText(query, text)) continue;
       const key = `${surah}:${ayah}`;
-      if (!keys.has(key)) keys.set(key, { surah, ayah });
+      if (!keys.has(key)) keys.set(key, { surah, ayah, text });
     }
-    return { total: keys.size, refs: [...keys.values()].slice(0, 40) };
+    const all = [...keys.values()];
+    const hits = all.slice(0, 80);
+    return { total: all.length, refs: hits.map(({ surah, ayah }) => ({ surah, ayah })), hits };
   } catch (err) {
-    if (err instanceof UpstreamError && err.status === 404) return { total: 0, refs: [] };
+    if (err instanceof UpstreamError && err.status === 404) return { total: 0, refs: [], hits: [] };
     throw err;
   }
 }
