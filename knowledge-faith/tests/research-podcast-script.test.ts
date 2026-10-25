@@ -59,18 +59,25 @@ describe('spoken research script', () => {
         { id: 'quran-evidence', team: 'quran', role: 'Evidence review', status: 'ran', detail: 'insufficient: The retrieved passages are about this subject.' },
       ],
       passages: [
-        { locator: 'Surah 3, ayah 123', text: 'Allah helped you at Badr.', context: 'Historical event: Badr.', provider: 'QuranEnc' },
-        { locator: 'Surah 2, ayah 279', text: 'a war from Allah', context: 'Word occurrence: English “war”.', provider: 'AlQuran' },
+        { locator: 'Surah 3, ayah 123', text: 'Allah had helped you at Badr when you were weak; then fear Allah so that you may be grateful.', context: 'Historical event: Badr. Word occurrence: English “battle”.', provider: 'QuranEnc' },
+        { locator: 'Surah 9, ayah 25', text: 'Allah has given you victory in many battlefields, and on the day of Hunayn[1] when you took pride in your great number, but they were of no use to you.', context: 'Historical event: Hunayn. This verse does not contain a counted wording.', provider: 'QuranEnc' },
+        { locator: 'Surah 2, ayah 177', text: 'Righteousness is believing in Allah and being patient in poverty and hardship and during battle.', context: 'Word occurrence: English “battle”.', provider: 'AlQuran' },
+        { locator: 'Surah 2, ayah 279', text: 'And if you do not, then be informed of a war from Allah and His Messenger.', context: 'Word occurrence: Arabic “حرب”; English “war”.', provider: 'AlQuran' },
       ],
     });
     assert.ok(script);
     const spoken = script.lines.map(line => line.text).join(' ');
     assert.equal(script.question.includes('prophets'), false);
-    assert.match(spoken, /word-occurrence count is 4/i);
-    assert.match(spoken, /2 campaigns are named/i);
-    assert.match(spoken, /Badr/);
-    assert.match(spoken, /Hunayn/);
+    assert.match(spoken, /helped you at Badr when you were weak/i);
+    assert.match(spoken, /Hunayn when you took pride/i);
+    assert.doesNotMatch(spoken, /Hunayn1|\[1\]/);
+    assert.match(spoken, /patient in poverty and hardship and during battle/i);
+    assert.match(spoken, /wording count and the named campaigns are separate/i);
+    assert.match(spoken, /do not give one/i);
+    assert.doesNotMatch(spoken, /\b51\b|word-occurrence count is \d+|English wordings|Arabic wordings|war, wars, warfare/i);
     assert.doesNotMatch(spoken, /Arabic was retrieved|Evidence review|insufficient:|The language is|the people at the table/i);
+    assert.equal(new Set(script.lines.map(line => line.speaker)).size, 3);
+    assert.equal(script.lines.some(line => line.speaker !== 'Host (generated)' && line.text.includes('?')), true);
     assert.equal(script.lines.some(line => line.speaker === 'Qur’an text'), false);
     assert.ok(script.sources.some(source => source.includes('2:279')));
     assert.equal(scriptMayBeSpoken(script.lines, warsAnswer), true);

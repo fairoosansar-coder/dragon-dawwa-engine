@@ -38,6 +38,60 @@ interface CommunityEpisode {
 
 const KEY = 'kf-research-podcasts';
 
+function voiceFor(speaker: string): string {
+  if (/^host\b/i.test(speaker)) return 'Kore';
+  if (/distinction/i.test(speaker)) return 'Aoede';
+  return 'Charon';
+}
+
+/** One episode, several generated voices. Each clip is a standard 16-bit mono WAV. */
+function concatWavBase64(parts: string[]): string {
+  const pcms: Uint8Array[] = [];
+  let rate = 24000;
+  for (const part of parts) {
+    const bytes = Uint8Array.from(atob(part), char => char.charCodeAt(0));
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const clipRate = view.getUint32(24, true);
+    if (clipRate) rate = clipRate;
+    const size = view.getUint32(40, true);
+    pcms.push(bytes.subarray(44, 44 + size));
+  }
+  const gap = new Uint8Array(Math.floor(rate * 0.4) * 2);
+  const body = pcms.reduce((total, pcm) => total + pcm.length + gap.length, 0) - gap.length;
+  const out = new Uint8Array(44 + body);
+  const header = new DataView(out.buffer);
+  const mark = (offset: number, text: string) => {
+    for (let i = 0; i < text.length; i++) header.setUint8(offset + i, text.charCodeAt(i));
+  };
+  mark(0, 'RIFF');
+  header.setUint32(4, 36 + body, true);
+  mark(8, 'WAVE');
+  mark(12, 'fmt ');
+  header.setUint32(16, 16, true);
+  header.setUint16(20, 1, true);
+  header.setUint16(22, 1, true);
+  header.setUint32(24, rate, true);
+  header.setUint32(28, rate * 2, true);
+  header.setUint16(32, 2, true);
+  header.setUint16(34, 16, true);
+  mark(36, 'data');
+  header.setUint32(40, body, true);
+  let offset = 44;
+  pcms.forEach((pcm, index) => {
+    out.set(pcm, offset);
+    offset += pcm.length;
+    if (index < pcms.length - 1) {
+      out.set(gap, offset);
+      offset += gap.length;
+    }
+  });
+  let binary = '';
+  for (let i = 0; i < out.length; i += 0x8000) {
+    binary += String.fromCharCode(...out.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
 function readEpisodes(): LocalEpisode[] {
   try {
     const parsed = JSON.parse(localStorage.getItem(KEY) || '[]') as LocalEpisode[];
@@ -172,16 +226,18 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
     }
     const current = readEpisodes().map(item => (item.id === episode.id ? { ...item, state: 'audio-generating' as const, error: undefined } : item));
     save(current);
-    const dialogue = episode.lines.map(line => ({
-      speaker: /^host\b/i.test(line.speaker) ? ('Host' as const) : ('Guest' as const),
-      text: line.text,
-    }));
     try {
-      const audio = await postJson<{ audioBase64: string; mimeType: string }>('/api/voice/dialogue', {
-        lines: dialogue,
-        hostVoice: 'Kore',
-        guestVoice: 'Charon',
-      });
+      const clips: string[] = [];
+      for (const line of episode.lines) {
+        const audio = await postJson<{ audioBase64: string; mimeType: string }>('/api/voice/narrate', {
+          text: line.text,
+          lang: episode.language,
+          voice: voiceFor(line.speaker),
+          style: 'Calm and clear',
+        });
+        clips.push(audio.audioBase64);
+      }
+      const audio = { audioBase64: concatWavBase64(clips), mimeType: 'audio/wav' };
       save(readEpisodes().map(item => (item.id === episode.id ? { ...item, state: 'playable', audioBase64: audio.audioBase64, mimeType: audio.mimeType, error: undefined } : item)));
     } catch (err) {
       save(
