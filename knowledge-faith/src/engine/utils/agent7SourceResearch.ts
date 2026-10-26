@@ -3,7 +3,7 @@ import type {
   DragonDawwaAnalysis,
   HadeethEncRetrievedRecord,
 } from '../types/hadith.ts';
-import { publishedAuthenticity } from './reportPresentation.ts';
+import { publishedAuthenticity, sourcedNarratorChain } from './reportPresentation.ts';
 import {
   bindReport,
   isChinaQuestion,
@@ -14,6 +14,8 @@ import {
   recordIsRelevant,
 } from './reportBinding.ts';
 import { buildAsrAgent7 } from './asrPrayerSources.ts';
+import { buildPrayerDeedsAgent7 } from './prayerDeedsAgent.ts';
+import { isPrayerDeedsQuestion } from '../../shared/research/prayerDeeds.ts';
 
 export type LangCode = 'en' | 'ta' | 'si';
 
@@ -27,10 +29,24 @@ export function buildPresetAgent7SourceResearch(
     records_opened: string[];
     unopened_count: number;
     duration_ms: number;
+    note?: string;
   },
 ): { agent7: Agent7SourceResearch; additionalRoundtableLines: string; synthesisAddendum: string } {
   const isIntentions = isIntentionsQuestion(queryHadith);
   const isChina = isChinaQuestion(queryHadith);
+
+  if (isPrayerDeedsQuestion(queryHadith)) {
+    const failed = /provider failure/i.test(liveActivity?.note ?? '');
+    const empty = /no decisive record/i.test(liveActivity?.note ?? '');
+    const built = buildPrayerDeedsAgent7(queryHadith, lang, liveRecords, liveActivity, {
+      providerFailed: failed,
+      usePack: !failed && !empty && !liveActivity,
+    });
+    const synthesisAddendum = failed
+      ? '\n\n#### 4. Agent 7 — HadeethEnc did not respond. This is a provider failure, not an empty subject. No chain was drawn and no episode was written.'
+      : `\n\n#### 4. Agent 7 — records kept for the person who does not pray: ${built.agent7.retrieved_records.map(record => `#${record.id}`).join(', ') || 'none'}. A shared word such as fasting is not relevance. The grade is transmission only.`;
+    return { ...built, synthesisAddendum };
+  }
 
   if (isIntentions) {
     const defaultRecords: HadeethEncRetrievedRecord[] =
@@ -611,6 +627,7 @@ export function attachAgent7ToAnalysis(
     records_opened: string[];
     unopened_count: number;
     duration_ms: number;
+    note?: string;
   },
 ): DragonDawwaAnalysis {
   const { agent7, additionalRoundtableLines, synthesisAddendum } = buildPresetAgent7SourceResearch(
@@ -653,7 +670,7 @@ export function attachAgent7ToAnalysis(
     execMd = `${execMd.trimEnd()}${synthesisAddendum}`;
   }
 
-  const replaceAgent = foreign || Boolean(liveRecords?.length) || !analysis.agent_7_source_research;
+  const replaceAgent = foreign || Boolean(liveRecords?.length) || !analysis.agent_7_source_research || isPrayerDeedsQuestion(question);
   return {
     ...analysis,
     agent_7_source_research: replaceAgent ? agent7 : analysis.agent_7_source_research,
@@ -744,10 +761,14 @@ export function buildFullReportMarkdown(analysis: DragonDawwaAnalysis, lang: Lan
     '',
     `## Agent 2 — Isnad Continuity & Chain Topology (Dr. Layla al-Qasimi)`,
     `- **Overall Chain Status**: ${a2.overall_chain_status}`,
-    `- **Narrator Sequence**: ${a2.narrator_sequence.join(' -> ')}`,
-    ...a2.chain_links.map(
-      l => `- **${l.teacher} -> ${l.student}** [${l.transmission_mode}] (${l.connection_status}): ${l.historical_reasoning}`,
-    ),
+    ...(sourcedNarratorChain(a2.narrator_sequence ?? [], a2.chain_links ?? [])
+      ? [
+          `- **Narrator Sequence**: ${a2.narrator_sequence.join(' -> ')}`,
+          ...a2.chain_links.map(
+            l => `- **${l.teacher} -> ${l.student}** [${l.transmission_mode}] (${l.connection_status}): ${l.historical_reasoning}`,
+          ),
+        ]
+      : ['- **Narrator Sequence**: No sourced narrator chain was recorded, so no transmission map is drawn.']),
     '',
     `## Agent 3 — Rijal Biographical Critic Archive (Sheikh Imran al-Hasani)`,
     ...a3.narrators.flatMap(n => [

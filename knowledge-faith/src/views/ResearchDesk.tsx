@@ -164,6 +164,7 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
         queryCount: job.subquestions.reduce((total, sub) => total + sub.queries.length, 0),
         passageCount: dossier?.passages.length ?? 0,
         coverage: job.coverage,
+        investigation: job.investigation,
       })
     : null;
   const heading = entry === 'knowledge' ? t.askIslam : entry === 'quran' ? t.researchQuran : entry === 'hadith' ? t.researchHadith : t.researchBooks;
@@ -186,7 +187,7 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
     passage => !passage.context?.startsWith('Neighbouring') && (liveModel?.citationIds.length ? liveModel.citationIds.includes(passage.id) : true),
   );
   const otherQuestions = job ? separateQuestions(job.question).slice(1) : [];
-  const offersPodcast = otherQuestions.length === 0 && (dossier?.passages.length ?? savedReport?.response.dossier?.passages.length ?? 0) > 0;
+  const offersPodcast = job?.investigation !== 'blocked' && otherQuestions.length === 0 && (dossier?.passages.length ?? savedReport?.response.dossier?.passages.length ?? 0) > 0;
 
   return (
     <div className="space-y-6">

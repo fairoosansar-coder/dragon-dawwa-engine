@@ -26,6 +26,7 @@ export interface ReportModel {
   chain: string[] | null;
   chart: ReportChartRow[];
   verificationNote: string;
+  investigation: 'complete' | 'partial' | 'blocked' | null;
 }
 
 function escapeHtml(value: string): string {
@@ -50,14 +51,21 @@ function namesInIsnad(arabic: string): string[] | null {
 }
 
 /** Narrator names printed on the opened record. Nothing is added when the record has no chain. */
+const QURAN_CHAIN = /surah|ayah|\bverse\b|qur[’']?an|குர்ஆன்|வசனம்|سورة|denies faith|work has become worthless|al-ma['’]?idah/i;
+
 export function transmissionNames(passage: Pick<EvidencePassage, 'arabic' | 'locator' | 'source'>): string[] | null {
+  if (passage.source.contentType === 'quran') return null;
   const fromArabic = passage.arabic ? namesInIsnad(passage.arabic) : null;
-  if (fromArabic && fromArabic.length >= 2) return fromArabic;
+  if (fromArabic && fromArabic.length >= 2) {
+    if (fromArabic.some(part => part.length > 48 || QURAN_CHAIN.test(part))) return null;
+    return fromArabic;
+  }
   if (passage.source.provider !== 'HadeethEnc' && passage.source.provider !== 'hadith-api') return null;
   const parts = passage.locator
     .split(/\s+(?:from|عن|←|->|➔)\s+/i)
     .map(part => part.replace(/\s+/g, ' ').trim())
     .filter(part => part.length > 1 && !/^hadeethenc\b/i.test(part) && !/^hadith-api\b/i.test(part));
+  if (parts.some(part => part.length > 48 || QURAN_CHAIN.test(part))) return null;
   return parts.length >= 2 ? parts : null;
 }
 
@@ -135,6 +143,7 @@ export function buildReportModel(job: ResearchJobView, dossier: ResearchDossierV
     chain: chainFromPassages(passages),
     chart: [...counts.entries()].map(([label, count]) => ({ label, count })),
     verificationNote: dossier?.verificationNote ?? '',
+    investigation: job.investigation ?? null,
   };
 }
 
@@ -216,7 +225,7 @@ export function renderReportHtml(model: ReportModel): string {
   <header class="hero">
     <p>DRAGON DAWWA · full research report</p>
     <h1>${escapeHtml(model.question)}</h1>
-    <p>Language: ${escapeHtml(model.language)}. Scope: ${escapeHtml(model.scope)}. Teams: ${escapeHtml(model.teams.join(', ') || '—')}.</p>
+    <p>Language: ${escapeHtml(model.language)}. Scope: ${escapeHtml(model.scope)}. Teams: ${escapeHtml(model.teams.join(', ') || '—')}.${model.investigation ? ` Investigation: ${escapeHtml(model.investigation)}.` : ''}</p>
   </header>
   ${answer}
   ${section('Supporting sources', 'lapis', passages || '<p class="muted">No passage was kept.</p>')}

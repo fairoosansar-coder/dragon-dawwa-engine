@@ -51,6 +51,7 @@ export function SourceResearch() {
         queryCount: job.subquestions.reduce((total, sub) => total + sub.queries.length, 0),
         passageCount,
         coverage: job.coverage,
+        investigation: job.investigation,
       })
     : null;
 

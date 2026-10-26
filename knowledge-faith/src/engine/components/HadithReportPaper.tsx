@@ -7,6 +7,7 @@ import {
   linkBetween,
   publishedAuthenticity,
   reportIdFor,
+  sourcedNarratorChain,
   type EvidenceCounts,
 } from '../utils/reportPresentation.ts';
 import { authenticityAndLaw, bindReport, splitNarration } from '../utils/reportBinding.ts';
@@ -172,6 +173,7 @@ export const HadithReportPaper: React.FC<{
   const identity = reportIdentity(enriched, reportId, currentLanguage);
   const when = reportWhen(enriched.generated_at);
   const sequence = a2.narrator_sequence ?? [];
+  const showTransmissionMap = sourcedNarratorChain(sequence, a2.chain_links ?? []);
   const claims = authenticityAndLaw(enriched);
   const languageName = LANG_NAME[currentLanguage] ?? currentLanguage;
 
@@ -278,27 +280,31 @@ export const HadithReportPaper: React.FC<{
       <Section n={AGENTS[1].n} accent={AGENTS[1].accent} kicker={`Agent 2 · ${AGENTS[1].persona}`} title={AGENTS[1].role}>
         <p className="hr-prose"><strong>Chain status. </strong>{a2.overall_chain_status}</p>
         <h3 className="hr-block-label">Transmission map</h3>
-        <p className="hr-note">This map is the narrator chain. It is separate from the narration text. It is shown when the dossier records one.</p>
-        <div className="hr-chain" data-testid="hadith-transmission-diagram">
-          {sequence.map((name, i) => {
-            const next = sequence[i + 1];
-            const link = next ? linkBetween(name, next, a2.chain_links) : undefined;
-            return (
-              <React.Fragment key={`${name}-${i}`}>
-                <div className="hr-node">
-                  <strong>{name}</strong>
-                </div>
-                {next ? (
-                  <div className="hr-link">
-                    {link
-                      ? `${link.transmission_mode} · ${link.connection_status}. ${link.historical_reasoning}`
-                      : 'No connection record was supplied for this step.'}
-                  </div>
-                ) : null}
-              </React.Fragment>
-            );
-          })}
-        </div>
+        {showTransmissionMap ? (
+          <>
+            <p className="hr-note">This map is the narrator chain. It is separate from the narration text. Every step has a cited connection.</p>
+            <div className="hr-chain" data-testid="hadith-transmission-diagram">
+              {sequence.map((name, i) => {
+                const next = sequence[i + 1];
+                const link = next ? linkBetween(name, next, a2.chain_links) : undefined;
+                return (
+                  <React.Fragment key={`${name}-${i}`}>
+                    <div className="hr-node">
+                      <strong>{name}</strong>
+                    </div>
+                    {next && link ? (
+                      <div className="hr-link">
+                        {`${link.transmission_mode} · ${link.connection_status}. ${link.historical_reasoning}`}
+                      </div>
+                    ) : null}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <p className="hr-note" data-testid="hadith-transmission-absent">No sourced narrator chain was recorded, so no transmission map is drawn.</p>
+        )}
       </Section>
 
       <Section n={AGENTS[2].n} accent={AGENTS[2].accent} kicker={`Agent 3 · ${AGENTS[2].persona}`} title={AGENTS[2].role}>

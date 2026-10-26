@@ -179,7 +179,7 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
   function episodeFromJob(response: ResearchJobResponse): LocalEpisode | null {
     const job = response.job;
     const dossier = response.dossier;
-    if (job.status !== 'done' || !dossier?.passages.length) return null;
+    if (job.status !== 'done' || job.investigation === 'blocked' || !dossier?.passages.length) return null;
     const model = buildReportModel(job, dossier);
     const script = roundtableFromResearch({
       question: job.question,
@@ -194,6 +194,7 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
       })),
       insufficientEvidence: dossier.answer?.insufficientEvidence === true,
       status: job.status,
+      investigation: job.investigation,
     });
     if (!script) return null;
     return {

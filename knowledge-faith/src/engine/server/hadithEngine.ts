@@ -4,8 +4,10 @@ import { getLocalizedAnalysis } from "../utils/localizedAnalysis.ts";
 import { attachAgent7ToAnalysis } from "../utils/agent7SourceResearch.ts";
 import { SAMPLE_HADITHS } from "../data/sampleHadiths.ts";
 import { loadHadeeth, searchHadeeth } from "../../server/hadeethenc.ts";
-import { decomposeQuestion } from "../../shared/research/decompose.ts";
 import { hasGeminiApiKey } from "../../server/loadEnv.ts";
+import { openHadeethEncForQuestion } from "../../server/research/hadeethOpen.ts";
+import { decomposeQuestion } from "../../shared/research/decompose.ts";
+import { isPrayerDeedsQuestion, PRAYER_DEEDS_EMPTY_NOTE, PRAYER_DEEDS_PROVIDER_NOTE } from "../../shared/research/prayerDeeds.ts";
 import { isAsrPrayerQuestion, isChinaQuestion, isIntentionsQuestion, isSaturdayFastingQuestion, questionBoundShell, recordIsRelevant } from "../utils/reportBinding.ts";
 import { ASR_LEGAL_NOTE, asrCitationSources } from "../utils/asrPrayerSources.ts";
 import { scriptMatchesLanguage } from "../utils/contentLanguage.ts";
@@ -257,88 +259,99 @@ async function retrieveLiveHadeethEncForDossier(
     records_opened: string[];
     unopened_count: number;
     duration_ms: number;
+    note?: string;
   };
 }> {
   const t0 = Date.now();
+  const prayer = isPrayerDeedsQuestion(hadithInput);
   const plan = decomposeQuestion(hadithInput);
-  const queries = [...new Set(plan.subquestions.flatMap(sq => sq.queries))].slice(0, 4);
-  if (queries.length === 0 && hadithInput.trim().length >= 3) {
-    queries.push(hadithInput.trim().slice(0, 80));
-  }
-
-  // Also include known canonical HadeethEnc IDs for benchmark themes so thematic corroboration is always opened alongside keyword candidates
+  const queries = [...new Set(plan.subquestions.flatMap(item => item.queries))].slice(0, 4);
   const seedIds: string[] = [];
-  if (isIntentionsQuestion(hadithInput)) {
-    seedIds.push('4560', '66511');
-  } else if (isSaturdayFastingQuestion(hadithInput)) {
-    seedIds.push('4508', '3546');
-  } else if (isChinaQuestion(hadithInput)) {
-    seedIds.push('9944');
-  } else if (isAsrPrayerQuestion(hadithInput)) {
-    seedIds.push('6261', '65094');
+  if (!prayer) {
+    if (isIntentionsQuestion(hadithInput)) seedIds.push('4560', '66511');
+    else if (isSaturdayFastingQuestion(hadithInput)) seedIds.push('4508', '3546');
+    else if (isChinaQuestion(hadithInput)) seedIds.push('9944');
+    else if (isAsrPrayerQuestion(hadithInput)) seedIds.push('6261', '65094');
   }
 
-  const candidateIds = new Set<string>(seedIds);
-  let totalCandidatesFound = seedIds.length;
-
-  for (const phrase of queries) {
-    try {
-      const found = await searchHadeeth(lang, phrase.slice(0, 100), 1);
-      totalCandidatesFound += found.items.length;
-      for (const hit of found.items.slice(0, 2)) {
-        candidateIds.add(hit.id);
-      }
-    } catch {
-      /* ignore individual search timeout */
-    }
-  }
-
-  const toOpen = [...candidateIds].slice(0, 4);
-  const loaded = await Promise.all(
-    toOpen.map(id => loadHadeeth(lang, id).catch(() => null)),
-  );
+  const opened = await openHadeethEncForQuestion({
+    question: hadithInput,
+    language: lang,
+    seeds: seedIds,
+    queries,
+    search: async (language, phrase) => {
+      const found = await searchHadeeth(language, phrase.slice(0, 100), 1);
+      return found.items.map(item => ({ id: item.id, title: item.title }));
+    },
+    load: async (language, id) => {
+      const record = await loadHadeeth(language, id);
+      return {
+        id: record.id,
+        title: record.title,
+        text: record.text,
+        arabic: record.arabic,
+        grade: record.grade,
+        attribution: record.attribution,
+        explanation: record.explanation,
+        lessons: record.lessons,
+        url: record.sourceUrl,
+      };
+    },
+  });
 
   const records: HadeethEncRetrievedRecord[] = [];
-  for (const h of loaded) {
-    if (!h) continue;
-    const isSeed = seedIds.includes(h.id);
-    const isDirect =
+  for (const record of opened.records) {
+    if (prayer && record.role !== 'support' && record.role !== 'distinct') continue;
+    const isSeed = seedIds.includes(record.id);
+    const isDirect = record.role === 'support' || (
       hadithInput.length >= 12 &&
-      (h.text.toLowerCase().includes(hadithInput.slice(0, 24).toLowerCase()) ||
-        h.title.toLowerCase().includes(hadithInput.slice(0, 24).toLowerCase()));
+      (record.text.toLowerCase().includes(hadithInput.slice(0, 24).toLowerCase()) ||
+        record.title.toLowerCase().includes(hadithInput.slice(0, 24).toLowerCase()))
+    );
     records.push({
-      id: h.id,
-      title: h.title,
-      arabic: h.arabic,
-      translation: h.text,
+      id: record.id,
+      title: record.title,
+      arabic: record.arabic,
+      translation: record.text,
       language: lang,
-      explanation: h.explanation,
-      lessons: h.lessons,
-      published_grade: h.grade,
-      collection_attribution: h.attribution,
-      source_url: h.sourceUrl,
-      reader_route: `#/hadith/${h.id}?lang=${lang}`,
-      match_status: isDirect
-        ? 'Direct Hadith Match'
-        : isSeed
-          ? 'Corroborating Theme Passage'
-          : 'Candidate Passage (Word Match — Not Automatic Support)',
-      match_reason: isDirect
-        ? `HadeethEnc #${h.id} directly matches the queried hadith text.`
-        : isSeed
-          ? `Retrieved from HadeethEnc (#${h.id}) as the primary authenticated narration on this legal/thematic subject.`
-          : `Identified via keyword match in HadeethEnc search (#${h.id}); treated as a candidate passage for review, not automatic claim support.`,
+      explanation: record.explanation,
+      lessons: record.lessons,
+      published_grade: record.grade,
+      collection_attribution: record.attribution,
+      source_url: record.url,
+      reader_route: `#/hadith/${record.id}?lang=${lang}`,
+      match_status: record.role === 'distinct'
+        ? 'Distinct narration (own citation)'
+        : isDirect
+          ? 'Direct Hadith Match'
+          : isSeed
+            ? 'Corroborating Theme Passage'
+            : 'Candidate Passage (Word Match — Not Automatic Support)',
+      match_reason: record.role === 'distinct'
+        ? `HadeethEnc #${record.id} is kept under its own citation. It is not treated as the same narration as the supporting records.`
+        : isDirect
+          ? `HadeethEnc #${record.id} directly matches the queried hadith text.`
+          : isSeed
+            ? `Retrieved from HadeethEnc (#${record.id}) as the primary authenticated narration on this legal/thematic subject.`
+            : `Identified via keyword match in HadeethEnc search (#${record.id}); treated as a candidate passage for review, not automatic claim support.`,
     });
   }
+
+  const note = opened.providerFailed
+    ? PRAYER_DEEDS_PROVIDER_NOTE
+    : prayer && !records.some(record => record.id === '6261' || record.id === '65093')
+      ? PRAYER_DEEDS_EMPTY_NOTE
+      : undefined;
 
   return {
     records,
     activity: {
-      queries_run: queries,
-      candidates_found: totalCandidatesFound,
-      records_opened: records.map(r => r.id),
-      unopened_count: Math.max(0, totalCandidatesFound - records.length),
+      queries_run: [...opened.queries, ...opened.recovery],
+      candidates_found: opened.records.length,
+      records_opened: records.map(record => record.id),
+      unopened_count: Math.max(0, opened.records.length - records.length),
       duration_ms: Math.max(1, Date.now() - t0),
+      note,
     },
   };
 }
@@ -353,14 +366,17 @@ function enrichAnalysisWithHadeethEnc(
     records_opened: string[];
     unopened_count: number;
     duration_ms: number;
+    note?: string;
   },
 ): DragonDawwaAnalysis {
   const localized = getLocalizedAnalysis(base, lang);
   const withAgent7 = attachAgent7ToAnalysis(localized, lang, liveRecords, liveActivity);
   const question = withAgent7.query_hadith || '';
-  const usableRecords = isSaturdayFastingQuestion(question) || isIntentionsQuestion(question) || isChinaQuestion(question)
-    ? liveRecords
-    : liveRecords.filter(record => recordIsRelevant(question, record).ok);
+  const usableRecords = isPrayerDeedsQuestion(question)
+    ? liveRecords.filter(record => record.id === '6261' || record.id === '65093' || record.id === '65094')
+    : isSaturdayFastingQuestion(question) || isIntentionsQuestion(question) || isChinaQuestion(question)
+      ? liveRecords
+      : liveRecords.filter(record => recordIsRelevant(question, record).ok);
 
   // Also feed the primary HadeethEnc records into Agent 1 (Takhrij) and Agent 5 without duplicating existing rows
   const extraTakhrij = usableRecords
@@ -451,7 +467,9 @@ export async function executeDragonDawwaAnalysis(
         .join('\n')}`
     : '';
 
-  if (hasGeminiApiKey(apiKey)) {
+  const benchmark = isSaturdayFastingQuestion(hadithInput) || isIntentionsQuestion(hadithInput) || isChinaQuestion(hadithInput);
+  // The Saturday, intentions, and China dossiers are the preserved specialist reports. A thin model reply must not replace them.
+  if (hasGeminiApiKey(apiKey) && !benchmark) {
     const ai = new GoogleGenAI({
       apiKey: apiKey!.trim(),
       httpOptions: {
@@ -467,7 +485,7 @@ Target Language for descriptions: ${preferredLanguage} (${preferredLanguage === 
 ${langPromptGuidance}
 
 Hadith Text: ${hadithInput}
-Isnad / Chain (if provided): ${isnadInput && isnadInput.trim().length > 0 ? isnadInput : "Extract and infer from primary sources (Kutub al-Sittah, Musnad Ahmad, etc.)."}${hadeethEncContext}`;
+Isnad / Chain (if provided): ${isnadInput && isnadInput.trim().length > 0 ? isnadInput : "None supplied. Leave narrator_sequence empty and chain_links empty. Do not build a chain from Qur’an text or from another narration."}${hadeethEncContext}`;
 
     for (const modelName of MODEL_CANDIDATES) {
       for (let attempt = 1; attempt <= 2; attempt++) {
@@ -512,8 +530,10 @@ Isnad / Chain (if provided): ${isnadInput && isnadInput.trim().length > 0 ? isna
     }
   }
 
-  // Offline English dossier. The client rejects it for a Tamil or Sinhala request instead of playing it as that language.
+  // Known benchmarks keep their localized dossier. A Tamil or Sinhala request is localized before it is shown.
   const baseDossier = selectBaseDossierForInput(hadithInput, preferredLanguage, liveRecords);
-  baseDossier.content_language = 'en';
-  return enrichAnalysisWithHadeethEnc(baseDossier, preferredLanguage, liveRecords, liveActivity);
+  const localized = enrichAnalysisWithHadeethEnc(baseDossier, preferredLanguage, liveRecords, liveActivity);
+  const spoken = `${localized.agent_6_synthesis?.podcast_script ?? ''}\n${localized.agent_6_synthesis?.executive_report_markdown ?? ''}`;
+  localized.content_language = scriptMatchesLanguage(spoken, preferredLanguage) ? preferredLanguage : undefined;
+  return localized;
 }

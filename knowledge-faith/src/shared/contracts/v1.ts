@@ -149,6 +149,8 @@ export interface ResearchJobView {
   agents?: AgentContribution[];
   /** Readings of the question, recorded before search. Older jobs omit it. */
   interpretation?: QuestionInterpretationView | null;
+  /** complete, partial, or blocked. Older jobs omit it and are read as finished when passages exist. */
+  investigation?: 'complete' | 'partial' | 'blocked';
 }
 
 export interface ClaimEvidence {

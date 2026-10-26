@@ -25,8 +25,23 @@ export function researchOutcome(input: {
   queryCount: number;
   passageCount: number;
   coverage: readonly OutcomeNote[];
+  investigation?: 'complete' | 'partial' | 'blocked';
 }): ResearchOutcome | null {
   const question = kept(input.question);
+  if (input.investigation === 'blocked') {
+    return {
+      title: 'Research is blocked.',
+      detail: `A source did not respond, so this is not a completed investigation.${question} You can retry.`,
+      retry: true,
+    };
+  }
+  if (input.investigation === 'partial') {
+    return {
+      title: 'Research is partial.',
+      detail: `The records that were opened do not settle every part of the question. What follows is only what those records say.${question}`,
+      retry: false,
+    };
+  }
   const unreachable = input.coverage.some(note => note.kind === 'source_unavailable' || note.kind === 'language_unavailable');
   const incomplete = input.coverage.some(note => note.kind === 'budget_exhausted');
   const unprocessed =

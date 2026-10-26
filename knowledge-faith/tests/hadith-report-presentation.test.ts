@@ -4,7 +4,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { HadithReportPaper } from '../src/engine/components/HadithReportPaper.tsx';
 import type { DragonDawwaAnalysis } from '../src/engine/types/hadith.ts';
-import { evidenceCounts, linkBetween, publishedAuthenticity } from '../src/engine/utils/reportPresentation.ts';
+import { evidenceCounts, linkBetween, publishedAuthenticity, sourcedNarratorChain } from '../src/engine/utils/reportPresentation.ts';
 import { buildFullReportMarkdown } from '../src/engine/utils/agent7SourceResearch.ts';
 
 function fixture(): DragonDawwaAnalysis {
@@ -195,11 +195,38 @@ describe('hadith report presentation', () => {
     assert.match(html, /stored model wording 99\.8%/);
     assert.equal(html.includes('Purity Confidence Score'), false);
     assert.match(html, /Machine-assisted research/);
+    assert.match(html, /hadith-transmission-diagram/);
+    assert.equal(html.includes('No connection record was supplied'), false);
 
     const markdown = buildFullReportMarkdown(analysis, 'en');
     assert.equal(markdown.includes('Purity Confidence Score'), false);
     assert.match(markdown, /Numerical purity percentage\*\*: withheld/);
     assert.match(markdown, /بَلِّغُوا عَنِّي/);
     assert.match(markdown, /stored model wording 99\.8%/);
+  });
+
+  it('does not draw a transmission map from Qur’an text', () => {
+    const analysis = fixture();
+    const verse = 'And whoever denies faith — his work has become worthless… (Surah Al-Ma\'idah: 5)';
+    analysis.agent_2_isnad = {
+      overall_chain_status: 'Chain status was not sourced.',
+      narrator_sequence: ['Buraydah', verse],
+      chain_links: [{
+        teacher: verse,
+        student: 'Buraydah',
+        transmission_mode: 'Report',
+        connection_status: 'Uncertain',
+        historical_reasoning: verse,
+      }],
+    };
+    assert.equal(sourcedNarratorChain(analysis.agent_2_isnad.narrator_sequence, analysis.agent_2_isnad.chain_links), false);
+    const html = renderToStaticMarkup(React.createElement(HadithReportPaper, { analysis, currentLanguage: 'en' }));
+    assert.equal(html.includes('hadith-transmission-diagram'), false);
+    assert.match(html, /hadith-transmission-absent/);
+    assert.equal(html.includes('No connection record was supplied'), false);
+    assert.equal(html.includes('denies faith'), false);
+    const markdown = buildFullReportMarkdown(analysis, 'en');
+    assert.equal(markdown.includes('denies faith'), false);
+    assert.match(markdown, /no transmission map is drawn/);
   });
 });

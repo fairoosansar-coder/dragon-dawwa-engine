@@ -47,7 +47,7 @@ function dossier(question = 'من ترك صلاة العصر فقد حبط عم�
         student: 'Imam al-Bukhari',
         transmission_mode: 'Haddathana',
         connection_status: 'Muttasil',
-        historical_reasoning: 'Bukhari heard Muslim ibn Ibrahim directly.',
+        historical_reasoning: 'Bukhari heard Muslim ibn Ibrahim directly. Tahdhib al-Kamal 2/12.',
       }],
     },
     agent_3_rijal: { narrators: [] },

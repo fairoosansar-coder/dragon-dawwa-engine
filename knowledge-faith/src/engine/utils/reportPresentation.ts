@@ -128,3 +128,23 @@ export function linkBetween(from: string, to: string, links: ChainLink[]): Chain
     return forward || reverse;
   });
 }
+
+const QURAN_AS_CHAIN =
+  /surah|ayah|\bverse\b|qur[’']?an|குர்ஆன்|வசனம்|سورة|denies faith|work has become worthless|தொழுகையை விடு|இணைவைப்ப|al-ma['’]?idah|المائدة/i;
+
+const CHAIN_SOURCE = /tahdhib|siyar|isabah|hadeethenc|\d{2,}|bukhari|muslim|tirmidh|ibn hajar|dhahabi|kamal|jarh|ta'dil/i;
+
+/** A transmission map is drawn only when every step is a person-to-person link with a cited reason. */
+export function sourcedNarratorChain(sequence: readonly string[], links: readonly ChainLink[]): boolean {
+  if (sequence.length < 2 || links.length < 1) return false;
+  if (sequence.some(name => name.trim().length > 48 || QURAN_AS_CHAIN.test(name))) return false;
+  for (let index = 0; index < sequence.length - 1; index += 1) {
+    const link = linkBetween(sequence[index], sequence[index + 1], [...links]);
+    if (!link) return false;
+    const reason = link.historical_reasoning?.trim() ?? '';
+    if (!reason || reason.length > 280 || QURAN_AS_CHAIN.test(reason) || !CHAIN_SOURCE.test(reason)) return false;
+    if (QURAN_AS_CHAIN.test(link.teacher) || QURAN_AS_CHAIN.test(link.student)) return false;
+    if (link.teacher.trim().length > 48 || link.student.trim().length > 48) return false;
+  }
+  return true;
+}

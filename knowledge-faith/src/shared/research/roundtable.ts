@@ -1,6 +1,7 @@
 import type { AgentContribution } from '../contracts/v1.ts';
 import type { Lang } from '../sources.ts';
 import { separateQuestions } from './questions.ts';
+import { isPrayerDeedsQuestion } from './prayerDeeds.ts';
 
 export interface RoundtableLine {
   speaker: string;
@@ -146,6 +147,28 @@ function corpusConversation(question: string, passages: readonly RoundtablePassa
   ];
 }
 
+function prayerDeedsConversation(question: string, passages: readonly RoundtablePassage[], answer: string): RoundtableLine[] | null {
+  const usable = passages
+    .filter(passage => !passage.context?.startsWith('Neighbouring') && /6261|65093|65094/.test(passage.locator))
+    .map(passage => ({ label: passage.locator, text: spokenPassage(passage.text) }))
+    .filter(passage => passage.text.length >= 12)
+    .slice(0, 3);
+  if (!usable.length) return null;
+  const told = usable.map(passage => `${passage.label} says: ${passage.text}`).join(' ');
+  const distinction = /[\u0B80-\u0BFF]/.test(question)
+    ? 'அச்சிடப்பட்ட தரம் அறிவிப்புக்கு மட்டுமே. நோன்பும் தர்மமும் ஏற்கப்படுமா என்பது சட்ட விளக்கம் அல்லவா?'
+    : /[\u0D80-\u0DFF]/.test(question)
+      ? 'මුද්‍රිත ශ්‍රේණිය සම්ප්‍රේෂණය ගැන පමණි. උපවාසය සහ දානය පිළිගැනේද යන්න නීතිමය ප්‍රශ්නයක්ද?'
+      : 'The printed grade is a transmission grade. Does that grade decide whether fasting and charity are accepted?';
+  return [
+    line(HOST, `The question is: ${everydayQuestion(question)} I am a generated host. The two contributors with me are generated too. We are not scholars.`),
+    line(PASSAGE, told),
+    line(DISTINCTION, distinction),
+    line(PASSAGE, answer),
+    line(HOST, 'That is the conclusion for this question, from this dossier alone.'),
+  ];
+}
+
 function generalConversation(input: {
   question: string;
   answer: string;
@@ -210,7 +233,9 @@ export function roundtableFromResearch(input: {
   passages?: readonly RoundtablePassage[];
   insufficientEvidence?: boolean;
   status?: 'done' | 'running' | 'error' | 'cancelled' | 'queued';
+  investigation?: 'complete' | 'partial' | 'blocked';
 }): RoundtableScript | null {
+  if (input.investigation === 'blocked') return null;
   if (input.status && input.status !== 'done') return null;
   const questions = separateQuestions(input.question);
   if (questions.length !== 1) return null;
@@ -218,6 +243,22 @@ export function roundtableFromResearch(input: {
   const passages = input.passages ?? [];
   const answer = input.answer?.trim() ?? '';
   if (!passages.length || !answer) return null;
+  if (isPrayerDeedsQuestion(question)) {
+    const lines = prayerDeedsConversation(question, passages, answer);
+    if (!lines || !scriptMayBeSpoken(lines, answer)) return null;
+    return {
+      title: question.slice(0, 140),
+      language: input.language,
+      question,
+      lines,
+      participants: [
+        { id: 'host-generated', role: HOST, team: 'roundtable' },
+        { id: 'passage-reader-generated', role: PASSAGE, team: 'roundtable' },
+        { id: 'distinction-reader-generated', role: DISTINCTION, team: 'roundtable' },
+      ],
+      sources: sourceLines(answer, passages),
+    };
+  }
   const corpus = /Word occurrence\./i.test(answer);
   const lines = corpus
     ? corpusConversation(question, passages)

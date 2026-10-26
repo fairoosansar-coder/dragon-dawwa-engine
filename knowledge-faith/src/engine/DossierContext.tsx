@@ -148,7 +148,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
   const [start] = useState(initialPreset);
   const [preset, setPreset] = useState(start.preset);
   const [matn, setMatn] = useState(start.query ?? presetMatn(start.preset, lang));
-  const [isnad, setIsnad] = useState(start.preset.isnad_text ?? '');
+  const [isnad, setIsnad] = useState('');
   const [analysis, setAnalysis] = useState<DragonDawwaAnalysis>(start.preset.defaultData);
   const [step, setStep] = useState<AgentStep>('overview');
   const [isAnalyzing, setIsAnalyzing] = useState(false);

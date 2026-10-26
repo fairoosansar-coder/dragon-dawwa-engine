@@ -60,7 +60,7 @@ interface HadithSearchFormProps {
 
 export function HadithSearchForm({
   initialMatn = "Do not fast on Saturdays except for what has been made obligatory for you...",
-  initialIsnad = "Qutaybah -> Yahya ibn Hamza -> Thawran ibn Yazid -> Khalid ibn Ma'dan -> 'Abdullah ibn Busr -> His sister",
+  initialIsnad = '',
   isAnalyzing,
   analysisError,
   onRunEngine,
