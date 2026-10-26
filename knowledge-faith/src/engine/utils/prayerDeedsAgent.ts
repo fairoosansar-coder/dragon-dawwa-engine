@@ -96,7 +96,11 @@ export function buildPrayerDeedsAgent7(
       opinion_text: `${record.published_grade ?? 'No grade printed'}. ${record.explanation ?? ''} This explanation is the publisher’s reading. It is not the transmission grade.`,
       reference: record.source_url,
     })),
-    agent_interpretation: LAW,
+    agent_interpretation: providerFailed
+      ? PRAYER_DEEDS_PROVIDER_NOTE
+      : records.length
+        ? LAW
+        : PRAYER_DEEDS_EMPTY_NOTE,
     responses_to_agents: records.length
       ? [
           {
@@ -115,10 +119,12 @@ export function buildPrayerDeedsAgent7(
           },
         ]
       : [],
-    unresolved_questions: [
-      'No opened passage states that the fasting or charity of a person who does not pray is rejected. Scholars differ on that legal question.',
-      'Scholars also differ on whether “has disbelieved” in #65094, and the polytheism sentence in #65093, means disbelief that takes a person out of Islam. The grade does not settle that.',
-    ],
+    unresolved_questions: providerFailed
+      ? ['The source did not respond, so this run does not state what the fasting or charity of a person who does not pray becomes.']
+      : [
+          'No opened passage states that the fasting or charity of a person who does not pray is rejected. Scholars differ on that legal question.',
+          'Scholars also differ on whether “has disbelieved” in #65094, and the polytheism sentence in #65093, means disbelief that takes a person out of Islam. The grade does not settle that.',
+        ],
     research_activity: {
       queries_run: queries.length ? queries : [queryHadith.slice(0, 180)],
       candidates_found: records.length,
