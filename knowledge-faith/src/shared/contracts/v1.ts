@@ -151,6 +151,16 @@ export interface ResearchJobView {
   interpretation?: QuestionInterpretationView | null;
   /** complete, partial, or blocked. Older jobs omit it and are read as finished when passages exist. */
   investigation?: 'complete' | 'partial' | 'blocked';
+  /** Parts of the question that must be answered or left open before a podcast. */
+  materialParts?: { id: string; kind: string; text: string; status: 'answered' | 'unresolved'; note: string }[];
+  /** Parallel Task API status. Confidence inside findings is provider metadata, not a grade. */
+  parallel?: {
+    status: 'credentials_missing' | 'running' | 'completed' | 'failed';
+    liveCallMade: boolean;
+    runId: string | null;
+    setup: string | null;
+    processor: string | null;
+  };
 }
 
 export interface ClaimEvidence {

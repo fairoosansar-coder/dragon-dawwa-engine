@@ -154,8 +154,9 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
     }
   }
 
-  const job = remote.data?.job;
-  const dossier = remote.data?.dossier ?? null;
+  const savedReport = useMemo(() => history.find(item => item.id === jobId) ?? null, [history, jobId]);
+  const job = remote.data?.job ?? (remote.loading ? undefined : savedReport?.response.job);
+  const dossier = remote.data?.dossier ?? (remote.loading ? null : savedReport?.response.dossier ?? null);
   const model = job ? buildReportModel(job, dossier) : null;
   const finished = job?.status === 'done' || job?.status === 'error' || job?.status === 'cancelled';
   const outcome = job && finished
@@ -181,8 +182,7 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
     setTimeout(() => URL.revokeObjectURL(href), 0);
   }
 
-  const savedReport = useMemo(() => history.find(item => item.id === jobId) ?? null, [history, jobId]);
-  const liveModel = model ?? (savedReport ? buildReportModel(savedReport.response.job, savedReport.response.dossier) : null);
+  const liveModel = model ?? (savedReport && !remote.loading ? buildReportModel(savedReport.response.job, savedReport.response.dossier) : null);
   const citedPassages = (liveModel?.passages ?? []).filter(
     passage => !passage.context?.startsWith('Neighbouring') && (liveModel?.citationIds.length ? liveModel.citationIds.includes(passage.id) : true),
   );
@@ -260,7 +260,7 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
         </section>
       )}
       {running && <Loading label={t.researchProgress} />}
-      {remote.error && <ErrorNote message={remote.error} onRetry={remote.reload} />}
+      {remote.error && !savedReport && <ErrorNote message={remote.error} onRetry={remote.reload} />}
       {outcome && (
         <Notice>
           <span className="font-semibold">{outcome.title} </span>
@@ -288,6 +288,20 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
               </ul>
             ) : null}
             {liveModel.answer ? <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed">{liveModel.answer}</p> : <p className="mt-3 text-sm text-muted">No answer was written from the retrieved passages.</p>}
+            {job?.materialParts?.some(part => part.status === 'unresolved') && (
+              <ul className="mt-3 space-y-1 text-sm text-ink/80" data-material-coverage>
+                {job.materialParts.filter(part => part.status === 'unresolved').map(part => (
+                  <li key={part.id}><span className="font-semibold text-pine">{part.kind}. </span>{part.note}</li>
+                ))}
+              </ul>
+            )}
+            {job?.parallel && (
+              <p className="mt-3 text-sm leading-relaxed text-ink/75" data-parallel-status>
+                Deep Research & Source Verification: {job.parallel.liveCallMade ? job.parallel.status : 'not called'}.
+                {' '}
+                {job.parallel.setup ?? 'Parallel confidence is provider metadata, not a hadith grade, a religious certainty score, or human approval.'}
+              </p>
+            )}
             {liveModel.answerArabic && (
               <p className="mt-3 font-arabic text-2xl leading-loose" dir="rtl" lang="ar">{liveModel.answerArabic}</p>
             )}

@@ -1,7 +1,6 @@
 import type { AgentContribution } from '../contracts/v1.ts';
 import type { Lang } from '../sources.ts';
 import { separateQuestions } from './questions.ts';
-import { isPrayerDeedsQuestion } from './prayerDeeds.ts';
 
 export interface RoundtableLine {
   speaker: string;
@@ -26,9 +25,10 @@ export interface RoundtableScript {
   sources: string[];
 }
 
-const HOST = 'Host (generated)';
-const PASSAGE = 'Passage reader (generated)';
-const DISTINCTION = 'Distinction reader (generated)';
+const HOST = 'Brother Feroz';
+const PASSAGE = 'Dr. Layla al-Qasimi';
+const DISTINCTION = 'Dr. Zainab al-Mubarak';
+const DEEP = 'Dr. Amina al-Kindi';
 
 const STATUS =
   /arabic was retrieved|translation retrieved|evidence review|insufficient:|the language is\b|the people at the table|source_unavailable|source unavailable|neighbouring ayah|al-mukhtasar was opened|was opened for the cited|did not run|contributed ·|no phrase|search returned no records|coverage note|language code/i;
@@ -147,33 +147,12 @@ function corpusConversation(question: string, passages: readonly RoundtablePassa
   ];
 }
 
-function prayerDeedsConversation(question: string, passages: readonly RoundtablePassage[], answer: string): RoundtableLine[] | null {
-  const usable = passages
-    .filter(passage => !passage.context?.startsWith('Neighbouring') && /6261|65093|65094/.test(passage.locator))
-    .map(passage => ({ label: passage.locator, text: spokenPassage(passage.text) }))
-    .filter(passage => passage.text.length >= 12)
-    .slice(0, 3);
-  if (!usable.length) return null;
-  const told = usable.map(passage => `${passage.label} says: ${passage.text}`).join(' ');
-  const distinction = /[\u0B80-\u0BFF]/.test(question)
-    ? 'அச்சிடப்பட்ட தரம் அறிவிப்புக்கு மட்டுமே. நோன்பும் தர்மமும் ஏற்கப்படுமா என்பது சட்ட விளக்கம் அல்லவா?'
-    : /[\u0D80-\u0DFF]/.test(question)
-      ? 'මුද්‍රිත ශ්‍රේණිය සම්ප්‍රේෂණය ගැන පමණි. උපවාසය සහ දානය පිළිගැනේද යන්න නීතිමය ප්‍රශ්නයක්ද?'
-      : 'The printed grade is a transmission grade. Does that grade decide whether fasting and charity are accepted?';
-  return [
-    line(HOST, `The question is: ${everydayQuestion(question)} I am a generated host. The two contributors with me are generated too. We are not scholars.`),
-    line(PASSAGE, told),
-    line(DISTINCTION, distinction),
-    line(PASSAGE, answer),
-    line(HOST, 'That is the conclusion for this question, from this dossier alone.'),
-  ];
-}
-
 function generalConversation(input: {
   question: string;
   answer: string;
   passages: readonly RoundtablePassage[];
   insufficientEvidence?: boolean;
+  unresolved?: readonly string[];
 }): RoundtableLine[] | null {
   const usable = input.passages
     .filter(passage => !passage.context?.startsWith('Neighbouring'))
@@ -202,6 +181,7 @@ function generalConversation(input: {
         : 'What is established is what those passages say. What they do not say stays outside the conclusion.',
     ),
     line(HOST, 'That is the conclusion for this question, from this dossier alone.'),
+    ...(input.unresolved ?? []).slice(0, 2).map(note => line(DEEP, `This part stays open. ${note}`)),
   ];
 }
 
@@ -232,6 +212,7 @@ export function roundtableFromResearch(input: {
   answer?: string | null;
   passages?: readonly RoundtablePassage[];
   insufficientEvidence?: boolean;
+  unresolved?: readonly string[];
   status?: 'done' | 'running' | 'error' | 'cancelled' | 'queued';
   investigation?: 'complete' | 'partial' | 'blocked';
 }): RoundtableScript | null {
@@ -243,26 +224,10 @@ export function roundtableFromResearch(input: {
   const passages = input.passages ?? [];
   const answer = input.answer?.trim() ?? '';
   if (!passages.length || !answer) return null;
-  if (isPrayerDeedsQuestion(question)) {
-    const lines = prayerDeedsConversation(question, passages, answer);
-    if (!lines || !scriptMayBeSpoken(lines, answer)) return null;
-    return {
-      title: question.slice(0, 140),
-      language: input.language,
-      question,
-      lines,
-      participants: [
-        { id: 'host-generated', role: HOST, team: 'roundtable' },
-        { id: 'passage-reader-generated', role: PASSAGE, team: 'roundtable' },
-        { id: 'distinction-reader-generated', role: DISTINCTION, team: 'roundtable' },
-      ],
-      sources: sourceLines(answer, passages),
-    };
-  }
   const corpus = /Word occurrence\./i.test(answer);
   const lines = corpus
     ? corpusConversation(question, passages)
-    : generalConversation({ question, answer, passages, insufficientEvidence: input.insufficientEvidence });
+    : generalConversation({ question, answer, passages, insufficientEvidence: input.insufficientEvidence, unresolved: input.unresolved });
   if (!lines || !scriptMayBeSpoken(lines, answer)) return null;
   return {
     title: question.slice(0, 140),
@@ -270,9 +235,10 @@ export function roundtableFromResearch(input: {
     question,
     lines,
     participants: [
-      { id: 'host-generated', role: HOST, team: 'roundtable' },
-      { id: 'passage-reader-generated', role: PASSAGE, team: 'roundtable' },
-      { id: 'distinction-reader-generated', role: DISTINCTION, team: 'roundtable' },
+      { id: 'feroz-generated', role: `${HOST} (generated host)`, team: 'roundtable' },
+      { id: 'layla-generated', role: `${PASSAGE} (generated)`, team: 'quran' },
+      { id: 'zainab-generated', role: `${DISTINCTION} (generated)`, team: 'hadith' },
+      { id: 'amina-generated', role: `${DEEP} (generated)`, team: 'deep-research' },
     ],
     sources: sourceLines(answer, passages),
   };

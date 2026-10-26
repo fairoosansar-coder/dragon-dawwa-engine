@@ -77,15 +77,11 @@ export interface CoordinationDecision {
   fingerprint: string;
 }
 
-function signalsOf(text: string, bookId: number | null): { quran: boolean; hadith: boolean; books: boolean } {
-  const quran = QURAN.test(text);
-  const hadith = HADITH.test(text);
-  const booksNamed = BOOKS.test(libraryText(text));
-  const exclusiveOther = quran !== hadith && (quran || hadith) && !booksNamed;
+function signalsOf(text: string): { quran: boolean; hadith: boolean; books: boolean } {
   return {
-    quran,
-    hadith,
-    books: booksNamed || (bookId !== null && !exclusiveOther),
+    quran: QURAN.test(text),
+    hadith: HADITH.test(text),
+    books: BOOKS.test(libraryText(text)),
   };
 }
 
@@ -97,13 +93,11 @@ function namedTeams(flags: { quran: boolean; hadith: boolean; books: boolean }):
   return teams;
 }
 
-function generalTeams(question: string, entry: ResearchScope): ResearchTeamId[] {
-  if (entry === 'quran') return ['quran'];
-  if (entry === 'hadith') return ['hadith'];
-  if (entry === 'books') return ['books'];
-  // A general Islamic question is read from the Qur'an and Hadith. Books join only when a book is selected or named.
-  if (matchingThemes(question).length || contentTokens(question).length) return ['quran', 'hadith'];
-  return ['quran', 'hadith'];
+function generalTeams(_question: string, entry: ResearchScope): ResearchTeamId[] {
+  // The desk is context. A general question is still read from the Qur'an and Hadith.
+  const teams: ResearchTeamId[] = ['quran', 'hadith'];
+  if (entry === 'books') teams.push('books');
+  return teams;
 }
 
 export function questionNeedsClarification(question: string): boolean {
@@ -131,15 +125,16 @@ function assignmentFor(
 }
 
 /**
- * Choose the team for a question. A forward happens once. The same wording keeps one fingerprint.
+ * Choose the specialists for a question. The open section stays the scope.
+ * A selected book is added only when the question names no other corpus.
  */
 export function coordinateQuestion(input: CoordinationInput): CoordinationDecision {
   const question = input.question.replace(/\s+/g, ' ').trim();
   const bookId = input.bookId && input.bookId > 0 ? input.bookId : null;
-  const own = signalsOf(question, bookId);
+  const own = signalsOf(question);
   const ownTeams = namedTeams(own);
   const prior = input.priorQuestion?.replace(/\s+/g, ' ').trim() ?? '';
-  const followed = ownTeams.length || !prior ? own : signalsOf(`${prior}\n${question}`, bookId);
+  const followed = ownTeams.length || !prior ? own : signalsOf(`${prior}\n${question}`);
   const teamsNamed = namedTeams(followed);
   const unclear = questionNeedsClarification(question) && teamsNamed.length === 0;
 
@@ -156,55 +151,13 @@ export function coordinateQuestion(input: CoordinationInput): CoordinationDecisi
     });
   }
 
-  // A request to verify a narration stays with the Hadith team. Books or Qur'an specialists
-  // may be consulted without moving the reader off that investigation.
-  if (isVerifyNarration(question) && (HADITH.test(question) || input.entry === 'hadith')) {
-    const consult: ResearchTeamId[] = ['hadith'];
-    if (own.quran) consult.push('quran');
-    if (own.books) consult.push('books');
-    const shouldForward = input.entry !== 'hadith';
-    if (shouldForward && input.forwarded) {
-      const stay = generalTeams(question, input.entry);
-      return finish({
-        action: 'research',
-        clarificationId: null,
-        assignment: assignmentFor(input.entry, stay.length ? stay : [input.entry === 'knowledge' ? 'quran' : input.entry], bookId, null, null),
-      });
-    }
-    return finish({
-      action: shouldForward ? 'forward' : 'research',
-      clarificationId: null,
-      assignment: assignmentFor('hadith', consult, bookId, shouldForward ? 'forward-hadith' : null, shouldForward ? input.entry : null),
-    });
-  }
-
-  const spanning = teamsNamed.length >= 2;
-  const scope: ResearchScope = spanning ? 'knowledge' : teamsNamed[0] ?? input.entry;
-  const teams = spanning || teamsNamed.length === 1 ? (spanning ? teamsNamed : teamsNamed) : generalTeams(`${prior}\n${question}`, input.entry);
-  const destination = spanning ? 'knowledge' : scope;
-  const shouldForward = destination !== input.entry;
-  const noticeId: ResearchNoticeId | null = !shouldForward
-    ? null
-    : destination === 'hadith'
-      ? 'forward-hadith'
-      : destination === 'quran'
-        ? 'forward-quran'
-        : destination === 'books'
-          ? 'forward-books'
-          : 'forward-knowledge';
-
-  if (shouldForward && input.forwarded) {
-    const stay = generalTeams(question, input.entry);
-    return finish({
-      action: 'research',
-      clarificationId: null,
-      assignment: assignmentFor(input.entry, stay.length ? stay : [input.entry === 'knowledge' ? 'quran' : input.entry], bookId, null, null),
-    });
-  }
-
+  // The open section is context. It does not decide which specialists may run, and it does not move the reader.
+  let teams = teamsNamed.length ? [...teamsNamed] : generalTeams(`${prior}\n${question}`, input.entry);
+  if (isVerifyNarration(question) && !teams.includes('hadith')) teams = ['hadith', ...teams];
+  if (bookId && teamsNamed.length === 0 && !teams.includes('books')) teams.push('books');
   return finish({
-    action: shouldForward ? 'forward' : 'research',
+    action: 'research',
     clarificationId: null,
-    assignment: assignmentFor(destination, teams, bookId, shouldForward ? noticeId : null, shouldForward ? input.entry : null),
+    assignment: assignmentFor(input.entry, teams, bookId, null, null),
   });
 }

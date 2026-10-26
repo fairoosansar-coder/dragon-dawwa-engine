@@ -1,11 +1,5 @@
 import type { Lang } from '../../shared/sources.ts';
 import { decomposeQuestion } from '../../shared/research/decompose.ts';
-import {
-  isPrayerDeedsQuestion,
-  prayerDeedsRecovery,
-  prayerDeedsRole,
-  type PrayerDeedsRole,
-} from '../../shared/research/prayerDeeds.ts';
 
 export interface CatalogueHit {
   id: string;
@@ -25,10 +19,19 @@ export interface CatalogueRecord {
 }
 
 export interface OpenedCatalogueRecord extends CatalogueRecord {
-  role: PrayerDeedsRole | 'candidate';
+  role: 'candidate';
 }
 
-const DECISIVE = ['6261', '65093', '65094'] as const;
+/** At most two shorter phrases from the question’s own queries. No fixed catalogue ids. */
+export function boundedRecoveryPhrases(queries: readonly string[]): string[] {
+  const next: string[] = [];
+  for (const query of queries) {
+    const words = query.split(/\s+/).filter(Boolean);
+    if (words.length > 3) next.push(words.slice(0, 3).join(' '));
+    if (words.length > 1) next.push(words[words.length - 1]);
+  }
+  return [...new Set(next)].filter(phrase => phrase.length >= 3 && !queries.includes(phrase)).slice(0, 2);
+}
 
 function isAbort(err: unknown): boolean {
   return err instanceof Error && err.name === 'AbortError';
@@ -36,8 +39,8 @@ function isAbort(err: unknown): boolean {
 
 /**
  * The Hadith page and Knowledge share this opener.
- * The question’s own words are searched first. A prayer-and-deeds question may run two further catalogue phrases when that search is empty.
- * A thrown search is a provider failure and stops the reformulation.
+ * The question’s own words are searched first. If that search is empty, at most two shorter phrases from those words are tried.
+ * A thrown search is a provider failure and stops the reformulation. Record ids are never chosen in advance.
  */
 export async function openHadeethEncForQuestion(input: {
   question: string;
@@ -54,7 +57,6 @@ export async function openHadeethEncForQuestion(input: {
   errors: { provider: string; message: string }[];
   providerFailed: boolean;
 }> {
-  const prayer = isPrayerDeedsQuestion(input.question);
   const plan = decomposeQuestion(input.question);
   const queries = [...new Set((input.queries ?? plan.subquestions.flatMap(item => item.queries)).map(item => item.trim()).filter(Boolean))].slice(0, 8);
   if (!queries.length && input.question.trim().length >= 3) queries.push(input.question.trim().slice(0, 80));
@@ -81,14 +83,13 @@ export async function openHadeethEncForQuestion(input: {
   }
 
   const recovery: string[] = [];
-  const decisiveHit = hits.some(hit => (DECISIVE as readonly string[]).includes(hit.id));
-  if (prayer && !providerFailed && !decisiveHit) {
-    for (const step of prayerDeedsRecovery(input.language)) {
-      recovery.push(step.phrase);
+  if (!providerFailed && hits.length === 0) {
+    for (const phrase of boundedRecoveryPhrases(queries)) {
+      recovery.push(phrase);
       try {
-        const found = await input.search(step.language, step.phrase);
+        const found = await input.search(input.language, phrase.slice(0, 100));
         for (const hit of found) {
-          if (!hits.some(item => item.id === hit.id)) hits.push({ ...hit, phrase: step.phrase });
+          if (!hits.some(item => item.id === hit.id)) hits.push({ ...hit, phrase });
         }
       } catch (err) {
         if (isAbort(err)) throw err;
@@ -100,28 +101,22 @@ export async function openHadeethEncForQuestion(input: {
   }
 
   const ids: string[] = [];
-  const cap = prayer ? 4 : 8;
+  const cap = 8;
   const push = (id: string) => {
     if (id && !ids.includes(id) && ids.length < cap) ids.push(id);
   };
-  if (prayer) {
-    for (const id of DECISIVE) {
-      if (hits.some(hit => hit.id === id)) push(id);
+  for (const id of input.seeds ?? []) push(id);
+  const groups = [...queries, ...recovery].map(phrase => hits.filter(hit => hit.phrase === phrase));
+  for (let round = 0; ids.length < cap; round += 1) {
+    let added = false;
+    for (const group of groups) {
+      const hit = group[round];
+      if (!hit) continue;
+      const before = ids.length;
+      push(hit.id);
+      if (ids.length !== before) added = true;
     }
-  } else {
-    for (const id of input.seeds ?? []) push(id);
-    const groups = queries.map(phrase => hits.filter(hit => hit.phrase === phrase));
-    for (let round = 0; ids.length < cap; round += 1) {
-      let added = false;
-      for (const group of groups) {
-        const hit = group[round];
-        if (!hit) continue;
-        const before = ids.length;
-        push(hit.id);
-        if (ids.length !== before) added = true;
-      }
-      if (!added) break;
-    }
+    if (!added) break;
   }
 
   const records: OpenedCatalogueRecord[] = [];
@@ -129,7 +124,7 @@ export async function openHadeethEncForQuestion(input: {
     const loaded = await Promise.all(ids.map(async id => {
       try {
         const row = await input.load(input.language, id);
-        return row ? { ...row, lessons: row.lessons ?? [], role: prayer ? prayerDeedsRole(row) : 'candidate' as const } : null;
+        return row ? { ...row, lessons: row.lessons ?? [], role: 'candidate' as const } : null;
       } catch (err) {
         if (isAbort(err)) throw err;
         errors.push({

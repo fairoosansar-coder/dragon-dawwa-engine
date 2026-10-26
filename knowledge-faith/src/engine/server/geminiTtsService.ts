@@ -102,7 +102,7 @@ export const PODCAST_PERSONA_PROFILES: Record<string, SpeakerVoiceProfile> = {
   amina: {
     id: 'amina',
     personaName: 'Dr. Amina al-Kindi',
-    role: 'Source Research & HadeethEnc Specialist (Agent 7)',
+    role: 'Deep Research & Source Verification (Agent 7)',
     voiceName: 'Aoede',
     gender: 'F',
     style: 'Clear, poised, evidence-grounded female researcher citing HadeethEnc records, published grades, explanations, and documented lessons with scholarly precision',

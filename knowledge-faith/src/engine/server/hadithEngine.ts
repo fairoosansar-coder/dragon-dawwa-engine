@@ -7,7 +7,6 @@ import { loadHadeeth, searchHadeeth } from "../../server/hadeethenc.ts";
 import { hasGeminiApiKey } from "../../server/loadEnv.ts";
 import { openHadeethEncForQuestion } from "../../server/research/hadeethOpen.ts";
 import { decomposeQuestion } from "../../shared/research/decompose.ts";
-import { isPrayerDeedsQuestion, PRAYER_DEEDS_EMPTY_NOTE, PRAYER_DEEDS_PROVIDER_NOTE } from "../../shared/research/prayerDeeds.ts";
 import { bindReport, isAsrPrayerQuestion, isChinaQuestion, isIntentionsQuestion, isSaturdayFastingQuestion, questionBoundShell, recordIsRelevant } from "../utils/reportBinding.ts";
 import { ASR_LEGAL_NOTE, asrCitationSources } from "../utils/asrPrayerSources.ts";
 import { scriptMatchesLanguage } from "../utils/contentLanguage.ts";
@@ -263,16 +262,9 @@ async function retrieveLiveHadeethEncForDossier(
   };
 }> {
   const t0 = Date.now();
-  const prayer = isPrayerDeedsQuestion(hadithInput);
   const plan = decomposeQuestion(hadithInput);
   const queries = [...new Set(plan.subquestions.flatMap(item => item.queries))].slice(0, 4);
   const seedIds: string[] = [];
-  if (!prayer) {
-    if (isIntentionsQuestion(hadithInput)) seedIds.push('4560', '66511');
-    else if (isSaturdayFastingQuestion(hadithInput)) seedIds.push('4508', '3546');
-    else if (isChinaQuestion(hadithInput)) seedIds.push('9944');
-    else if (isAsrPrayerQuestion(hadithInput)) seedIds.push('6261', '65094');
-  }
 
   const opened = await openHadeethEncForQuestion({
     question: hadithInput,
@@ -301,13 +293,10 @@ async function retrieveLiveHadeethEncForDossier(
 
   const records: HadeethEncRetrievedRecord[] = [];
   for (const record of opened.records) {
-    if (prayer && record.role !== 'support' && record.role !== 'distinct') continue;
     const isSeed = seedIds.includes(record.id);
-    const isDirect = record.role === 'support' || (
-      hadithInput.length >= 12 &&
+    const isDirect = hadithInput.length >= 12 &&
       (record.text.toLowerCase().includes(hadithInput.slice(0, 24).toLowerCase()) ||
-        record.title.toLowerCase().includes(hadithInput.slice(0, 24).toLowerCase()))
-    );
+        record.title.toLowerCase().includes(hadithInput.slice(0, 24).toLowerCase()));
     records.push({
       id: record.id,
       title: record.title,
@@ -320,16 +309,12 @@ async function retrieveLiveHadeethEncForDossier(
       collection_attribution: record.attribution,
       source_url: record.url,
       reader_route: `#/hadith/${record.id}?lang=${lang}`,
-      match_status: record.role === 'distinct'
-        ? 'Distinct narration (own citation)'
-        : isDirect
+      match_status: isDirect
           ? 'Direct Hadith Match'
           : isSeed
             ? 'Corroborating Theme Passage'
             : 'Candidate Passage (Word Match — Not Automatic Support)',
-      match_reason: record.role === 'distinct'
-        ? `HadeethEnc #${record.id} is kept under its own citation. It is not treated as the same narration as the supporting records.`
-        : isDirect
+      match_reason: isDirect
           ? `HadeethEnc #${record.id} directly matches the queried hadith text.`
           : isSeed
             ? `Retrieved from HadeethEnc (#${record.id}) as the primary authenticated narration on this legal/thematic subject.`
@@ -338,10 +323,8 @@ async function retrieveLiveHadeethEncForDossier(
   }
 
   const note = opened.providerFailed
-    ? PRAYER_DEEDS_PROVIDER_NOTE
-    : prayer && !records.some(record => record.id === '6261' || record.id === '65093')
-      ? PRAYER_DEEDS_EMPTY_NOTE
-      : undefined;
+    ? 'HadeethEnc did not respond. This is a provider failure, not a finding that the subject is absent.'
+    : undefined;
 
   return {
     records,
@@ -372,9 +355,7 @@ function enrichAnalysisWithHadeethEnc(
   const localized = getLocalizedAnalysis(base, lang);
   const withAgent7 = attachAgent7ToAnalysis(localized, lang, liveRecords, liveActivity);
   const question = withAgent7.query_hadith || '';
-  const usableRecords = isPrayerDeedsQuestion(question)
-    ? liveRecords.filter(record => record.id === '6261' || record.id === '65093' || record.id === '65094')
-    : isSaturdayFastingQuestion(question) || isIntentionsQuestion(question) || isChinaQuestion(question)
+  const usableRecords = isSaturdayFastingQuestion(question) || isIntentionsQuestion(question) || isChinaQuestion(question)
       ? liveRecords
       : liveRecords.filter(record => recordIsRelevant(question, record).ok);
 

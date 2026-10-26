@@ -14,8 +14,6 @@ import {
   recordIsRelevant,
 } from './reportBinding.ts';
 import { buildAsrAgent7 } from './asrPrayerSources.ts';
-import { buildPrayerDeedsAgent7 } from './prayerDeedsAgent.ts';
-import { isPrayerDeedsQuestion } from '../../shared/research/prayerDeeds.ts';
 
 export type LangCode = 'en' | 'ta' | 'si';
 
@@ -34,19 +32,6 @@ export function buildPresetAgent7SourceResearch(
 ): { agent7: Agent7SourceResearch; additionalRoundtableLines: string; synthesisAddendum: string } {
   const isIntentions = isIntentionsQuestion(queryHadith);
   const isChina = isChinaQuestion(queryHadith);
-
-  if (isPrayerDeedsQuestion(queryHadith)) {
-    const failed = /provider failure/i.test(liveActivity?.note ?? '');
-    const empty = /no decisive record/i.test(liveActivity?.note ?? '');
-    const built = buildPrayerDeedsAgent7(queryHadith, lang, liveRecords, liveActivity, {
-      providerFailed: failed,
-      usePack: !failed && !empty && !liveActivity,
-    });
-    const synthesisAddendum = failed
-      ? '\n\n#### 4. Agent 7 — HadeethEnc did not respond. This is a provider failure, not an empty subject. No chain was drawn and no episode was written.'
-      : `\n\n#### 4. Agent 7 — records kept for the person who does not pray: ${built.agent7.retrieved_records.map(record => `#${record.id}`).join(', ') || 'none'}. A shared word such as fasting is not relevance. The grade is transmission only.`;
-    return { ...built, synthesisAddendum };
-  }
 
   if (isIntentions) {
     const defaultRecords: HadeethEncRetrievedRecord[] =
@@ -165,7 +150,7 @@ export function buildPresetAgent7SourceResearch(
     const records = liveRecords && liveRecords.length > 0 ? liveRecords : defaultRecords;
     const agent7: Agent7SourceResearch = {
       persona_name: 'Dr. Amina al-Kindi',
-      role_title: 'Source Research & HadeethEnc Specialist (Agent 7)',
+      role_title: 'Deep Research & Source Verification (Agent 7)',
       summary_established:
         lang === 'ta'
           ? 'HadeethEnc களஞ்சியத்திலிருந்து பதிவுகள் #4560 மற்றும் #66511 நேரடியாகப் பெறப்பட்டன. இவை இரண்டிலும் அசல் அரபு வாசகம், வெளியிடப்பட்ட தமிழ் மொழிபெயர்ப்பு, விரிவான விளக்கம், படிப்பினைகள் மற்றும் இமாம் புகாரி & முஸ்லிம் (முத்தஃபகுன் அலைஹி) ஆதாரத்துடன் "சரியானது" (Authentic) என்ற வெளியிடப்பட்ட தரம் உறுதி செய்யப்பட்டுள்ளது.'
@@ -286,7 +271,7 @@ export function buildPresetAgent7SourceResearch(
     const records = liveRecords && liveRecords.length > 0 ? liveRecords : defaultRecords;
     const agent7: Agent7SourceResearch = {
       persona_name: 'Dr. Amina al-Kindi',
-      role_title: 'Source Research & HadeethEnc Specialist (Agent 7)',
+      role_title: 'Deep Research & Source Verification (Agent 7)',
       summary_established:
         lang === 'ta'
           ? 'HadeethEnc தேடலில் "சீனா சென்றேனும் கல்வி கற்க" என்ற வாசகம் எந்தவொரு ஆதாரபூர்வப் பதிவிலும் இடம்பெறவில்லை என்பது உறுதி செய்யப்பட்டது. மாறாக, கல்வியின் சிறப்பு குறித்து புஹாரி & முஸ்லிமில் உள்ள ஆதாரபூர்வ நபிமொழிகளே (எ.கா. HadeethEnc #9944) பதிவாகியுள்ளன.'
@@ -457,7 +442,7 @@ export function buildPresetAgent7SourceResearch(
 
   const agent7: Agent7SourceResearch = {
     persona_name: 'Dr. Amina al-Kindi',
-    role_title: 'Source Research & HadeethEnc Specialist (Agent 7)',
+    role_title: 'Deep Research & Source Verification (Agent 7)',
     summary_established:
       lang === 'ta'
         ? 'HadeethEnc களஞ்சியத்தில் "கடமையாக்கப்பட்ட நோன்பைத் தவிர வேறு எதற்காகவும் சனிக்கிழமை நோன்பு நோற்காதீர்கள்..." என்ற வாசகம் தேடப்பட்டது. HadeethEnc-ல் நோன்பின் விதிகள் குறித்த ஆதாரபூர்வப் பதிவுகள் #4508 மற்றும் #3546 (தரம்: சரியானது — புஹாரி & முஸ்லிம்) கிடைக்கப்பெற்றன; மேலும் "கடமையாக்கப்பட்ட" என்ற சொல் பொருத்தத்தால் கிடைத்த வேட்புப் பகுதிகள் (Candidate Passages) தனியாகப் பிரிக்கப்பட்டன. அப்துல்லாஹ் இப்னு புஸ்ர் (ரழி) வழி வரும் சனிக்கிழமை நோன்பு குறித்த சர்ச்சைக்குரிய செய்தி (அபூ தாவூத் 2421, திர்மிதி 744) HadeethEnc-ன் முதன்மை ஸஹீஹ் நோன்புத் தொகுப்பில் இடம்பெறவில்லை என்பது முகவர் 4 மற்றும் முகவர் 5-ன் ஆய்வோடு ஒத்துப்போகிறது.'
@@ -568,7 +553,7 @@ function buildQuestionAgent7(
     : 'Agent 7 searched this question. No opened record used its own wording, so none was copied from another job.';
   const agent7: Agent7SourceResearch = {
     persona_name: 'Dr. Amina al-Kindi',
-    role_title: 'Source Research & HadeethEnc Specialist (Agent 7)',
+    role_title: 'Deep Research & Source Verification (Agent 7)',
     summary_established: summary,
     retrieved_records: relevant,
     attributed_opinions: relevant.filter(record => record.published_grade).map(record => ({
@@ -670,7 +655,7 @@ export function attachAgent7ToAnalysis(
     execMd = `${execMd.trimEnd()}${synthesisAddendum}`;
   }
 
-  const replaceAgent = foreign || Boolean(liveRecords?.length) || !analysis.agent_7_source_research || isPrayerDeedsQuestion(question);
+  const replaceAgent = foreign || Boolean(liveRecords?.length) || !analysis.agent_7_source_research;
   return {
     ...analysis,
     agent_7_source_research: replaceAgent ? agent7 : analysis.agent_7_source_research,
