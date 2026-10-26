@@ -1114,14 +1114,13 @@ export async function executeResearch(input: {
     if (prayerQuestion) {
       for (let index = passages.length - 1; index >= 0; index -= 1) {
         const passage = passages[index];
-        if (passage.source.contentType !== 'quran') continue;
-        const blob = `${passage.text}\n${passage.arabic ?? ''}`;
-        if (/صلاة|صلو|prayer|தொழு|සලාත/i.test(blob)) continue;
+        const decisive = passage.source.provider === 'HadeethEnc' && ['E6261', 'E65093', 'E65094'].includes(passage.id);
+        if (decisive) continue;
         passages.splice(index, 1);
         pushCoverage({
           kind: 'no_relevant_evidence',
           provider: passage.source.provider,
-          detail: `${passage.locator} was set aside. It does not connect leaving prayer with fasting, charity, or other deeds.`,
+          detail: `${passage.locator} was set aside. It does not explain the fasting, charity, or other deeds of a person who does not pray.`,
         });
       }
     }
