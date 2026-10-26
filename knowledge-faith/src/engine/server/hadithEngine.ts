@@ -7,7 +7,7 @@ import { loadHadeeth, searchHadeeth } from "../../server/hadeethenc.ts";
 import { hasGeminiApiKey } from "../../server/loadEnv.ts";
 import { openHadeethEncForQuestion } from "../../server/research/hadeethOpen.ts";
 import { decomposeQuestion } from "../../shared/research/decompose.ts";
-import { bindReport, isAsrPrayerQuestion, isChinaQuestion, isIntentionsQuestion, isSaturdayFastingQuestion, questionBoundShell, recordIsRelevant } from "../utils/reportBinding.ts";
+import { bindReport, isAsrPrayerQuestion, isChinaQuestion, isIntentionsQuestion, isKnownBenchmark, isSaturdayFastingQuestion, questionBoundShell, recordIsRelevant } from "../utils/reportBinding.ts";
 import { ASR_LEGAL_NOTE, asrCitationSources } from "../utils/asrPrayerSources.ts";
 import { scriptMatchesLanguage } from "../utils/contentLanguage.ts";
 
@@ -242,6 +242,7 @@ export const dragonDawwaResponseSchema = {
 const MODEL_CANDIDATES = [
   "gemini-3.8-flash",
   "gemini-flash-latest",
+  "gemini-3.5-flash-lite",
   "gemini-3.1-flash-lite",
 ];
 
@@ -358,11 +359,16 @@ function enrichAnalysisWithHadeethEnc(
   const usableRecords = isSaturdayFastingQuestion(question) || isIntentionsQuestion(question) || isChinaQuestion(question)
       ? liveRecords
       : liveRecords.filter(record => recordIsRelevant(question, record).ok);
+  const curatedRecords = isKnownBenchmark(question) ? withAgent7.agent_7_source_research?.retrieved_records ?? [] : [];
+  const feedRecords = [...curatedRecords];
+  for (const record of usableRecords) {
+    if (!feedRecords.some(item => item.id === record.id)) feedRecords.push(record);
+  }
 
   // Also feed the primary HadeethEnc records into Agent 1 (Takhrij) and Agent 5 without duplicating existing rows
-  const extraTakhrij = usableRecords
+  const extraTakhrij = feedRecords
     .filter(r => !withAgent7.agent_1_takhrij.sources.some(s => s.hadith_number.includes(r.id)))
-    .slice(0, 2)
+    .slice(0, 4)
     .map(r => ({
       collection: `HadeethEnc (${r.collection_attribution || 'Verified Encyclopedia'})`,
       hadith_number: `#${r.id}`,
@@ -372,9 +378,9 @@ function enrichAnalysisWithHadeethEnc(
       wording_differences: `[Agent 7 Source Research · ${r.match_status}] Published Grade: ${r.published_grade ?? 'Not supplied'}.`,
     }));
 
-  const extraGradings = usableRecords
+  const extraGradings = feedRecords
     .filter(r => r.published_grade && !withAgent7.agent_5_scholars_verdict.gradings.some(g => g.reference.includes(`HadeethEnc #${r.id}`)))
-    .slice(0, 2)
+    .slice(0, 4)
     .map(r => ({
       scholar: `HadeethEnc Editorial Committee (${r.collection_attribution || 'Published Record'})`,
       grading: r.published_grade!,

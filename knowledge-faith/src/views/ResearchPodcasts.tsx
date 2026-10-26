@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { ResearchJobResponse } from '../shared/contracts/v1.ts';
 import { buildReportModel, renderReportHtml } from '../shared/research/report.ts';
-import { prependEpisodeRevision } from '../shared/research/episodeRevision.ts';
+import { prependEpisodeRevision, readPlayingEpisodeId } from '../shared/research/episodeRevision.ts';
 import { roundtableFromResearch, scriptMayBeSpoken, type RoundtableScript } from '../shared/research/roundtable.ts';
 import { separateQuestions } from '../shared/research/questions.ts';
 import type { Lang } from '../shared/sources.ts';
@@ -113,6 +113,26 @@ function readEpisodes(): LocalEpisode[] {
   }
 }
 
+async function persistEpisode(episode: LocalEpisode) {
+  if (!episode.jobId || !episode.lines?.length) return;
+  try {
+    await postJson(`/api/research/jobs/${episode.jobId}/episode`, {
+      id: episode.id,
+      revision: episode.revision ?? 1,
+      question: episode.question,
+      language: episode.language,
+      lines: episode.lines,
+      sources: episode.sources ?? [],
+      participants: episode.participants,
+      reportHtml: episode.reportHtml.slice(0, 80_000),
+      audioBase64: episode.audioBase64,
+      mimeType: episode.mimeType,
+    });
+  } catch {
+    /* This visit still holds the episode. A later save can retry. */
+  }
+}
+
 function writeEpisodes(items: LocalEpisode[]) {
   const slim = items.slice(0, 20).map(item => ({
     ...item,
@@ -175,6 +195,7 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
     }
     const next = [created, ...readEpisodes()];
     writeEpisodes(next);
+    void persistEpisode(created);
     setMine(next);
   }, [jobId, remote.data]);
 
@@ -194,24 +215,53 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
       const base = current.length ? current : readEpisodes();
       const existing = base.find(item => item.jobId === response.job.id && !item.id.includes('-r'));
       if (!existing) return current;
-      const node = document.querySelector(`audio[data-episode="${existing.id}"]`) as HTMLAudioElement | null;
-      const playing = Boolean(node && !node.paused && !node.ended);
       const merged = prependEpisodeRevision({
         episodes: base,
         created: { ...created, id: existing.id },
-        playingEpisodeId: playing ? existing.id : null,
+        playingEpisodeId: readPlayingEpisodeId(document, existing.id),
         revision: revisionNumber,
       });
       if (!merged.changed) return current;
       writeEpisodes(merged.episodes);
+      for (const episode of merged.episodes) void persistEpisode(episode);
       return merged.episodes;
     });
   }, [remote.data]);
 
   function save(next: LocalEpisode[]) {
     writeEpisodes(next);
+    for (const episode of next) void persistEpisode(episode);
     setMine(next);
   }
+
+  useEffect(() => {
+    if (!jobId) return;
+    let cancelled = false;
+    void fetch(`/api/research/jobs/${jobId}/episode`)
+      .then(async response => (response.ok ? response.json() as Promise<{ episodes?: LocalEpisode[] }> : null))
+      .then(body => {
+        if (cancelled || !body?.episodes?.length) return;
+        setMine(current => {
+          const map = new Map(current.map(item => [item.id, item]));
+          for (const saved of body.episodes ?? []) {
+            if (!scriptMayBeSpoken(saved.lines ?? [], saved.question ?? '')) continue;
+            const existing = map.get(saved.id);
+            if (existing?.audioBase64 && !saved.audioBase64) continue;
+            map.set(saved.id, {
+              ...existing,
+              ...saved,
+              language: saved.language,
+              state: saved.audioBase64 ? 'playable' : saved.state === 'audio-generating' ? 'script-ready' : saved.state,
+            });
+          }
+          return [...map.values()];
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId]);
 
   function episodeFromJob(response: ResearchJobResponse): LocalEpisode | null {
     const job = response.job;

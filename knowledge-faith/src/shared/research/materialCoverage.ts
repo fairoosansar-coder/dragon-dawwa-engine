@@ -68,10 +68,17 @@ function explains(passage: EvidencePassage): boolean {
 const APPLICATION_DISCUSSION = /modern application|applied today|applies today|contemporary application|how (?:this|it) (?:is |should be )?applied|இன்று பயன்ப|நவீன பயன்பாடு|අද යොද|නූතන යෙදුම/i;
 
 /** A word such as “today” inside a quotation is not a modern application. */
-function discussesApplication(passage: EvidencePassage): boolean {
+export function discussesApplication(passage: EvidencePassage): boolean {
   if (passage.role === 'source_text' || passage.role === 'translation') return false;
   const context = (passage.context ?? '').replace(passage.text, ' ');
   return APPLICATION_DISCUSSION.test(context);
+}
+
+const RECORDED_PRACTICE = /recite|when you go to your bed|before you sleep|give in charity|perform wud|ஓது|படுக்க|நோன்பு|தொழு|කියව|නිද|උපවාස|සලාත|වුදූ/i;
+
+/** A narration can record a practice without settling a modern-application question. */
+export function recordsPractice(text: string): boolean {
+  return RECORDED_PRACTICE.test(text);
 }
 
 function partAnswered(kind: MaterialKind, passages: readonly EvidencePassage[]): boolean {
@@ -123,7 +130,15 @@ export function reviewMaterialCoverage(input: {
     if (part.kind === 'application') {
       return applied
         ? { ...part, status: 'answered', note: 'A retrieved passage discusses the modern application.' }
-        : { ...part, status: 'unresolved', note: 'Identifying a quotation does not answer the modern application. That part stays open.' };
+        : {
+            ...part,
+            status: 'unresolved',
+            note: input.language === 'ta'
+              ? 'ஒரு மேற்கோளை அடையாளம் காண்பது நவீன நடைமுறையை விளக்குவதில்லை. இந்தப் பகுதி திறந்தே இருக்கிறது.'
+              : input.language === 'si'
+                ? 'උපුටා දැක්වීමක් හඳුනා ගැනීම නූතන යෙදුමට පිළිතුරක් නොවේ. මෙම කොටස විවෘතව පවතී.'
+                : 'Identifying a quotation does not answer the modern application. That part stays open.',
+          };
     }
     if (part.kind === 'locate') {
       return quoted
