@@ -690,6 +690,9 @@ export function attachAgent7ToAnalysis(
   if (liveRecords?.length) {
     script = script.replace(/\n*BROTHER FEROZ \(HOST\): Dr\. Amina, what did the source search keep[\s\S]*?(?=\n\[AUDIO CUE: OUTRO|$)/, '\n');
   }
+  if (isSaturdayFastingQuestion(question) && !/4508/.test(script)) {
+    script = `${script.trimEnd()}\n${additionalRoundtableLines}`;
+  }
   if (!/DR\.\s*AMINA:/i.test(script)) {
     const outroMarker = '[AUDIO CUE: OUTRO';
     const outroIdx = script.indexOf(outroMarker);

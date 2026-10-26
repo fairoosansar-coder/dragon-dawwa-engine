@@ -121,7 +121,28 @@ describe('spoken research script', () => {
     assert.equal(script.question, 'how many prophets in islam?');
     const spoken = script.lines.map(line => line.text).join(' ');
     assert.match(spoken, /do not state a total|does not state a total|will not add one/i);
+    assert.doesNotMatch(spoken, /these passages do not settle the question/i);
     assert.doesNotMatch(spoken, /124[,.]?000|\b25 prophets\b|twenty-five/i);
     assert.equal(script.question.includes('wars'), false);
+  });
+
+  it('speaks the commentary sentence and leaves the modern application open', () => {
+    const script = roundtableFromResearch({
+      question: 'What does Qur’an 24:4 mean, and how should that ruling be applied today?',
+      language: 'en',
+      status: 'done',
+      answer: 'Retrieved: Surah 24, ayah 4. Sourced interpretation. Al-Mukhtasar 24:4 — the four-witness condition.',
+      unresolved: ['Identifying a quotation does not answer the modern application. That part stays open.'],
+      passages: [
+        { locator: 'Surah 24, ayah 4', text: 'As for those who accuse chaste women but fail to produce four witnesses, flog them eighty lashes.', provider: 'QuranEnc' },
+        { locator: 'Al-Mukhtasar 24:4', text: '4. Those who accuse chaste women of adultery and do not bring four witnesses are punished by the leaders.', provider: 'QuranEnc' },
+      ],
+    });
+    assert.ok(script);
+    const spoken = script.lines.map(line => line.text).join(' ');
+    assert.match(spoken, /four witnesses/);
+    assert.doesNotMatch(spoken, /further point: 4\./);
+    assert.match(spoken, /stays open/);
+    assert.doesNotMatch(spoken, /state a total/i);
   });
 });

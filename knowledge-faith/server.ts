@@ -27,6 +27,7 @@ import { readingPages } from './src/server/pdfPages.ts';
 import { readLibraryItem } from './src/server/libraryRead.ts';
 import { allowedMediaUrl, readMedia } from './src/server/media.ts';
 import { listNames, readName } from './src/server/names.ts';
+import { readArchivedEpisodes, saveArchivedEpisode } from './src/server/research/archive.ts';
 import { cancelSharedResearchJob, getSharedResearchJob, startSharedResearchJob } from './src/server/research/jobs.ts';
 import { listCommunityPodcasts, publishCommunityPodcast } from './src/server/research/communityPodcasts.ts';
 import { coordinateQuestion } from './src/shared/research/coordinator.ts';
@@ -85,6 +86,7 @@ if (process.env.CODESPACES === 'true' || process.env.CODESPACE_NAME) {
 app.use(ummahQuranMiddleware);
 app.use(ummahStudyMiddleware);
 app.use(['/api/extract-hadith-media', '/api/transcribe-audio'], express.json({ limit: '15mb' }));
+app.use('/api/research/jobs/:id/episode', express.json({ limit: '12mb' }));
 app.use(express.json({ limit: '64kb' }));
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
@@ -458,6 +460,52 @@ app.post(
       createdAt: new Date().toISOString(),
     });
     res.status(201).json(episode);
+  }),
+);
+
+app.get(
+  '/api/research/jobs/:id/episode',
+  route(async (req, res) => {
+    const episodes = readArchivedEpisodes(String(req.params.id));
+    res.json({ episodes });
+  }),
+);
+
+app.post(
+  '/api/research/jobs/:id/episode',
+  route(async (req, res) => {
+    const jobId = String(req.params.id);
+    const saved = getSharedResearchJob(jobId);
+    if (!saved) throw new UpstreamError('Unknown research job', 404);
+    const lines = Array.isArray(req.body?.lines) ? req.body.lines.slice(0, 24) : [];
+    if (!lines.length) throw new UpstreamError('A saved episode needs its transcript.', 400);
+    const episode = {
+      id: text(req.body?.id, 120, 'id'),
+      jobId,
+      revision: Number(req.body?.revision) > 0 ? Number(req.body.revision) : saved.job.parallel?.revision ?? 1,
+      question: text(req.body?.question, 800, 'question'),
+      language: toLang(req.body?.language ?? req.body?.lang),
+      lines: lines.map((line: { speaker?: string; role?: string; text?: string }) => ({
+        speaker: String(line?.speaker ?? '').slice(0, 120),
+        role: String(line?.role ?? '').slice(0, 120),
+        text: String(line?.text ?? '').slice(0, 4000),
+      })),
+      sources: Array.isArray(req.body?.sources) ? req.body.sources.slice(0, 40).map((item: unknown) => String(item).slice(0, 300)) : [],
+      participants: Array.isArray(req.body?.participants)
+        ? req.body.participants.slice(0, 8).map((item: { id?: string; role?: string; team?: string }) => ({
+            id: String(item?.id ?? '').slice(0, 80),
+            role: String(item?.role ?? '').slice(0, 120),
+            team: String(item?.team ?? '').slice(0, 40),
+          }))
+        : [],
+      reportHtml: typeof req.body?.reportHtml === 'string' ? req.body.reportHtml.slice(0, 80_000) : '',
+      mimeType: typeof req.body?.mimeType === 'string' ? req.body.mimeType.slice(0, 80) : undefined,
+      state: req.body?.audioBase64 ? 'playable' : 'script-ready',
+      savedAt: new Date().toISOString(),
+      audioBase64: typeof req.body?.audioBase64 === 'string' ? req.body.audioBase64 : undefined,
+    };
+    saveArchivedEpisode(episode);
+    res.status(201).json({ id: episode.id, revision: episode.revision, hasAudio: Boolean(episode.audioBase64) });
   }),
 );
 

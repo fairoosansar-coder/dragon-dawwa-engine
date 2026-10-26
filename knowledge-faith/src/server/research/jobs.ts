@@ -3,6 +3,7 @@ import type { ResearchAssignmentView, ResearchJobResponse } from '../../shared/c
 import { researchFingerprint } from '../../shared/research/coordinator.ts';
 import type { Lang } from '../../shared/sources.ts';
 import { UpstreamError } from '../http.ts';
+import { archiveResearch, readArchivedJob } from './archive.ts';
 import { executeResearch, publishParallelRevision, type ResearchPorts } from './engine.ts';
 import { awaitParallelResult } from './parallelTask.ts';
 import { defaultResearchPorts } from './ports.ts';
@@ -34,11 +35,17 @@ export function clearSharedResearchJobs() {
   jobs.clear();
 }
 
+function remember(stored: StoredJob) {
+  if (!stored.dossier) return;
+  if (stored.job.status !== 'done' && stored.job.status !== 'error' && stored.job.status !== 'cancelled') return;
+  archiveResearch(stored.fingerprint, { contractVersion: '1.0.0', job: stored.job, dossier: stored.dossier });
+}
+
 export function getSharedResearchJob(id: string): ResearchJobResponse | undefined {
   prune();
   const job = jobs.get(id);
-  if (!job) return undefined;
-  return { contractVersion: '1.0.0', job: job.job, dossier: job.dossier };
+  if (job) return { contractVersion: '1.0.0', job: job.job, dossier: job.dossier };
+  return readArchivedJob(id);
 }
 
 export function cancelSharedResearchJob(id: string): ResearchJobResponse | undefined {
@@ -115,10 +122,12 @@ export function startSharedResearchJob(
       if (current.job.status === 'cancelled') {
         current.dossier = result.dossier;
         current.job = { ...result.job, id, status: 'cancelled' };
+        remember(current);
         return;
       }
       current.job = result.job;
       current.dossier = result.dossier;
+      remember(current);
       const runId = result.job.parallel?.status === 'running' ? result.job.parallel.runId : null;
       if (runId) resumeParallel(id, runId);
     })
@@ -151,6 +160,7 @@ function resumeParallel(id: string, runId: string) {
       const revised = publishParallelRevision({ job: current.job, dossier: current.dossier }, consult);
       current.job = revised.job;
       current.dossier = revised.dossier;
+      remember(current);
     })
     .catch(() => {
       /* A failed continuation leaves the first revision in place. It does not invent findings. */
