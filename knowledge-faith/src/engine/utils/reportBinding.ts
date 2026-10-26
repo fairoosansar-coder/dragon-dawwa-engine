@@ -286,6 +286,9 @@ export function bindReport(analysis: DragonDawwaAnalysis): DragonDawwaAnalysis {
       ),
     };
   }
+  if (/provider failure/i.test(next.agent_7_source_research?.research_activity?.note ?? '') && next.agent_6_synthesis) {
+    next.agent_6_synthesis.podcast_script = '';
+  }
   return next;
 }
 

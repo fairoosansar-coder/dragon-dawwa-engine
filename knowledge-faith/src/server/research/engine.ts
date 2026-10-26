@@ -281,6 +281,7 @@ export async function executeResearch(input: {
   now?: () => Date;
   onProgress?: (job: ResearchJobView) => void;
   assignment?: ResearchAssignmentView | null;
+  parallel?: { apiKey?: string | null; fetchImpl?: typeof fetch; pollMs?: number };
 }): Promise<ResearchRun> {
   const signal = input.signal ?? new AbortController().signal;
   const interpretation = interpretQuestion(input.question);
@@ -299,7 +300,9 @@ export async function executeResearch(input: {
       : interpretation.corpus === 'hadith'
         ? true
         : useHadith || interpretation.consultHadith;
-  const useScience = !input.assignment || input.assignment.scope === 'knowledge';
+  const plan = decomposeQuestion(input.question);
+  const scienceRequested = asksScience(input.question) || plan.subquestions.some(sub => sub.domain === 'science' || asksScience(sub.text));
+  const useScience = scienceRequested || !input.assignment;
   const index = input.index ?? createContentIndex();
   const clock = input.now ?? (() => new Date());
   const started = clock();
@@ -317,6 +320,7 @@ export async function executeResearch(input: {
   let researchAnswer: ResearchAnswer | null = null;
   let investigation: ResearchJobView['investigation'];
   let hadeethProviderFailed = false;
+  let directSourceFailed = false;
   let sharedSourceNotes: string[] = [];
   let parallelConsult: ParallelConsult | null = null;
   let materialReview: ReturnType<typeof reviewMaterialCoverage> | null = null;
@@ -349,7 +353,6 @@ export async function executeResearch(input: {
     };
     return corpusSplit;
   };
-  const plan = decomposeQuestion(input.question);
   const job: ResearchJobView = {
     contractVersion: VERSION,
     id: input.id ?? randomUUID(),
@@ -384,7 +387,14 @@ export async function executeResearch(input: {
     job.investigation = investigation;
     job.materialParts = materialReview?.parts;
     job.parallel = parallelConsult
-      ? { status: parallelConsult.status, liveCallMade: parallelConsult.liveCallMade, runId: parallelConsult.runId, setup: parallelConsult.setup, processor: parallelConsult.processor }
+      ? {
+          status: parallelConsult.status,
+          liveCallMade: parallelConsult.liveCallMade,
+          runId: parallelConsult.runId,
+          setup: parallelConsult.setup,
+          processor: parallelConsult.processor,
+          revision: 1,
+        }
       : undefined;
     const claims = plan.subquestions.map(sub => claimFor(sub, passages, coverage, interpretation, corpusSplit));
     const unresolved = claims.filter(claim => claim.support !== 'supported').map(claim => `${claim.claim} — ${claim.note}`);
@@ -423,7 +433,7 @@ export async function executeResearch(input: {
         team: input.assignment?.teams[0] ?? 'hadith',
         role: 'Deep Research & Source Verification (Agent 7)',
         status: parallelStatus === 'completed' ? 'ran' : parallelStatus === 'failed' ? 'unavailable' : 'not_run',
-        detail: parallelConsult?.setup ?? (parallelConsult?.liveCallMade ? 'Parallel returned findings. Its confidence is provider metadata, not a hadith grade.' : 'Parallel was not called.'),
+        detail: parallelConsult?.setup ?? (parallelConsult?.findings.length ? 'Parallel returned findings. Its confidence is provider metadata, not a hadith grade.' : parallelConsult?.liveCallMade ? 'Parallel was called. No finding is cited until the task returns one.' : 'Parallel was not called.'),
       },
     ];
     return {
@@ -567,6 +577,7 @@ export async function executeResearch(input: {
           },
         });
         hadeethProviderFailed = opened.providerFailed;
+        if (opened.providerFailed) directSourceFailed = true;
         for (const failure of opened.errors) {
           errors.push(failure);
           pushCoverage({
@@ -602,6 +613,7 @@ export async function executeResearch(input: {
         if (isAbort(err, signal)) return finish('cancelled');
         const message = err instanceof Error ? err.message : 'HadeethEnc search failed.';
         hadeethProviderFailed = true;
+        directSourceFailed = true;
         errors.push({ provider: 'HadeethEnc', message });
         pushCoverage({
           kind: 'source_unavailable',
@@ -876,6 +888,7 @@ export async function executeResearch(input: {
       } catch (err) {
         if (isAbort(err, signal)) return finish('cancelled');
         const message = err instanceof Error ? err.message : 'QuranEnc did not respond.';
+        directSourceFailed = true;
         errors.push({ provider: 'QuranEnc', message });
         pushCoverage({
           kind: 'source_unavailable',
@@ -1002,6 +1015,7 @@ export async function executeResearch(input: {
         } catch (err) {
           if (isAbort(err, signal)) return finish('cancelled');
           const message = err instanceof Error ? err.message : 'The book catalogue could not be searched.';
+          directSourceFailed = true;
           pushCoverage({ kind: 'source_unavailable', provider: 'IslamHouse', detail: `A source could not be reached. ${message}` });
         }
       }
@@ -1077,6 +1091,7 @@ export async function executeResearch(input: {
         } catch (err) {
           if (isAbort(err, signal)) return finish('cancelled');
           const message = err instanceof Error ? err.message : 'The book could not be opened.';
+          directSourceFailed = true;
           booksOpened.push({ id: bookId, title: '', availability: 'source_unavailable', limitation: message, matched: 0, blocks: 0, url: null });
           pushCoverage({ kind: 'source_unavailable', provider: 'IslamHouse', detail: `Item ${bookId} could not be opened: ${message}` });
         }
@@ -1113,6 +1128,7 @@ export async function executeResearch(input: {
       } catch (err) {
         if (isAbort(err, signal)) return finish('cancelled');
         const message = err instanceof Error ? err.message : 'OpenAlex did not respond.';
+        directSourceFailed = true;
         errors.push({ provider: 'OpenAlex', message });
         pushCoverage({
           kind: 'source_unavailable',
@@ -1155,27 +1171,6 @@ export async function executeResearch(input: {
           : `Available evidence does not sufficiently support an answer. Your question is still here: ${input.question}`,
       });
     }
-    if (corpusSplit) {
-      researchAnswer = {
-        paragraphs: formatCorpusCount(corpusSplit),
-        insufficientEvidence: false,
-        writer: 'retrieved',
-      };
-    } else if (passages.length) {
-      const packet = answerPassages(passages);
-      const evidence = packet.map(passageToEvidence);
-      let written: ResearchAnswer | null = null;
-      if (input.ports.writeAnswer && evidence.length) {
-        try {
-          const result = await timed('Gemini', () => attempt(() => input.ports.writeAnswer!(input.question, input.language, evidence, signal), signal));
-          written = acceptWrittenAnswer(input.question, result, packet, interpretation);
-        } catch (err) {
-          if (isAbort(err, signal)) return finish('cancelled');
-          written = null;
-        }
-      }
-      researchAnswer = written ?? retrievedAnswer(input.question, packet, interpretation);
-    }
     const deduped = dedupePassages(passages);
     sharedSourceNotes = deduped.shared.map(item => item.note);
     passages.splice(0, passages.length, ...deduped.passages);
@@ -1183,12 +1178,23 @@ export async function executeResearch(input: {
       pushCoverage({ kind: 'evidence_found', provider: 'dossier', detail: note });
     }
     try {
-      parallelConsult = await consultParallel({ question: input.question, language: input.language, signal, pollMs: 2_000 });
+      parallelConsult = await consultParallel({
+        question: input.question,
+        language: input.language,
+        signal,
+        pollMs: input.parallel?.pollMs ?? 2_000,
+        apiKey: input.parallel?.apiKey,
+        fetchImpl: input.parallel?.fetchImpl,
+      });
       timings.Parallel = parallelConsult.durationMs;
       for (const finding of parallelConsult.findings) {
         const text = finding.excerpt.trim();
         const hash = remember('Parallel', finding.url, 'parallel-task', text);
         passages.push(parallelPassage(finding, input.language, clock().toISOString(), hash));
+      }
+      if (parallelConsult.findings.length) {
+        const withParallel = dedupePassages(passages);
+        passages.splice(0, passages.length, ...withParallel.passages);
       }
       if (parallelConsult.status === 'failed') {
         pushCoverage({ kind: 'source_unavailable', provider: 'Parallel', detail: parallelConsult.setup ?? 'Parallel did not return findings.' });
@@ -1208,13 +1214,36 @@ export async function executeResearch(input: {
         detail: `A retrieved passage is not in the selected language (${input.language}). It is not used as the answer.`,
       });
       passages.splice(0, passages.length, ...answerPool);
-      researchAnswer = answerPool.length ? retrievedAnswer(input.question, answerPool, interpretation) : null;
+    }
+    if (corpusSplit) {
+      researchAnswer = {
+        paragraphs: formatCorpusCount(corpusSplit),
+        insufficientEvidence: false,
+        writer: 'retrieved',
+      };
+    } else if (passages.length) {
+      const packet = [
+        ...answerPassages(passages),
+        ...passages.filter(passage => passage.source.provider === 'Parallel' && !answerPassages(passages).some(item => item.id === passage.id)),
+      ];
+      const evidence = packet.map(passageToEvidence);
+      let written: ResearchAnswer | null = null;
+      if (input.ports.writeAnswer && evidence.length) {
+        try {
+          const result = await timed('Gemini', () => attempt(() => input.ports.writeAnswer!(input.question, input.language, evidence, signal), signal));
+          written = acceptWrittenAnswer(input.question, result, packet, interpretation);
+        } catch (err) {
+          if (isAbort(err, signal)) return finish('cancelled');
+          written = null;
+        }
+      }
+      researchAnswer = ensureParallelCited(written ?? retrievedAnswer(input.question, packet, interpretation), packet, input.question, interpretation);
     }
     materialReview = reviewMaterialCoverage({
       question: input.question,
       language: input.language,
       passages: reviewedPassages,
-      providerFailed: hadeethProviderFailed && answerPool.length === 0,
+      providerFailed: (directSourceFailed || hadeethProviderFailed) && answerPool.length === 0,
     });
     investigation = materialReview.investigation;
     const open = materialReview.parts.filter(part => part.status === 'unresolved');
@@ -1613,6 +1642,99 @@ function occurrenceSnippet(items: readonly WordingOccurrence[], lang: Lang, retr
     role: 'translation',
     publishedGrade: null,
   };
+}
+
+function answerFromFinalPool(
+  question: string,
+  passages: readonly EvidencePassage[],
+  interpretation: QuestionInterpretation,
+): ResearchAnswer {
+  const base = retrievedAnswer(question, passages, interpretation);
+  const parallel = passages.filter(passage => passage.source.provider === 'Parallel');
+  if (!parallel.length) return base;
+  const quoted = parallel.map(passage => `${passage.locator}: “${passage.text.trim()}”`).join(' ');
+  const lead = base.paragraphs[0];
+  return {
+    paragraphs: [{
+      text: `${lead?.text ?? ''} Parallel findings: ${quoted}`.trim(),
+      citations: [...new Set([...(lead?.citations ?? []), ...parallel.map(passage => passage.id)])],
+    }],
+    insufficientEvidence: base.insufficientEvidence,
+    writer: 'retrieved',
+  };
+}
+
+function ensureParallelCited(
+  answer: ResearchAnswer | null,
+  passages: readonly EvidencePassage[],
+  question: string,
+  interpretation: QuestionInterpretation,
+): ResearchAnswer | null {
+  const parallel = passages.filter(passage => passage.source.provider === 'Parallel');
+  if (!parallel.length) return answer;
+  const written = (answer?.paragraphs ?? []).map(paragraph => paragraph.text).join('\n');
+  const missing = parallel.filter(passage => !written.includes(passage.text.trim().slice(0, 80)));
+  if (!missing.length) return answer;
+  const extra = answerFromFinalPool(question, missing, interpretation);
+  if (!answer) return extra;
+  return { ...answer, paragraphs: [...answer.paragraphs, ...extra.paragraphs] };
+}
+
+export function publishParallelRevision(run: ResearchRun, consult: ParallelConsult, now = new Date()): ResearchRun {
+  const job = structuredClone(run.job);
+  const dossier = structuredClone(run.dossier);
+  const previousRevision = job.parallel?.revision ?? 1;
+  job.parallel = {
+    status: consult.status,
+    liveCallMade: consult.liveCallMade,
+    runId: consult.runId,
+    setup: consult.setup,
+    processor: consult.processor,
+    revision: consult.findings.length ? previousRevision + 1 : previousRevision,
+  };
+  job.finishedAt = now.toISOString();
+  const agent = job.agents?.find(item => item.id === 'deep-research');
+  if (agent) {
+    agent.status = consult.status === 'completed' ? 'ran' : consult.status === 'failed' ? 'unavailable' : 'not_run';
+    agent.detail = consult.setup ?? (consult.findings.length
+      ? 'Parallel returned findings. Its confidence is provider metadata, not a hadith grade.'
+      : 'Parallel was called. No finding is cited until the task returns one.');
+  }
+  if (!consult.findings.length) return { job, dossier };
+  const passages = [...dossier.passages];
+  for (const finding of consult.findings) {
+    const text = finding.excerpt.trim();
+    const hash = contentHash(`${finding.url}\n${text}`);
+    const passage = parallelPassage(finding, job.language, now.toISOString(), hash);
+    if (passages.some(item => item.id === passage.id || (item.source.canonicalUrl === finding.url && item.text.trim() === text))) continue;
+    passages.push(passage);
+  }
+  const deduped = dedupePassages(passages);
+  const pool = deduped.passages.filter(passage => passageMatchesLanguage(passage, job.language));
+  const interpretation = interpretQuestion(job.question);
+  let answer = pool.length ? answerFromFinalPool(job.question, pool, interpretation) : dossier.answer ?? null;
+  const review = reviewMaterialCoverage({
+    question: job.question,
+    language: job.language,
+    passages: deduped.passages,
+    providerFailed: false,
+  });
+  const sentence = review.parts.filter(part => part.status === 'unresolved').map(part => part.note).join(' ');
+  if (sentence && answer && !answer.paragraphs.some(paragraph => paragraph.text.includes(sentence))) {
+    answer = { ...answer, paragraphs: [...answer.paragraphs, { text: sentence, citations: [] }] };
+  }
+  job.materialParts = review.parts;
+  job.investigation = review.investigation;
+  const keptIds = new Set(pool.map(passage => passage.id));
+  dossier.passages = pool;
+  dossier.answer = answer;
+  dossier.unresolved = review.unresolved;
+  dossier.claims = dossier.claims.map(claim => ({
+    ...claim,
+    passageIds: [...new Set(claim.passageIds.map(id => deduped.citationAliases[id] ?? id))].filter(id => keptIds.has(id)),
+  }));
+  dossier.verificationNote = [dossier.verificationNote, consult.findings.length ? CONFIDENCE_NOTE : ''].filter(Boolean).join(' ');
+  return { job, dossier };
 }
 
 function retrievedAnswer(

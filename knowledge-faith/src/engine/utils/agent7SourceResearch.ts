@@ -10,6 +10,7 @@ import {
   isAsrPrayerQuestion,
   isCannedSaturdayAgent,
   isIntentionsQuestion,
+  isKnownBenchmark,
   isSaturdayFastingQuestion,
   recordIsRelevant,
 } from './reportBinding.ts';
@@ -30,6 +31,9 @@ export function buildPresetAgent7SourceResearch(
     note?: string;
   },
 ): { agent7: Agent7SourceResearch; additionalRoundtableLines: string; synthesisAddendum: string } {
+  if (/provider failure/i.test(liveActivity?.note ?? '') && !isKnownBenchmark(queryHadith) && !isAsrPrayerQuestion(queryHadith)) {
+    return failedProviderAgent(queryHadith, liveActivity!.note!, liveActivity!);
+  }
   const isIntentions = isIntentionsQuestion(queryHadith);
   const isChina = isChinaQuestion(queryHadith);
 
@@ -531,6 +535,42 @@ export function buildPresetAgent7SourceResearch(
   return { agent7, additionalRoundtableLines, synthesisAddendum };
 }
 
+function failedProviderAgent(
+  queryHadith: string,
+  note: string,
+  liveActivity: {
+    queries_run: string[];
+    candidates_found: number;
+    records_opened: string[];
+    unopened_count: number;
+    duration_ms: number;
+  },
+): { agent7: Agent7SourceResearch; additionalRoundtableLines: string; synthesisAddendum: string } {
+  const agent7: Agent7SourceResearch = {
+    persona_name: 'Dr. Amina al-Kindi',
+    role_title: 'Deep Research & Source Verification (Agent 7)',
+    summary_established: note,
+    retrieved_records: [],
+    attributed_opinions: [],
+    agent_interpretation: note,
+    responses_to_agents: [],
+    unresolved_questions: [note],
+    research_activity: {
+      queries_run: liveActivity.queries_run.length ? liveActivity.queries_run : [queryHadith.slice(0, 180)],
+      candidates_found: liveActivity.candidates_found,
+      records_opened: [],
+      unopened_count: liveActivity.unopened_count,
+      duration_ms: liveActivity.duration_ms,
+      note,
+    },
+  };
+  return {
+    agent7,
+    additionalRoundtableLines: '',
+    synthesisAddendum: `\n\n#### 4. Agent 7 — Source research\n${note}`,
+  };
+}
+
 function buildQuestionAgent7(
   queryHadith: string,
   lang: LangCode,
@@ -541,8 +581,12 @@ function buildQuestionAgent7(
     records_opened: string[];
     unopened_count: number;
     duration_ms: number;
+    note?: string;
   },
 ): { agent7: Agent7SourceResearch; additionalRoundtableLines: string; synthesisAddendum: string } {
+  if (/provider failure/i.test(liveActivity?.note ?? '') && !isKnownBenchmark(queryHadith) && !isAsrPrayerQuestion(queryHadith)) {
+    return failedProviderAgent(queryHadith, liveActivity!.note!, liveActivity!);
+  }
   const relevant = (liveRecords ?? []).filter(record => recordIsRelevant(queryHadith, record).ok).map(record => ({
     ...record,
     match_reason: recordIsRelevant(queryHadith, record).reason,
@@ -621,6 +665,18 @@ export function attachAgent7ToAnalysis(
     liveRecords,
     liveActivity,
   );
+
+  if (/provider failure/i.test(agent7.research_activity.note)) {
+    return {
+      ...analysis,
+      agent_7_source_research: agent7,
+      agent_6_synthesis: {
+        ...analysis.agent_6_synthesis,
+        executive_report_markdown: `${(analysis.agent_6_synthesis.executive_report_markdown || '').trimEnd()}${synthesisAddendum}`,
+        podcast_script: '',
+      },
+    };
+  }
 
   const question = analysis.query_hadith || '';
   const foreign = isCannedSaturdayAgent(analysis.agent_7_source_research, question);

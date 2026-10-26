@@ -5,6 +5,8 @@ import { TAMIL_PRAYER_DEEDS, SINHALA_PRAYER_DEEDS, isPrayerDeedsQuestion } from 
 import { buildReportModel, renderReportHtml } from '../src/shared/research/report.ts';
 import { roundtableFromResearch } from '../src/shared/research/roundtable.ts';
 import { boundedRecoveryPhrases } from '../src/server/research/hadeethOpen.ts';
+import { attachAgent7ToAnalysis } from '../src/engine/utils/agent7SourceResearch.ts';
+import { bindReport, questionBoundShell } from '../src/engine/utils/reportBinding.ts';
 import { executeResearch, type ResearchPorts } from '../src/server/research/engine.ts';
 
 function ports(over: Partial<ResearchPorts> = {}): ResearchPorts {
@@ -79,6 +81,20 @@ describe('not praying and the state of other deeds', () => {
     const html = renderReportHtml(model);
     assert.match(html, /Investigation: blocked/);
     assert.equal(html.includes('4508'), false);
+    const shell = questionBoundShell(TAMIL_PRAYER_DEEDS, []);
+    const attached = attachAgent7ToAnalysis(shell, 'ta', [], {
+      queries_run: [TAMIL_PRAYER_DEEDS.slice(0, 40)],
+      candidates_found: 0,
+      records_opened: [],
+      unopened_count: 0,
+      duration_ms: 12,
+      note: 'HadeethEnc did not respond. This is a provider failure, not a finding that the subject is absent.',
+    });
+    const bound = bindReport(attached);
+    assert.match(bound.agent_7_source_research?.research_activity.note ?? '', /provider failure/i);
+    assert.equal(bound.agent_7_source_research?.retrieved_records.length, 0);
+    assert.equal(bound.agent_6_synthesis.podcast_script, '');
+    assert.equal(bound.agent_6_synthesis.podcast_script.includes('4508'), false);
     assert.equal(roundtableFromResearch({
       question: TAMIL_PRAYER_DEEDS,
       language: 'ta',

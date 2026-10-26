@@ -183,4 +183,82 @@ export async function consultParallel(input: {
   }
 }
 
+/**
+ * Continue one existing Parallel run. The first research result is not held open for the whole task.
+ * A completed result is a later revision. This does not start a second task.
+ */
+export async function awaitParallelResult(input: {
+  runId: string;
+  apiKey?: string | null;
+  fetchImpl?: typeof fetch;
+  signal?: AbortSignal;
+  processor?: string | null;
+  timeoutSec?: number;
+  attempts?: number;
+}): Promise<ParallelConsult> {
+  const started = Date.now();
+  const apiKey = input.apiKey === undefined ? parallelApiKey() : input.apiKey;
+  const processor = input.processor ?? null;
+  if (!apiKey) {
+    return { status: 'credentials_missing', liveCallMade: false, runId: input.runId, findings: [], setup: SETUP, processor, durationMs: Date.now() - started };
+  }
+  const fetchImpl = input.fetchImpl ?? fetch;
+  const attempts = Math.max(1, input.attempts ?? 6);
+  const timeoutSec = Math.max(1, input.timeoutSec ?? 15);
+  let lastStatus = 0;
+  try {
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      if (input.signal?.aborted) {
+        const abort = new Error('aborted');
+        abort.name = 'AbortError';
+        throw abort;
+      }
+      const result = await fetchImpl(`https://api.parallel.ai/v1/tasks/runs/${encodeURIComponent(input.runId)}/result?timeout=${timeoutSec}`, {
+        headers: { 'x-api-key': apiKey },
+        signal: input.signal,
+      });
+      lastStatus = result.status;
+      if (result.status === 408 || result.status === 202) continue;
+      if (!result.ok) {
+        return {
+          status: 'failed',
+          liveCallMade: true,
+          runId: input.runId,
+          findings: [],
+          setup: `Parallel result returned HTTP ${result.status}. No finding was invented.`,
+          processor,
+          durationMs: Date.now() - started,
+        };
+      }
+      const body = (await result.json()) as TaskRun;
+      const findings = findingsFrom(body);
+      if (body.status === 'completed' || findings.length > 0 || result.status === 200) {
+        return { status: 'completed', liveCallMade: true, runId: input.runId, findings, setup: null, processor, durationMs: Date.now() - started };
+      }
+    }
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') throw err;
+    return {
+      status: 'failed',
+      liveCallMade: true,
+      runId: input.runId,
+      findings: [],
+      setup: err instanceof Error ? err.message : 'Parallel did not respond. No finding was invented.',
+      processor,
+      durationMs: Date.now() - started,
+    };
+  }
+  return {
+    status: 'running',
+    liveCallMade: true,
+    runId: input.runId,
+    findings: [],
+    setup: lastStatus
+      ? `Parallel is still running after HTTP ${lastStatus}. A later revision can carry its citations. This result does not claim them yet.`
+      : 'Parallel is still running. A later revision can carry its citations. This result does not claim them yet.',
+    processor,
+    durationMs: Date.now() - started,
+  };
+}
+
 export { CONFIDENCE_NOTE };

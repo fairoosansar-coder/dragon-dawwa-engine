@@ -3,7 +3,8 @@ import type { ResearchAssignmentView, ResearchJobResponse } from '../../shared/c
 import { researchFingerprint } from '../../shared/research/coordinator.ts';
 import type { Lang } from '../../shared/sources.ts';
 import { UpstreamError } from '../http.ts';
-import { executeResearch, type ResearchPorts } from './engine.ts';
+import { executeResearch, publishParallelRevision, type ResearchPorts } from './engine.ts';
+import { awaitParallelResult } from './parallelTask.ts';
 import { defaultResearchPorts } from './ports.ts';
 
 interface StoredJob extends ResearchJobResponse {
@@ -118,6 +119,8 @@ export function startSharedResearchJob(
       }
       current.job = result.job;
       current.dossier = result.dossier;
+      const runId = result.job.parallel?.status === 'running' ? result.job.parallel.runId : null;
+      if (runId) resumeParallel(id, runId);
     })
     .catch((err: unknown) => {
       const current = jobs.get(id);
@@ -130,4 +133,26 @@ export function startSharedResearchJob(
       };
     });
   return id;
+}
+
+function resumeParallel(id: string, runId: string) {
+  const stored = jobs.get(id);
+  if (!stored) return;
+  void awaitParallelResult({
+    runId,
+    signal: stored.controller.signal,
+    attempts: 8,
+    timeoutSec: 20,
+  })
+    .then(consult => {
+      const current = jobs.get(id);
+      if (!current || current.job.status === 'cancelled' || !current.dossier) return;
+      if (consult.status === 'running' || consult.status === 'credentials_missing') return;
+      const revised = publishParallelRevision({ job: current.job, dossier: current.dossier }, consult);
+      current.job = revised.job;
+      current.dossier = revised.dossier;
+    })
+    .catch(() => {
+      /* A failed continuation leaves the first revision in place. It does not invent findings. */
+    });
 }

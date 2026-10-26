@@ -44,10 +44,13 @@ function scriptKind(text: string): 'ta' | 'si' | 'en' | 'ar' | 'other' {
   return 'other';
 }
 
-/** A passage can support an answer only in the language the reader asked for. Arabic may sit beside that text. */
+/**
+ * Answer text must use the selected language’s script.
+ * Arabic may remain in the passage’s separate arabic field. Arabic-only text is not a Tamil, Sinhala, or English answer.
+ */
 export function passageMatchesLanguage(passage: Pick<EvidencePassage, 'text' | 'role'>, language: Lang): boolean {
   const script = scriptKind(passage.text);
-  if (script === 'ar' || script === 'other') return true;
+  if (script === 'ar' || script === 'other') return false;
   return script === language;
 }
 
@@ -62,8 +65,13 @@ function explains(passage: EvidencePassage): boolean {
   return passage.role === 'commentary' || /publisher explanation/i.test(passage.context ?? '');
 }
 
+const APPLICATION_DISCUSSION = /modern application|applied today|applies today|contemporary application|how (?:this|it) (?:is |should be )?applied|இன்று பயன்ப|நவீன பயன்பாடு|අද යොද|නූතන යෙදුම/i;
+
+/** A word such as “today” inside a quotation is not a modern application. */
 function discussesApplication(passage: EvidencePassage): boolean {
-  return APPLICATION.test(`${passage.text}\n${passage.context ?? ''}`);
+  if (passage.role === 'source_text' || passage.role === 'translation') return false;
+  const context = (passage.context ?? '').replace(passage.text, ' ');
+  return APPLICATION_DISCUSSION.test(context);
 }
 
 function partAnswered(kind: MaterialKind, passages: readonly EvidencePassage[]): boolean {

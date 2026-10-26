@@ -160,6 +160,8 @@ export interface ResearchJobView {
     runId: string | null;
     setup: string | null;
     processor: string | null;
+    /** 1 is the first result. A later Parallel result increments this and does not replace audio that is playing. */
+    revision?: number;
   };
 }
 

@@ -29,6 +29,7 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
   const [chapters, setChapters] = useState<{ id: string; scope: ResearchScope; question: string; forwarded?: boolean }[]>([]);
   const remote = useRemote<ResearchJobResponse>(jobId ? `/api/research/jobs/${jobId}` : null);
   const running = remote.data?.job.status === 'running' || remote.data?.job.status === 'queued';
+  const parallelPending = remote.data?.job.status === 'done' && remote.data.job.parallel?.status === 'running';
 
   useEffect(() => {
     if (paramLang === 'en' || paramLang === 'ta' || paramLang === 'si') setLang(paramLang);
@@ -55,10 +56,10 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
   }, [entry, remote.data?.job.status]);
 
   useEffect(() => {
-    if (!running) return;
-    const timer = window.setInterval(() => remote.reload(), 700);
+    if (!running && !parallelPending) return;
+    const timer = window.setInterval(() => remote.reload(), parallelPending ? 2000 : 700);
     return () => window.clearInterval(timer);
-  }, [running, remote.reload]);
+  }, [running, parallelPending, remote.reload]);
 
   useEffect(() => {
     const response = remote.data;

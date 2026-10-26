@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { ResearchJobResponse } from '../shared/contracts/v1.ts';
 import { buildReportModel, renderReportHtml } from '../shared/research/report.ts';
-import { episodeIdForRevision } from '../shared/research/episodeRevision.ts';
+import { prependEpisodeRevision } from '../shared/research/episodeRevision.ts';
 import { roundtableFromResearch, scriptMayBeSpoken, type RoundtableScript } from '../shared/research/roundtable.ts';
 import { separateQuestions } from '../shared/research/questions.ts';
 import type { Lang } from '../shared/sources.ts';
@@ -27,6 +27,7 @@ interface LocalEpisode {
   mimeType?: string;
   error?: string;
   shared?: boolean;
+  revision?: number;
 }
 
 interface CommunityEpisode {
@@ -178,20 +179,33 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
   }, [jobId, remote.data]);
 
   useEffect(() => {
+    if (remote.data?.job.parallel?.status !== 'running') return;
+    const timer = window.setInterval(() => remote.reload(), 2000);
+    return () => window.clearInterval(timer);
+  }, [remote.data?.job.parallel?.status, remote.reload]);
+
+  useEffect(() => {
     const response = remote.data;
-    if (!response || response.job.status !== 'done' || response.job.parallel?.status !== 'completed') return;
-    const current = readEpisodes().find(item => item.jobId === response.job.id);
-    if (!current) return;
-    const node = document.querySelector(`audio[data-episode="${current.id}"]`) as HTMLAudioElement | null;
-    const playing = Boolean(node && !node.paused && !node.ended);
-    if (!playing) return;
-    const revision = episodeIdForRevision({ currentEpisodeId: current.id, playingEpisodeId: current.id, revision: 2 });
-    if (revision.episodeId === current.id || readEpisodes().some(item => item.id === revision.episodeId)) return;
+    const revisionNumber = response?.job.parallel?.revision ?? 1;
+    if (!response || response.job.status !== 'done' || response.job.parallel?.status !== 'completed' || revisionNumber < 2) return;
     const created = episodeFromJob(response);
     if (!created) return;
-    const next = [{ ...created, id: revision.episodeId }, ...readEpisodes()];
-    writeEpisodes(next);
-    setMine(next);
+    setMine(current => {
+      const base = current.length ? current : readEpisodes();
+      const existing = base.find(item => item.jobId === response.job.id && !item.id.includes('-r'));
+      if (!existing) return current;
+      const node = document.querySelector(`audio[data-episode="${existing.id}"]`) as HTMLAudioElement | null;
+      const playing = Boolean(node && !node.paused && !node.ended);
+      const merged = prependEpisodeRevision({
+        episodes: base,
+        created: { ...created, id: existing.id },
+        playingEpisodeId: playing ? existing.id : null,
+        revision: revisionNumber,
+      });
+      if (!merged.changed) return current;
+      writeEpisodes(merged.episodes);
+      return merged.episodes;
+    });
   }, [remote.data]);
 
   function save(next: LocalEpisode[]) {

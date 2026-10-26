@@ -3,12 +3,12 @@ import { describe, it } from 'node:test';
 import type { EvidencePassage } from '../src/shared/contracts/v1.ts';
 import { coordinateQuestion } from '../src/shared/research/coordinator.ts';
 import { dedupePassages } from '../src/shared/research/corroboration.ts';
-import { episodeIdForRevision } from '../src/shared/research/episodeRevision.ts';
+import { episodeIdForRevision, prependEpisodeRevision } from '../src/shared/research/episodeRevision.ts';
 import { materialParts, reviewMaterialCoverage } from '../src/shared/research/materialCoverage.ts';
 import { roundtableFromResearch } from '../src/shared/research/roundtable.ts';
 import { buildReportModel } from '../src/shared/research/report.ts';
-import { executeResearch, type ResearchPorts } from '../src/server/research/engine.ts';
-import { consultParallel, parallelCredentialStatus } from '../src/server/research/parallelTask.ts';
+import { executeResearch, publishParallelRevision, type ResearchPorts } from '../src/server/research/engine.ts';
+import { awaitParallelResult, consultParallel, parallelCredentialStatus } from '../src/server/research/parallelTask.ts';
 
 function passage(partial: Partial<EvidencePassage> & Pick<EvidencePassage, 'id' | 'text'>): EvidencePassage {
   return {
@@ -91,6 +91,12 @@ describe('shared research plan', () => {
     assert.equal(review.parts.find(part => part.kind === 'meaning')?.status, 'unresolved');
     assert.equal(review.parts.find(part => part.kind === 'application')?.status, 'unresolved');
     assert.equal(review.investigation, 'partial');
+    const today = reviewMaterialCoverage({
+      question,
+      language: 'en',
+      passages: [passage({ id: 'Q5-3', text: 'No blame will there be upon you today.', role: 'translation' })],
+    });
+    assert.equal(today.parts.find(part => part.kind === 'application')?.status, 'unresolved');
   });
 
   it('counts one page once when two agents cite it', () => {
@@ -99,7 +105,26 @@ describe('shared research plan', () => {
     const deduped = dedupePassages([first, second]);
     assert.equal(deduped.passages.length, 1);
     assert.equal(deduped.shared.length, 1);
+    assert.equal(deduped.citationAliases['E1-again'], 'E1');
     assert.match(deduped.shared[0].note, /not independent corroboration/);
+    const sharedUrl = 'https://islamhouse.com/en/books/9/';
+    const block = (id: string, text: string) => passage({
+      id,
+      text,
+      source: {
+        ...passage({ id, text }).source,
+        provider: 'IslamHouse',
+        canonicalUrl: sharedUrl,
+        contentType: 'book',
+      },
+    });
+    const distinct = dedupePassages([
+      block('B9-b1', 'The Battle of Badr was fought in the second year after the Hijrah.'),
+      block('B9-b2', 'The Muslims at Badr numbered just over three hundred.'),
+    ]);
+    assert.deepEqual(distinct.passages.map(item => item.id), ['B9-b1', 'B9-b2']);
+    assert.equal(distinct.shared.length, 1);
+    assert.match(distinct.shared[0].note, /one source, not independent corroboration/);
   });
 
   it('refuses a wrong-language passage as the answer', () => {
@@ -111,6 +136,13 @@ describe('shared research plan', () => {
     assert.equal(review.wrongLanguage, true);
     assert.equal(review.parts.every(part => part.status === 'unresolved'), true);
     assert.match(review.unresolved.join(' '), /not in the selected language/);
+    const arabicOnly = reviewMaterialCoverage({
+      question: 'இந்த ஹதீஸ் என்ன சொல்கிறது, அதன் அர்த்தம் என்ன?',
+      language: 'ta',
+      passages: [passage({ id: 'A1', text: 'إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ', arabic: 'إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ', originalLanguage: 'ar' })],
+    });
+    assert.equal(arabicOnly.wrongLanguage, true);
+    assert.equal(arabicOnly.parts.every(part => part.status === 'unresolved'), true);
   });
 
   it('does not replace the episode that is playing', () => {
@@ -119,6 +151,13 @@ describe('shared research plan', () => {
     assert.equal(kept.replacedPlaying, false);
     const idle = episodeIdForRevision({ currentEpisodeId: 'pod-1', playingEpisodeId: null, revision: 2 });
     assert.equal(idle.episodeId, 'pod-1');
+    const playing = { id: 'pod-1', audioBase64: 'AAAA', state: 'playable' as const, revision: 1 };
+    const created = { id: 'pod-1', audioBase64: undefined, state: 'script-ready' as const, question: 'later' };
+    const merged = prependEpisodeRevision({ episodes: [playing], created, playingEpisodeId: 'pod-1', revision: 2 });
+    assert.equal(merged.changed, true);
+    assert.equal(merged.episodes[0].id, 'pod-1-r2');
+    assert.equal(merged.episodes[1], playing);
+    assert.equal(merged.episodes[1].audioBase64, 'AAAA');
   });
 
   it('reports missing Parallel credentials without a live call', async () => {
@@ -170,6 +209,37 @@ describe('shared research plan', () => {
     assert.equal(cited.findings.length, 1);
     assert.equal(cited.findings[0].providerConfidence, 'medium');
     assert.equal(cited.findings[0].url, 'https://example.test/badr');
+
+    const calls: string[] = [];
+    const resumed = await awaitParallelResult({
+      runId: 'run-later',
+      apiKey: 'test-key',
+      attempts: 2,
+      timeoutSec: 1,
+      fetchImpl: async (url) => {
+        calls.push(String(url));
+        if (calls.length === 1) return new Response('', { status: 408 });
+        return Response.json({
+          run_id: 'run-later',
+          status: 'completed',
+          output: {
+            content: {
+              findings: [{
+                claim: 'The modern application of Badr is patience when outnumbered.',
+                excerpt: 'The modern application of the Battle of Badr is patience when a community is outnumbered.',
+                url: 'https://example.test/badr-application',
+                title: 'Badr application',
+                confidence: 'medium',
+              }],
+            },
+          },
+        });
+      },
+    });
+    assert.equal(resumed.status, 'completed');
+    assert.equal(resumed.runId, 'run-later');
+    assert.equal(resumed.findings.length, 1);
+    assert.equal(calls.length, 2);
   });
 });
 
@@ -382,5 +452,107 @@ describe('shared engine against the current desks', () => {
     assert.equal(wrong.dossier.passages.length, 0);
     assert.equal(wrong.job.materialParts?.every(part => part.status === 'unresolved'), true);
     assert.match(wrong.dossier.answer?.paragraphs.map(paragraph => paragraph.text).join(' ') ?? '', /selected language/);
+  });
+
+  it('blocks a failed Qur’an source, searches science from the question, and cites a Parallel finding', async () => {
+    const quranDown = await executeResearch({
+      question: 'What does Qur’an 2:255 mean?',
+      language: 'en',
+      ports: {
+        searchHadeeth: async () => [],
+        loadHadeeth: async () => { throw new Error('not opened'); },
+        getVerses: async () => { throw new Error('QuranEnc is down'); },
+        searchScience: async () => 'not_configured',
+      } satisfies ResearchPorts,
+      assignment: { scope: 'quran', teams: ['quran'], bookId: null, noticeId: null, forwardedFrom: null },
+    });
+    assert.equal(quranDown.job.investigation, 'blocked');
+    assert.equal(quranDown.dossier.passages.length, 0);
+
+    let scienceCalls = 0;
+    await executeResearch({
+      question: 'What does the Qur’an say about fasting, and what does the science literature say about metabolism?',
+      language: 'en',
+      ports: {
+        searchHadeeth: async () => [],
+        loadHadeeth: async () => { throw new Error('not opened'); },
+        getVerses: async () => [],
+        searchScience: async () => {
+          scienceCalls += 1;
+          return 'not_configured';
+        },
+      } satisfies ResearchPorts,
+      assignment: { scope: 'quran', teams: ['quran'], bookId: null, noticeId: null, forwardedFrom: null },
+    });
+    assert.equal(scienceCalls, 1);
+
+    const researched = await executeResearch({
+      question: 'What does the library say about the history of the Battle of Badr, and how should it be applied today?',
+      language: 'en',
+      ports: {
+        searchHadeeth: async () => [],
+        loadHadeeth: async () => { throw new Error('not opened'); },
+        getVerses: async () => [],
+        searchScience: async () => 'not_configured',
+        readBook: async () => ({
+          id: 9,
+          title: 'The Battle of Badr',
+          availability: 'readable',
+          limitation: null,
+          url: 'https://islamhouse.com/en/books/9/',
+          language: 'en',
+          blocks: [
+            { id: 'b1', text: 'The Battle of Badr is a named campaign in the second year after the Hijrah.' },
+            { id: 'b2', text: 'The history of the Battle of Badr records that the Muslims numbered just over three hundred.' },
+          ],
+        }),
+      } satisfies ResearchPorts,
+      assignment: { scope: 'books', teams: ['books'], bookId: 9, noticeId: null, forwardedFrom: null },
+      parallel: {
+        apiKey: 'test-key',
+        pollMs: 1,
+        fetchImpl: async () => Response.json({
+          run_id: 'run-badr',
+          status: 'completed',
+          output: {
+            content: {
+              findings: [{
+                claim: 'The modern application of Badr is patience when outnumbered.',
+                excerpt: 'The modern application of the Battle of Badr is patience when a community is outnumbered.',
+                url: 'https://example.test/badr-application',
+                title: 'Badr application',
+                confidence: 'medium',
+              }],
+            },
+          },
+        }),
+      },
+    });
+    assert.equal(researched.dossier.passages.filter(item => item.id.startsWith('B9-')).length, 2);
+    const parallelPassage = researched.dossier.passages.find(item => item.source.provider === 'Parallel');
+    assert.ok(parallelPassage);
+    const answer = researched.dossier.answer?.paragraphs.map(paragraph => paragraph.text).join(' ') ?? '';
+    assert.match(answer, /modern application of the Battle of Badr/i);
+    assert.equal(researched.dossier.answer?.paragraphs.some(paragraph => paragraph.citations.includes(parallelPassage!.id)), true);
+    assert.equal(researched.job.materialParts?.find(part => part.kind === 'application')?.status, 'answered');
+
+    const revised = publishParallelRevision(researched, {
+      status: 'completed',
+      liveCallMade: true,
+      runId: 'run-badr-2',
+      processor: 'pro-fast',
+      durationMs: 10,
+      setup: null,
+      findings: [{
+        claim: 'A later note on Badr.',
+        excerpt: 'A later Parallel note says the campaign is remembered for restraint after victory.',
+        url: 'https://example.test/badr-later',
+        title: 'Later Badr note',
+        providerConfidence: 'low',
+      }],
+    });
+    assert.equal(revised.job.parallel?.revision, 2);
+    assert.match(revised.dossier.answer?.paragraphs.map(paragraph => paragraph.text).join(' ') ?? '', /restraint after victory/);
+    assert.equal(revised.job.id, researched.job.id);
   });
 });
