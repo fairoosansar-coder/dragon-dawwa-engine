@@ -81,7 +81,9 @@ function chainFromPassages(passages: readonly EvidencePassage[]): string[] | nul
 function writtenAnswer(answer: ResearchAnswer | null | undefined, passages: readonly EvidencePassage[]): { answer: string | null; arabic: string | null; citationIds: string[] } {
   const paragraphs = (answer?.paragraphs ?? []).filter(paragraph => {
     const text = paragraph.text.trim();
-    return Boolean(text) && (paragraph.citations.length > 0 || text.startsWith('Word occurrence.'));
+    if (!text) return false;
+    if (paragraph.citations.length > 0 || text.startsWith('Word occurrence.')) return true;
+    return /stays open|not treated as|selected language|provider failure|not answered|was not opened|source did not respond/i.test(text);
   });
   const fallback = evidencedAnswer(passages);
   if (!paragraphs.length) return { ...fallback, citationIds: passages.map(passage => passage.id) };

@@ -31,49 +31,29 @@ describe('coordinating agent', () => {
     assert.equal(decision.assignment.noticeId, null);
   });
 
-  it('forwards a Hadith question asked on the Qur’an page once', () => {
+  it('keeps a Hadith question on the Qur’an page and still activates the Hadith specialist', () => {
     const decision = coordinateQuestion({
       question: 'What is the isnad of the narration in Sahih Bukhari about intentions?',
       entry: 'quran',
       language: 'en',
     });
-    assert.equal(decision.action, 'forward');
-    assert.equal(decision.assignment.scope, 'hadith');
-    assert.equal(decision.assignment.noticeId, 'forward-hadith');
+    assert.equal(decision.action, 'research');
+    assert.equal(decision.assignment.scope, 'quran');
+    assert.equal(decision.assignment.noticeId, null);
+    assert.equal(decision.assignment.forwardedFrom, null);
     assert.deepEqual(decision.assignment.teams, ['hadith']);
-
-    const again = coordinateQuestion({
-      question: 'What is the isnad of the narration in Sahih Bukhari about intentions?',
-      entry: 'hadith',
-      language: 'en',
-      forwarded: true,
-    });
-    assert.equal(again.action, 'research');
-    assert.equal(again.assignment.scope, 'hadith');
   });
 
-  it('does not bounce a forwarded question back to the page that sent it', () => {
-    const stayed = coordinateQuestion({
-      question: 'What is the isnad of the narration in Sahih Bukhari about intentions?',
-      entry: 'quran',
-      language: 'en',
-      forwarded: true,
-    });
-    assert.equal(stayed.action, 'research');
-    assert.equal(stayed.assignment.scope, 'quran');
-    assert.equal(stayed.assignment.noticeId, null);
-  });
-
-  it('sends a question that names Qur’an, Hadith, and books to Knowledge', () => {
+  it('researches a question that names Qur’an, Hadith, and books without leaving the open page', () => {
     const decision = coordinateQuestion({
       question: 'What do the Qur’an, the hadith, and the books say about fasting?',
       entry: 'quran',
       language: 'ta',
     });
-    assert.equal(decision.action, 'forward');
-    assert.equal(decision.assignment.scope, 'knowledge');
+    assert.equal(decision.action, 'research');
+    assert.equal(decision.assignment.scope, 'quran');
     assert.deepEqual(decision.assignment.teams, ['quran', 'hadith', 'books']);
-    assert.equal(decision.assignment.noticeId, 'forward-knowledge');
+    assert.equal(decision.assignment.noticeId, null);
   });
 
   it('keeps a selected book on the Books team', () => {
@@ -99,9 +79,11 @@ describe('coordinating agent', () => {
 
   it('understands Tamil and Sinhala domain words', () => {
     const tamil = coordinateQuestion({ question: 'இந்த ஹதீஸ் பற்றி சொல்லுங்கள்', entry: 'quran', language: 'ta' });
-    assert.equal(tamil.assignment.scope, 'hadith');
+    assert.equal(tamil.assignment.scope, 'quran');
+    assert.equal(tamil.assignment.teams.includes('hadith'), true);
     const sinhala = coordinateQuestion({ question: 'කුර්ආනයේ මෙම වැකිය කියන්නේ කුමක්ද?', entry: 'hadith', language: 'si' });
-    assert.equal(sinhala.assignment.scope, 'quran');
+    assert.equal(sinhala.assignment.scope, 'hadith');
+    assert.equal(sinhala.assignment.teams.includes('quran'), true);
   });
 
   it('reuses one fingerprint for the same question, language, and team', () => {
@@ -341,8 +323,9 @@ describe('hadith desk routing', () => {
   it('recognises hadees, hadeeth, hadis, and true Hades as Hadith', () => {
     for (const question of ['Is this hadees authentic?', 'Is this hadeeth authentic?', 'Is this hadis correct?', 'is this true Hades ?']) {
       const decision = coordinateQuestion({ question, entry: 'quran', language: 'en' });
-      assert.equal(decision.assignment.scope, 'hadith', question);
-      assert.equal(decision.assignment.noticeId, 'forward-hadith', question);
+      assert.equal(decision.assignment.scope, 'quran', question);
+      assert.equal(decision.assignment.teams.includes('hadith'), true, question);
+      assert.equal(decision.assignment.noticeId, null, question);
       assert.equal(decision.assignment.teams.includes('books'), false, question);
     }
   });
@@ -366,10 +349,10 @@ describe('hadith desk routing', () => {
       entry: 'knowledge',
       language: 'en',
     });
-    assert.equal(decision.action, 'forward');
-    assert.equal(decision.assignment.scope, 'books');
+    assert.equal(decision.action, 'research');
+    assert.equal(decision.assignment.scope, 'knowledge');
     assert.deepEqual(decision.assignment.teams, ['books']);
-    assert.equal(decision.assignment.noticeId, 'forward-books');
+    assert.equal(decision.assignment.noticeId, null);
   });
 
   it('lets the Hadith team consult Books without leaving the Hadith desk', () => {

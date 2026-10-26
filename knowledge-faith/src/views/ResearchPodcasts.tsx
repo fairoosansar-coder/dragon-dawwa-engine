@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { ResearchJobResponse } from '../shared/contracts/v1.ts';
 import { buildReportModel, renderReportHtml } from '../shared/research/report.ts';
+import { episodeIdForRevision } from '../shared/research/episodeRevision.ts';
 import { roundtableFromResearch, scriptMayBeSpoken, type RoundtableScript } from '../shared/research/roundtable.ts';
 import { separateQuestions } from '../shared/research/questions.ts';
 import type { Lang } from '../shared/sources.ts';
@@ -40,9 +41,14 @@ interface CommunityEpisode {
 const KEY = 'kf-research-podcasts';
 
 function voiceFor(speaker: string): string {
-  if (/^host\b/i.test(speaker)) return 'Kore';
-  if (/distinction/i.test(speaker)) return 'Aoede';
-  return 'Charon';
+  if (/feroz|^host\b/i.test(speaker)) return 'Puck';
+  if (/layla|passage reader/i.test(speaker)) return 'Kore';
+  if (/tariq/i.test(speaker)) return 'Fenrir';
+  if (/imran/i.test(speaker)) return 'Orus';
+  if (/zainab|distinction/i.test(speaker)) return 'Zephyr';
+  if (/yusuf/i.test(speaker)) return 'Fenrir';
+  if (/amina|deep research/i.test(speaker)) return 'Aoede';
+  return 'Kore';
 }
 
 /** One episode, several generated voices. Each clip is a standard 16-bit mono WAV. */
@@ -171,6 +177,23 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
     setMine(next);
   }, [jobId, remote.data]);
 
+  useEffect(() => {
+    const response = remote.data;
+    if (!response || response.job.status !== 'done' || response.job.parallel?.status !== 'completed') return;
+    const current = readEpisodes().find(item => item.jobId === response.job.id);
+    if (!current) return;
+    const node = document.querySelector(`audio[data-episode="${current.id}"]`) as HTMLAudioElement | null;
+    const playing = Boolean(node && !node.paused && !node.ended);
+    if (!playing) return;
+    const revision = episodeIdForRevision({ currentEpisodeId: current.id, playingEpisodeId: current.id, revision: 2 });
+    if (revision.episodeId === current.id || readEpisodes().some(item => item.id === revision.episodeId)) return;
+    const created = episodeFromJob(response);
+    if (!created) return;
+    const next = [{ ...created, id: revision.episodeId }, ...readEpisodes()];
+    writeEpisodes(next);
+    setMine(next);
+  }, [remote.data]);
+
   function save(next: LocalEpisode[]) {
     writeEpisodes(next);
     setMine(next);
@@ -193,6 +216,7 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
         provider: passage.source.provider,
       })),
       insufficientEvidence: dossier.answer?.insufficientEvidence === true,
+      unresolved: (job.materialParts ?? []).filter(part => part.status === 'unresolved').map(part => part.note),
       status: job.status,
       investigation: job.investigation,
     });
@@ -325,6 +349,7 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
           {mine.map(episode => (
             <EpisodeCard
               key={episode.id}
+              episodeId={episode.id}
               question={episode.question}
               language={episode.language}
               participants={episode.participants}
@@ -369,6 +394,7 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
           {community.data?.episodes.map(episode => (
             <EpisodeCard
               key={episode.id}
+              episodeId={episode.id}
               question={episode.question}
               language={episode.language}
               participants={episode.participants}
@@ -385,6 +411,7 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
 }
 
 function EpisodeCard({
+  episodeId,
   question,
   language,
   participants,
@@ -399,6 +426,7 @@ function EpisodeCard({
   downloadPercent = null,
   actions,
 }: {
+  episodeId: string;
   question: string;
   language: string;
   participants: RoundtableScript['participants'];
@@ -430,7 +458,7 @@ function EpisodeCard({
       {state === 'audio-generating' && <p className="mt-3 text-sm text-pine">{label}</p>}
       {state === 'failed' && error && <div className="mt-3"><Notice>{error}</Notice></div>}
       {state === 'playable' && audioBase64 && (
-        <audio className="mt-3 w-full" controls src={`data:${mimeType || 'audio/wav'};base64,${audioBase64}`} />
+        <audio data-episode={episodeId} className="mt-3 w-full" controls src={`data:${mimeType || 'audio/wav'};base64,${audioBase64}`} />
       )}
       {downloadPercent !== null && (
         <div className="mt-3" data-testid="research-wav-progress">

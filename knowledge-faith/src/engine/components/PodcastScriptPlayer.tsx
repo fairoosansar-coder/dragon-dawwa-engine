@@ -221,7 +221,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
     },
     'Dr. Amina al-Kindi': {
       name: 'Dr. Amina al-Kindi',
-      role: 'Source Research & HadeethEnc Specialist (Agent 7)',
+      role: 'Deep Research & Source Verification (Agent 7)',
       geminiVoice: 'Aoede',
       voiceTag: 'Gemini Aoede (Clear, evidence-grounded researcher)',
       gender: 'F',

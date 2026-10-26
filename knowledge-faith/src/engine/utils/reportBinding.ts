@@ -5,8 +5,6 @@ import type {
   SourceTakhrij,
 } from '../types/hadith.ts';
 import { buildAsrAgent7 } from './asrPrayerSources.ts';
-import { buildPrayerDeedsAgent7 } from './prayerDeedsAgent.ts';
-import { isPrayerDeedsQuestion, PRAYER_DEEDS_PROVIDER_NOTE } from '../../shared/research/prayerDeeds.ts';
 
 const GENERIC = new Set([
   'fasting', 'fast', 'prayer', 'prayers', 'salah', 'hadith', 'narration', 'narrations', 'day', 'days',
@@ -172,7 +170,7 @@ function aminaLine(lang: 'en' | 'ta' | 'si' | undefined, subject: string): strin
 }
 
 function scrubScript(script: string, question: string, records: HadeethEncRetrievedRecord[], lang?: 'en' | 'ta' | 'si'): string {
-  if (isPrayerDeedsQuestion(question) || isSaturdayFastingQuestion(question) || isKnownBenchmark(question)) return script;
+  if (isSaturdayFastingQuestion(question) || isKnownBenchmark(question)) return script;
   const kept = script
     .split(/\n{2,}/)
     .filter(part => !foreignSaturday(part, question));
@@ -204,62 +202,7 @@ export function bindReport(analysis: DragonDawwaAnalysis): DragonDawwaAnalysis {
     }),
   };
   const agent = next.agent_7_source_research;
-  if (isPrayerDeedsQuestion(question)) {
-    const lang = next.content_language === 'ta' || next.content_language === 'si' ? next.content_language : 'en';
-    const failed = /provider failure/i.test(agent?.research_activity?.note ?? '') || /provider failure/i.test(agent?.summary_established ?? '');
-    const built = buildPrayerDeedsAgent7(
-      question,
-      lang,
-      failed ? [] : agent?.retrieved_records,
-      agent?.research_activity,
-      { providerFailed: failed, usePack: !failed && !agent?.research_activity },
-    );
-    next.agent_7_source_research = built.agent7;
-    // These opened records do not carry a structured narrator chain. A model-written sequence is not one.
-    next.agent_2_isnad = {
-      narrator_sequence: [],
-      chain_links: [],
-      overall_chain_status: failed
-        ? PRAYER_DEEDS_PROVIDER_NOTE
-        : 'No sourced narrator chain was recorded, so no transmission map is drawn.',
-    };
-    if (next.agent_4_shawahid_matn) {
-      const quran = `${next.agent_4_shawahid_matn.quranic_corroboration_english ?? ''} ${next.agent_4_shawahid_matn.quranic_corroboration_arabic ?? ''}`;
-      const mentionsPrayer = /صلاة|صلو|prayer|தொழு|සලාත/i.test(quran);
-      next.agent_4_shawahid_matn = {
-        ...next.agent_4_shawahid_matn,
-        quranic_corroboration_arabic: mentionsPrayer ? next.agent_4_shawahid_matn.quranic_corroboration_arabic : '',
-        quranic_corroboration_english: mentionsPrayer ? next.agent_4_shawahid_matn.quranic_corroboration_english : '',
-        supporting_reports: (next.agent_4_shawahid_matn.supporting_reports ?? []).filter(item => !foreignSaturday(item, question) && !/\b4508\b|\b3546\b|\b65003\b/.test(item)),
-      };
-    }
-    next.agent_1_takhrij = {
-      ...next.agent_1_takhrij,
-      sources: (next.agent_1_takhrij?.sources ?? []).filter(source => {
-        const blob = `${source.collection} ${source.hadith_number} ${source.exact_wording}`;
-        return !foreignSaturday(blob, question) && !/\b4508\b|\b3546\b|\b65003\b/.test(blob);
-      }),
-    };
-    if (next.agent_6_synthesis) {
-      const script = failed || !built.additionalRoundtableLines.trim()
-        ? ''
-        : `BROTHER FEROZ (HOST): ${question}\n${built.additionalRoundtableLines}\n\n[AUDIO CUE: OUTRO THEME RISES AND FADES OUT]`.trim();
-      next.agent_6_synthesis = {
-        ...next.agent_6_synthesis,
-        final_status: failed ? 'Research is blocked.' : 'Research is partial.',
-        consensus_and_disagreements: failed
-          ? PRAYER_DEEDS_PROVIDER_NOTE
-          : 'A grade says whether a narration is reliably transmitted. It does not decide whether the fasting or charity of a person who does not pray is accepted.',
-        executive_report_markdown: [
-          built.agent7.summary_established,
-          built.agent7.agent_interpretation,
-          ...built.agent7.unresolved_questions,
-          'Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prime Dragon Technologies',
-        ].join('\n\n'),
-        podcast_script: script,
-      };
-    }
-  } else if (isAsrPrayerQuestion(question) && (!agent || isCannedSaturdayAgent(agent, question) || !agent.retrieved_records.some(record => record.id === '6261'))) {
+  if (isAsrPrayerQuestion(question) && (!agent || isCannedSaturdayAgent(agent, question) || !agent.retrieved_records.some(record => record.id === '6261'))) {
     const built = buildAsrAgent7(question, next.content_language === 'ta' || next.content_language === 'si' ? next.content_language : 'en');
     next.agent_7_source_research = built.agent7;
     if (next.agent_6_synthesis && !/6261/.test(next.agent_6_synthesis.podcast_script || '')) {
