@@ -8,7 +8,7 @@ import { hasGeminiApiKey } from "../../server/loadEnv.ts";
 import { openHadeethEncForQuestion } from "../../server/research/hadeethOpen.ts";
 import { decomposeQuestion } from "../../shared/research/decompose.ts";
 import { isPrayerDeedsQuestion, PRAYER_DEEDS_EMPTY_NOTE, PRAYER_DEEDS_PROVIDER_NOTE } from "../../shared/research/prayerDeeds.ts";
-import { isAsrPrayerQuestion, isChinaQuestion, isIntentionsQuestion, isSaturdayFastingQuestion, questionBoundShell, recordIsRelevant } from "../utils/reportBinding.ts";
+import { bindReport, isAsrPrayerQuestion, isChinaQuestion, isIntentionsQuestion, isSaturdayFastingQuestion, questionBoundShell, recordIsRelevant } from "../utils/reportBinding.ts";
 import { ASR_LEGAL_NOTE, asrCitationSources } from "../utils/asrPrayerSources.ts";
 import { scriptMatchesLanguage } from "../utils/contentLanguage.ts";
 
@@ -514,7 +514,7 @@ Isnad / Chain (if provided): ${isnadInput && isnadInput.trim().length > 0 ? isna
             const spoken = `${parsed.agent_6_synthesis?.podcast_script ?? ''}\n${parsed.agent_6_synthesis?.executive_report_markdown ?? ''}`;
             parsed.content_language = scriptMatchesLanguage(spoken, preferredLanguage) ? preferredLanguage : undefined;
             if (!parsed.content_language) break;
-            return enrichAnalysisWithHadeethEnc(parsed, preferredLanguage, liveRecords, liveActivity);
+            return stampDossier(enrichAnalysisWithHadeethEnc(parsed, preferredLanguage, liveRecords, liveActivity), preferredLanguage);
           }
         } catch (err: any) {
           const status = err.status || err.statusCode || (err.error && err.error.code);
@@ -533,7 +533,12 @@ Isnad / Chain (if provided): ${isnadInput && isnadInput.trim().length > 0 ? isna
   // Known benchmarks keep their localized dossier. A Tamil or Sinhala request is localized before it is shown.
   const baseDossier = selectBaseDossierForInput(hadithInput, preferredLanguage, liveRecords);
   const localized = enrichAnalysisWithHadeethEnc(baseDossier, preferredLanguage, liveRecords, liveActivity);
-  const spoken = `${localized.agent_6_synthesis?.podcast_script ?? ''}\n${localized.agent_6_synthesis?.executive_report_markdown ?? ''}`;
-  localized.content_language = scriptMatchesLanguage(spoken, preferredLanguage) ? preferredLanguage : undefined;
-  return localized;
+  return stampDossier(localized, preferredLanguage);
+}
+
+function stampDossier(analysis: DragonDawwaAnalysis, preferredLanguage: 'en' | 'ta' | 'si'): DragonDawwaAnalysis {
+  const bound = bindReport(analysis);
+  const spoken = `${bound.agent_6_synthesis?.podcast_script ?? ''}\n${bound.agent_6_synthesis?.executive_report_markdown ?? ''}`;
+  if (scriptMatchesLanguage(spoken, preferredLanguage)) bound.content_language = preferredLanguage;
+  return bound;
 }

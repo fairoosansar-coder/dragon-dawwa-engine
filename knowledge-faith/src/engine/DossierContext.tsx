@@ -164,7 +164,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
   const displayed = useMemo(() => {
     if (reportOrigin === 'researching' || reportOrigin === 'failed') return null;
     if (analysis.content_language && analysis.content_language !== lang) return null;
-    return getLocalizedAnalysis(analysis, analysis.content_language ?? lang);
+    return bindReport(getLocalizedAnalysis(analysis, analysis.content_language ?? lang));
   }, [analysis, lang, reportOrigin]);
 
   useEffect(() => {
