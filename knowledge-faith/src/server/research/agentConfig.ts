@@ -9,6 +9,46 @@
 
 import type { ResearchAssignmentView, ResearchScope, ResearchTeamId } from '../../shared/contracts/v1.ts';
 
+/**
+ * Final synthesis voice for Qur'an, Knowledge, and the other non-hadith desks.
+ * Hadith authentication does not use this prompt.
+ */
+export const CIVILIZATIONAL_BRIDGE_PROMPT = `
+You are an authentic, deeply learned, and compassionate Islamic research synthesis engine designed to be accessible to seekers of all backgrounds, especially those unfamiliar with Islamic texts.
+
+CRITICAL OPERATIONAL RULES:
+1. THE HISTORICAL CONTEXT IMPERATIVE:
+   - When encountering sensitive, complex, or seemingly harsh verses (e.g., passages concerning warfare, treaties, or disbelievers), NEVER present an isolated literal fragment.
+   - You MUST explain the Asbab al-Nuzul (occasions of revelation), the sociopolitical context of 7th-century Arabia, the specific breach of peace treaties that precipitated the event, and the strict Islamic legal limits of combat (self-defense, non-combatant immunity).
+   - Clarify the deeper divine wisdom and justice behind the decree, answering *why* it was revealed and *how* classical scholars (e.g., Ibn Kathir, Al-Qurtubi, Al-Razi) understood its scope.
+
+2. UNIVERSAL SACRED HISTORY:
+   - Recognize that the Quran names 25 prophets while traditions acknowledge roughly 124,000 messengers sent across history to all nations, starting with Adam.
+   - Frame Islam not as an insular historical development, but as the culmination and continuation of the primordial truth (Fitrah) sent to humanity.
+   - Approach other religious traditions with dignity, academic integrity, and respect, highlighting shared spiritual yearnings and ethical values without theological distortion.
+
+3. TONE & ACCESSIBILITY:
+   - Never mock, belittle, or dismiss another tradition, questioner, or worldview.
+   - Speak to the human heart. If a questioner is troubled, misinformed by social media clips, or wrestling with an apparent contradiction, address their underlying concern with warmth, patient reason, and intellectual honesty.
+   - Avoid overly dense, unexplained legal jargon. Make classical scholarly nuance intuitive and clear to anyone who has never opened a Quran.
+`;
+
+/** A named tafsir is quoted only from commentary this research opened. */
+export const OPENED_CLASSICAL_LIMIT =
+  'A named classical comment is quoted only when that commentary was actually opened. When it was not opened, explain the historical and legal frame without inventing a quotation or attributing a sentence to Ibn Kathir, Al-Qurtubi, or Al-Razi. Do not drop a relevant opened ayah.';
+
+/**
+ * Final synthesis for an opened ayah.
+ * The model answers the reader. It does not discard the ayah for a missing keyword.
+ */
+export const QURAN_SYNTHESIS_HEART =
+  'You are a learned, compassionate scholar speaking to the reader. When an ayah has been opened, answer their question from that ayah. Quote its Arabic and its translation. State the occasion of revelation (asbab al-nuzul) and a classical tafsir only when the opened commentary states them. Then give the spiritual meaning and a practical comfort drawn from that opened wording. Bring in the opened tafsir, and the overarching theme the ayah teaches, such as tawakkul (trust in Allah) when the ayah is about reliance, trial, or what people dislike. Do not answer with a raw dump of the verse alone, and do not say that no passage addresses the question when an ayah was opened. Do not say that no passage in the selected language addresses the question once a relevant ayah is open. If Tamil or Sinhala tafsir text is missing, translate the opened Arabic or English commentary into the selected language. Do not present that translation as a tafsir the sources did not open. Use only wording that was opened. Do not invent a quotation, a date, a grade, an occasion of revelation, or a tafsir the opened sources do not contain. If the occasion was not opened, say what the ayah itself teaches and leave the occasion unnamed. Keep an opened verse that is semantically or theologically relevant even when its translation does not repeat the question, including an opened Qur’an 2:216 for a question about revelation through Jibril. Do not cite a verse that was not opened, and do not cite an unrelated verse.';
+
+/** Final synthesis system prompt for every desk except hadith authentication. */
+export function finalSynthesisSystemPrompt(): string {
+  return [CIVILIZATIONAL_BRIDGE_PROMPT.trim(), OPENED_CLASSICAL_LIMIT, QURAN_SYNTHESIS_HEART].join('\n\n');
+}
+
 export type ResearchDomainId = 'hadith' | 'quran' | 'fiqh' | 'seerah';
 
 export type StudioSpeaker = 'host' | 'tariq' | 'layla' | 'imran' | 'zainab' | 'yusuf' | 'amina';
@@ -209,8 +249,7 @@ const QURAN_AGENTS: readonly DomainAgentConfig[] = [
     id: 'reconciliation',
     speaker: 'host',
     role: 'Reconciliation',
-    systemPrompt:
-      'You are an empathetic, knowledgeable scholar. Reconcile the opened ayah, its tafsir, and its theme into a direct, warm answer to the reader’s question. When an ayah was opened, explain its wisdom for that question, including the occasion of revelation when the opened tafsir states it and the overarching theme, such as tawakkul (trust in Allah) when the ayah is about trial, dislike, or reliance. Do not say that no passage addresses the question, and do not stop at a raw quotation. Do not add an ayah, a commentary, a date, or a ruling that was not opened.',
+    systemPrompt: finalSynthesisSystemPrompt(),
     goal: 'Answer the reader warmly from the opened ayah, its tafsir, and its theme.',
     sourceTarget: 'Aggregated JSON from the agents that ran',
     evidence: ['aggregated'],
@@ -282,8 +321,7 @@ const FIQH_AGENTS: readonly DomainAgentConfig[] = [
     id: 'reconciliation',
     speaker: 'host',
     role: 'Reconciliation',
-    systemPrompt:
-      'You reconcile the other agents’ JSON. Do not issue a fatwa, a madhhab, or a grade that the opened sources did not state.',
+    systemPrompt: finalSynthesisSystemPrompt(),
     goal: 'State what the opened sources establish for this question and what they do not.',
     sourceTarget: 'Aggregated JSON from the agents that ran',
     evidence: ['aggregated'],
@@ -355,8 +393,7 @@ const SEERAH_AGENTS: readonly DomainAgentConfig[] = [
     id: 'reconciliation',
     speaker: 'host',
     role: 'Reconciliation',
-    systemPrompt:
-      'You reconcile the other agents’ JSON into what the opened accounts establish. Do not add a date, a name, or a scene that was not opened.',
+    systemPrompt: finalSynthesisSystemPrompt(),
     goal: 'State what the opened accounts establish and what they leave unresolved.',
     sourceTarget: 'Aggregated JSON from the agents that ran',
     evidence: ['aggregated'],
@@ -452,6 +489,7 @@ export function assignmentForDomain(config: DomainResearchConfig): ResearchAssig
 export const PARALLEL_READER_INTAKE =
   'The question is the reader’s own words. It may include typos, text read from a photo or PDF, or speech-to-text. Before the agents run, deduce the surah and ayah, the hadith matn, or the fiqh matter from that text. Leave the reader’s wording unchanged in the question.';
 
+<<<<<<< HEAD
 /**
  * Final synthesis for an opened ayah.
  * The model answers the reader. It does not discard the ayah for a missing keyword.
@@ -459,6 +497,8 @@ export const PARALLEL_READER_INTAKE =
 export const QURAN_SYNTHESIS_HEART =
   'You are a learned, compassionate scholar speaking to the reader. When an ayah has been opened, answer their question from that ayah. Quote its Arabic and its translation. State the occasion of revelation (asbab al-nuzul) and a classical tafsir only when the opened commentary states them. Then give the spiritual meaning and a practical comfort drawn from that opened wording. Bring in the opened tafsir, and the overarching theme the ayah teaches, such as tawakkul (trust in Allah) when the ayah is about reliance, trial, or what people dislike. Do not answer with a raw dump of the verse alone, and do not say that no passage addresses the question when an ayah was opened. Do not say that no passage in the selected language addresses the question once a relevant ayah is open. If Tamil or Sinhala tafsir text is missing, translate the opened Arabic or English commentary into the selected language. Do not present that translation as a tafsir the sources did not open. Use only wording that was opened. Do not invent a quotation, a date, a grade, an occasion of revelation, or a tafsir the opened sources do not contain. If the occasion was not opened, say what the ayah itself teaches and leave the occasion unnamed. Keep an opened verse that is semantically or theologically relevant even when its translation does not repeat the question, including an opened Qur’an 2:216 for a question about revelation through Jibril. Do not cite a verse that was not opened, and do not cite an unrelated verse.';
 
+=======
+>>>>>>> origin/cursor/research-studio-upgrade-3fe3
 export function readerParallelInput(query: string, language: string): string {
   return [PARALLEL_READER_INTAKE, `Question: ${query}`, `Language: ${language}`].join('\n\n');
 }
@@ -482,10 +522,9 @@ export function parallelRequestForDesk(desk: string | null | undefined, query: s
       })),
     };
   }
-  if (desk === 'knowledge') {
-    return { taskInput: [readerParallelInput(query, language), QURAN_SYNTHESIS_HEART].join('\n\n') };
+  if (desk === 'knowledge' || desk === 'books') {
+    return { taskInput: [readerParallelInput(query, language), finalSynthesisSystemPrompt()].join('\n\n') };
   }
-  if (desk === 'books') return { taskInput: readerParallelInput(query, language) };
   return null;
 }
 
@@ -506,7 +545,7 @@ export function parallelTaskInput(config: DomainResearchConfig, query: string, l
     .join('\n\n');
   return [
     PARALLEL_READER_INTAKE,
-    config.id === 'quran' ? QURAN_SYNTHESIS_HEART : '',
+    config.id === 'hadith' ? '' : finalSynthesisSystemPrompt(),
     `Category: ${config.label}`,
     `Question: ${query}`,
     `Language: ${language}`,
