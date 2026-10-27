@@ -9,18 +9,16 @@ import { ShawahidMatnView } from './components/ShawahidMatnView.tsx';
 import { ScholarsVerdictMatrix } from './components/ScholarsVerdictMatrix.tsx';
 import { Agent7SourceResearchView, CompleteResearchReportView } from './components/Agent7SourceResearchView.tsx';
 import { PodcastScriptPlayer } from './components/PodcastScriptPlayer.tsx';
-import { ArchBanner, StarDivider } from './ds/ornaments.tsx';
-import { EngineFrame } from './EngineFrame.tsx';
+import { StarDivider } from './ds/ornaments.tsx';
+import { ResearchFrame, fullReportActionClass, roundtableActionClass } from './ResearchFrame.tsx';
 import { useDossier } from './DossierContext.tsx';
 import { useApp } from '../lib/store.tsx';
 import { languageLabel } from './utils/contentLanguage.ts';
 
 export function DossierActions() {
   const d = useDossier();
-  const btn =
-    'inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs font-semibold text-slate-200 hover:border-amber-500/60 cursor-pointer';
-  const primaryBtn =
-    'inline-flex items-center gap-2 rounded-xl border border-amber-500 bg-amber-500/20 px-4 py-2 text-xs font-bold text-amber-200 hover:bg-amber-500/30 cursor-pointer shadow-md';
+  const btn = roundtableActionClass;
+  const primaryBtn = fullReportActionClass;
 
   const openFullReport = () => {
     d.setStep('report');
@@ -102,31 +100,13 @@ export default function DossierWorkbench() {
   };
 
   return (
-    <EngineFrame className="space-y-6">
-      <ArchBanner
-        title="Explore a hadith, understand its sources"
-        arabic="طلب العلم فريضة"
-        subtitle="Enter a hadith → Research across all 7 agents (including HadeethEnc Source Research) → Open Full Report."
-      >
-        <div className="mt-4 flex justify-center">
-          <DossierActions />
-        </div>
-      </ArchBanner>
-
-      <HadithSearchForm
-        initialMatn={d.matn}
-        initialIsnad={d.isnad}
-        isAnalyzing={d.isAnalyzing}
-        analysisError={d.error}
-        onRunEngine={(matn, isnad) => void d.run(matn, isnad)}
-        onOpenSaved={d.openSaved}
-        onResearchAgain={item => void d.run(item.question, item.isnad, item.language)}
-        onOpenFullReport={openFullReport}
-        onClearInputs={d.clear}
-        onSelectBenchmark={d.selectBenchmark}
-        currentLanguage={d.lang}
-        activeQuestion={d.matn}
-      />
+    <ResearchFrame
+      title="Explore a hadith, understand its sources"
+      arabic="طلب العلم فريضة"
+      subtitle="Enter a hadith → Research across all 7 agents (including HadeethEnc Source Research) → Open Full Report."
+      actions={<DossierActions />}
+      after={
+        <>
       {d.reportOrigin === 'example' && <p className="rounded-2xl bg-amber-100 px-4 py-3 text-sm text-amber-950">{t.dossierExample}</p>}
       {d.reportOrigin === 'idle' && <p className="rounded-2xl bg-parchment px-4 py-3 text-sm text-ink/80">{t.dossierIdle}</p>}
       {d.reportOrigin === 'researching' && (
@@ -226,6 +206,23 @@ export default function DossierWorkbench() {
           />
         )}
       </div>}
-    </EngineFrame>
+        </>
+      }
+    >
+      <HadithSearchForm
+        initialMatn={d.matn}
+        initialIsnad={d.isnad}
+        isAnalyzing={d.isAnalyzing}
+        analysisError={d.error}
+        onRunEngine={(matn, isnad) => void d.run(matn, isnad)}
+        onOpenSaved={d.openSaved}
+        onResearchAgain={item => void d.run(item.question, item.isnad, item.language)}
+        onOpenFullReport={openFullReport}
+        onClearInputs={d.clear}
+        onSelectBenchmark={d.selectBenchmark}
+        currentLanguage={d.lang}
+        activeQuestion={d.matn}
+      />
+    </ResearchFrame>
   );
 }

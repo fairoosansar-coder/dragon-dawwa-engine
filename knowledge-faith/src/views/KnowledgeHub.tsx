@@ -16,6 +16,9 @@ import { KnowledgeShelf } from './KnowledgePaths.tsx';
 import { LibraryReader } from './LibraryReader.tsx';
 import { EmptyState, FeatureCard, PrayerStrip } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, Loading, Notice, SectionTitle } from '../components/ui.tsx';
+import { ResearchActionRow, ResearchFrame } from '../engine/ResearchFrame.tsx';
+import { DomainResearchForm } from './DomainResearchForm.tsx';
+import { composeKnowledgeQuestion } from './domainQuestion.ts';
 
 function VerseList({ refs }: { refs: string[] }) {
   const { lang, t } = useApp();
@@ -186,6 +189,8 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
   const surahs = useRemote<SurahInfo[]>('/api/quran/surahs');
   const [topicId, setTopicId] = useState<string | null>(null);
   const [asked, setAsked] = useState('');
+  const [subject, setSubject] = useState('');
+  const [aspect, setAspect] = useState('');
   const [askError, setAskError] = useState<string | null>(null);
   const [clarify, setClarify] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -210,8 +215,8 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
 
   async function research(event: FormEvent, clarified = false) {
     event.preventDefault();
-    const question = asked.trim();
-    if (question.length < 3 || busy) return;
+    const question = composeKnowledgeQuestion(subject, aspect, asked);
+    if (asked.trim().length < 3 || busy) return;
     setBusy(true);
     setAskError(null);
     try {
@@ -235,27 +240,59 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-gold/60 bg-white px-5 py-6 sm:px-8">
-        <h1 className="font-display text-4xl font-bold leading-tight text-pine sm:text-5xl">{t.askIslam}</h1>
-        <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink/75">{t.askIslamBody}</p>
-        <form onSubmit={event => void research(event, clarify)} className="mt-5 space-y-3">
-          <label className="sr-only" htmlFor="knowledge-question">{t.askIslam}</label>
-          <textarea
-            id="knowledge-question"
-            value={asked}
-            onChange={event => setAsked(event.target.value)}
-            rows={4}
-            maxLength={800}
-            placeholder={t.askIslamPlaceholder}
-            className="w-full rounded-3xl border border-pine/20 bg-sand px-4 py-4 text-base leading-relaxed"
+      <ResearchFrame
+        title="Explore a question, understand its sources"
+        arabic="طلب العلم فريضة"
+        subtitle={t.askIslamBody}
+        actions={
+          <ResearchActionRow
+            onFullReport={() => document.getElementById('research-full-report')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            onRoundtable={() => document.getElementById('research-full-report')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
           />
-          <Button type="submit" disabled={busy || asked.trim().length < 3} className="w-full py-3 sm:w-auto">
-            {t.researchMyQuestion}
-          </Button>
-        </form>
-        {clarify && <p className="mt-3 text-sm text-pine">{t.clarifyMeaning}</p>}
+        }
+      >
+        <DomainResearchForm
+          desk="knowledge"
+          surah=""
+          ayah=""
+          bookId=""
+          passage=""
+          subject={subject}
+          aspect={aspect}
+          act=""
+          situation=""
+          eventName=""
+          period=""
+          question={asked}
+          running={busy}
+          clarify={clarify}
+          clarifyText={t.clarifyMeaning}
+          onSurah={() => {}}
+          onAyah={() => {}}
+          onBookId={() => {}}
+          onPassage={() => {}}
+          onSubject={setSubject}
+          onAspect={setAspect}
+          onAct={() => {}}
+          onSituation={() => {}}
+          onEventName={() => {}}
+          onPeriod={() => {}}
+          onQuestion={setAsked}
+          onSubmit={event => void research(event, clarify)}
+        />
         {askError && <div className="mt-3"><ErrorNote message={askError} /></div>}
-      </section>
+        <p className="mt-4 text-sm text-pine">
+          <a className="font-medium underline" href="#/quran/research">Qur’an</a>
+          {' · '}
+          <a className="font-medium underline" href="#/hub/fiqh">Fiqh</a>
+          {' · '}
+          <a className="font-medium underline" href="#/hub/seerah">Seerah</a>
+          {' · '}
+          <a className="font-medium underline" href="#/hadith/research">Hadith</a>
+          {' · '}
+          <a className="font-medium underline" href="#/books/research">Books</a>
+        </p>
+      </ResearchFrame>
       <header>
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">{t.hubEyebrow}</p>
         <h1 className="mt-3 max-w-3xl font-display text-4xl font-bold leading-tight text-pine sm:text-5xl">{t.hubHeading}</h1>
