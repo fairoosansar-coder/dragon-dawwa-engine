@@ -6,7 +6,10 @@ import { materialPartLabel } from '../shared/research/materialCoverage.ts';
 import { researchOutcome } from '../shared/research/outcomes.ts';
 import { toLang, type Lang } from '../shared/sources.ts';
 import { useRemote } from '../lib/api.ts';
-import { beginResearch, noticeText, readResearchHistory, rememberResearch, researchHref, type StoredResearch } from '../lib/researchDesk.ts';
+import { beginResearch, noticeText, readResearchHistory, rememberResearch, researchDeskHref, researchHref, type StoredResearch } from '../lib/researchDesk.ts';
+import type { ResearchDeskName } from '../lib/route.ts';
+import { ResearchActionRow, ResearchFrame } from '../engine/ResearchFrame.tsx';
+import { DomainResearchForm } from './DomainResearchForm.tsx';
 import { questionsToResearch, separateQuestions } from '../shared/research/questions.ts';
 import { useApp } from '../lib/store.tsx';
 import { Button, ErrorNote, Loading, Notice } from '../components/ui.tsx';
@@ -14,12 +17,51 @@ import { FullReport } from './FullReport.tsx';
 
 const DossierWorkbench = lazy(() => import('../engine/DossierWorkbench.tsx'));
 
-export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: URLSearchParams }) {
+const DESK_FRAME: Record<Exclude<ResearchDeskName, 'hadith'>, { title: string; arabic: string; subtitle: string }> = {
+  quran: {
+    title: 'Explore a verse, understand its reading',
+    arabic: 'القرآن',
+    subtitle: 'Name the surah and ayah, then ask what the passage says.',
+  },
+  knowledge: {
+    title: 'Explore a question, understand its sources',
+    arabic: 'طلب العلم فريضة',
+    subtitle: 'Name the subject and what the sources should show.',
+  },
+  books: {
+    title: 'Explore a book, understand its sources',
+    arabic: 'الكتاب',
+    subtitle: 'Name the book and the passage you want read.',
+  },
+  fiqh: {
+    title: 'Explore a practice, understand its sources',
+    arabic: 'الفقه',
+    subtitle: 'Name the act and the situation. The sources are read. A ruling is not issued.',
+  },
+  seerah: {
+    title: 'Explore an event in the life of the Prophet',
+    arabic: 'السيرة',
+    subtitle: 'Name the person or event, then ask what should be understood.',
+  },
+};
+
+export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchScope; desk?: ResearchDeskName; params: URLSearchParams }) {
   const { t, lang, setLang } = useApp();
   const paramLang = params.get('lang');
-  const bookId = Number(params.get('book'));
+  const bookParam = params.get('book') ?? '';
+  const bookId = Number(bookParam);
   const selectedBook = Number.isInteger(bookId) && bookId > 0 ? bookId : null;
   const [question, setQuestion] = useState(params.get('q') ?? '');
+  const [surah, setSurah] = useState('');
+  const [ayah, setAyah] = useState('');
+  const [bookField, setBookField] = useState(params.get('book') ?? '');
+  const [passage, setPassage] = useState('');
+  const [subject, setSubject] = useState('');
+  const [aspect, setAspect] = useState('');
+  const [act, setAct] = useState('');
+  const [situation, setSituation] = useState('');
+  const [eventName, setEventName] = useState('');
+  const [period, setPeriod] = useState('');
   const askedParam = params.get('q');
   const jobParam = params.get('job');
   const [jobId, setJobId] = useState<string | null>(jobParam);
@@ -36,6 +78,10 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
   useEffect(() => {
     if (paramLang === 'en' || paramLang === 'ta' || paramLang === 'si') setLang(paramLang);
   }, [paramLang, setLang]);
+
+  useEffect(() => {
+    if (bookParam) setBookField(bookParam);
+  }, [bookParam]);
 
   useEffect(() => {
     setJobId(jobParam);
@@ -85,12 +131,24 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
     if (text) setNotice(text);
   }, [remote.data?.job.assignment?.noticeId, t]);
 
+  function bookForRequest(): number | null {
+    const typed = Number(bookField);
+    if (Number.isInteger(typed) && typed > 0) return typed;
+    return selectedBook;
+  }
+
+  function hrefFor(scope: ResearchScope, id: string, forwarded: boolean, asked: string) {
+    const bookId = bookForRequest();
+    if ((desk === 'fiqh' || desk === 'seerah') && !forwarded) return researchDeskHref(desk, entry, id, lang, false, null, asked);
+    return researchHref(scope, id, lang, forwarded, bookId, asked);
+  }
+
   async function researchOne(asked: string, extra?: { clarified?: boolean; prior?: string | null; force?: boolean }) {
     return beginResearch({
       question: asked,
       entry,
       lang,
-      bookId: selectedBook,
+      bookId: desk === 'books' ? bookForRequest() : selectedBook,
       forwarded: params.get('fwd') === '1',
       clarified: extra?.clarified ?? clarified,
       priorQuestion: extra?.clarified ? extra.prior ?? null : null,
@@ -98,10 +156,11 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
     });
   }
 
-  async function submit(event?: FormEvent, extra?: { clarified?: boolean; prior?: string | null; force?: boolean }) {
+  async function submit(event?: FormEvent, extra?: { clarified?: boolean; prior?: string | null; force?: boolean; asked?: string }) {
     event?.preventDefault();
     const clarifying = extra?.clarified === true;
-    const pieces = questionsToResearch(question, clarifying ? null : remote.data?.job.question ?? null, clarifying);
+    const field = extra?.asked ?? question;
+    const pieces = questionsToResearch(field, clarifying ? null : remote.data?.job.question ?? null, clarifying);
     if (!pieces.length) return;
     setError(null);
     try {
@@ -122,8 +181,8 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
         setChapters(startedChapters);
       }
       const first = startedChapters[0];
-      const href = researchHref(first.scope, first.id, lang, first.forwarded, selectedBook, first.question);
-      if (first.scope !== entry || window.location.hash !== href) {
+      const href = hrefFor(first.scope, first.id, first.forwarded, first.question);
+      if (window.location.hash !== href) {
         window.location.hash = href;
         return;
       }
@@ -145,8 +204,8 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
       }
       setClarify(false);
       setQuestion(piece);
-      const href = researchHref(started.scope, started.id, lang, started.action === 'forward', selectedBook, piece);
-      if (started.scope !== entry || window.location.hash !== href) {
+      const href = hrefFor(started.scope, started.id, started.action === 'forward', piece);
+      if (window.location.hash !== href) {
         window.location.hash = href;
         return;
       }
@@ -173,8 +232,7 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
         jobStatus: job.status,
       })
     : null;
-  const heading = entry === 'knowledge' ? t.askIslam : entry === 'quran' ? t.researchQuran : entry === 'hadith' ? t.researchHadith : t.researchBooks;
-  const description = entry === 'knowledge' ? t.askIslamBody : t.askIslamBody;
+  const frame = desk === 'hadith' ? null : DESK_FRAME[desk];
 
   function download() {
     if (!model || !job) return;
@@ -196,67 +254,89 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-gold/50 bg-white px-5 py-6 sm:px-7">
-        <h1 className="font-display text-4xl font-bold leading-tight text-pine">{heading}</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink/75">{description}</p>
-        {selectedBook && <p className="mt-2 text-sm text-pine">IslamHouse {selectedBook}</p>}
-        <form onSubmit={event => void submit(event)} className="mt-5 space-y-3">
-          <label className="sr-only" htmlFor="research-question">{heading}</label>
-          <textarea
-            id="research-question"
-            value={question}
-            onChange={event => setQuestion(event.target.value)}
-            rows={4}
-            maxLength={800}
-            placeholder={t.askIslamPlaceholder}
-            className="w-full rounded-3xl border border-pine/20 bg-sand px-4 py-4 text-base leading-relaxed"
-          />
-          <Button type="submit" disabled={question.trim().length < 3 || running} className="w-full py-3 sm:w-auto">
-            {t.researchMyQuestion}
-          </Button>
-        </form>
-        {otherQuestions.length > 0 && (
-          <div className="mt-4 space-y-2">
-            <p className="text-sm leading-relaxed text-ink/75">This record joined more than one question. Each question keeps its own research.</p>
-            {otherQuestions.map(item => (
-              <Button key={item} type="button" variant="soft" onClick={() => void researchSeparate(item)}>
-                {item}
-              </Button>
-            ))}
-          </div>
-        )}
-        {chapters.length > 1 && (
-          <ul className="mt-4 space-y-2">
-            {chapters.map((chapter, index) => (
-              <li key={chapter.id}>
-                <a href={researchHref(chapter.scope, chapter.id, lang, chapter.forwarded === true, selectedBook, chapter.question)} className="text-sm font-medium text-pine hover:underline">
-                  Chapter {index + 1}. {chapter.question}
-                </a>
-              </li>
-            ))}
-          </ul>
-        )}
-        {notice && <div className="mt-4"><Notice>{notice}</Notice></div>}
-        {clarify && (
-          <form
-            className="mt-4 space-y-3"
-            onSubmit={event => {
-              setClarified(true);
-              void submit(event, { clarified: true, prior: question });
-            }}
-          >
-            <p className="text-sm font-medium text-pine">{t.clarifyMeaning}</p>
-            <textarea
-              value={question}
-              onChange={event => setQuestion(event.target.value)}
-              rows={3}
-              className="w-full rounded-3xl border border-pine/20 bg-sand px-4 py-3 text-base"
+      {desk === 'hadith' ? (
+        <Suspense fallback={<Loading />}>
+          <DossierWorkbench />
+        </Suspense>
+      ) : frame && (
+        <ResearchFrame
+          title={frame.title}
+          arabic={frame.arabic}
+          subtitle={frame.subtitle}
+          actions={
+            <ResearchActionRow
+              onFullReport={() => document.getElementById('research-full-report')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              onRoundtable={() => {
+                if (job && offersPodcast) window.location.hash = `#/podcast?job=${job.id}&lang=${lang}`;
+              }}
             />
-            <Button type="submit">{t.researchMyQuestion}</Button>
-          </form>
-        )}
-        {error && <div className="mt-4"><ErrorNote message={error} /></div>}
-      </section>
+          }
+        >
+          <DomainResearchForm
+            desk={desk}
+            surah={surah}
+            ayah={ayah}
+            bookId={bookField}
+            passage={passage}
+            subject={subject}
+            aspect={aspect}
+            act={act}
+            situation={situation}
+            eventName={eventName}
+            period={period}
+            question={question}
+            running={running}
+            clarify={clarify}
+            clarifyText={t.clarifyMeaning}
+            onSurah={setSurah}
+            onAyah={setAyah}
+            onBookId={setBookField}
+            onPassage={setPassage}
+            onSubject={setSubject}
+            onAspect={setAspect}
+            onAct={setAct}
+            onSituation={setSituation}
+            onEventName={setEventName}
+            onPeriod={setPeriod}
+            onQuestion={setQuestion}
+            onSubmit={(event, asked) => {
+              if (clarify) {
+                setClarified(true);
+                void submit(event, { clarified: true, prior: question, asked });
+                return;
+              }
+              void submit(event, { asked });
+            }}
+          />
+        </ResearchFrame>
+      )}
+      {desk !== 'hadith' && (
+        <div className="space-y-4">
+          {otherQuestions.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm leading-relaxed text-ink/75">This record joined more than one question. Each question keeps its own research.</p>
+              {otherQuestions.map(item => (
+                <Button key={item} type="button" variant="soft" onClick={() => void researchSeparate(item)}>
+                  {item}
+                </Button>
+              ))}
+            </div>
+          )}
+          {chapters.length > 1 && (
+            <ul className="space-y-2">
+              {chapters.map((chapter, index) => (
+                <li key={chapter.id}>
+                  <a href={hrefFor(chapter.scope, chapter.id, chapter.forwarded === true, chapter.question)} className="text-sm font-medium text-pine hover:underline">
+                    Chapter {index + 1}. {chapter.question}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+          {notice && <Notice>{notice}</Notice>}
+          {error && <ErrorNote message={error} />}
+        </div>
+      )}
 
       {job && running && (
         <section className="rounded-3xl border border-pine/10 bg-parchment p-5" aria-live="polite">
@@ -272,7 +352,7 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
           {outcome.detail}
           {outcome.retry && (
             <span className="mt-3 block">
-              <Button type="button" variant="soft" onClick={() => void submit(undefined, { force: true })}>
+              <Button type="button" variant="soft" onClick={() => void submit(undefined, { force: true, asked: job?.question ?? question })}>
                 {t.retry}
               </Button>
             </span>
@@ -281,7 +361,7 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
       )}
 
       {liveModel && finished && (
-        <div className="space-y-4">
+        <div id="research-full-report" className="space-y-4">
           <section className="rounded-3xl border border-gold bg-white p-5" data-research-answer>
             <h2 className="font-display text-2xl font-bold text-pine">Answer</h2>
             {job?.interpretation?.meaning && <p className="mt-2 text-sm leading-relaxed text-ink/80">{job.interpretation.meaning}</p>}
@@ -344,17 +424,6 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
         <details className="rounded-3xl border border-pine/10 bg-parchment p-5">
           <summary className="cursor-pointer font-display text-xl font-bold text-pine">{t.researchProgress}</summary>
           <ResearchActivity job={job} />
-        </details>
-      )}
-
-      {entry === 'hadith' && (
-        <details className="rounded-3xl border border-pine/15 bg-white/70 p-4">
-          <summary className="cursor-pointer text-sm font-semibold text-pine">{t.researchHadith}</summary>
-          <div className="mt-4">
-            <Suspense fallback={<Loading />}>
-              <DossierWorkbench />
-            </Suspense>
-          </div>
         </details>
       )}
 

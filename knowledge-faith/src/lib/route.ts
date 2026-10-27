@@ -3,6 +3,19 @@
 export const ROUTE_ROOTS = ['hub', 'quran', 'hadith', 'books', 'spiritual', 'studio', 'podcast'] as const;
 export type RouteRoot = (typeof ROUTE_ROOTS)[number];
 
+export type ResearchDeskName = 'knowledge' | 'quran' | 'hadith' | 'books' | 'fiqh' | 'seerah';
+export type ResearchEntryName = 'knowledge' | 'quran' | 'hadith' | 'books';
+
+/** Research desks. Fiqh and Seerah stay on the hub and still research as Knowledge. */
+export function openedResearchDesk(path: RouteRoot, segments: string[]): { entry: ResearchEntryName; desk: ResearchDeskName } | null {
+  if (path === 'hub' && segments[0] === 'fiqh') return { entry: 'knowledge', desk: 'fiqh' };
+  if (path === 'hub' && segments[0] === 'seerah') return { entry: 'knowledge', desk: 'seerah' };
+  if (segments[0] !== 'research') return null;
+  if (path === 'hub') return { entry: 'knowledge', desk: 'knowledge' };
+  if (path === 'quran' || path === 'hadith' || path === 'books') return { entry: path, desk: path };
+  return null;
+}
+
 const ALIASES: Record<string, string> = {
   'screen-13': 'hub',
   'screen-14': 'quran/study',

@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type ComponentType } from 'react';
-import { parseHash, showSectionSearch, type RouteRoot } from './lib/route.ts';
-import type { ResearchScope } from './shared/contracts/v1.ts';
+import { openedResearchDesk, parseHash, showSectionSearch, type RouteRoot } from './lib/route.ts';
 import { ShellProvider, useShell } from './lib/shell.tsx';
 import { AppProvider, useApp } from './lib/store.tsx';
 import type { Strings } from './lib/i18n.ts';
@@ -46,13 +45,6 @@ interface Location {
   params: URLSearchParams;
 }
 
-function researchEntry(location: Location): ResearchScope | null {
-  if (location.segments[0] !== 'research') return null;
-  if (location.path === 'hub') return 'knowledge';
-  if (location.path === 'quran' || location.path === 'hadith' || location.path === 'books') return location.path;
-  return null;
-}
-
 function currentLocation(): Location {
   return parseHash(window.location.hash);
 }
@@ -81,7 +73,8 @@ function Shell() {
   const location = useHashRoute();
   const route = ROUTES.find(item => item.path === location.path) ?? ROUTES[0];
   const View = route.view;
-  const entry = researchEntry(location);
+  const opened = openedResearchDesk(location.path, location.segments);
+  const sectionTitle = opened?.desk === 'fiqh' ? 'Fiqh' : opened?.desk === 'seerah' ? 'Seerah' : t[route.label];
   const routeKey = `${location.path}/${location.segments.join('/')}?${location.params.toString()}`;
 
   useEffect(() => {
@@ -92,14 +85,14 @@ function Shell() {
 
   useEffect(() => {
     if (location.path === 'spiritual') return;
-    document.title = `${t[route.label]} · DRAGON DAWWA`;
-  }, [route, t, location.path]);
+    document.title = `${sectionTitle} · DRAGON DAWWA`;
+  }, [sectionTitle, location.path]);
 
   return (
-    <AppFrame path={location.path} section={t[route.label]} segments={location.segments} showSearch={showSectionSearch(location.path, location.segments)}>
+    <AppFrame path={location.path} section={sectionTitle} segments={location.segments} showSearch={showSectionSearch(location.path, location.segments)}>
       <Suspense fallback={<Loading />}>
-        {entry ? (
-          <ResearchDesk entry={entry} params={location.params} />
+        {opened ? (
+          <ResearchDesk entry={opened.entry} desk={opened.desk} params={location.params} />
         ) : (
           <View sub={location.segments[0]} segments={location.segments} params={location.params} />
         )}
