@@ -11,6 +11,8 @@ import { bindReport, isAsrPrayerQuestion, isChinaQuestion, isIntentionsQuestion,
 import { ASR_LEGAL_NOTE, asrCitationSources } from "../utils/asrPrayerSources.ts";
 import { scriptMatchesLanguage } from "../utils/contentLanguage.ts";
 import { findCompletedResearch, storedAnalysisJson } from "../../server/researchIdempotency.ts";
+import { resolveDomainConfig } from "../../server/research/agentConfig.ts";
+import { orchestrateDomainResearch } from "../../server/research/parallelOrchestrator.ts";
 
 export function getDragonDawwaSystemInstruction(targetLang: 'en' | 'ta' | 'si' = 'en'): string {
   const langName = targetLang === 'ta' ? 'Tamil (தமிழ்)' : targetLang === 'si' ? 'Sinhala (සිංහල)' : 'English';
@@ -426,8 +428,19 @@ export async function executeDragonDawwaAnalysis(
   hadithInput: string,
   isnadInput?: string,
   preferredLanguage: 'en' | 'ta' | 'si' = 'en',
-  apiKey: string | undefined = process.env.GEMINI_API_KEY
+  apiKey: string | undefined = process.env.GEMINI_API_KEY,
+  category?: string,
 ): Promise<DragonDawwaAnalysis> {
+  const requestedCategory = category?.trim() ?? '';
+  const domain = requestedCategory ? resolveDomainConfig(requestedCategory) : null;
+  if (requestedCategory && !domain) {
+    throw new Error('This category has no research agents configured. Hadith authentication was not run.');
+  }
+  // Hadith & Authentication stays on the Gemini path below. It does not read the domain map.
+  if (domain?.controller === 'parallel') {
+    return orchestrateDomainResearch({ category: requestedCategory, query: hadithInput, language: preferredLanguage });
+  }
+
   const saved = await findCompletedResearch({ hadithInput, language: preferredLanguage });
   if (saved?.status === 'done') {
     const analysis = storedAnalysisJson(saved);

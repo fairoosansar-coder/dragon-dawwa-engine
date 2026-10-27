@@ -195,6 +195,8 @@ export interface BookRead {
 export interface ResearchRun {
   job: ResearchJobView;
   dossier: ResearchDossierView;
+  /** Set when this run asked Parallel for the configured agents. Omitted on the default path. */
+  parallelConsult?: ParallelConsult | null;
 }
 
 function abortError(): Error {
@@ -283,7 +285,14 @@ export async function executeResearch(input: {
   now?: () => Date;
   onProgress?: (job: ResearchJobView) => void;
   assignment?: ResearchAssignmentView | null;
-  parallel?: { apiKey?: string | null; fetchImpl?: typeof fetch; pollMs?: number };
+  parallel?: {
+    apiKey?: string | null;
+    fetchImpl?: typeof fetch;
+    pollMs?: number;
+    /** One task brief. When omitted, Parallel receives the question alone. */
+    taskInput?: string;
+    agents?: { id: string; role: string; goal: string; sourceTarget: string }[];
+  };
 }): Promise<ResearchRun> {
   const signal = input.signal ?? new AbortController().signal;
   const interpretation = interpretQuestion(input.question);
@@ -438,7 +447,7 @@ export async function executeResearch(input: {
         detail: parallelConsult?.setup ?? (parallelConsult?.findings.length ? 'Parallel returned findings. Its confidence is provider metadata, not a hadith grade.' : parallelConsult?.liveCallMade ? 'Parallel was called. No finding is cited until the task returns one.' : 'Parallel was not called.'),
       },
     ];
-    return {
+    const result: ResearchRun = {
       job,
       dossier: {
         contractVersion: VERSION,
@@ -454,6 +463,8 @@ export async function executeResearch(input: {
         answer: researchAnswer,
       },
     };
+    if (input.parallel?.agents?.length) result.parallelConsult = parallelConsult;
+    return result;
   };
 
   const timed = async <T>(provider: string, fn: () => Promise<T>): Promise<T> => {
@@ -1237,6 +1248,8 @@ export async function executeResearch(input: {
         pollMs: input.parallel?.pollMs ?? 2_000,
         apiKey: input.parallel?.apiKey,
         fetchImpl: input.parallel?.fetchImpl,
+        taskInput: input.parallel?.taskInput,
+        agents: input.parallel?.agents,
       });
       timings.Parallel = parallelConsult.durationMs;
       for (const finding of parallelConsult.findings) {
