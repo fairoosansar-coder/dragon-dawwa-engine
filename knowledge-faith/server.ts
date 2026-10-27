@@ -67,8 +67,7 @@ import { listSavedEpisodes, readSavedEpisode, saveEpisodeAudio } from './src/ser
 
 applyPersistDir();
 
-const PORT = Number(process.env.PORT ?? 3000);
-const HOST = process.env.HOST ?? '0.0.0.0';
+const PORT = Number(process.env.PORT || 3000);
 const isProduction = process.env.NODE_ENV === 'production';
 
 const fetchers: SourceFetchers = {
@@ -885,7 +884,7 @@ if (isProduction) {
   app.use(vite.middlewares);
 }
 
-httpServer.listen(PORT, HOST, () => {
+httpServer.listen(process.env.PORT || 3000, '0.0.0.0', () => {
   console.log(
     `DRAGON DAWWA running on ${publicAppUrl(PORT)} (${isProduction ? 'production' : 'development'}); Gemini neural TTS ${geminiConfigured() ? 'on' : 'off'}`,
   );
