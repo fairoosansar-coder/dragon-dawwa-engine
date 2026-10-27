@@ -200,6 +200,19 @@ export async function findCompletedResearch(identity: ResearchIdentity, options:
   return null;
 }
 
+/** Category rows are keyed by question + canonical category, not by hadith text. */
+export async function replayCategoryAnalysis(
+  question: string,
+  language: string,
+  category: string,
+  options?: LookupOptions,
+): Promise<Record<string, unknown> | null> {
+  const found = await findCompletedResearch({ question, category, language }, options);
+  if (!found) return null;
+  rememberCompletedAnalysis(found.id, payloadOf(found));
+  return analyzeReplayBody(found);
+}
+
 /** Seed the poll cache and return the HTTP body. Null means the caller should start a job. */
 export async function replayHadithAnalysis(
   hadithInput: string,

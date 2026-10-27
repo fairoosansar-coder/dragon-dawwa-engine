@@ -46,7 +46,8 @@ import {
 } from './src/server/gemini.ts';
 import { executeDragonDawwaAnalysis } from './src/engine/server/hadithEngine.ts';
 import { streamEpisodeAudio } from './src/server/r2Audio.ts';
-import { replayHadithAnalysis, replaySharedResearch } from './src/server/researchIdempotency.ts';
+import { replayCategoryAnalysis, replayHadithAnalysis, replaySharedResearch } from './src/server/researchIdempotency.ts';
+import { resolveDomainConfig } from './src/server/research/agentConfig.ts';
 import { randomUUID } from 'node:crypto';
 import { getResearchJob, seedResearchJob, startResearchJob } from './src/engine/server/researchJobs.ts';
 import { synthesizeRoundtableVoice } from './src/engine/server/geminiTtsService.ts';
@@ -723,13 +724,24 @@ app.post(
     const hadith = text(req.body?.hadith_input, 4000, 'hadith_input');
     const isnad = typeof req.body?.isnad_input === 'string' ? req.body.isnad_input.slice(0, 2000) : '';
     const language = toLang(req.body?.preferred_language);
-    const replay = await replayHadithAnalysis(hadith, language);
-    if (replay) {
-      res.status(200).json(replay);
-      return;
+    const category = typeof req.body?.category === 'string' ? req.body.category.slice(0, 160) : '';
+    const domain = category ? resolveDomainConfig(category) : null;
+    if (category && !domain) throw new UpstreamError('This category has no research agents configured.', 400);
+    if (domain?.controller === 'parallel') {
+      const replay = await replayCategoryAnalysis(hadith, language, domain.label);
+      if (replay) {
+        res.status(200).json(replay);
+        return;
+      }
+    } else {
+      const replay = await replayHadithAnalysis(hadith, language);
+      if (replay) {
+        res.status(200).json(replay);
+        return;
+      }
     }
     const id = startResearchJob(
-      () => executeDragonDawwaAnalysis(hadith, isnad, language),
+      () => executeDragonDawwaAnalysis(hadith, isnad, language, undefined, category || undefined),
       err => engineFailure(err, 'The hadith research engine could not complete this request. Please retry.').message,
     );
     res.status(202).json({ id, status: 'running' });

@@ -95,6 +95,19 @@ export interface Agent6Synthesis {
   podcast_script: string;
 }
 
+/** One configured agent after a category run. Absent on hadith authentication dossiers. */
+export interface DomainAgentResult {
+  id: string;
+  role: string;
+  persona: string;
+  speaker: string;
+  goal: string;
+  sourceTarget: string;
+  status: 'ran' | 'not_run';
+  finding: string;
+  sources: { title: string; url: string; excerpt: string }[];
+}
+
 /* ---------- Agent 7: Source Research (HadeethEnc Encyclopedia Specialist) ---------- */
 
 export interface HadeethEncRetrievedRecord {
@@ -158,6 +171,12 @@ export interface DragonDawwaAnalysis {
   generated_at?: string;
   /** Language this live research was generated in. Example dossiers omit it and may be localised for display. */
   content_language?: 'en' | 'ta' | 'si';
+  /** Canonical category for a non-hadith run. Hadith authentication dossiers omit it. */
+  research_category?: string;
+  /** Agents that were configured, including those that did not run. */
+  domain_agents?: DomainAgentResult[];
+  /** Parallel task run id when Parallel controlled this category. */
+  parallel_run_id?: string | null;
   agent_1_takhrij: Agent1Takhrij;
   agent_2_isnad: Agent2Isnad;
   agent_3_rijal: Agent3Rijal;
