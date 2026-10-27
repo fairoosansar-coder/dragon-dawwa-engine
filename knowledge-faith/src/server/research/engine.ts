@@ -106,6 +106,8 @@ export interface HadithRecord {
   attribution: string | null;
   explanation: string | null;
   url: string;
+  /** HadeethEnc spreadsheet edition, when the record was opened from the imported collection. */
+  version?: string | null;
 }
 
 export interface VerseRecord {
@@ -1489,7 +1491,7 @@ function hadithPassage(
       provider: 'HadeethEnc',
       language: lang,
       edition,
-      version: hash,
+      version: record.version || hash,
       title: record.title,
       credits: [],
       canonicalUrl: record.url,
@@ -1504,6 +1506,7 @@ function hadithPassage(
     locator: [record.attribution, `HadeethEnc ${record.id}`].filter(Boolean).join('. '),
     context: [
       `Language edition: ${edition}.`,
+      record.version ? `Source edition: HadeethEnc ${record.version}.` : null,
       record.attribution ? `Collection attribution printed on this edition: ${record.attribution}.` : null,
       record.grade ? `Grade printed on this edition: ${record.grade}. This grade is a transmission judgement, not a legal ruling.` : null,
       record.explanation ? `Publisher explanation on this edition, kept as a legal reading and not as the grade: ${record.explanation}` : null,

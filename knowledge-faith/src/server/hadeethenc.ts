@@ -14,6 +14,7 @@ import {
   type HadeethSearchHit,
 } from '../shared/hadeethenc.ts';
 import { fetchJson, UpstreamError } from './http.ts';
+import { loadCollection, missingTranslation, searchCollection } from './hadeethenc/collection.ts';
 
 const ROOT = 'https://hadeethenc.com/api/v1';
 
@@ -46,6 +47,8 @@ export async function searchHadeeth(
   page = 1,
 ): Promise<{ lang: Lang; phrase: string; items: HadeethSearchHit[] }> {
   const safePage = Number.isInteger(page) && page >= 1 && page <= 5 ? page : 1;
+  const local = searchCollection(lang, phrase, safePage);
+  if (local && local.length) return { lang, phrase, items: local };
   const body = await fetchJson<unknown>(
     `${ROOT}/hadeeths/search/?language=${lang}&phrase=${encodeURIComponent(phrase)}&page=${safePage}&per_page=20`,
     HADEETHENC_TTL_MS,
@@ -57,6 +60,9 @@ export async function searchHadeeth(
 
 export async function loadHadeeth(lang: Lang, id: string): Promise<EncyclopediaHadith> {
   if (!/^\d{1,12}$/.test(id)) throw new UpstreamError(HADEETH_UNAVAILABLE, 404);
+  const stored = loadCollection(lang, id);
+  if (stored) return stored;
+  if (missingTranslation(lang, id)) throw new UpstreamError(HADEETH_UNAVAILABLE, 404);
   try {
     const body = await fetchJson<unknown>(`${ROOT}/hadeeths/one/?language=${lang}&id=${id}`, HADEETHENC_TTL_MS);
     const parsed = parseHadeeth(body, lang);
