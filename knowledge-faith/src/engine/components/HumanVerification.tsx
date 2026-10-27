@@ -77,7 +77,7 @@ function SignatureLines({ signedAt }: { signedAt?: string }) {
   return (
     <>
       <p className="hr-block-label">Signature</p>
-      <div className="hr-sign-line" />
+      <div className="hr-sign-line hr-sign-hand" />
       <p className="hr-sign-note">Handwritten signature on a printed copy. A name recorded after sign-in is an authenticated review record, not a cryptographic digital signature.</p>
       <p className="hr-block-label">Date signed</p>
       {signedAt ? <p className="hr-sign-value">{formatWhen(signedAt)}</p> : <div className="hr-sign-line hr-sign-date" />}
@@ -296,6 +296,9 @@ export function HumanVerification({
             />
           ))}
         </div>
+        {!matching?.digitalReviewAvailable && jobId && (
+          <p className="hr-sign-note hr-sign-unconfigured">Authenticated review is not configured on this server. Use the signature and date lines above when this report is printed. A handwritten signature is not a cryptographic digital signature.</p>
+        )}
         <footer className="hr-footer">
           <span>Dragon Dawwa · By Aegis Intelligence</span>
           <span>{reportId}</span>
@@ -333,9 +336,6 @@ export function HumanVerification({
           </form>
           <p className="hr-sign-note">Submission controls appear only after an authorised reviewer account signs in. Readers can see the review status and the details a reviewer has submitted.</p>
         </details>
-      )}
-      {!matching?.digitalReviewAvailable && jobId && (
-        <p className="hr-sign-note screen-only">Authenticated review is not configured on this server. Use the signature and date lines above when this report is printed. A handwritten signature is not a cryptographic digital signature.</p>
       )}
       {error && !viewer && <p className="hr-sign-error screen-only" role="alert">{error}</p>}
       {matching && matching.history.length > 0 && (

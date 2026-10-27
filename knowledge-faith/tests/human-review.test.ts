@@ -260,6 +260,8 @@ describe('human review rules', () => {
     assert.match(html, /Bukhari heard Muslim ibn Ibrahim directly/);
     assert.equal(html.includes('Test Reviewer'), false);
     assert.equal(html.includes('cryptographic digital signature'), true);
+    assert.match(html, /hr-signoff-page/);
+    assert.match(html, /hr-sign-hand/);
     const localized = getLocalizedAnalysis(analysis, 'en');
     const enriched = bindReport(localized.agent_7_source_research ? localized : localized);
     const identity = reportIdentity(enriched, reportIdFor(enriched.query_hadith), 'en');
