@@ -238,6 +238,8 @@ describe('Parallel category dispatch', () => {
     assert.match(calls[0].url, /https:\/\/api\.parallel\.ai\/v1\/tasks\/runs$/);
     const posted = JSON.parse(calls[0].body) as { input: string; task_spec: { output_schema: { json_schema: { properties: { agents?: unknown } } } } };
     assert.match(posted.input, /Do not start a separate model call per agent/);
+    assert.match(posted.input, /deduce the surah and ayah/);
+    assert.match(posted.input, /Question: What does Qur’an 2:255 mean\?/);
     for (const agent of DOMAIN_CONFIGS.quran.agents) assert.match(posted.input, new RegExp(agent.id));
     assert.ok(posted.task_spec.output_schema.json_schema.properties.agents);
     assert.equal(parallelTaskInput(DOMAIN_CONFIGS.quran, 'What does Qur’an 2:255 mean?', 'en').includes('mushaf'), true);

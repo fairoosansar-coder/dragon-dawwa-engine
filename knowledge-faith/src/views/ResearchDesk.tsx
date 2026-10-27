@@ -21,27 +21,27 @@ const DESK_FRAME: Record<Exclude<ResearchDeskName, 'hadith'>, { title: string; a
   quran: {
     title: 'Explore a verse, understand its reading',
     arabic: 'القرآن',
-    subtitle: 'Name the surah and ayah, then ask what the passage says.',
+    subtitle: 'Ask in your own words. A photo, a file, or the microphone can fill the box.',
   },
   knowledge: {
     title: 'Explore a question, understand its sources',
     arabic: 'طلب العلم فريضة',
-    subtitle: 'Name the subject and what the sources should show.',
+    subtitle: 'Ask in your own words. A photo, a file, or the microphone can fill the box.',
   },
   books: {
     title: 'Explore a book, understand its sources',
     arabic: 'الكتاب',
-    subtitle: 'Name the book and the passage you want read.',
+    subtitle: 'Ask in your own words. A photo, a file, or the microphone can fill the box.',
   },
   fiqh: {
     title: 'Explore a practice, understand its sources',
     arabic: 'الفقه',
-    subtitle: 'Name the act and the situation. The sources are read. A ruling is not issued.',
+    subtitle: 'Ask in your own words. The sources are read, and the answer stays with those sources.',
   },
   seerah: {
     title: 'Explore an event in the life of the Prophet',
     arabic: 'السيرة',
-    subtitle: 'Name the person or event, then ask what should be understood.',
+    subtitle: 'Ask in your own words. A photo, a file, or the microphone can fill the box.',
   },
 };
 
@@ -52,16 +52,6 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   const bookId = Number(bookParam);
   const selectedBook = Number.isInteger(bookId) && bookId > 0 ? bookId : null;
   const [question, setQuestion] = useState(params.get('q') ?? '');
-  const [surah, setSurah] = useState('');
-  const [ayah, setAyah] = useState('');
-  const [bookField, setBookField] = useState(params.get('book') ?? '');
-  const [passage, setPassage] = useState('');
-  const [subject, setSubject] = useState('');
-  const [aspect, setAspect] = useState('');
-  const [act, setAct] = useState('');
-  const [situation, setSituation] = useState('');
-  const [eventName, setEventName] = useState('');
-  const [period, setPeriod] = useState('');
   const askedParam = params.get('q');
   const jobParam = params.get('job');
   const [jobId, setJobId] = useState<string | null>(jobParam);
@@ -78,10 +68,6 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   useEffect(() => {
     if (paramLang === 'en' || paramLang === 'ta' || paramLang === 'si') setLang(paramLang);
   }, [paramLang, setLang]);
-
-  useEffect(() => {
-    if (bookParam) setBookField(bookParam);
-  }, [bookParam]);
 
   useEffect(() => {
     setJobId(jobParam);
@@ -132,8 +118,6 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   }, [remote.data?.job.assignment?.noticeId, t]);
 
   function bookForRequest(): number | null {
-    const typed = Number(bookField);
-    if (Number.isInteger(typed) && typed > 0) return typed;
     return selectedBook;
   }
 
@@ -147,6 +131,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     return beginResearch({
       question: asked,
       entry,
+      desk,
       lang,
       bookId: desk === 'books' ? bookForRequest() : selectedBook,
       forwarded: params.get('fwd') === '1',
@@ -274,30 +259,10 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
         >
           <DomainResearchForm
             desk={desk}
-            surah={surah}
-            ayah={ayah}
-            bookId={bookField}
-            passage={passage}
-            subject={subject}
-            aspect={aspect}
-            act={act}
-            situation={situation}
-            eventName={eventName}
-            period={period}
             question={question}
             running={running}
             clarify={clarify}
             clarifyText={t.clarifyMeaning}
-            onSurah={setSurah}
-            onAyah={setAyah}
-            onBookId={setBookField}
-            onPassage={setPassage}
-            onSubject={setSubject}
-            onAspect={setAspect}
-            onAct={setAct}
-            onSituation={setSituation}
-            onEventName={setEventName}
-            onPeriod={setPeriod}
             onQuestion={setQuestion}
             onSubmit={(event, asked) => {
               if (clarify) {

@@ -446,6 +446,40 @@ export function assignmentForDomain(config: DomainResearchConfig): ResearchAssig
 }
 
 /**
+ * Parallel reads the reader’s words before the seven agents run.
+ * Typos, OCR, and speech-to-text stay in the question. The task deduces the target.
+ */
+export const PARALLEL_READER_INTAKE =
+  'The question is the reader’s own words. It may include typos, text read from a photo or PDF, or speech-to-text. Before the agents run, deduce the surah and ayah, the hadith matn, or the fiqh matter from that text. Leave the reader’s wording unchanged in the question.';
+
+export function readerParallelInput(query: string, language: string): string {
+  return [PARALLEL_READER_INTAKE, `Question: ${query}`, `Language: ${language}`].join('\n\n');
+}
+
+export interface ParallelDeskRequest {
+  taskInput: string;
+  agents?: { id: string; role: string; goal: string; sourceTarget: string }[];
+}
+
+/** Parallel brief for a research desk. Hadith authentication stays on its own path. */
+export function parallelRequestForDesk(desk: string | null | undefined, query: string, language: string): ParallelDeskRequest | null {
+  const domain = desk ? resolveDomainConfig(desk) : null;
+  if (domain?.controller === 'parallel') {
+    return {
+      taskInput: parallelTaskInput(domain, query, language),
+      agents: domain.agents.map(agent => ({
+        id: agent.id,
+        role: agent.role,
+        goal: agent.goal,
+        sourceTarget: agent.sourceTarget,
+      })),
+    };
+  }
+  if (desk === 'knowledge' || desk === 'books') return { taskInput: readerParallelInput(query, language) };
+  return null;
+}
+
+/**
  * One Parallel task brief. The task API accepts one run, so every agent is named inside it.
  */
 export function parallelTaskInput(config: DomainResearchConfig, query: string, language: string): string {
@@ -461,6 +495,7 @@ export function parallelTaskInput(config: DomainResearchConfig, query: string, l
     )
     .join('\n\n');
   return [
+    PARALLEL_READER_INTAKE,
     `Category: ${config.label}`,
     `Question: ${query}`,
     `Language: ${language}`,
