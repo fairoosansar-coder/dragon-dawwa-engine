@@ -453,17 +453,19 @@ export const HadithReportPaper: React.FC<{
         </section>
       )}
 
-      <HumanVerification
-        jobId={enriched.research_job_id}
-        question={enriched.query_hadith}
-        reportId={reportId}
-        revision={identity.revision}
-        language={currentLanguage}
-        languageLabel={languageName}
-        generatedAt={enriched.generated_at ?? ''}
-        onStatus={setReviewLabel}
-      />
-      <p className="hr-designed">Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prime Dragon Technologies</p>
+      <div className="hr-signoff-page">
+        <HumanVerification
+          jobId={enriched.research_job_id}
+          question={enriched.query_hadith}
+          reportId={reportId}
+          revision={identity.revision}
+          language={currentLanguage}
+          languageLabel={languageName}
+          generatedAt={enriched.generated_at ?? ''}
+          onStatus={setReviewLabel}
+        />
+        <p className="hr-designed">Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prime Dragon Technologies</p>
+      </div>
     </article>
   );
 };

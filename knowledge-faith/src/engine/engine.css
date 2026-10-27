@@ -531,8 +531,9 @@
   }
   .hadith-report-paper {
     max-width: none;
+    margin: 0;
     border: 0;
-    padding: 0 0 2mm;
+    padding: 0;
     box-shadow: none;
   }
   .hr-footer {
@@ -547,12 +548,157 @@
     break-inside: avoid;
     page-break-inside: avoid;
   }
+  .hr-signoff-page {
+    /* A4 content box is 267mm (297 − 12mm top − 18mm bottom). Stay a millimetre inside so rounding cannot open a blank trailing page. */
+    break-before: page;
+    page-break-before: always;
+    break-after: avoid;
+    page-break-after: avoid;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    box-sizing: border-box;
+    height: 266mm;
+    max-height: 266mm;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    line-height: 1.35;
+  }
+  .hr-signoff-page:has(.hr-signoff-history) {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+  #hr-section-signoff {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+  }
   .hr-signoff-sheet {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    display: flex;
+    flex-direction: column;
     break-inside: avoid;
     page-break-inside: avoid;
     break-before: auto;
+    page-break-before: auto;
   }
-  .hr-sign-grid, .hr-sign-meta { grid-template-columns: 1fr 1fr !important; }
-  .hr-sign-line { min-height: 28mm; }
+  .hr-signoff-sheet h2 {
+    font-size: 16pt;
+    line-height: 1.15;
+  }
+  .hr-signoff-rule { margin: 1.2mm 0 2mm; }
+  .hr-signoff-sheet > .hr-prose,
+  .hr-sign-unconfigured {
+    margin: 0 0 2mm;
+    font-size: 9pt;
+    line-height: 1.35;
+  }
+  .hr-sign-meta {
+    gap: 1.4mm 6mm;
+    margin: 0 0 2mm;
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .hr-sign-meta dd { margin: 0; line-height: 1.3; }
+  .hr-sign-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    grid-template-rows:
+      auto
+      auto
+      auto
+      auto
+      auto
+      auto
+      auto
+      auto
+      minmax(28mm, 1fr)
+      auto
+      auto
+      minmax(12mm, auto);
+    column-gap: 6mm;
+    row-gap: 1.3mm;
+    align-content: stretch;
+  }
+  .hr-sign-panel {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: 1 / span 12;
+    align-self: stretch;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    background: #fffdf8;
+  }
+  .hr-sign-panel:nth-child(1) { grid-column: 1; }
+  .hr-sign-panel:nth-child(2) { grid-column: 2; }
+  .hr-sign-panel > * {
+    margin: 0;
+    padding-inline: 3.5mm;
+  }
+  .hr-sign-panel > h3 {
+    margin: 0;
+    padding-top: 2.5mm;
+    font-size: 11pt;
+    line-height: 1.25;
+  }
+  .hr-sign-panel > :last-child { padding-bottom: 2.5mm; }
+  .hr-sign-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7mm;
+  }
+  .hr-sign-value {
+    min-height: 4.8mm;
+    line-height: 1.3;
+  }
+  .hr-sign-declaration,
+  .hr-sign-panel .hr-sign-note {
+    font-size: 8pt;
+    line-height: 1.35;
+  }
+  .hr-sign-line {
+    min-height: 0;
+    margin: 0;
+    border-bottom: 0;
+    background-image: linear-gradient(#1f1a14, #1f1a14);
+    background-repeat: no-repeat;
+    background-size: 100% 0.3mm;
+    background-position: left bottom;
+    background-origin: content-box;
+    background-clip: content-box;
+  }
+  .hr-sign-hand {
+    height: 100%;
+    min-height: 28mm;
+    align-self: stretch;
+  }
+  .hr-sign-date {
+    height: 12mm;
+    min-height: 12mm;
+  }
+  .hr-signoff-sheet > .hr-footer {
+    flex: 0 0 auto;
+    margin-top: 2mm;
+  }
+  .hr-signoff-page > .hr-designed {
+    flex: 0 0 auto;
+    margin: 1.5mm 0 0;
+    line-height: 1.3;
+  }
   .hr-sign-form, .hr-reviewer-signin { display: none !important; }
 }
