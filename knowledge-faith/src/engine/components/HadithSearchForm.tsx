@@ -26,7 +26,7 @@ import { BENCHMARK_CORPUS, normalizeHadithQuery } from '../utils/fuzzyNormalizer
 import { HadithMediaUploadModal } from './HadithMediaUploadModal';
 import { SupportedLanguage, TRANSLATIONS } from '../utils/localization';
 import { dictationCode, languageChip, languageLabel } from '../utils/contentLanguage.ts';
-import { beginDictationTap, MICROPHONE_DENIED_MESSAGE } from '../../views/microphoneTap.ts';
+import { beginDictationTap, isMicrophoneDenial, MICROPHONE_DENIED_MESSAGE, requestMicrophoneFromTap } from '../../views/microphoneTap.ts';
 import {
   podcastAvailability,
   readSavedResearch,
@@ -269,8 +269,8 @@ export function HadithSearchForm({
     };
   }, []);
 
-  // Web Speech API / AI Voice Recognition. getUserMedia is called inside the tap, before any await.
-  const handleToggleVoiceInput = () => {
+  // Web Speech API / AI Voice Recognition. The click calls getUserMedia before this function does anything else.
+  const handleToggleVoiceInput = (microphone?: Promise<MediaStream>) => {
     if (isRecording) {
       tapRef.current?.stop();
       tapRef.current = null;
@@ -295,8 +295,12 @@ export function HadithSearchForm({
     setIsRecording(true);
     setSpeechFeedback('Requesting microphone access...');
     const tap = beginDictationTap({
+      microphone: microphone ?? requestMicrophoneFromTap(),
       lang: dictationLang,
       preferWebSpeech: voiceSpeechMode === 'webspeech',
+      onArmed: stop => {
+        tapRef.current = { stop };
+      },
       onSpeechStart: recognition => {
         speechRecognitionRef.current = recognition;
         setIsRecording(true);
@@ -351,15 +355,8 @@ export function HadithSearchForm({
     tapRef.current = tap;
   };
 
-  const startGeminiAudioRecorder = async (granted?: MediaStream) => {
+  const startGeminiAudioRecorder = async (stream: MediaStream) => {
     try {
-      const stream = granted ?? await navigator.mediaDevices?.getUserMedia?.({ audio: true });
-      if (!stream) {
-        setIsRecording(false);
-        setSpeechFeedback('Audio recording is not supported in this browser.');
-        setTimeout(() => setSpeechFeedback(null), 4000);
-        return;
-      }
       audioChunksRef.current = [];
 
       const mediaRecorder = new MediaRecorder(stream);
@@ -437,9 +434,10 @@ export function HadithSearchForm({
 
     } catch (micErr: any) {
       console.error('Microphone error:', micErr);
+      stream.getTracks().forEach(track => { try { track.stop(); } catch { /* continue */ } });
       setIsRecording(false);
       setIsTranscribing(false);
-      setSpeechFeedback('Microphone permission required for voice search.');
+      setSpeechFeedback(isMicrophoneDenial(micErr) ? MICROPHONE_DENIED_MESSAGE : 'Audio recording failed. Please try again.');
       setTimeout(() => setSpeechFeedback(null), 4500);
     }
   };
@@ -700,7 +698,16 @@ export function HadithSearchForm({
 
                 <button
                   type="button"
-                  onClick={handleToggleVoiceInput}
+                  onClick={() => {
+                    if (isRecording) {
+                      handleToggleVoiceInput();
+                      return;
+                    }
+                    if (isTranscribing) return;
+                    // The permission prompt is tied to this tap. Do not await before this call.
+                    const microphone = requestMicrophoneFromTap();
+                    handleToggleVoiceInput(microphone);
+                  }}
                   disabled={isTranscribing}
                   className={`p-2.5 rounded-xl flex items-center justify-center transition-all cursor-pointer shadow-lg ${
                     isRecording

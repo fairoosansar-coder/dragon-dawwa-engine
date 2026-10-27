@@ -4,7 +4,7 @@ import { HadithMediaUploadModal } from '../engine/components/HadithMediaUploadMo
 import { dictationCode, languageLabel } from '../engine/utils/contentLanguage.ts';
 import { useApp } from '../lib/store.tsx';
 import { DictationSession } from './dictationSession.ts';
-import { beginDictationTap, MICROPHONE_DENIED_MESSAGE, type SpeechEngine } from './microphoneTap.ts';
+import { beginDictationTap, MICROPHONE_DENIED_MESSAGE, requestMicrophoneFromTap, type SpeechEngine } from './microphoneTap.ts';
 
 type CaptureMode = 'camera' | 'upload_photo' | 'upload_file';
 type DictationLang = 'en-US' | 'ta-IN' | 'si-LK' | 'ar-SA';
@@ -88,13 +88,23 @@ export function ResearchCapture({
     setMode(next);
   }
 
-  function toggleMic() {
+  function releaseUnused(microphone: Promise<MediaStream>) {
+    void microphone.then(stream => {
+      stream.getTracks().forEach(track => { try { track.stop(); } catch { /* continue */ } });
+    }).catch(() => { /* The browser already closed this request. */ });
+  }
+
+  function toggleMic(microphone: Promise<MediaStream>) {
     // Stop/cancel remains usable even before permission or onstart resolves.
     if (stopRef.current) {
       stopRef.current();
+      releaseUnused(microphone);
       return;
     }
-    if (disabled || sessionRef.current) return;
+    if (disabled || sessionRef.current) {
+      releaseUnused(microphone);
+      return;
+    }
     const session = new DictationSession();
     sessionRef.current = session;
     const current = () => sessionRef.current === session && !session.cancelled && !disabledRef.current;
@@ -193,16 +203,19 @@ export function ResearchCapture({
       }
     }
 
-    // getUserMedia runs inside this call, on the tap stack, before any await.
-    const tap = beginDictationTap({
+    beginDictationTap({
+      microphone,
       lang: dictationLang,
       preferWebSpeech: engine === 'webspeech',
       isActive: current,
+      onArmed: stop => {
+        session.own(stop);
+        stopRef.current = () => finish('Microphone stopped.');
+      },
       onSpeechStart: recognition => {
         if (!current()) return;
         session.own(() => {
           recognition.onstart = recognition.onresult = recognition.onerror = recognition.onend = null;
-          recognition.stop();
         });
         setFeedback('Listening. Speak the question or the passage.');
       },
@@ -225,10 +238,6 @@ export function ResearchCapture({
       onDenied: () => finish(MICROPHONE_DENIED_MESSAGE),
       onUnavailable: message => finish(message),
     });
-    stopRef.current = () => {
-      tap.stop();
-      finish('Microphone stopped.');
-    };
   }
 
   return (
@@ -294,7 +303,16 @@ export function ResearchCapture({
         <button
           type="button"
           data-research-capture="mic"
-          onClick={() => void toggleMic()}
+          onClick={() => {
+            if (stopRef.current) {
+              stopRef.current();
+              return;
+            }
+            if (disabled || transcribing) return;
+            // The permission prompt is tied to this tap. Do not await before this call.
+            const microphone = requestMicrophoneFromTap();
+            toggleMic(microphone);
+          }}
           disabled={!recording && (disabled || transcribing)}
           aria-label={recording ? 'Stop dictation' : 'Start dictation'}
           title={recording ? 'Stop dictation' : 'Dictate the question'}

@@ -181,7 +181,9 @@ for (const action of ['click', 'disabled', 'hashchange', 'unmount', 'error']) {
       else await f.event(action);
       await act(async () => { lateStart(); lateResult({ results: [[{ transcript: 'late' }]] }); });
       assert.equal(stopped, 1);
-      assert.equal(f.requests, 0);
+      // The tap asks once, in the click. Web Speech not-allowed is not a second request or a denial.
+      assert.equal(f.requests, 1);
+      assert.equal((f.dom.window.document.body.textContent ?? '').includes('Microphone permission denied'), false);
       assert.equal(f.value, 'Existing question مرحبا');
     } finally { await f.close(); }
   });

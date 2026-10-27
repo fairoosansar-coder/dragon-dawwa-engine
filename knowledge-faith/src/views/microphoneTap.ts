@@ -1,4 +1,4 @@
-/** Shown only after getUserMedia rejects with a real permission denial. */
+/** Shown only after the tap's getUserMedia rejects with a real permission denial. */
 export const MICROPHONE_DENIED_MESSAGE =
   'Microphone permission denied. Please allow microphone access in your browser.';
 
@@ -31,15 +31,41 @@ export function speechRecognitionConstructor(): (new () => SpeechEngine) | null 
 }
 
 /**
- * Call from the tap handler and do not await anything before it.
+ * Call this as the first line of the tap handler, before any await.
  * iOS Safari shows the microphone prompt only for getUserMedia invoked in that gesture.
- * Web Speech starts after the grant, so a missing prior grant is not reported as a denial.
- * If that start fails, the already-open stream is handed to the Gemini recorder.
+ */
+export function requestMicrophoneFromTap(): Promise<MediaStream> {
+  const media = typeof navigator !== 'undefined' ? navigator.mediaDevices : undefined;
+  if (!media?.getUserMedia) {
+    return Promise.reject(new DOMException('Audio recording is not supported in this browser.', 'NotSupportedError'));
+  }
+  return media.getUserMedia({ audio: true });
+}
+
+function stopTracksOf(stream: MediaStream | null) {
+  if (!stream) return;
+  for (const track of stream.getTracks()) {
+    try { track.stop(); } catch { /* The rest of the capture still has to release. */ }
+  }
+}
+
+function trackIsOpen(track: MediaStreamTrack) {
+  return track.readyState !== 'ended';
+}
+
+/**
+ * `microphone` must be the promise created in the tap via requestMicrophoneFromTap.
+ * This function does not call getUserMedia again. A later call would sit outside the
+ * gesture, and iOS would reject it without a prompt.
+ * Web Speech may start in this same turn. Its not-allowed error is not a denial:
+ * a missing grant stays on the getUserMedia promise until the browser answers.
  */
 export function beginDictationTap(options: {
+  microphone: Promise<MediaStream>;
   lang: string;
   preferWebSpeech: boolean;
   isActive?: () => boolean;
+  onArmed?: (stop: () => void) => void;
   onSpeechStart: (recognition: SpeechEngine) => void;
   onSpeechResult: (event: { results: ArrayLike<ArrayLike<{ transcript?: string }> & { isFinal?: boolean }> }) => void;
   onSpeechEnd: () => void;
@@ -51,121 +77,121 @@ export function beginDictationTap(options: {
   const active = () => options.isActive?.() !== false;
   let stopped = false;
   let settled = false;
-  let listening = false;
+  let heard = false;
+  let speechFailed = false;
+  let speechListening = false;
   let ownsStream = true;
   let recognition: SpeechEngine | null = null;
   let stream: MediaStream | null = null;
+  let recognitionStopped = false;
 
-  const stopTracks = () => {
-    if (!ownsStream || !stream) return;
-    for (const track of stream.getTracks()) {
-      try { track.stop(); } catch { /* The rest of the capture still has to release. */ }
-    }
+  const stopRecognition = () => {
+    if (recognitionStopped) return;
+    recognitionStopped = true;
+    try { recognition?.stop(); } catch { /* Already stopped. */ }
+  };
+
+  const stopOwnedStream = () => {
+    if (!ownsStream) return;
+    stopTracksOf(stream);
   };
 
   const stop = () => {
     stopped = true;
-    try { recognition?.stop(); } catch { /* Already stopped. */ }
-    stopTracks();
+    stopRecognition();
+    stopOwnedStream();
   };
-
-  const media = typeof navigator !== 'undefined' ? navigator.mediaDevices : undefined;
-  const request = media?.getUserMedia
-    ? media.getUserMedia({ audio: true })
-    : Promise.reject(new DOMException('Audio recording is not supported in this browser.', 'NotSupportedError'));
 
   const useGemini = (granted: MediaStream) => {
     if (settled || stopped || !active()) {
-      if (ownsStream) granted.getTracks().forEach(track => { try { track.stop(); } catch { /* continue */ } });
+      if (ownsStream) stopTracksOf(granted);
       return;
     }
     settled = true;
     ownsStream = false;
+    stream = granted;
     options.onGemini(granted);
   };
 
-  void request.then(granted => {
-    stream = granted;
-    if (stopped || !active()) {
-      stopTracks();
-      return;
-    }
-    const Ctor = options.preferWebSpeech ? speechRecognitionConstructor() : null;
-    if (!Ctor) {
-      useGemini(granted);
-      return;
-    }
-    try {
-      recognition = new Ctor();
-    } catch {
-      useGemini(granted);
-      return;
-    }
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = options.lang;
-    recognition.onstart = () => {
-      if (stopped || !active()) return;
-      listening = true;
-      // Web Speech captures on its own. Keep the grant stream until then so a failed start can record it.
-      stopTracks();
-      ownsStream = false;
-      options.onSpeechStart(recognition as SpeechEngine);
-    };
-    recognition.onresult = event => {
-      if (stopped || settled || !listening || !active()) return;
-      options.onSpeechResult(event);
-    };
-    recognition.onerror = event => {
-      if (stopped || settled || !active()) return;
-      if (event.error === 'no-speech') {
-        settled = true;
-        options.onNoSpeech();
-        return;
-      }
-      // The start() below is the real attempt. It runs only after the grant.
-      try { recognition?.stop(); } catch { /* continue into the recorder */ }
-      recognition = null;
-      if (!listening && granted.getTracks().some(track => track.readyState === 'live')) {
-        useGemini(granted);
-        return;
-      }
-      const again = media?.getUserMedia?.({ audio: true });
-      if (!again) {
-        options.onUnavailable('Audio recording is not supported in this browser.');
-        return;
-      }
-      void again.then(next => {
-        if (stopped || !active()) {
-          next.getTracks().forEach(track => { try { track.stop(); } catch { /* continue */ } });
-          return;
-        }
-        ownsStream = true;
-        stream = next;
-        useGemini(next);
-      }).catch(error => {
-        if (stopped || !active()) return;
-        if (isMicrophoneDenial(error)) options.onDenied();
-        else options.onUnavailable('Microphone access or audio recording failed. Please try again.');
-      });
-    };
-    recognition.onend = () => {
-      if (stopped || settled || !listening || !active()) return;
-      settled = true;
-      options.onSpeechEnd();
-    };
-    try {
-      recognition.start();
-    } catch {
-      useGemini(granted);
-    }
-  }).catch(error => {
-    if (stopped || !active()) return;
+  const failGrant = (error: unknown) => {
+    if (stopped || settled || heard || speechListening || !active()) return;
+    settled = true;
+    stopRecognition();
     const name = error && typeof error === 'object' && 'name' in error ? String((error as { name?: unknown }).name) : '';
     if (isMicrophoneDenial(error)) options.onDenied();
     else if (name === 'NotSupportedError') options.onUnavailable('Audio recording is not supported in this browser.');
     else options.onUnavailable('Microphone access or audio recording failed. Please try again.');
+  };
+
+  void options.microphone.then(granted => {
+    if (stopped || !active()) {
+      if (ownsStream) stopTracksOf(granted);
+      return;
+    }
+    if (speechListening) {
+      stopTracksOf(granted);
+      return;
+    }
+    stream = granted;
+    if (speechFailed || !recognition) useGemini(granted);
+  }).catch(error => {
+    failGrant(error);
   });
+
+  options.onArmed?.(stop);
+
+  const Ctor = options.preferWebSpeech ? speechRecognitionConstructor() : null;
+  if (Ctor) {
+    try {
+      recognition = new Ctor();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = options.lang;
+      recognition.onstart = () => {
+        if (stopped || speechFailed || !active()) return;
+        speechListening = true;
+        heard = true;
+        stopOwnedStream();
+        stream = null;
+        ownsStream = false;
+        options.onSpeechStart(recognition as SpeechEngine);
+      };
+      recognition.onresult = event => {
+        if (stopped || settled || speechFailed || !active()) return;
+        heard = true;
+        options.onSpeechResult(event);
+      };
+      recognition.onerror = event => {
+        if (stopped || settled || speechFailed || !active()) return;
+        if (event.error === 'no-speech') {
+          settled = true;
+          stopRecognition();
+          options.onNoSpeech();
+          return;
+        }
+        // not-allowed and service-not-allowed mean Web Speech never asked.
+        // They are not a denial. The tap's getUserMedia promise still decides.
+        speechFailed = true;
+        stopRecognition();
+        if (!heard && stream && stream.getTracks().some(trackIsOpen)) {
+          useGemini(stream);
+          return;
+        }
+        if (!heard) return;
+        settled = true;
+        options.onUnavailable('Voice recognition stopped. Press the microphone to try again.');
+      };
+      recognition.onend = () => {
+        if (stopped || settled || speechFailed || !heard || !active()) return;
+        settled = true;
+        options.onSpeechEnd();
+      };
+      recognition.start();
+    } catch {
+      recognition = null;
+      speechFailed = true;
+    }
+  }
 
   return { stop };
 }
