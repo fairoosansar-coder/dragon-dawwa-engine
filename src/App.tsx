@@ -234,7 +234,7 @@ export default function App() {
     setIsShareModalOpen(true);
   };
 
-  const handleRunAnalysisWithInputs = async (matnToRun?: string, isnadToRun?: string) => {
+  const handleRunAnalysisWithInputs = async (matnToRun?: string, isnadToRun?: string, category?: string) => {
     const textToRun = matnToRun !== undefined ? matnToRun : hadithInput;
     const chainToRun = isnadToRun !== undefined ? isnadToRun : isnadInput;
 
@@ -250,6 +250,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          category: category?.trim() || 'Hadith & Authentication',
           hadith_input: textToRun,
           isnad_input: chainToRun,
           preferred_language: currentLanguage
@@ -601,7 +602,7 @@ Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prim
           initialIsnad={isnadInput}
           isAnalyzing={isAnalyzing}
           analysisError={analysisError}
-          onRunEngine={(matn, isnad) => handleRunAnalysisWithInputs(matn, isnad)}
+          onRunEngine={(matn, isnad, category) => handleRunAnalysisWithInputs(matn, isnad, category)}
           onClearInputs={handleClearInputs}
           onSelectBenchmark={handleSelectBenchmarkById}
           currentLanguage={currentLanguage}

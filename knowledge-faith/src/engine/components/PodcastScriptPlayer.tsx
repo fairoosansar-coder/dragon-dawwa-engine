@@ -50,6 +50,7 @@ export type PersonaId =
   | 'Dr. Zainab al-Mubarak' 
   | 'Sheikh Yusuf al-Azhari' 
   | 'Dr. Amina al-Kindi'
+  | 'Zayd'
   | 'Narrator';
 
 interface DialogueItem {
@@ -232,6 +233,19 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
       rate: 1.0,
       avatar: 'A'
     },
+    'Zayd': {
+      name: 'Zayd (The Polymath Researcher)',
+      role: 'Polymath Researcher',
+      geminiVoice: 'Orus',
+      voiceTag: 'Gemini Orus (Polymath researcher)',
+      gender: 'M',
+      color: 'text-lime-300',
+      bg: 'bg-lime-950/60',
+      border: 'border-lime-500/50',
+      pitch: 0.98,
+      rate: 1.0,
+      avatar: 'Z'
+    },
     'Narrator': {
       name: 'Prime Dragon Radio Desk',
       role: 'Studio Announcer',
@@ -350,6 +364,9 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
       ) {
         detectedSpeaker = 'Dr. Amina al-Kindi';
         speechText = line.replace(/^(AGENT\s*7|(DR\.\s*)?AMINA(\s+AL-KINDI)?):\s*/i, '');
+      } else if (upper.startsWith('ZAYD:') || upper.startsWith('ZAYD (')) {
+        detectedSpeaker = 'Zayd';
+        speechText = line.replace(/^ZAYD(\s*\([^)]*\))?:\s*/i, '');
       }
 
       // Detect if a specific scholar or the anchor is addressed in this speech
@@ -545,6 +562,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
     'Dr. Zainab al-Mubarak': 'Hello, I am Dr. Zainab al-Mubarak, investigating hidden textual defects.',
     'Sheikh Yusuf al-Azhari': 'Peace and blessings. I am Sheikh Yusuf al-Azhari, scholars verdicts and legal grading master.',
     'Dr. Amina al-Kindi': 'Assalamu alaikum. I am Dr. Amina al-Kindi, HadeethEnc source research specialist.',
+    'Zayd': 'I am Zayd, the polymath researcher. These findings come from the sources returned for this question.',
     'Narrator': 'Prime Dragon Radio Studio audio desk online.'
   };
 

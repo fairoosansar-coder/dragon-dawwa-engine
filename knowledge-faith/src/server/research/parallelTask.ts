@@ -24,18 +24,20 @@ export interface ParallelConsult {
 }
 
 const SETUP =
-  'Set PARALLEL_API_KEY in the server environment. The browser never receives it. Direct source adapters still run. No Parallel verification is claimed until a task run returns.';
+  'Set PARALLEL_AI_API_KEY or PARALLEL_API_KEY in the server environment. The browser never receives it. Direct source adapters still run. No Parallel verification is claimed until a task run returns.';
 
 const CONFIDENCE_NOTE = 'Parallel confidence is provider metadata. It is not a hadith grade, a religious certainty score, or human approval.';
 
 export function parallelApiKey(env: NodeJS.ProcessEnv = process.env): string | null {
+  const dedicated = env.PARALLEL_AI_API_KEY?.trim();
+  if (dedicated) return dedicated;
   const key = env.PARALLEL_API_KEY?.trim();
   return key ? key : null;
 }
 
 export function parallelCredentialStatus(env: NodeJS.ProcessEnv = process.env): { configured: boolean; liveCallMade: false; setup: string } {
   const configured = Boolean(parallelApiKey(env));
-  return { configured, liveCallMade: false, setup: configured ? 'PARALLEL_API_KEY is set on the server. A task run is required before any Parallel finding is cited.' : SETUP };
+  return { configured, liveCallMade: false, setup: configured ? 'A Parallel API key is set on the server. A task run is required before any Parallel finding is cited.' : SETUP };
 }
 
 interface TaskRun {
