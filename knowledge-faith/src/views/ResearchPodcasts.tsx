@@ -8,8 +8,11 @@ import type { Lang } from '../shared/sources.ts';
 import { getJson, postJson, useRemote } from '../lib/api.ts';
 import { decodeBase64, downloadBytes, readResponseBytes } from '../lib/episodeWav.ts';
 import { readResearchHistory } from '../lib/researchDesk.ts';
+import { PodcastHostChip } from '../components/PodcastHostChip.tsx';
 import { ContentText } from '../components/ContentText.tsx';
 import { Button, ErrorNote, Notice } from '../components/ui.tsx';
+import { getPodcastHostLabel, PODCAST_HOST_EVENT } from '../lib/podcastHost.ts';
+import { PodcastPlayer } from './PodcastPlayer.tsx';
 
 type EpisodeState = 'script-ready' | 'audio-generating' | 'playable' | 'failed';
 
@@ -41,8 +44,8 @@ interface CommunityEpisode {
 
 const KEY = 'kf-research-podcasts';
 
-function voiceFor(speaker: string): string {
-  if (/feroz|^host\b/i.test(speaker)) return 'Puck';
+function voiceFor(speaker: string, hostName: string): string {
+  if (speaker === hostName || /feroz|^host\b/i.test(speaker)) return 'Puck';
   if (/layla|passage reader/i.test(speaker)) return 'Kore';
   if (/tariq/i.test(speaker)) return 'Fenrir';
   if (/imran/i.test(speaker)) return 'Orus';
@@ -146,6 +149,14 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
   const [mine, setMine] = useState<LocalEpisode[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [download, setDownload] = useState<{ id: string; percent: number } | null>(null);
+  const [pickedId, setPickedId] = useState<string | null>(null);
+  const [hostLabel, setHostLabel] = useState(getPodcastHostLabel);
+
+  useEffect(() => {
+    const sync = () => setHostLabel(getPodcastHostLabel());
+    window.addEventListener(PODCAST_HOST_EVENT, sync);
+    return () => window.removeEventListener(PODCAST_HOST_EVENT, sync);
+  }, []);
 
   useEffect(() => {
     setMine(readEpisodes());
@@ -200,18 +211,24 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
       setError('No retrieved passage was kept, so a roundtable was not written.');
       return;
     }
-    const created = episodeFromJob(response);
-    if (!created) {
-      setError('The dossier did not produce a spoken script, so no episode was written.');
-      return;
-    }
-    setMine(current => {
-      if (current.some(item => item.jobId === response.job.id && item.audioBase64)) return current;
-      if (current.some(item => item.jobId === response.job.id)) return current;
-      const next = [created, ...current];
-      writeEpisodes(next);
-      return next;
+    let active = true;
+    void scriptForJob(response).then(created => {
+      if (!active) return;
+      if (!created) {
+        setError('The dossier did not produce a spoken script, so no episode was written.');
+        return;
+      }
+      setMine(current => {
+        if (current.some(item => item.jobId === response.job.id && item.audioBase64)) return current;
+        if (current.some(item => item.jobId === response.job.id)) return current;
+        const next = [created, ...current];
+        writeEpisodes(next);
+        return next;
+      });
     });
+    return () => {
+      active = false;
+    };
   }, [jobId, remote.data]);
 
   useEffect(() => {
@@ -224,8 +241,9 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
     const response = remote.data;
     const revisionNumber = response?.job.parallel?.revision ?? 1;
     if (!response || response.job.status !== 'done' || response.job.parallel?.status !== 'completed' || revisionNumber < 2) return;
-    const created = episodeFromJob(response);
-    if (!created) return;
+    let active = true;
+    void scriptForJob(response).then(created => {
+      if (!active || !created) return;
     setMine(current => {
       const base = current.length ? current : readEpisodes();
       const existing = base.find(item => item.jobId === response.job.id && !item.id.includes('-r'));
@@ -242,6 +260,10 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
       writeEpisodes(merged.episodes);
       return merged.episodes;
     });
+    });
+    return () => {
+      active = false;
+    };
   }, [remote.data]);
 
   function save(next: LocalEpisode[]) {
@@ -264,12 +286,27 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
     }
   }
 
-  function episodeFromJob(response: ResearchJobResponse): LocalEpisode | null {
+  function episodeFromScript(response: ResearchJobResponse, script: RoundtableScript): LocalEpisode {
+    const model = buildReportModel(response.job, response.dossier!);
+    return {
+      id: `pod-${response.job.id}`,
+      jobId: response.job.id,
+      question: script.question,
+      language: response.job.language,
+      participants: script.participants,
+      lines: script.lines,
+      sources: script.sources,
+      reportHtml: renderReportHtml(model),
+      state: 'script-ready',
+    };
+  }
+
+  function localScript(response: ResearchJobResponse, hostName: string): RoundtableScript | null {
     const job = response.job;
     const dossier = response.dossier;
     if (job.status !== 'done' || job.investigation === 'blocked' || !dossier?.passages.length) return null;
     const model = buildReportModel(job, dossier);
-    const script = roundtableFromResearch({
+    return roundtableFromResearch({
       question: job.question,
       language: job.language,
       agents: job.agents ?? [],
@@ -286,31 +323,35 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
       unresolved: (job.materialParts ?? []).filter(part => part.status === 'unresolved').map(part => part.note),
       status: job.status,
       investigation: job.investigation,
+      hostName,
     });
-    if (!script) return null;
-    return {
-      id: `pod-${job.id}`,
-      jobId: job.id,
-      question: script.question,
-      language: job.language,
-      participants: script.participants,
-      lines: script.lines,
-      sources: script.sources,
-      reportHtml: renderReportHtml(model),
-      state: 'script-ready',
-    };
+  }
+
+  async function scriptForJob(response: ResearchJobResponse): Promise<LocalEpisode | null> {
+    const hostName = getPodcastHostLabel();
+    const local = localScript(response, hostName);
+    try {
+      const remoteScript = await postJson<{ script?: RoundtableScript }>('/api/podcast/generate', { jobId: response.job.id, hostName });
+      if (remoteScript.script && scriptMayBeSpoken(remoteScript.script.lines, remoteScript.script.question || response.job.question)) {
+        return episodeFromScript(response, remoteScript.script);
+      }
+    } catch {
+      /* The dossier on this device still writes the episode. */
+    }
+    return local ? episodeFromScript(response, local) : null;
   }
 
   function ensureFromJob() {
     const response = remote.data?.job.status === 'done' ? remote.data : readResearchHistory().find(item => item.id === jobId)?.response;
     if (!response?.dossier || response.job.status !== 'done') return;
     if (mine.some(item => item.jobId === response.job.id)) return;
-    const created = episodeFromJob(response);
-    if (!created) {
-      setError('The dossier did not produce a spoken script, so no episode was written.');
-      return;
-    }
-    save([created, ...mine]);
+    void scriptForJob(response).then(created => {
+      if (!created) {
+        setError('The dossier did not produce a spoken script, so no episode was written.');
+        return;
+      }
+      save([created, ...mine]);
+    });
   }
 
   async function savedAudio(episode: LocalEpisode): Promise<{ audioBase64: string; mimeType: string } | null> {
@@ -341,7 +382,7 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
           body: JSON.stringify({
             text: line.text,
             lang: episode.language,
-            voice: voiceFor(line.speaker),
+            voice: voiceFor(line.speaker, episode.lines[0]?.speaker || getPodcastHostLabel()),
             style: 'Calm and clear',
           }),
         });
@@ -405,12 +446,16 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
   }
 
   const active = mine.find(item => item.jobId === jobId) ?? null;
+  const stage = mine.find(item => item.id === pickedId) ?? active ?? mine[0] ?? null;
 
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="font-display text-4xl font-bold text-pine">Podcast</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink/75">Your questions stay on this device until you share an episode. The presenters are generated. They are not Brother Feroz and they are not scholars.</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="font-display text-4xl font-bold text-pine">Podcast</h1>
+          <PodcastHostChip />
+        </div>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink/75">Your questions stay on this device until you share an episode. The presenters are generated. {hostLabel} did not speak these words or approve them. They are not scholars.</p>
       </header>
       {error && <ErrorNote message={error} />}
       {jobId && remote.data?.job.status === 'done' && !active && (
@@ -421,44 +466,59 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
       <section>
         <h2 className="font-display text-2xl font-bold text-pine">My Research Podcasts</h2>
         {mine.length === 0 && <p className="mt-2 text-sm text-muted">No episode is saved on this device yet.</p>}
+        {mine.length > 1 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {mine.map(episode => (
+              <button
+                key={episode.id}
+                type="button"
+                className={`max-w-full truncate rounded-full border px-3 py-1 text-xs ${stage?.id === episode.id ? 'border-pine bg-pine text-sand' : 'border-pine/15 bg-parchment text-pine'}`}
+                onClick={() => setPickedId(episode.id)}
+              >
+                {episode.question}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="mt-4 space-y-4">
-          {mine.map(episode => (
+          {stage && (
             <EpisodeCard
-              key={episode.id}
-              episodeId={episode.id}
-              question={episode.question}
-              language={episode.language}
-              participants={episode.participants}
-              lines={episode.lines}
-              sources={episode.sources}
-              reportHtml={episode.reportHtml}
-              stateLabel={stateLabel(episode.state)}
-              state={episode.state}
-              error={episode.error}
-              audioBase64={episode.audioBase64}
-              mimeType={episode.mimeType}
-              downloadPercent={download?.id === episode.id ? download.percent : null}
+              key={stage.id}
+              episodeId={stage.id}
+              question={stage.question}
+              language={stage.language}
+              participants={stage.participants}
+              lines={stage.lines}
+              sources={stage.sources}
+              reportHtml={stage.reportHtml}
+              stateLabel={stateLabel(stage.state)}
+              state={stage.state}
+              error={stage.error}
+              hostLabel={hostLabel}
+              audioBase64={stage.audioBase64}
+              mimeType={stage.mimeType}
+              downloadPercent={download?.id === stage.id ? download.percent : null}
               actions={
                 <div className="flex flex-wrap gap-2">
-                  {episode.state !== 'audio-generating' && episode.state !== 'playable' && (
-                    <Button type="button" onClick={() => void generate(episode)}>Generate audio</Button>
+                  {stage.state !== 'audio-generating' && stage.state !== 'playable' && (
+                    <Button type="button" onClick={() => void generate(stage)}>Generate audio</Button>
                   )}
                   <Button
                     type="button"
                     data-testid="download-research-wav"
-                    onClick={() => void downloadWav(episode)}
-                    disabled={download?.id === episode.id || episode.state === 'audio-generating'}
+                    onClick={() => void downloadWav(stage)}
+                    disabled={download?.id === stage.id || stage.state === 'audio-generating'}
                   >
                     Download .WAV
                   </Button>
-                  {!episode.shared && (
-                    <Button type="button" variant="soft" onClick={() => void share(episode)}>Share with the community</Button>
+                  {!stage.shared && (
+                    <Button type="button" variant="soft" onClick={() => void share(stage)}>Share with the community</Button>
                   )}
-                  {episode.shared && <span className="text-sm text-pine">Shared for the community</span>}
+                  {stage.shared && <span className="text-sm text-pine">Shared for the community</span>}
                 </div>
               }
             />
-          ))}
+          )}
         </div>
       </section>
 
@@ -478,6 +538,8 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
               reportHtml={episode.reportHtml}
               stateLabel="Script ready"
               state="script-ready"
+              hostLabel={hostLabel}
+              readOnly
             />
           ))}
         </div>
@@ -497,10 +559,12 @@ function EpisodeCard({
   stateLabel: label,
   state,
   error,
+  hostLabel,
   audioBase64,
   mimeType,
   downloadPercent = null,
   actions,
+  readOnly = false,
 }: {
   episodeId: string;
   question: string;
@@ -512,17 +576,19 @@ function EpisodeCard({
   stateLabel: string;
   state: EpisodeState;
   error?: string;
+  hostLabel: string;
   audioBase64?: string;
   mimeType?: string;
   downloadPercent?: number | null;
   actions?: ReactNode;
+  readOnly?: boolean;
 }) {
   const [showReport, setShowReport] = useState(false);
   return (
     <article className="rounded-3xl border border-pine/10 bg-parchment p-5">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">{label}</p>
       <h3 className="mt-2 font-display text-2xl font-bold text-pine"><ContentText text={question} /></h3>
-      <p className="mt-1 text-sm text-ink/70">Generated presenters. Brother Feroz did not speak or approve these words. They are not scholars.</p>
+      <p className="mt-1 text-sm text-ink/70">Generated presenters. {hostLabel} is the studio partner beside the scholars. {hostLabel} did not speak or approve these words. They are not scholars.</p>
       <ul className="mt-3 space-y-1 text-sm">
         {participants.map(agent => (
           <li key={agent.id}>
@@ -533,8 +599,19 @@ function EpisodeCard({
       </ul>
       {state === 'audio-generating' && <p className="mt-3 text-sm text-pine">{label}</p>}
       {state === 'failed' && error && <div className="mt-3"><Notice>{error}</Notice></div>}
-      {state === 'playable' && audioBase64 && (
-        <audio data-episode={episodeId} className="mt-3 w-full" controls src={`data:${mimeType || 'audio/wav'};base64,${audioBase64}`} />
+      {readOnly ? (
+        <div className="mt-4 space-y-2 text-sm leading-relaxed">
+          {lines.map((line, index) => (
+            <p key={`${line.speaker}-${index}`}>
+              <span className="font-semibold text-pine">{line.speaker}. </span>
+              <ContentText text={line.text} />
+            </p>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-4">
+          <PodcastPlayer episodeId={episodeId} lines={lines} audioBase64={audioBase64} mimeType={mimeType} />
+        </div>
       )}
       {downloadPercent !== null && (
         <div className="mt-3" data-testid="research-wav-progress">
@@ -547,14 +624,6 @@ function EpisodeCard({
           </div>
         </div>
       )}
-      <div className="mt-4 space-y-2 text-sm leading-relaxed">
-        {lines.map((line, index) => (
-          <p key={`${line.speaker}-${index}`}>
-            <span className="font-semibold text-pine">{line.speaker}. </span>
-            <ContentText text={line.text} />
-          </p>
-        ))}
-      </div>
       <section className="mt-4">
         <h4 className="font-display text-lg font-bold text-pine">Sources</h4>
         <p className="mt-1 text-sm text-ink/60">Research language: {language}. These citations are not read aloud.</p>

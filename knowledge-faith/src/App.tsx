@@ -49,10 +49,26 @@ function currentLocation(): Location {
   return parseHash(window.location.hash);
 }
 
+/** `#/studio` and `#/studio/...` become `#/podcast` in the address bar. */
+function redirectStudioHash(): boolean {
+  const hash = window.location.hash;
+  const raw = hash.replace(/^#\/?/, '').split('?')[0].replace(/\/+$/, '');
+  if (raw !== 'studio' && !raw.startsWith('studio/')) return false;
+  const queryAt = hash.indexOf('?');
+  const query = queryAt === -1 ? '' : hash.slice(queryAt);
+  const next = `#/podcast${raw.slice('studio'.length)}${query}`;
+  if (next !== hash) window.history.replaceState(null, '', next);
+  return true;
+}
+
 function useHashRoute(): Location {
-  const [location, setLocation] = useState(currentLocation);
+  const [location, setLocation] = useState(() => {
+    redirectStudioHash();
+    return currentLocation();
+  });
   useEffect(() => {
     const onChange = () => {
+      redirectStudioHash();
       const next = currentLocation();
       setLocation(prev => {
         if (prev.path !== next.path || prev.segments.join('/') !== next.segments.join('/') || prev.params.toString() !== next.params.toString()) {
@@ -61,6 +77,7 @@ function useHashRoute(): Location {
         return next;
       });
     };
+    if (redirectStudioHash()) onChange();
     window.addEventListener('hashchange', onChange);
     return () => window.removeEventListener('hashchange', onChange);
   }, []);

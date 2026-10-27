@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react';
 import { postJson, useRemote } from '../lib/api.ts';
+import { getPodcastHostLabel } from '../lib/podcastHost.ts';
 import { useApp } from '../lib/store.tsx';
 import type { ResearchJobResponse } from '../shared/contracts/v1.ts';
 import { researchOutcome } from '../shared/research/outcomes.ts';
@@ -29,7 +30,7 @@ export function SourceResearch() {
     event.preventDefault();
     setSubmitError(null);
     try {
-      const created = await postJson<{ id: string }>('/api/research/jobs', { question, lang });
+      const created = await postJson<{ id: string }>('/api/research/jobs', { question, lang, hostName: getPodcastHostLabel() });
       setJobId(created.id);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'The research job could not be started.');

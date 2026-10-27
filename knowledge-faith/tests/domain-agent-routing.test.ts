@@ -89,7 +89,9 @@ describe('broadcast script', () => {
       ],
     });
     assert.match(script, /I am a generated host/);
-    assert.match(script, /Brother Feroz did not speak these words and did not approve them/);
+    assert.match(script, /Welcome, Seeker/);
+    assert.match(script, /Seeker did not speak these words and did not approve them/);
+    assert.equal(script.includes('Brother Feroz'), false);
     assert.match(script, /DR\. TARIQ:/);
     assert.match(script, /Mushaf reading/);
     assert.equal(script.includes('SHEIKH YUSUF:'), false);
@@ -98,10 +100,28 @@ describe('broadcast script', () => {
       { id: 'a', role: 'Mushaf reading', persona: 'Dr. Tariq al-Mansoor', speaker: 'DR. TARIQ:', status: 'ran', finding: 'Opened.' },
       { id: 'b', role: 'Thematic ayahs', persona: 'Sheikh Yusuf al-Azhari', speaker: 'SHEIKH YUSUF:', status: 'not_run', finding: '' },
     ]).map(agent => agent.id).join(','), 'a');
+    const named = writeBroadcastScript({
+      question: 'What does the verse say?',
+      language: 'en',
+      hostName: 'Brother Feroz',
+      agents: [
+        {
+          id: 'mushaf',
+          role: 'Mushaf reading',
+          persona: 'Dr. Tariq al-Mansoor',
+          speaker: 'DR. TARIQ:',
+          status: 'ran',
+          finding: 'Surah 2, ayah 255 was opened.',
+        },
+      ],
+    });
+    assert.match(named, /Welcome, Brother Feroz/);
+    assert.match(named, /Brother Feroz, I am Dr\. Tariq al-Mansoor/);
+    assert.match(named, /Brother Feroz did not speak these words and did not approve them/);
   });
 
   test('uses the same writer for every domain', () => {
-    const host = 'Welcome to Dragon Dawwa Live.';
+    const host = 'Welcome, Seeker.';
     const quran = writeBroadcastScript({
       question: 'What does 2:255 say?',
       language: 'en',
