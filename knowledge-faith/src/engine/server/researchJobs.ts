@@ -65,3 +65,11 @@ export function seedResearchJob(id: string, result: unknown, createdAt = Date.no
   jobs.set(id, { id, status: 'done', result, createdAt });
   return id;
 }
+
+/** Publish a finished dossier without starting Gemini. */
+export function rememberCompletedAnalysis(id: string, result: unknown): void {
+  prune();
+  const current = jobs.get(id);
+  if (current && current.status === 'running') return;
+  seedResearchJob(id, result);
+}
