@@ -10,6 +10,7 @@ import { decomposeQuestion } from "../../shared/research/decompose.ts";
 import { bindReport, isAsrPrayerQuestion, isChinaQuestion, isIntentionsQuestion, isSaturdayFastingQuestion, questionBoundShell, recordIsRelevant } from "../utils/reportBinding.ts";
 import { ASR_LEGAL_NOTE, asrCitationSources } from "../utils/asrPrayerSources.ts";
 import { scriptMatchesLanguage } from "../utils/contentLanguage.ts";
+import { findCompletedResearch, storedAnalysisJson } from "../../server/researchIdempotency.ts";
 
 export function getDragonDawwaSystemInstruction(targetLang: 'en' | 'ta' | 'si' = 'en'): string {
   const langName = targetLang === 'ta' ? 'Tamil (தமிழ்)' : targetLang === 'si' ? 'Sinhala (සිංහල)' : 'English';
@@ -427,6 +428,12 @@ export async function executeDragonDawwaAnalysis(
   preferredLanguage: 'en' | 'ta' | 'si' = 'en',
   apiKey: string | undefined = process.env.GEMINI_API_KEY
 ): Promise<DragonDawwaAnalysis> {
+  const saved = await findCompletedResearch({ hadithInput, language: preferredLanguage });
+  if (saved?.status === 'done') {
+    const analysis = storedAnalysisJson(saved);
+    if (analysis) return analysis as unknown as DragonDawwaAnalysis;
+  }
+
   // Step 1: Always run live HadeethEnc retrieval (Agent 7 — Source Research) first
   const { records: liveRecords, activity: liveActivity } = await retrieveLiveHadeethEncForDossier(
     hadithInput,
