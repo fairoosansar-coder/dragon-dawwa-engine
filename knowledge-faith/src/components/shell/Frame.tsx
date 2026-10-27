@@ -148,7 +148,7 @@ export function AppFrame({ path, section, segments = [], showSearch, children }:
         {player && !(path === 'quran' && (segments[0] === 'book' || segments[0] === 'study')) && <AudioMiniPlayer safe={focus} />}
         {!focus && !(path === 'quran' && segments[0] === 'book') && (
           <nav aria-label="Sections" className="shrink-0 border-t border-gold/40 bg-pine pb-[env(safe-area-inset-bottom)] lg:hidden">
-          <ul className="grid grid-cols-6">
+          <ul className="grid grid-cols-3">
             {NAV.map(item => {
               const active = item.path === path;
               return (
@@ -156,10 +156,10 @@ export function AppFrame({ path, section, segments = [], showSearch, children }:
                   <a
                     href={item.href}
                     aria-current={active ? 'page' : undefined}
-                    className={`flex min-h-12 w-full flex-col items-center justify-center gap-1 border-t-2 px-px py-1.5 text-center text-[clamp(10px,3vw,12px)] leading-none tracking-tight ${active ? 'border-gold text-sand' : 'border-transparent text-sand/80'}`}
+                    className={`flex min-h-14 w-full flex-col items-center justify-center gap-1 border-t-2 px-2 py-2 text-center text-sm leading-tight ${active ? 'border-gold text-sand' : 'border-transparent text-sand/80'}`}
                   >
                     <item.icon className="h-5 w-5 shrink-0" aria-hidden />
-                    <span className="max-w-full whitespace-nowrap">{t[item.short]}</span>
+                    <span className="max-w-full text-balance">{t[item.short]}</span>
                   </a>
                 </li>
               );

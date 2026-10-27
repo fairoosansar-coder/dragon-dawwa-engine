@@ -42,7 +42,7 @@ interface CommunityEpisode {
 const KEY = 'kf-research-podcasts';
 
 function voiceFor(speaker: string): string {
-  if (/feroz|^host\b/i.test(speaker)) return 'Puck';
+  if (/feroz|generated host|^host\b/i.test(speaker)) return 'Puck';
   if (/layla|passage reader/i.test(speaker)) return 'Kore';
   if (/tariq/i.test(speaker)) return 'Fenrir';
   if (/imran/i.test(speaker)) return 'Orus';

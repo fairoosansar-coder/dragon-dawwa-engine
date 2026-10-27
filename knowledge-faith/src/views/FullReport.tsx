@@ -8,7 +8,7 @@ export function FullReport({ model }: { model: ReportModel }) {
     <article className="space-y-4" aria-label={t.fullReport} data-full-report>
       <header className="rounded-3xl bg-pine px-5 py-6 text-sand sm:px-7">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">DRAGON DAWWA</p>
-        <h2 className="mt-2 font-display text-3xl font-bold leading-tight">{model.question}</h2>
+        <h2 className="mt-2 font-display text-3xl font-bold leading-tight" lang={model.language}>{model.question}</h2>
         <p className="mt-3 text-sm text-sand/85">
           {model.language} · {model.scope}
           {model.teams.length ? ` · ${model.teams.join(', ')}` : ''}
@@ -18,7 +18,7 @@ export function FullReport({ model }: { model: ReportModel }) {
       {model.answer && (
         <section className="rounded-3xl border border-gold bg-white p-5" data-research-answer>
           <h3 className="font-display text-xl font-bold text-pine">Answer</h3>
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{model.answer}</p>
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed" lang={model.language}>{model.answer}</p>
           {model.answerArabic && (
             <p className="mt-3 font-arabic text-2xl leading-loose" dir="rtl" lang="ar">
               {model.answerArabic}
@@ -26,6 +26,18 @@ export function FullReport({ model }: { model: ReportModel }) {
           )}
         </section>
       )}
+
+      <section className="rounded-3xl bg-parchment p-5">
+        <h3 className="font-display text-xl font-bold text-pine">Claims</h3>
+        {model.claims.length === 0 && <p className="mt-2 text-sm text-muted">None recorded.</p>}
+        {model.claims.map(claim => (
+          <p key={claim.claim} className="mt-2 text-sm leading-relaxed">
+            <span className="font-semibold text-pine">{claim.support}. </span>
+            {claim.claim} — {claim.note}
+            {claim.passageIds.length ? ` (${claim.passageIds.join(', ')})` : ''}
+          </p>
+        ))}
+      </section>
 
       <section className="rounded-3xl border-l-4 border-lapis bg-white p-5">
         <h3 className="font-display text-xl font-bold text-pine">{t.supportingSources}</h3>
@@ -42,7 +54,7 @@ export function FullReport({ model }: { model: ReportModel }) {
                   {passage.arabic}
                 </p>
               )}
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{passage.text}</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed" lang={model.language}>{passage.text}</p>
               {passage.context && <p className="mt-2 whitespace-pre-wrap text-sm text-muted">{passage.context}</p>}
               <p className="mt-2 break-all text-xs text-muted">{passage.source.canonicalUrl}</p>
             </article>
@@ -66,17 +78,6 @@ export function FullReport({ model }: { model: ReportModel }) {
             </li>
           ))}
         </ul>
-      </section>
-
-      <section className="rounded-3xl bg-parchment p-5">
-        <h3 className="font-display text-xl font-bold text-pine">Claims</h3>
-        {model.claims.map(claim => (
-          <p key={claim.claim} className="mt-2 text-sm leading-relaxed">
-            <span className="font-semibold text-pine">{claim.support}. </span>
-            {claim.claim} — {claim.note}
-            {claim.passageIds.length ? ` (${claim.passageIds.join(', ')})` : ''}
-          </p>
-        ))}
       </section>
 
       <section className="rounded-3xl border border-gold bg-white p-5">
@@ -108,13 +109,6 @@ export function FullReport({ model }: { model: ReportModel }) {
           </ol>
         </section>
       )}
-      {!model.chain && model.passages.some(passage => passage.source.contentType === 'hadith') && (
-        <section className="rounded-3xl border-l-4 border-lapis bg-white p-5">
-          <h3 className="font-display text-xl font-bold text-pine">Transmission map</h3>
-          <p className="mt-2 text-sm text-muted">{t.chainMissing}</p>
-        </section>
-      )}
-
       <details className="rounded-3xl border border-pine/10 bg-parchment p-5" data-research-activity>
         <summary className="cursor-pointer font-display text-xl font-bold text-pine">Research activity</summary>
         <div className="mt-4 space-y-4">

@@ -174,7 +174,7 @@ export function renderReportHtml(model: ReportModel): string {
   const passages = model.passages
     .map(passage => {
       const arabic = passage.arabic ? `<p class="arabic" dir="rtl" lang="ar">${escapeHtml(passage.arabic)}</p>` : '';
-      return `<article class="passage"><h3>${escapeHtml(passage.locator)}</h3><p class="meta">${escapeHtml(passage.source.provider)} · ${escapeHtml(passage.source.title)}</p>${arabic}<p>${escapeHtml(passage.text)}</p>${passage.context ? `<p class="context">${escapeHtml(passage.context)}</p>` : ''}<p class="meta">${escapeHtml(passage.source.canonicalUrl)}</p></article>`;
+      return `<article class="passage"><h3>${escapeHtml(passage.locator)}</h3><p class="meta">${escapeHtml(passage.source.provider)} · ${escapeHtml(passage.source.title)}</p>${arabic}<p lang="${escapeHtml(model.language)}">${escapeHtml(passage.text)}</p>${passage.context ? `<p class="context">${escapeHtml(passage.context)}</p>` : ''}<p class="meta">${escapeHtml(passage.source.canonicalUrl)}</p></article>`;
     })
     .join('');
   const chart = model.chart
@@ -183,18 +183,15 @@ export function renderReportHtml(model: ReportModel): string {
       return `<div class="bar-row"><span>${escapeHtml(row.label)} (${row.count})</span><span class="bar" style="width:${width}%"></span></div>`;
     })
     .join('');
-  const hadithOpened = model.passages.some(passage => passage.source.contentType === 'hadith');
   const chain = model.chain
     ? `<ol class="chain">${model.chain.map(name => `<li>${escapeHtml(name)}</li>`).join('')}</ol>`
-    : hadithOpened
-      ? '<p class="muted">No narrator chain was printed on the opened records, so no chain map is drawn.</p>'
-      : '';
+    : '';
   const claims = model.claims.map(claim => `${claim.support}: ${claim.claim} — ${claim.note}${claim.passageIds.length ? ` (${claim.passageIds.join(', ')})` : ''}`);
   const answer = model.answer
     ? section(
         'Answer',
         'gold',
-        `<p>${escapeHtml(model.answer)}</p>${model.answerArabic ? `<p class="arabic" dir="rtl" lang="ar">${escapeHtml(model.answerArabic)}</p>` : ''}`,
+        `<p lang="${escapeHtml(model.language)}">${escapeHtml(model.answer)}</p>${model.answerArabic ? `<p class="arabic" dir="rtl" lang="ar">${escapeHtml(model.answerArabic)}</p>` : ''}`,
       )
     : '';
   return `<!DOCTYPE html>
@@ -230,9 +227,9 @@ export function renderReportHtml(model: ReportModel): string {
     <p>Language: ${escapeHtml(model.language)}. Scope: ${escapeHtml(model.scope)}. Teams: ${escapeHtml(model.teams.join(', ') || '—')}.${model.investigation ? ` Investigation: ${escapeHtml(model.investigation)}.` : ''}</p>
   </header>
   ${answer}
+  ${section('Claims', 'parchment', paragraphs(claims))}
   ${section('Supporting sources', 'lapis', passages || '<p class="muted">No passage was kept.</p>')}
   ${section('Evidence chart', 'gold', chart || '<p class="muted">No passage was kept.</p>')}
-  ${section('Claims', 'parchment', paragraphs(claims))}
   ${section('Disagreements', 'gold', paragraphs(model.disagreements))}
   ${section('Unresolved', 'parchment', paragraphs(model.unresolved))}
   ${chain ? section('Transmission map', 'lapis', chain) : ''}

@@ -200,6 +200,7 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
           <label className="sr-only" htmlFor="research-question">{heading}</label>
           <textarea
             id="research-question"
+            lang={lang}
             value={question}
             onChange={event => setQuestion(event.target.value)}
             rows={4}
@@ -288,7 +289,7 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
                 ))}
               </ul>
             ) : null}
-            {liveModel.answer ? <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed">{liveModel.answer}</p> : <p className="mt-3 text-sm text-muted">No answer was written from the retrieved passages.</p>}
+            {liveModel.answer ? <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed" lang={job?.language ?? liveModel.language}>{liveModel.answer}</p> : <p className="mt-3 text-sm text-muted">No answer was written from the retrieved passages.</p>}
             {job?.materialParts?.some(part => part.status === 'unresolved') && (
               <ul className="mt-3 space-y-1 text-sm text-ink/80" data-material-coverage>
                 {job.materialParts.filter(part => part.status === 'unresolved').map(part => (

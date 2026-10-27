@@ -25,7 +25,7 @@ export interface RoundtableScript {
   sources: string[];
 }
 
-const HOST = 'Brother Feroz';
+const HOST = 'Generated host';
 const PASSAGE = 'Dr. Layla al-Qasimi';
 const DISTINCTION = 'Dr. Zainab al-Mubarak';
 const DEEP = 'Dr. Amina al-Kindi';
@@ -125,7 +125,7 @@ function corpusConversation(question: string, passages: readonly RoundtablePassa
   return [
     line(
       HOST,
-      `The question is: ${everydayQuestion(question)} I am a generated host. The two contributors with me are generated too. We are not scholars. We will talk about what the opened passages say.`,
+      `The question is: ${everydayQuestion(question)} I am a generated host. The contributors with me are generated presenters. We are not scholars, and no person spoke or approved these words. We will talk about what the opened passages say.`,
     ),
     line(PASSAGE, `I'll start with the passages that name a campaign. ${told}`),
     line(
@@ -153,6 +153,7 @@ function generalConversation(input: {
   passages: readonly RoundtablePassage[];
   insufficientEvidence?: boolean;
   unresolved?: readonly string[];
+  openSpeaker: string;
 }): RoundtableLine[] | null {
   const usable = input.passages
     .filter(passage => !passage.context?.startsWith('Neighbouring'))
@@ -165,7 +166,7 @@ function generalConversation(input: {
   return [
     line(
       HOST,
-      `The question is: ${everydayQuestion(input.question)} I am a generated host. The two contributors with me are generated too. We are not scholars.`,
+      `The question is: ${everydayQuestion(input.question)} I am a generated host. The contributors with me are generated presenters. We are not scholars, and no person spoke or approved these words.`,
     ),
     line(PASSAGE, told),
     line(
@@ -181,7 +182,7 @@ function generalConversation(input: {
         : 'What is established is what those passages say. What they do not say stays outside the conclusion.',
     ),
     line(HOST, 'That is the conclusion for this question, from this dossier alone.'),
-    ...(input.unresolved ?? []).slice(0, 2).map(note => line(DEEP, `This part stays open. ${note}`)),
+    ...(input.unresolved ?? []).slice(0, 2).map(note => line(input.openSpeaker, `This part stays open. ${note}`)),
   ];
 }
 
@@ -193,7 +194,7 @@ export function scriptMayBeSpoken(lines: readonly { text: string; speaker?: stri
   if (named.length) {
     const speakers = new Set(named.map(item => item.speaker));
     if (speakers.size < 3) return false;
-    const contributorAsked = named.some(item => item.speaker && !/^host\b/i.test(item.speaker) && item.text.includes('?'));
+    const contributorAsked = named.some(item => item.speaker && !/^(?:generated host|host)\b/i.test(item.speaker) && item.text.includes('?'));
     if (!contributorAsked) return false;
   }
   if (STATUS.test(spoken) || INVENTORY.test(spoken)) return false;
@@ -225,21 +226,31 @@ export function roundtableFromResearch(input: {
   const answer = input.answer?.trim() ?? '';
   if (!passages.length || !answer) return null;
   const corpus = /Word occurrence\./i.test(answer);
+  const deepRan = !input.agents || input.agents.some(agent => agent.status === 'ran' && /deep research/i.test(`${agent.id} ${agent.role}`));
   const lines = corpus
     ? corpusConversation(question, passages)
-    : generalConversation({ question, answer, passages, insufficientEvidence: input.insufficientEvidence, unresolved: input.unresolved });
+    : generalConversation({
+        question,
+        answer,
+        passages,
+        insufficientEvidence: input.insufficientEvidence,
+        unresolved: input.unresolved,
+        openSpeaker: deepRan ? DEEP : HOST,
+      });
   if (!lines || !scriptMayBeSpoken(lines, answer)) return null;
+  const roster = [
+    { id: 'generated-host', speaker: HOST, role: 'Generated host', team: 'roundtable' },
+    { id: 'layla-generated', speaker: PASSAGE, role: `${PASSAGE} (generated presenter)`, team: 'quran' },
+    { id: 'zainab-generated', speaker: DISTINCTION, role: `${DISTINCTION} (generated presenter)`, team: 'hadith' },
+    { id: 'amina-generated', speaker: DEEP, role: `${DEEP} (generated presenter)`, team: 'deep-research' },
+  ];
+  const speaking = new Set(lines.map(item => item.speaker));
   return {
     title: question.slice(0, 140),
     language: input.language,
     question,
     lines,
-    participants: [
-      { id: 'feroz-generated', role: `${HOST} (generated host)`, team: 'roundtable' },
-      { id: 'layla-generated', role: `${PASSAGE} (generated)`, team: 'quran' },
-      { id: 'zainab-generated', role: `${DISTINCTION} (generated)`, team: 'hadith' },
-      { id: 'amina-generated', role: `${DEEP} (generated)`, team: 'deep-research' },
-    ],
+    participants: roster.filter(person => speaking.has(person.speaker)).map(person => ({ id: person.id, role: person.role, team: person.team })),
     sources: sourceLines(answer, passages),
   };
 }
