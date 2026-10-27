@@ -38,7 +38,7 @@ import { contentHash, createContentIndex, type ContentIndex } from './contentInd
 import { buildAgentContributions, type OpenedBook, type TafsirAttempt } from './contributions.ts';
 import { openHadeethEncForQuestion } from './hadeethOpen.ts';
 import { dedupePassages } from '../../shared/research/corroboration.ts';
-import { asksWhen, discussesApplication, isOpenedAyah, materialParts, passageMatchesLanguage, recordsPractice, retainRelevantPassages, reviewMaterialCoverage, timingClause } from '../../shared/research/materialCoverage.ts';
+import { asksWhen, commentaryAccompaniesOpenedAyah, discussesApplication, isOpenedAyah, materialParts, passageMatchesLanguage, recordsPractice, retainRelevantPassages, reviewMaterialCoverage, timingClause } from '../../shared/research/materialCoverage.ts';
 import { CONFIDENCE_NOTE, consultParallel, type ParallelConsult } from './parallelTask.ts';
 import type { ScienceWork } from './science.ts';
 import type { ResearchAssignmentView } from '../../shared/contracts/v1.ts';
@@ -796,14 +796,14 @@ export async function executeResearch(input: {
     const suggestedKeys = new Set(suggestedAyahs.map(ayah => `${ayah.surah}:${ayah.ayah}`));
     const ayahCap = 8;
     if (useQuran) {
+      for (const ayah of suggestedAyahs) {
+        if (ayahs.length >= ayahCap) break;
+        if (!ayahs.some(item => item.surah === ayah.surah && item.ayah === ayah.ayah)) ayahs.push(ayah);
+      }
       for (const ayah of themeAyahs(input.question)) {
         const key = `${ayah.surah}:${ayah.ayah}`;
         themeKeys.add(key);
         if (ayahs.length >= ayahCap) continue;
-        if (!ayahs.some(item => item.surah === ayah.surah && item.ayah === ayah.ayah)) ayahs.push(ayah);
-      }
-      for (const ayah of suggestedAyahs) {
-        if (ayahs.length >= ayahCap) break;
         if (!ayahs.some(item => item.surah === ayah.surah && item.ayah === ayah.ayah)) ayahs.push(ayah);
       }
       if (!countingCorpus && input.ports.searchQuran) {
@@ -1276,7 +1276,9 @@ export async function executeResearch(input: {
       parallelConsult = { status: 'failed', liveCallMade: true, runId: null, findings: [], setup: err instanceof Error ? err.message : 'Parallel failed.', processor: null, durationMs: 0 };
     }
     const reviewedPassages = [...passages];
-    const sameLanguage = reviewedPassages.filter(passage => passageMatchesLanguage(passage, input.language));
+    const keptForLanguage = (passage: EvidencePassage, pool: readonly EvidencePassage[] = reviewedPassages) =>
+      passageMatchesLanguage(passage, input.language) || commentaryAccompaniesOpenedAyah(passage, input.language, pool);
+    const sameLanguage = reviewedPassages.filter(passage => keptForLanguage(passage));
     if (reviewedPassages.length && sameLanguage.length !== reviewedPassages.length) {
       pushCoverage({
         kind: 'language_unavailable',
@@ -1329,7 +1331,7 @@ export async function executeResearch(input: {
           written = null;
         }
       }
-      researchAnswer = ensureParallelCited(written ?? retrievedAnswer(input.question, packet, interpretation), packet, input.question, interpretation);
+      researchAnswer = ensureParallelCited(written ?? retrievedAnswer(input.question, packet, interpretation, input.language), packet, input.question, interpretation, input.language);
     };
     try {
       await writeFrom(passages);
@@ -1424,7 +1426,7 @@ export async function executeResearch(input: {
       }
       const added = passages.filter(passage => !beforeIds.has(passage.id));
       if (added.length) {
-        const followed = dedupePassages(passages).passages.filter(passage => passageMatchesLanguage(passage, input.language));
+        const followed = dedupePassages(passages).passages.filter(passage => keptForLanguage(passage, passages));
         passages.splice(0, passages.length, ...followed);
         try {
           await writeFrom(passages);
@@ -1895,8 +1897,9 @@ function answerFromFinalPool(
   question: string,
   passages: readonly EvidencePassage[],
   interpretation: QuestionInterpretation,
+  language: Lang = 'en',
 ): ResearchAnswer {
-  return integrateSupportedFindings(retrievedAnswer(question, passages, interpretation), passages);
+  return integrateSupportedFindings(retrievedAnswer(question, passages, interpretation, language), passages);
 }
 
 function ensureParallelCited(
@@ -1904,8 +1907,9 @@ function ensureParallelCited(
   passages: readonly EvidencePassage[],
   question: string,
   interpretation: QuestionInterpretation,
+  language: Lang = 'en',
 ): ResearchAnswer | null {
-  const base = answer ?? retrievedAnswer(question, passages, interpretation);
+  const base = answer ?? retrievedAnswer(question, passages, interpretation, language);
   return integrateSupportedFindings(base, passages);
 }
 
@@ -1941,10 +1945,12 @@ export function publishParallelRevision(run: ResearchRun, consult: ParallelConsu
   const deduped = dedupePassages(passages);
   const pool = retainRelevantPassages({
     question: job.question,
-    passages: deduped.passages.filter(passage => passageMatchesLanguage(passage, job.language)),
+    passages: deduped.passages.filter(passage =>
+      passageMatchesLanguage(passage, job.language) || commentaryAccompaniesOpenedAyah(passage, job.language, deduped.passages),
+    ),
   }).kept;
   const interpretation = interpretQuestion(job.question);
-  let answer = pool.length ? answerFromFinalPool(job.question, pool, interpretation) : dossier.answer ?? null;
+  let answer = pool.length ? answerFromFinalPool(job.question, pool, interpretation, job.language) : dossier.answer ?? null;
   const review = reviewMaterialCoverage({
     question: job.question,
     language: job.language,
@@ -1969,31 +1975,54 @@ export function publishParallelRevision(run: ResearchRun, consult: ParallelConsu
   return { job, dossier };
 }
 
-/** Reader-facing reading of an opened ayah. The quotation stays the opened text. */
-function thematicScriptureAnswer(question: string, passages: readonly EvidencePassage[]): string | null {
+function commentaryInScript(text: string, language: Lang): boolean {
+  if (language === 'ta') return /[\u0B80-\u0BFF]/.test(text);
+  if (language === 'si') return /[\u0D80-\u0DFF]/.test(text);
+  return /[A-Za-z]/.test(text) && !/[\u0B80-\u0BFF\u0D80-\u0DFF]/.test(text);
+}
+
+/** Reader-facing reading of an opened ayah. Arabic, translation, and opened tafsir stay the opened text. */
+function thematicScriptureAnswer(question: string, passages: readonly EvidencePassage[], language: Lang): string | null {
   const ayah = passages.find(isOpenedAyah);
   if (!ayah?.text.trim()) return null;
-  const english = /[A-Za-z]/.test(ayah.text) && !/[\u0B80-\u0BFF\u0D80-\u0DFF]/.test(ayah.text);
-  if (!english) return null;
   const commentary = passages.find(passage => passage.role === 'commentary' && passage.source.provider !== 'Parallel' && passage.text.trim());
   const asked = question.replace(/\s+/g, ' ').trim().slice(0, 240);
-  const tafsir = commentary
+  const arabic = ayah.arabic?.trim() ?? '';
+  const translation = ayah.text.trim();
+  const openedTafsir = commentary
     ? ` The opened tafsir (${commentary.locator}) says: “${commentary.text.trim()}”.`
     : ' An occasion of revelation is included only when the opened tafsir states it.';
-  return `Your question, “${asked}”, is answered from ${ayah.locator}: “${ayah.text.trim()}”.${tafsir} The ayah is read for the theme it teaches, including trust in Allah where it speaks of trial, dislike, or reliance.`;
+  const comfort = ' The spiritual meaning is the theme the ayah itself teaches, including trust in Allah where it speaks of trial, dislike, or reliance. The practical comfort is to hold to that opened wording. An occasion or a tafsir the sources did not open is left unnamed.';
+  if (language === 'ta') {
+    const ar = arabic ? ` அரபு: “${arabic}”.` : '';
+    const taf = commentary
+      ? ` திறந்த தஃப்சீர் (${commentary.locator}): “${commentary.text.trim()}”.${commentaryInScript(commentary.text, 'ta') ? '' : ' இது திறந்த அரபு அல்லது ஆங்கில விளக்கத்தின் சொற்கள். தமிழ் தஃப்சீர் உரை இல்லையென்றால் இந்த திறந்த சொற்களே மூலம்.'}`
+      : ' அருள்வழி இறங்கிய சந்தர்ப்பம் திறந்த தஃப்சீரில் உள்ளபோது மட்டும் சொல்லப்படும்.';
+    return `உங்கள் கேள்வி, “${asked}”, ${ayah.locator} இலிருந்து பதிலளிக்கப்படுகிறது.${ar} மொழிபெயர்ப்பு: “${translation}”.${taf} ஆன்மீக அர்த்தம் இந்த வசனம் திறந்த சொற்களில் கற்பிப்பதே. நடைமுறை ஆறுதல்: திறந்த வார்த்தையைப் பிடித்துக் கொள்ளுங்கள். திறக்கப்படாத அஸ்பாப் அல்லது தஃப்சீர் சேர்க்கப்படவில்லை.`;
+  }
+  if (language === 'si') {
+    const ar = arabic ? ` අරාබි: “${arabic}”.` : '';
+    const taf = commentary
+      ? ` විවෘත තෆ්සීරය (${commentary.locator}): “${commentary.text.trim()}”.${commentaryInScript(commentary.text, 'si') ? '' : ' මෙය විවෘත අරාබි හෝ ඉංග්‍රීසි විවරණයේ වචන ය. සිංහල තෆ්සීර පෙළ නැති විට මෙම විවෘත වචන මූලාශ්‍රයයි.'}`
+      : ' එළිදරව් වීමේ අවස්ථාව විවෘත තෆ්සීරය පවසන විට පමණක් ඇතුළත් වේ.';
+    return `ඔබේ ප්‍රශ්නය, “${asked}”, ${ayah.locator} වෙතින් පිළිතුරු දෙයි.${ar} පරිවර්තනය: “${translation}”.${taf} අධ්‍යාත්මික අර්ථය මෙම වැකිය විවෘත වචනවලින් උගන්වන දෙයයි. ප්‍රායෝගික සැනසීම: විවෘත වචනය අල්ලාගන්න. විවෘත නොකළ අස්බාබ් හෝ තෆ්සීරයක් එකතු නොකෙරේ.`;
+  }
+  const ar = arabic ? ` Arabic: “${arabic}”.` : '';
+  return `Your question, “${asked}”, is answered from ${ayah.locator}.${ar} Translation: “${translation}”.${openedTafsir}${comfort}`;
 }
 
 function retrievedAnswer(
   question: string,
   passages: readonly EvidencePassage[],
   interpretation: QuestionInterpretation,
+  language: Lang = 'en',
 ): ResearchAnswer {
   const asksCount = interpretation.kind === 'stated-total' || (interpretation.kind !== 'corpus-count' && COUNT_QUESTION.test(question));
   const timed = asksWhen(question)
     ? passages.find(passage => timingClause(question, `${passage.text}\n${passage.context ?? ''}`)) ?? null
     : null;
   const clause = timed ? timingClause(question, `${timed.text}\n${timed.context ?? ''}`) : null;
-  const thematic = !asksCount && !clause ? thematicScriptureAnswer(question, passages) : null;
+  const thematic = !asksCount && !clause ? thematicScriptureAnswer(question, passages, language) : null;
   const cited = thematic
     ? passages.filter(passage => isOpenedAyah(passage) || (passage.role === 'commentary' && passage.source.provider !== 'Parallel')).slice(0, 6)
     : passages.slice(0, 6);

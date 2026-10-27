@@ -112,7 +112,7 @@ export function themeWordingSupports(question: string, passage: string): boolean
  * An unrelated request, such as a lost bicycle, does not qualify.
  */
 const SCRIPTURE_QUESTION =
-  /allah|god\b|lord|qur['’]?an|\bayah\b|\bverse\b|\bsurah\b|islam|\biman\b|\bfaith\b|tawakkul|tawakkal|hardship|\btrial\b|tribulation|wisdom|revelation|worship|pray|mercy|forgiv|\bsabr\b|\bqadr\b|resent|dislike|\bhate\b|hateful|jihad|taqwa|reliance|\brely\b|struggl|burden|prescribed|decree|\bpatient\b|blessing|\bafflict/i;
+  /allah|god\b|lord|qur['’]?an|\bayah\b|\bverse\b|\bsurah\b|islam|\biman\b|\bfaith\b|tawakkul|tawakkal|hardship|\btrial\b|tribulation|wisdom|revelation|jibril|jibreel|jibrael|gabriel|\bwahy\b|worship|pray|mercy|forgiv|\bsabr\b|\bqadr\b|resent|dislike|\bhate\b|hateful|jihad|taqwa|reliance|\brely\b|struggl|burden|prescribed|decree|\bpatient\b|blessing|\bafflict/i;
 
 export function questionInvitesScripture(question: string): boolean {
   return SCRIPTURE_QUESTION.test(question) || matchingThemes(question).length > 0;

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { BookOpen, Bookmark, Library, Lightbulb, Mic, MoonStar, LibraryBig, type LucideIcon } from 'lucide-react';
+import { BookOpen, Bookmark, Library, Lightbulb, Mic, MoonStar, LibraryBig, Radio, type LucideIcon } from 'lucide-react';
 import { LANGS, LANGUAGE_NAMES, toLang } from '../../shared/sources.ts';
 import type { RouteRoot } from '../../lib/route.ts';
 import { useShell } from '../../lib/shell.tsx';
@@ -35,6 +35,7 @@ const NAV: NavItem[] = [
   { path: 'books', href: '#/books', short: 'navBooks', icon: LibraryBig },
   { path: 'spiritual', href: '#/spiritual', short: 'navWorship', side: 'navWorship', icon: MoonStar },
   { path: 'podcast', href: '#/podcast', short: 'navPodcast', icon: Mic },
+  { path: 'studio', href: '#/studio', short: 'navStudioShort', side: 'navBroadcast', icon: Radio },
 ];
 
 export function AppFrame({ path, section, segments = [], showSearch, children }: { path: RouteRoot; section: string; segments?: string[]; showSearch: boolean; children: ReactNode }) {
@@ -148,7 +149,7 @@ export function AppFrame({ path, section, segments = [], showSearch, children }:
         {player && !(path === 'quran' && (segments[0] === 'book' || segments[0] === 'study')) && <AudioMiniPlayer safe={focus} />}
         {!focus && !(path === 'quran' && segments[0] === 'book') && (
           <nav aria-label="Sections" className="shrink-0 border-t border-gold/40 bg-pine pb-[env(safe-area-inset-bottom)] lg:hidden">
-          <ul className="grid grid-cols-6">
+          <ul className="grid grid-cols-7">
             {NAV.map(item => {
               const active = item.path === path;
               return (
@@ -156,10 +157,10 @@ export function AppFrame({ path, section, segments = [], showSearch, children }:
                   <a
                     href={item.href}
                     aria-current={active ? 'page' : undefined}
-                    className={`flex min-h-12 w-full flex-col items-center justify-center gap-1 border-t-2 px-px py-1.5 text-center text-[clamp(10px,3vw,12px)] leading-none tracking-tight ${active ? 'border-gold text-sand' : 'border-transparent text-sand/80'}`}
+                    className={`flex min-h-12 w-full flex-col items-center justify-center gap-0.5 border-t-2 px-px py-1.5 text-center text-[10px] leading-none tracking-tight ${active ? 'border-gold text-sand' : 'border-transparent text-sand/80'}`}
                   >
-                    <item.icon className="h-5 w-5 shrink-0" aria-hidden />
-                    <span className="max-w-full whitespace-nowrap">{t[item.short]}</span>
+                    <item.icon className="h-4 w-4 shrink-0" aria-hidden />
+                    <span className="max-w-full truncate">{t[item.short]}</span>
                   </a>
                 </li>
               );
