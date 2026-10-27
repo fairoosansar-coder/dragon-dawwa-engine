@@ -154,6 +154,20 @@ export function isNamedReference(question: string, passage: Pick<EvidencePassage
   return refs.some(ref => hasRef(blob, ref.surah, ref.ayah));
 }
 
+/**
+ * An ayah the research engine opened for this question.
+ * Keyword overlap with the reader’s sentence is not required.
+ * A neighbouring ayah is context and is not itself the answer.
+ */
+export function isOpenedAyah(passage: Pick<EvidencePassage, 'role' | 'context' | 'source'>): boolean {
+  if (passage.role === 'commentary' || passage.role === 'empirical') return false;
+  if (passage.context?.startsWith('Neighbouring')) return false;
+  return (
+    (passage.source.provider === 'QuranEnc' || passage.source.provider === 'AlQuran')
+    && passage.source.contentType === 'quran'
+  );
+}
+
 function passageBlob(passage: EvidencePassage): string {
   return `${passage.text}\n${passage.arabic ?? ''}`;
 }
@@ -204,6 +218,7 @@ function partAnswered(kind: MaterialKind, passages: readonly EvidencePassage[], 
   if (kind === 'meaning') return passages.some(explains);
   if (kind === 'application') return passages.some(discussesApplication);
   if (kind === 'explanation' || kind === 'purpose') {
+    if (passages.some(isOpenedAyah)) return true;
     return topical.some(passage => definesSubject(question, passage));
   }
   if (kind === 'authentication') {
@@ -229,7 +244,9 @@ function partAnswered(kind: MaterialKind, passages: readonly EvidencePassage[], 
   }
   if (kind === 'worship') return topical.some(passage => WORSHIP.test(`${passage.text}\n${passage.locator}`));
   if (kind === 'hadith') return [...topical, ...named].some(passage => passage.source.contentType === 'hadith');
-  if (kind === 'quran') return [...topical, ...named].some(passage => passage.source.contentType === 'quran');
+  if (kind === 'quran') {
+    return passages.some(passage => passage.source.contentType === 'quran' && (isOpenedAyah(passage) || named.includes(passage) || topical.includes(passage)));
+  }
   if (kind === 'books' || kind === 'recommendation') return topical.some(passage => passage.source.contentType === 'book');
   return named.length > 0 || topical.some(passage => passage.text.trim().length > 20);
 }
@@ -280,7 +297,7 @@ export function reviewMaterialCoverage(input: {
         : { ...part, status: 'unresolved', note: applicationNote(input.language) };
     }
     if (part.kind === 'locate') {
-      return partAnswered('locate', sameLanguage, input.question)
+      return partAnswered('locate', sameLanguage, input.question) || sameLanguage.some(isOpenedAyah)
         ? { ...part, status: 'answered', note: 'The named passage was opened. Its location is context for the rest of the question.' }
         : { ...part, status: 'unresolved', note: 'The named passage was not opened in the selected language.' };
     }
@@ -328,6 +345,7 @@ function definesSubject(question: string, passage: EvidencePassage): boolean {
 }
 
 function relevantTo(questions: readonly string[], passage: EvidencePassage): boolean {
+  if (isOpenedAyah(passage)) return true;
   if (questions.some(question => isNamedReference(question, passage))) return true;
   const blob = passageRecord(passage);
   const topical = questions.some(question => passageSupportsTopic(question, blob) || themeWordingSupports(question, blob));

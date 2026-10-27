@@ -227,7 +227,7 @@ function quranAgents(input: {
         'ran',
         input.claims.length
           ? input.claims.map(claim => `${claim.support}: ${claim.note}`).join(' ')
-          : 'The retrieved verses were checked against the question. A citation is not support by itself.',
+          : 'Opened ayahs that fit the question, its theme, or the cited passage were kept for tafsir. A missing keyword is not a reason to drop them.',
       )
     : agent('quran', 'evidence', 'Evidence review', 'not_run', 'No passage was kept, so evidence review did not produce a finding.');
   return [text, translation, tafsir, context, evidence];

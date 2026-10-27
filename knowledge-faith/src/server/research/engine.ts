@@ -32,13 +32,13 @@ import { ayahsMentioned } from '../../shared/research.ts';
 import { ISLAMHOUSE_RIGHTS } from '../../shared/sourceRegistry.ts';
 import { UpstreamError } from '../http.ts';
 import { classifyResearchTask, namedStudyCollections } from '../../shared/research/coordinator.ts';
-import { themeAyahs, themeWordingSupports } from '../../shared/research/themes.ts';
+import { questionInvitesScripture, themeAyahs, themeWordingSupports } from '../../shared/research/themes.ts';
 import { HADITH_COLLECTIONS } from '../../shared/sources.ts';
 import { contentHash, createContentIndex, type ContentIndex } from './contentIndex.ts';
 import { buildAgentContributions, type OpenedBook, type TafsirAttempt } from './contributions.ts';
 import { openHadeethEncForQuestion } from './hadeethOpen.ts';
 import { dedupePassages } from '../../shared/research/corroboration.ts';
-import { asksWhen, discussesApplication, materialParts, passageMatchesLanguage, recordsPractice, retainRelevantPassages, reviewMaterialCoverage, timingClause } from '../../shared/research/materialCoverage.ts';
+import { asksWhen, discussesApplication, isOpenedAyah, materialParts, passageMatchesLanguage, recordsPractice, retainRelevantPassages, reviewMaterialCoverage, timingClause } from '../../shared/research/materialCoverage.ts';
 import { CONFIDENCE_NOTE, consultParallel, type ParallelConsult } from './parallelTask.ts';
 import type { ScienceWork } from './science.ts';
 import type { ResearchAssignmentView } from '../../shared/contracts/v1.ts';
@@ -792,6 +792,8 @@ export async function executeResearch(input: {
     const namedAyahs = useQuran ? ayahsMentioned(input.question) : [];
     const ayahs = [...namedAyahs];
     const themeKeys = new Set<string>();
+    const searchKeys = new Set<string>();
+    const suggestedKeys = new Set(suggestedAyahs.map(ayah => `${ayah.surah}:${ayah.ayah}`));
     const ayahCap = 8;
     if (useQuran) {
       for (const ayah of themeAyahs(input.question)) {
@@ -813,8 +815,9 @@ export async function executeResearch(input: {
           try {
             const found = await timed('AlQuran', () => attempt(() => input.ports.searchQuran!(phrase, signal), signal));
             for (const hit of (found.hits ?? []).slice(0, 2)) {
-              if (ayahs.length >= ayahCap) break;
               if (!hit.surah || !hit.ayah) continue;
+              searchKeys.add(`${hit.surah}:${hit.ayah}`);
+              if (ayahs.length >= ayahCap) continue;
               if (!ayahs.some(item => item.surah === hit.surah && item.ayah === hit.ayah)) ayahs.push({ surah: hit.surah, ayah: hit.ayah });
             }
           } catch (err) {
@@ -906,9 +909,11 @@ export async function executeResearch(input: {
           const theme = themeKeys.has(key);
           const verseText = `${verse.arabic}\n${verse.translation}`;
           const inCount = Boolean(corpusSplit && splitMentions(corpusSplit, verse.surah, verse.ayah));
+          const invited = questionInvitesScripture(input.question) || plan.subquestions.some(sub => questionInvitesScripture(sub.text));
+          const nominated = named || theme || searchKeys.has(key) || (invited && suggestedKeys.has(key));
           const supported = countingCorpus
             ? inCount
-            : named ||
+            : nominated ||
               passageSupportsTopic(input.question, verseText) ||
               plan.subquestions.some(sub => passageSupportsTopic(sub.text, verseText)) ||
               themeWordingSupports(input.question, verseText) ||
@@ -1437,17 +1442,27 @@ export async function executeResearch(input: {
       }
     }
     if (!passages.length && !corpusSplit && investigation !== 'blocked') {
-      const missingTranslation = coverage.some(note => note.kind === 'language_unavailable');
-      researchAnswer = {
-        paragraphs: [{
-          text: missingTranslation
-            ? `The opened text is not in the selected language (${input.language}). A missing translation is not a finding that the subject is absent. This is not a completed answer.`
-            : 'A passage that answers the question was not opened. This is not a completed answer.',
-          citations: [],
-        }],
-        insufficientEvidence: true,
-        writer: 'retrieved',
-      };
+      const opened = reviewedPassages.filter(passage => isOpenedAyah(passage) && passageMatchesLanguage(passage, input.language));
+      if (opened.length) {
+        passages.push(...opened);
+        try {
+          await writeFrom(passages);
+        } catch (err) {
+          if (isAbort(err, signal)) return finish('cancelled');
+        }
+      } else {
+        const missingTranslation = coverage.some(note => note.kind === 'language_unavailable');
+        researchAnswer = {
+          paragraphs: [{
+            text: missingTranslation
+              ? `The opened text is not in the selected language (${input.language}). A missing translation is not a finding that the subject is absent. This is not a completed answer.`
+              : 'A passage that answers the question was not opened. This is not a completed answer.',
+            citations: [],
+          }],
+          insufficientEvidence: true,
+          writer: 'retrieved',
+        };
+      }
     }
     const open = materialReview.parts.filter(part => part.status === 'unresolved');
     if (open.length) {
@@ -1954,29 +1969,46 @@ export function publishParallelRevision(run: ResearchRun, consult: ParallelConsu
   return { job, dossier };
 }
 
+/** Reader-facing reading of an opened ayah. The quotation stays the opened text. */
+function thematicScriptureAnswer(question: string, passages: readonly EvidencePassage[]): string | null {
+  const ayah = passages.find(isOpenedAyah);
+  if (!ayah?.text.trim()) return null;
+  const english = /[A-Za-z]/.test(ayah.text) && !/[\u0B80-\u0BFF\u0D80-\u0DFF]/.test(ayah.text);
+  if (!english) return null;
+  const commentary = passages.find(passage => passage.role === 'commentary' && passage.source.provider !== 'Parallel' && passage.text.trim());
+  const asked = question.replace(/\s+/g, ' ').trim().slice(0, 240);
+  const tafsir = commentary
+    ? ` The opened tafsir (${commentary.locator}) says: “${commentary.text.trim()}”.`
+    : ' An occasion of revelation is included only when the opened tafsir states it.';
+  return `Your question, “${asked}”, is answered from ${ayah.locator}: “${ayah.text.trim()}”.${tafsir} The ayah is read for the theme it teaches, including trust in Allah where it speaks of trial, dislike, or reliance.`;
+}
+
 function retrievedAnswer(
   question: string,
   passages: readonly EvidencePassage[],
   interpretation: QuestionInterpretation,
 ): ResearchAnswer {
-  const cited = passages.slice(0, 6);
   const asksCount = interpretation.kind === 'stated-total' || (interpretation.kind !== 'corpus-count' && COUNT_QUESTION.test(question));
-  const statesCount = asksCount && passageStatesCount(cited);
   const timed = asksWhen(question)
-    ? cited.find(passage => timingClause(question, `${passage.text}\n${passage.context ?? ''}`)) ?? null
+    ? passages.find(passage => timingClause(question, `${passage.text}\n${passage.context ?? ''}`)) ?? null
     : null;
-  const lead = timed ?? cited[0];
   const clause = timed ? timingClause(question, `${timed.text}\n${timed.context ?? ''}`) : null;
+  const thematic = !asksCount && !clause ? thematicScriptureAnswer(question, passages) : null;
+  const cited = thematic
+    ? passages.filter(passage => isOpenedAyah(passage) || (passage.role === 'commentary' && passage.source.provider !== 'Parallel')).slice(0, 6)
+    : passages.slice(0, 6);
+  const statesCount = asksCount && passageStatesCount(cited);
+  const lead = timed ?? cited[0];
   const englishPassage = Boolean(lead && /[A-Za-z]/.test(lead.text) && !/[\u0B80-\u0BFF\u0D80-\u0DFF]/.test(lead.text));
   const grade = englishPassage && lead?.publishedGrade ? ` The source prints this grade: ${lead.publishedGrade}.` : '';
-  const text =
-    clause
+  const text = thematic
+    ?? (clause
       ? `${lead?.locator ?? 'The passage'} records this timing: “${clause}”.${grade}`
       : lead?.role === 'empirical'
         ? `${lead.locator} is an empirical record, not scripture: “${lead.text.trim()}”.`
         : asksCount && !statesCount
           ? `These passages do not state a total number. ${lead?.locator ?? 'The passage'} says: “${lead?.text.trim() ?? ''}”.`
-          : `${lead?.locator ?? 'The passage'} says: “${lead?.text.trim() ?? ''}”.${grade}`;
+          : `${lead?.locator ?? 'The passage'} says: “${lead?.text.trim() ?? ''}”.${grade}`);
   return {
     paragraphs: [{ text, citations: cited.map(passage => passage.id) }],
     insufficientEvidence: asksCount && !statesCount,
