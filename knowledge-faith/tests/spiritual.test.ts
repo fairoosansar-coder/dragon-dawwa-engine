@@ -39,7 +39,8 @@ test('hash aliases keep prayer and staging links working', () => {
   assert.deepEqual(parseHash('#/spiritual/zakah/calculator'), { path: 'spiritual', segments: ['zakah', 'calculator'], params: empty });
   assert.deepEqual(parseHash('#/quran/study'), { path: 'quran', segments: ['study'], params: empty });
   assert.deepEqual(parseHash('#/hadith/research'), { path: 'hadith', segments: ['research'], params: empty });
-  assert.deepEqual(parseHash('#/studio/roundtable'), { path: 'studio', segments: ['roundtable'], params: empty });
+  assert.deepEqual(parseHash('#/studio/roundtable'), { path: 'podcast', segments: ['roundtable'], params: empty });
+  assert.deepEqual(parseHash('#/studio'), { path: 'podcast', segments: [], params: empty });
   assert.deepEqual(parseHash(''), { path: 'hub', segments: [], params: empty });
   assert.deepEqual(parseHash('#/missing'), { path: 'hub', segments: [], params: empty });
   assert.equal(parseHash('#/hadith/research?job=abc&fwd=1').params.get('job'), 'abc');

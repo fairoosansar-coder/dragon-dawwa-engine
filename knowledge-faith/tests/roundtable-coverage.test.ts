@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { AgentContribution } from '../src/shared/contracts/v1.ts';
 import { buildReportModel, contentSegments, renderReportHtml, type ReportModel } from '../src/shared/research/report.ts';
-import { roundtableFromResearch } from '../src/shared/research/roundtable.ts';
+import { DEFAULT_HOST_NAME, roundtableFromResearch } from '../src/shared/research/roundtable.ts';
 import { executeResearch, type ResearchPorts } from '../src/server/research/engine.ts';
 
 function ports(over: Partial<ResearchPorts> = {}): ResearchPorts {
@@ -38,7 +38,7 @@ function spokenOf(input: Parameters<typeof roundtableFromResearch>[0]) {
   const script = roundtableFromResearch({ status: 'done', investigation: 'partial', ...input });
   assert.ok(script, input.question);
   const spoken = script.lines.map(line => line.text).join(' ');
-  const specialists = script.lines.filter(line => line.speaker !== 'Brother Feroz');
+  const specialists = script.lines.filter(line => line.speaker !== DEFAULT_HOST_NAME);
   assert.equal(specialists.some(line => line.text.includes('?')), true);
   assert.match(spoken, /generated/i);
   assert.match(spoken, /did not speak|பேசவில்லை|කථා කළේ නැත/i);
@@ -70,7 +70,7 @@ describe('roundtable coverage', () => {
     assert.equal(quran.script.lines.some(line => line.speaker === 'Dr. Amina al-Kindi'), false);
     assert.match(quran.spoken, /Guard the prayers/);
     assert.match(quran.spoken, /stays open/);
-    assert.equal(quran.script.lines.filter(line => line.speaker !== 'Brother Feroz').some(line => /Surah \d+, ayah/.test(line.text)), false);
+    assert.equal(quran.script.lines.filter(line => line.speaker !== DEFAULT_HOST_NAME).some(line => /Surah \d+, ayah/.test(line.text)), false);
 
     const belief = spokenOf({
       question: 'What is Tawhid?',

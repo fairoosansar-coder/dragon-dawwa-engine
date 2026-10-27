@@ -30,6 +30,9 @@ import { listNames, readName } from './src/server/names.ts';
 import { cancelSharedResearchJob, getSharedResearchJob, startSharedResearchJob } from './src/server/research/jobs.ts';
 import { listCommunityPodcasts, publishCommunityPodcast } from './src/server/research/communityPodcasts.ts';
 import { coordinateQuestion } from './src/shared/research/coordinator.ts';
+import { buildReportModel } from './src/shared/research/report.ts';
+import { roundtableFromResearch } from './src/shared/research/roundtable.ts';
+import { sanitizePodcastHostName } from './src/shared/podcastHost.ts';
 import type { ResearchJobResponse, ResearchScope } from './src/shared/contracts/v1.ts';
 import { dossierEvidence, quoteFromEvidence, researchTopic } from './src/server/research.ts';
 import { attachVerification, verifyScript } from './src/shared/research.ts';
@@ -67,8 +70,7 @@ import { listSavedEpisodes, readSavedEpisode, saveEpisodeAudio } from './src/ser
 
 applyPersistDir();
 
-const PORT = Number(process.env.PORT ?? 3000);
-const HOST = process.env.HOST ?? '0.0.0.0';
+const PORT = Number(process.env.PORT || 3000);
 const isProduction = process.env.NODE_ENV === 'production';
 
 const fetchers: SourceFetchers = {
@@ -409,15 +411,16 @@ app.post(
     const lang = toLang(req.body?.lang);
     const entryRaw = typeof req.body?.entry === 'string' ? req.body.entry : '';
     const force = req.body?.force === true;
+    const requestedHost = typeof req.body?.hostName === 'string' ? req.body.hostName : null;
     if (!entryRaw) {
       if (!force) {
         const replay = await replaySharedResearch(question, lang, 'knowledge', null);
         if (replay) {
-          sendCompletedResearch(res, replay, {});
+          sendCompletedResearch(res, withRequestedHost(replay, requestedHost), {});
           return;
         }
       }
-      const id = startSharedResearchJob(question, lang);
+      const id = startSharedResearchJob(question, lang, undefined, { hostName: requestedHost });
       res.status(202).json({ id, contractVersion: '1.0.0' });
       return;
     }
@@ -441,7 +444,7 @@ app.post(
     if (!force) {
       const replay = await replaySharedResearch(researched, lang, entryRaw, decision.assignment);
       if (replay) {
-        sendCompletedResearch(res, replay, {
+        sendCompletedResearch(res, withRequestedHost(replay, requestedHost), {
           action: decision.action,
           scope: decision.assignment.scope,
           noticeId: decision.assignment.noticeId,
@@ -454,6 +457,7 @@ app.post(
       assignment: decision.assignment,
       force,
       desk: deskRaw,
+      hostName: requestedHost,
     });
     res.status(202).json({
       action: decision.action,
@@ -635,13 +639,30 @@ app.post(
   }),
 );
 
+app.post('/api/podcast/generate', aiLimiter, (req, res, next) => {
+  podcastScriptRoute(req, res, next);
+});
+
 app.post(
   '/api/podcast/script',
   aiLimiter,
-  route(async (req, res) => {
-    const topic = text(req.body?.topic, 300, 'topic');
-    const lang = toLang(req.body?.lang);
-    const minutes = Math.min(Math.max(Number(req.body?.minutes) || 2, 1), 5);
+  (req, res, next) => {
+    podcastScriptRoute(req, res, next);
+  },
+);
+
+const podcastScriptRoute = route(async (req, res) => {
+  const hostName = sanitizePodcastHostName(req.body?.hostName);
+  const jobId = typeof req.body?.jobId === 'string' ? req.body.jobId.slice(0, 80) : '';
+  if (jobId) {
+    const script = scriptFromResearchJob(jobId, hostName);
+    if (!script) throw new UpstreamError('That research job has no spoken script yet.', 422);
+    res.json({ hostName, script });
+    return;
+  }
+  const topic = text(req.body?.topic, 300, 'topic');
+  const lang = toLang(req.body?.lang);
+  const minutes = Math.min(Math.max(Number(req.body?.minutes) || 2, 1), 5);
     const refs = Array.isArray(req.body?.refs)
       ? dedupeRefs((req.body.refs as unknown[]).flatMap(r => parseRefs(String(r))), refKey, 8)
       : [];
@@ -664,10 +685,9 @@ app.post(
     if (!evidence.length) {
       throw new UpstreamError(dossier?.unanswered[0] ?? 'No sources could be retrieved for this topic.', 422);
     }
-    const script = geminiConfigured() ? await writePodcast(topic, lang, minutes, evidence) : quoteFromEvidence(topic, lang, evidence);
-    res.json(attachVerification(script, verifyScript(script.lines, evidence), dossier?.unanswered ?? []));
-  }),
-);
+    const script = geminiConfigured() ? await writePodcast(topic, lang, minutes, evidence, generateJson, hostName) : quoteFromEvidence(topic, lang, evidence);
+    res.json({ ...attachVerification(script, verifyScript(script.lines, evidence), dossier?.unanswered ?? []), hostName });
+});
 
 app.post(
   '/api/voice/narrate',
@@ -695,6 +715,36 @@ app.post(
     res.json(await narrateDialogue(lines, req.body?.hostVoice, req.body?.guestVoice));
   }),
 );
+
+function withRequestedHost(replay: ResearchJobResponse, hostName: string | null): ResearchJobResponse {
+  if (!hostName?.trim()) return replay;
+  return { ...replay, job: { ...replay.job, hostName: sanitizePodcastHostName(hostName) } };
+}
+
+function scriptFromResearchJob(jobId: string, hostName: string) {
+  const stored = getSharedResearchJob(jobId);
+  if (!stored?.dossier || stored.job.status !== 'done') return null;
+  const model = buildReportModel(stored.job, stored.dossier);
+  return roundtableFromResearch({
+    question: stored.job.question,
+    language: stored.job.language,
+    agents: stored.job.agents,
+    answer: model.answer,
+    passages: stored.dossier.passages.map(passage => ({
+      locator: passage.locator,
+      text: passage.text,
+      context: passage.context,
+      provider: passage.source.provider,
+      role: passage.role,
+    })),
+    disagreements: stored.dossier.disagreements,
+    insufficientEvidence: stored.dossier.answer?.insufficientEvidence === true,
+    unresolved: (stored.job.materialParts ?? []).filter(part => part.status === 'unresolved').map(part => part.note),
+    status: stored.job.status,
+    investigation: stored.job.investigation,
+    hostName,
+  });
+}
 
 function sendCompletedResearch(res: Response, replay: ResearchJobResponse, extra: Record<string, unknown>) {
   res.status(200).json({
@@ -885,7 +935,7 @@ if (isProduction) {
   app.use(vite.middlewares);
 }
 
-httpServer.listen(PORT, HOST, () => {
+httpServer.listen(process.env.PORT || 3000, '0.0.0.0', () => {
   console.log(
     `DRAGON DAWWA running on ${publicAppUrl(PORT)} (${isProduction ? 'production' : 'development'}); Gemini neural TTS ${geminiConfigured() ? 'on' : 'off'}`,
   );

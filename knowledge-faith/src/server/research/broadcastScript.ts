@@ -5,6 +5,7 @@
  * The host line is a generated presenter, not a research agent.
  */
 
+import { sanitizePodcastHostName } from '../../shared/podcastHost.ts';
 import type { Lang } from '../../shared/sources.ts';
 
 export interface BroadcastAgent {
@@ -21,9 +22,19 @@ export interface BroadcastScriptInput {
   question: string;
   language: Lang;
   agents: readonly BroadcastAgent[];
+  /** Spoken studio partner. Empty becomes "Seeker". */
+  hostName?: string | null;
 }
 
-const HOST = 'BROTHER FEROZ (HOST):';
+const LEGACY_HOST_SPEAKER = 'BROTHER FEROZ (HOST):';
+
+function hostLabel(hostName: string): string {
+  return `${hostName} (HOST):`;
+}
+
+function isHostSpeaker(speaker: string, label: string): boolean {
+  return speaker === label || speaker === LEGACY_HOST_SPEAKER || /^host\b/i.test(speaker);
+}
 
 function clean(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
@@ -36,26 +47,27 @@ function everydayQuestion(question: string): string {
 }
 
 /** Generated-host disclosure. The same sentence is used for every category. */
-export function generatedHostLine(question: string, language: Lang): string {
+export function generatedHostLine(question: string, language: Lang, hostName?: string | null): string {
+  const host = sanitizePodcastHostName(hostName);
   const asked = everydayQuestion(question);
   if (language === 'ta') {
-    return `கேள்வி இது: ${asked} நான் உருவாக்கப்பட்ட தொகுப்பாளர். என்னுடன் பேசுபவர்களும் உருவாக்கப்பட்டவர்கள். பிரதர் ஃபெரோஸ் இந்தச் சொற்களைப் பேசவில்லை, இவற்றை அங்கீகரிக்கவும் இல்லை. நாங்கள் அறிஞர்கள் அல்ல.`;
+    return `${host}, வரவேற்கிறோம். கேள்வி இது: ${asked} இது உருவாக்கப்பட்ட நிகழ்வு. நான் உருவாக்கப்பட்ட தொகுப்பாளர். ${host} இந்தச் சொற்களைப் பேசவில்லை, இவற்றை அங்கீகரிக்கவும் இல்லை. நாங்கள் அறிஞர்கள் அல்ல.`;
   }
   if (language === 'si') {
-    return `ප්‍රශ්නය මෙයයි: ${asked} මම නිර්මාණය කළ ඉදිරිපත් කරන්නෙක්. අනෙක් අයත් නිර්මාණය කළ අයයි. බ්‍රදර් ෆෙරෝස් මේ වචන කථා කළේ නැත, ඒවා අනුමත කළේත් නැත. අපි විද්වතුන් නොවෙමු.`;
+    return `${host}, සාදරයෙන් පිළිගනිමු. ප්‍රශ්නය මෙයයි: ${asked} මෙය නිර්මාණය කළ වැඩසටහනකි. මම නිර්මාණය කළ ඉදිරිපත් කරන්නෙක්. ${host} මේ වචන කථා කළේ නැත, ඒවා අනුමත කළේත් නැත. අපි විද්වතුන් නොවෙමු.`;
   }
-  return `Welcome to Dragon Dawwa Live. The question is: ${asked} I am a generated host. The contributors with me are generated too. Brother Feroz did not speak these words and did not approve them. We are not scholars.`;
+  return `Welcome, ${host}. Your question is: ${asked} This is a generated episode. I am a generated host. ${host} did not speak these words and did not approve them. We are not scholars.`;
 }
 
-function contributorLine(agent: BroadcastAgent, language: Lang): string {
+function contributorLine(agent: BroadcastAgent, language: Lang, hostName: string): string {
   const finding = clean(agent.finding);
   if (language === 'ta') {
-    return `நான் ${agent.persona}. நான் உருவாக்கப்பட்ட பங்களிப்பாளர். என் பொறுப்பு ${agent.role}. திறந்த மூலம் சொல்வது இது: ${finding}`;
+    return `${hostName}, நான் ${agent.persona}. நான் உருவாக்கப்பட்ட பங்களிப்பாளர். என் பொறுப்பு ${agent.role}. திறந்த மூலம் சொல்வது இது: ${finding}`;
   }
   if (language === 'si') {
-    return `මම ${agent.persona}. මම නිර්මාණය කළ දායකයෙක්. මගේ කාර්යය ${agent.role}. විවෘත මූලාශ්‍රය කියන්නේ මෙයයි: ${finding}`;
+    return `${hostName}, මම ${agent.persona}. මම නිර්මාණය කළ දායකයෙක්. මගේ කාර්යය ${agent.role}. විවෘත මූලාශ්‍රය කියන්නේ මෙයයි: ${finding}`;
   }
-  return `I am ${agent.persona}, a generated contributor. My role is ${agent.role}. The opened source says: ${finding}`;
+  return `${hostName}, I am ${agent.persona}, a generated contributor. My role is ${agent.role}. The opened source says: ${finding}`;
 }
 
 /** Agents that ran, in the order they were aggregated. The host disclosure is separate. */
@@ -64,16 +76,18 @@ export function agentsThatRan(agents: readonly BroadcastAgent[]): BroadcastAgent
 }
 
 export function writeBroadcastScript(input: BroadcastScriptInput): string {
+  const hostName = sanitizePodcastHostName(input.hostName);
+  const label = hostLabel(hostName);
   const lines = [
     '[AUDIO CUE: INTRO UP - POLISHED RADIO BEAT (4 SECONDS) THEN FADE UNDER]',
-    `${HOST} ${generatedHostLine(input.question, input.language)}`,
+    `${label} ${generatedHostLine(input.question, input.language, hostName)}`,
   ];
   for (const agent of agentsThatRan(input.agents)) {
-    if (agent.speaker === HOST) {
-      lines.push(`${HOST} ${clean(agent.finding)}`);
+    if (isHostSpeaker(agent.speaker, label)) {
+      lines.push(`${label} ${hostName}, ${clean(agent.finding)}`);
       continue;
     }
-    lines.push(`${agent.speaker} ${contributorLine(agent, input.language)}`);
+    lines.push(`${agent.speaker} ${contributorLine(agent, input.language, hostName)}`);
   }
   lines.push('[AUDIO CUE: OUTRO THEME RISES AND FADES OUT]');
   return lines.join('\n\n');

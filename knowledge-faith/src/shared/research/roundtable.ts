@@ -1,4 +1,5 @@
 import type { AgentContribution } from '../contracts/v1.ts';
+import { sanitizePodcastHostName } from '../podcastHost.ts';
 import type { Lang } from '../sources.ts';
 import { asksWhen, recordsPractice, timingClause } from './materialCoverage.ts';
 import { separateQuestions } from './questions.ts';
@@ -7,6 +8,10 @@ export interface RoundtableLine {
   speaker: string;
   role: string;
   text: string;
+  /** Chapter title for the continuous transcript. Not spoken. */
+  chapter?: string;
+  /** Approximate start, m:ss, scaled to the episode audio. Not spoken. */
+  at?: string;
 }
 
 export interface RoundtablePassage {
@@ -27,7 +32,11 @@ export interface RoundtableScript {
   sources: string[];
 }
 
-const HOST = 'Brother Feroz';
+export const DEFAULT_HOST_NAME = 'Seeker';
+
+export function episodeHostName(value?: string | null): string {
+  return sanitizePodcastHostName(value);
+}
 const TARIQ = 'Dr. Tariq al-Mansoor';
 const PASSAGE = 'Dr. Layla al-Qasimi';
 const IMRAN = 'Sheikh Imran al-Hasani';
@@ -42,7 +51,6 @@ interface Persona {
 }
 
 const PERSONAS: readonly Persona[] = [
-  { name: HOST, id: 'feroz-generated', team: 'roundtable' },
   { name: TARIQ, id: 'tariq-generated', team: 'hadith' },
   { name: PASSAGE, id: 'layla-generated', team: 'quran' },
   { name: IMRAN, id: 'imran-generated', team: 'hadith' },
@@ -52,15 +60,15 @@ const PERSONAS: readonly Persona[] = [
 ];
 
 /** A generated presenter. The name is the studio voice, not a claim that the person spoke. */
-function generatedHost(question: string, language: Lang): string {
+function generatedHost(question: string, language: Lang, hostName: string): string {
   const asked = everydayQuestion(question);
   if (language === 'ta') {
-    return `கேள்வி இது: ${asked} நான் உருவாக்கப்பட்ட தொகுப்பாளர். எங்களுடன் இருப்பவர்களும் உருவாக்கப்பட்டவர்கள். பிரதர் ஃபெரோஸ் இந்தச் சொற்களைப் பேசவில்லை, இவற்றை அங்கீகரிக்கவும் இல்லை. நாங்கள் அறிஞர்கள் அல்ல.`;
+    return `${hostName}, வரவேற்கிறோம். கேள்வி இது: ${asked} இது உருவாக்கப்பட்ட நிகழ்வு. ${hostName} இந்தச் சொற்களைப் பேசவில்லை, இவற்றை அங்கீகரிக்கவும் இல்லை. நாங்கள் அறிஞர்கள் அல்ல.`;
   }
   if (language === 'si') {
-    return `ප්‍රශ්නය මෙයයි: ${asked} මම නිර්මාණය කළ ඉදිරිපත් කරන්නෙක්. අනෙක් අයත් නිර්මාණය කළ අයයි. බ්‍රදර් ෆෙරෝස් මේ වචන කථා කළේ නැත, ඒවා අනුමත කළේත් නැත. අපි විද්වතුන් නොවෙමු.`;
+    return `${hostName}, සාදරයෙන් පිළිගනිමු. ප්‍රශ්නය මෙයයි: ${asked} මෙය නිර්මාණය කළ වැඩසටහනකි. ${hostName} මේ වචන කථා කළේ නැත, ඒවා අනුමත කළේත් නැත. අපි විද්වතුන් නොවෙමු.`;
   }
-  return `Welcome to Dragon Dawwa Live. The question is: ${asked} I am a generated host. The contributors with me are generated too. Brother Feroz did not speak these words and did not approve them. We are not scholars.`;
+  return `Welcome, ${hostName}. Your question is: ${asked} This is a generated episode. I am a generated host. ${hostName} did not speak these words and did not approve them. We are not scholars.`;
 }
 
 function shortName(name: string): string {
@@ -70,7 +78,7 @@ function shortName(name: string): string {
 /** Personas whose agents ran. The host is a generated presenter, not a research agent. */
 function personasForAgents(agents: readonly AgentContribution[] | undefined): Set<string> | null {
   if (!agents) return null;
-  const names = new Set<string>([HOST]);
+  const names = new Set<string>();
   for (const agent of agents) {
     if (agent.status !== 'ran') continue;
     const role = agent.role.toLowerCase();
@@ -160,7 +168,7 @@ function line(speaker: string, text: string): RoundtableLine {
   return { speaker, role: speaker, text: clean(text) };
 }
 
-function corpusConversation(question: string, passages: readonly RoundtablePassage[]): RoundtableLine[] | null {
+function corpusConversation(question: string, passages: readonly RoundtablePassage[], hostName: string): RoundtableLine[] | null {
   const prepared = prepareQuran(passages);
   const campaigns: PreparedPassage[] = [];
   for (const passage of prepared) {
@@ -177,26 +185,16 @@ function corpusConversation(question: string, passages: readonly RoundtablePassa
     .map(passage => `At ${passage.ref}, the passage says: ${passage.text}`)
     .join(' ');
   return [
-    line(
-      HOST,
-      `The question is: ${everydayQuestion(question)} I am a generated host. The two contributors with me are generated too. We are not scholars. Brother Feroz did not speak these words and did not approve them. We will talk about what the opened passages say.`,
-    ),
-    line(PASSAGE, `I'll start with the passages that name a campaign. ${told}`),
+    line(hostName, generatedHost(question, 'en', hostName)),
+    line(PASSAGE, `${hostName}, I'll start with the passages that name a campaign. ${told}`),
     line(
       DISTINCTION,
-      'Those are named campaigns, because the passage itself names the event and says what happened. A wording hit is different. What does the passage we kept for that contrast actually say?',
+      `${hostName}, those are named campaigns, because the passage itself names the event and says what happened. A wording hit is different. What does the passage we kept for that contrast actually say?`,
     ),
-    line(
-      PASSAGE,
-      `${contrast.ref} says: ${contrast.text} That passage does not tell the story of a named campaign.`,
-    ),
+    line(PASSAGE, `${hostName}, ${contrast.ref} says: ${contrast.text} That passage does not tell the story of a named campaign.`),
     line(
       DISTINCTION,
-      'Then I heard the passage, and I did not hear it name a campaign the way those other passages do. The wording can be present while the subject is something else. What is established is that the wording count and the named campaigns are separate. What is not established is one mixed total. These passages do not give one.',
-    ),
-    line(
-      HOST,
-      'You are reading the same passages and keeping two readings apart. A listener can hold what those passages say. What is not established is a single total that mixes a wording hit with a named campaign. This was only this question.',
+      `${hostName}, the wording can be present while the subject is something else. What is established is that the wording count and the named campaigns are separate. What is not established is one mixed total. These passages do not give one.`,
     ),
   ];
 }
@@ -223,6 +221,7 @@ function generalConversation(input: {
   disagreements?: readonly string[];
   insufficientEvidence?: boolean;
   unresolved?: readonly string[];
+  hostName: string;
 }): RoundtableLine[] | null {
   const usable = input.passages
     .filter(passage => !passage.context?.startsWith('Neighbouring'))
@@ -231,6 +230,7 @@ function generalConversation(input: {
       context: passage.context,
       provider: passage.provider,
       role: passage.role,
+      ref: quranRef(passage.locator),
       explained: passage.provider === 'Parallel' || passage.role === 'commentary' || /commentary|attributed explanation/i.test(passage.context ?? ''),
       empirical: passage.provider === 'OpenAlex' || passage.role === 'empirical',
     }))
@@ -242,7 +242,8 @@ function generalConversation(input: {
   const can = (name: string) => !allowed || allowed.has(name);
   const reader = [PASSAGE, TARIQ, DEEP, DISTINCTION, YUSUF, IMRAN].find(can);
   const asker = [DISTINCTION, DEEP, TARIQ, YUSUF, IMRAN, PASSAGE].find(name => name !== reader && can(name));
-  if (!reader || !asker) return null;
+  const hostName = input.hostName;
+  if (!reader) return null;
   const close = input.language === 'ta'
     ? 'இந்தக் கேள்விக்கு இந்த ஆவணத்திலிருந்து இதுவே முடிவு.'
     : input.language === 'si'
@@ -262,12 +263,11 @@ function generalConversation(input: {
         ? 'ඒවා මුළු ගණනක් කියන්නේ නැත. මෙම කථාව එකක් එකතු නොකරයි. පිහිටුවා ඇත්තේ ඒවා කියන දේ පමණි.'
         : 'They do not state a total. This episode will not add one. What they establish is only what they say.';
     return [
-      line(HOST, generatedHost(input.question, input.language)),
-      line(reader, input.language === 'en' ? `The passages say this: ${told}` : `${told}`),
-      line(asker, countAsk),
-      line(reader, countReply),
-      line(HOST, close),
-      ...openNotes.map(note => line(can(DEEP) ? DEEP : asker, `${openLead} ${note}`)),
+      line(hostName, generatedHost(input.question, input.language, hostName)),
+      line(reader, `${hostName}, ${input.language === 'en' ? `the passages say this: ${told}` : told} ${countAsk}`),
+      line(hostName, countReply),
+      line(asker ?? reader, `${hostName}, ${close}`),
+      ...openNotes.map(note => line(asker ?? hostName, `${hostName}, ${openLead} ${note}`)),
     ];
   }
   const primary = usable[0];
@@ -295,15 +295,15 @@ function generalConversation(input: {
           : `What this passage establishes is this: ${primaryPoint}`;
   const ask = further
     ? input.language === 'ta'
-      ? `${shortName(reader)}, இன்னொரு பகுதி இதைச் சேர்க்கிறது: ${furtherPoint} முதல் பகுதி விட்டுவைத்ததை இது முடிக்கிறதா?`
+      ? `${hostName}, இன்னொரு பகுதி இதைச் சேர்க்கிறது: ${furtherPoint} முதல் பகுதி விட்டுவைத்ததை இது முடிக்கிறதா?`
       : input.language === 'si'
-        ? `${shortName(reader)}, තවත් කොටසක් මෙය එකතු කරයි: ${furtherPoint} පළමු කොටස නිම නොකළ දේ මෙය වසා දමයිද?`
-        : `${shortName(reader)}, another passage adds this: ${furtherPoint} Does that close what the first passage left open?`
+        ? `${hostName}, තවත් කොටසක් මෙය එකතු කරයි: ${furtherPoint} පළමු කොටස නිම නොකළ දේ මෙය වසා දමයිද?`
+        : `${hostName}, another passage adds this: ${furtherPoint} Does that close what the first passage left open?`
     : input.language === 'ta'
-      ? `${shortName(reader)}, இப்போது கேட்டதைத் தாண்டி எதைச் சேர்க்க மறுக்க வேண்டும்?`
+      ? `${hostName}, இப்போது கேட்டதைத் தாண்டி எதைச் சேர்க்க மறுக்க வேண்டும்?`
       : input.language === 'si'
-        ? `${shortName(reader)}, දැන් අසා ඇති දේට වඩා අප එකතු නොකළ යුත්තේ කුමක්ද?`
-        : `${shortName(reader)}, what should we refuse to add beyond what you just heard?`;
+        ? `${hostName}, දැන් අසා ඇති දේට වඩා අප එකතු නොකළ යුත්තේ කුමක්ද?`
+        : `${hostName}, what should we refuse to add beyond what you just heard?`;
   const reply = !further && practice
     ? input.language === 'ta'
       ? 'நிறுவப்பட்டது அந்த ஆதாரம் பதிவு செய்த நடைமுறை. அதை நாம் ஒரு புதிய தீர்ப்பாக ஆக்கவில்லை.'
@@ -342,33 +342,37 @@ function generalConversation(input: {
   const recorded = [...new Set((input.disagreements ?? []).map(item => clean(item)))]
     .filter(item => item && !STATUS.test(item) && !INVENTORY.test(item) && !/not independent corroboration|cited \d+ times/i.test(item))
     .slice(0, 1);
+  const woven = primary.ref ? ` The words sit in ${primary.ref}.` : '';
+  const stay = input.language === 'ta'
+    ? 'இதை இந்தப் பகுதியிலேயே விட்டுவைக்கலாமா?'
+    : input.language === 'si'
+      ? 'මෙය කොටස කියන දේ සමඟ තබමුද?'
+      : 'Shall we leave it with what the passage says?';
   const lines: RoundtableLine[] = [
-    line(HOST, generatedHost(input.question, input.language)),
-    line(reader, grade ? `${established} ${grade}` : established),
+    line(hostName, generatedHost(input.question, input.language, hostName)),
+    line(reader, `${hostName}, ${grade ? `${established}${woven} ${grade}` : `${established}${woven}`}`),
   ];
   if (recorded.length) {
-    const speaker = can(YUSUF) && YUSUF !== reader ? YUSUF : asker;
+    const disagreementSpeaker = can(YUSUF) && YUSUF !== reader ? YUSUF : (asker ?? reader);
     const disagreement = input.language === 'en'
-      ? `${shortName(reader)}, the dossier records this disagreement, and we will not invent a side: ${gist(recorded[0])} Do we leave that disagreement standing?`
+      ? `${hostName}, the dossier records this disagreement, and we will not invent a side: ${gist(recorded[0])} Do we leave that disagreement standing?`
       : input.language === 'ta'
-        ? `${shortName(reader)}, ஆவணம் ஒரு கருத்து வேறுபாட்டைப் பதிவு செய்கிறது. நாம் ஒரு பக்கத்தை உருவாக்கவில்லை. அந்த வேறுபாட்டை அப்படியே விட்டுவைக்கிறோமா?`
-        : `${shortName(reader)}, ලේඛනය මතභේදයක් සටහන් කරයි. අපි පැත්තක් නිර්මාණය කළේ නැත. එම මතභේදය එලෙසම තබමුද?`;
-    lines.push(line(speaker, disagreement));
-    if (speaker !== reader) {
-      lines.push(line(
-        reader,
-        input.language === 'ta'
-          ? 'அந்தக் கருத்து வேறுபாடு பகுதிக்கு அருகில் நிற்கிறது. நாம் ஆவணம் தேர்ந்தெடுக்காத பக்கத்தைத் தேர்ந்தெடுக்கவில்லை.'
-          : input.language === 'si'
-            ? 'එම මතභේදය කොටස අසල පවතී. ලේඛනය නොතෝරූ පැත්තක් අපි තෝරා නැත.'
-            : 'That disagreement stays beside the passage. What is established is what the sources say. We did not choose a side the dossier does not choose.',
-      ));
-    }
+        ? 'ஆவணம் ஒரு கருத்து வேறுபாட்டைப் பதிவு செய்கிறது. நாம் ஒரு பக்கத்தை உருவாக்கவில்லை. அந்த வேறுபாட்டை அப்படியே விட்டுவைக்கிறோமா?'
+        : 'ලේඛනය මතභේදයක් සටහන් කරයි. අපි පැත්තක් නිර්මාණය කළේ නැත. එම මතභේදය එලෙසම තබමුද?';
+    lines.push(line(disagreementSpeaker, disagreement));
+    lines.push(line(
+      reader,
+      input.language === 'ta'
+        ? 'அந்தக் கருத்து வேறுபாடு பகுதிக்கு அருகில் நிற்கிறது. நாம் ஆவணம் தேர்ந்தெடுக்காத பக்கத்தைத் தேர்ந்தெடுக்கவில்லை.'
+        : input.language === 'si'
+          ? 'එම මතභේදය කොටස අසල පවතී. ලේඛනය නොතෝරූ පැත්තක් අපි තෝරා නැත.'
+          : 'That disagreement stays beside the passage. What is established is what the sources say. We did not choose a side the dossier does not choose.',
+    ));
   } else {
-    lines.push(line(asker, ask));
-    lines.push(line(reader, reply));
+    lines.push(line(asker ?? hostName, ask));
+    lines.push(line(reader, `${hostName}, ${reply} ${stay}`));
   }
-  if (can(IMRAN) && IMRAN !== reader) {
+  if (can(IMRAN)) {
     const judged = usable.find(passage => /\b(?:thiqa|trustworthy|weak|liar|matruk|majhul)\b|صدوق|ضعيف|ثقة/i.test(passage.text));
     const spoken = judged ? gist(judged.text) : '';
     if (spoken && !STATUS.test(spoken)) {
@@ -377,14 +381,12 @@ function generalConversation(input: {
         : input.language === 'ta'
           ? `திறந்த சொற்களில் ஒரு அறிவிப்பாளர் குறிப்பு உள்ளது. நாமே ஒரு தரத்தைச் சேர்க்கவில்லை: ${spoken}`
           : `විවෘත වදනේ වාර්තාකරුවෙකු ගැන සටහනක් ඇත. අපිම ශ්‍රේණියක් එකතු කළේ නැත: ${spoken}`;
-      lines.push(line(IMRAN, judgement));
+      const carrier = lines.find(item => item.speaker === reader);
+      if (carrier) carrier.text = `${carrier.text} ${judgement}`;
     }
   }
-  lines.push(line(HOST, close));
-  if (openNotes.length) {
-    const opener = can(DEEP) ? DEEP : asker;
-    lines.push(line(opener, `${openLead} ${openNotes.join(' ')}`));
-  }
+  lines.push(line(hostName, `${hostName}, ${close}`));
+  if (openNotes.length) lines.push(line(asker ?? hostName, `${hostName}, ${openLead} ${openNotes.join(' ')}`));
   return lines;
 }
 
@@ -395,8 +397,9 @@ export function scriptMayBeSpoken(lines: readonly { text: string; speaker?: stri
   const named = lines.filter(item => item.speaker);
   if (named.length) {
     const speakers = new Set(named.map(item => item.speaker));
-    if (speakers.size < 3) return false;
-    const contributorAsked = named.some(item => item.speaker && !/^host\b/i.test(item.speaker) && item.text.includes('?'));
+    if (speakers.size < 2) return false;
+    const hostSpeaker = named.find(item => item.speaker)?.speaker;
+    const contributorAsked = named.some(item => item.speaker && item.speaker !== hostSpeaker && !/^host\b/i.test(item.speaker) && item.text.includes('?'));
     if (!contributorAsked) return false;
   }
   if (STATUS.test(spoken) || INVENTORY.test(spoken)) return false;
@@ -404,9 +407,26 @@ export function scriptMayBeSpoken(lines: readonly { text: string; speaker?: stri
   return true;
 }
 
+function formatStamp(seconds: number): string {
+  const whole = Math.max(0, Math.round(seconds));
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
+}
+
+/** Chapter markers sit beside the dialogue. They are not spoken and they are not snippet cards. */
+function withChapters(lines: RoundtableLine[]): RoundtableLine[] {
+  const titles = ['Opening', 'The passage', 'What remains', 'Close'];
+  let cursor = 0;
+  return lines.map((item, index) => {
+    const at = formatStamp(cursor);
+    cursor += Math.max(12, item.text.split(/\s+/).length * 0.45);
+    const chapter = index === 0 ? 'Opening' : index === lines.length - 1 ? 'Close' : titles[Math.min(index, titles.length - 1)];
+    return { ...item, chapter, at };
+  });
+}
+
 /**
- * A spoken episode is a generated host and two generated contributors.
- * They talk about what the passages say. Citation lists and status logs stay out of the script.
+ * A spoken episode is a generated host and one generated scholar.
+ * They talk through the opened passages. Citation lists and status logs stay out of the script.
  */
 export function roundtableFromResearch(input: {
   question: string;
@@ -419,6 +439,8 @@ export function roundtableFromResearch(input: {
   unresolved?: readonly string[];
   status?: 'done' | 'running' | 'error' | 'cancelled' | 'queued';
   investigation?: 'complete' | 'partial' | 'blocked';
+  /** Spoken name of the studio partner. Empty becomes "Seeker". */
+  hostName?: string | null;
 }): RoundtableScript | null {
   if (input.investigation === 'blocked') return null;
   if (input.status && input.status !== 'done') return null;
@@ -428,9 +450,10 @@ export function roundtableFromResearch(input: {
   const passages = input.passages ?? [];
   const answer = input.answer?.trim() ?? '';
   if (!passages.length || !answer) return null;
+  const hostName = episodeHostName(input.hostName);
   const corpus = /Word occurrence\./i.test(answer);
   const lines = corpus
-    ? corpusConversation(question, passages)
+    ? corpusConversation(question, passages, hostName)
     : generalConversation({
         question,
         answer,
@@ -440,19 +463,24 @@ export function roundtableFromResearch(input: {
         disagreements: input.disagreements,
         insufficientEvidence: input.insufficientEvidence,
         unresolved: input.unresolved,
+        hostName,
       });
   if (!lines || !scriptMayBeSpoken(lines, answer)) return null;
-  const speaking = new Set(lines.map(item => item.speaker));
+  const spoken = withChapters(lines);
+  const speaking = new Set(spoken.map(item => item.speaker));
   return {
     title: question.slice(0, 140),
     language: input.language,
     question,
-    lines,
-    participants: PERSONAS.filter(person => speaking.has(person.name)).map(person => ({
-      id: person.id,
-      role: person.name === HOST ? `${HOST} (generated host)` : `${person.name} (generated)`,
-      team: person.team,
-    })),
+    lines: spoken,
+    participants: [
+      ...(speaking.has(hostName) ? [{ id: 'host-generated', role: `${hostName} (generated host)`, team: 'host' }] : []),
+      ...PERSONAS.filter(person => speaking.has(person.name)).map(person => ({
+        id: person.id,
+        role: `${person.name} (generated)`,
+        team: person.team,
+      })),
+    ],
     sources: sourceLines(answer, passages),
   };
 }
