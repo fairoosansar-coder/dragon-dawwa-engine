@@ -68,10 +68,16 @@ describe('spoken research script', () => {
     assert.ok(script);
     const spoken = script.lines.map(line => line.text).join(' ');
     assert.equal(script.question.includes('prophets'), false);
-    assert.match(spoken, /helped you at Badr when you were weak/i);
-    assert.match(spoken, /Hunayn when you took pride/i);
+    assert.match(spoken, /Welcome, Seeker/);
+    assert.match(spoken, /Badr/);
+    assert.match(spoken, /gratitude/);
+    assert.match(spoken, /Hunayn/);
+    assert.match(spoken, /pride/i);
+    assert.match(spoken, /not the story of a named campaign/);
+    assert.doesNotMatch(spoken, /Allah had helped you at Badr when you were weak/i);
+    assert.doesNotMatch(spoken, /patient in poverty and hardship and during battle/i);
     assert.doesNotMatch(spoken, /Hunayn1|\[1\]/);
-    assert.match(spoken, /patient in poverty and hardship and during battle/i);
+    assert.doesNotMatch(spoken, /I am a generated host|From this dossier alone|We are not scholars/);
     assert.match(spoken, /wording count and the named campaigns are separate/i);
     assert.match(spoken, /do not give one/i);
     assert.doesNotMatch(spoken, /\b51\b|word-occurrence count is \d+|English wordings|Arabic wordings|war, wars, warfare/i);
@@ -82,6 +88,32 @@ describe('spoken research script', () => {
     assert.ok(script.sources.some(source => source.includes('2:279')));
     assert.equal(scriptMayBeSpoken(script.lines, warsAnswer), true);
     assert.match(script.participants.map(person => person.role).join(' '), /generated/);
+  });
+
+  it('keeps a Tamil question in Tamil and does not recite the verse', () => {
+    const script = roundtableFromResearch({
+      question: 'நடுத் தொழுகையை ஏன் காக்க வேண்டும்?',
+      language: 'ta',
+      status: 'done',
+      answer: 'நடுத் தொழுகையைக் காக்க வேண்டும்.',
+      agents: [
+        { id: 'quran-text', team: 'quran', role: 'Qur’an text', status: 'ran', detail: 'Opened.' },
+        { id: 'quran-evidence', team: 'quran', role: 'Evidence review', status: 'ran', detail: 'Opened.' },
+      ],
+      passages: [{
+        locator: 'Surah 2, ayah 238',
+        text: 'Guard the prayers, and the middle prayer, and stand before Allah with devotion.',
+        provider: 'QuranEnc',
+        role: 'translation',
+      }],
+    });
+    assert.ok(script);
+    const spoken = script.lines.map(line => line.text).join(' ');
+    assert.match(spoken, /வரவேற்கிறோம்/);
+    assert.match(spoken, /நடுத் தொழுகையை ஏன் காக்க வேண்டும்/);
+    assert.match(spoken, /ஆங்கில மூலத்தின் பொருளைத் தமிழுடன் வைக்கிறேன்/);
+    assert.doesNotMatch(spoken, /Welcome,|I am a generated host|From this dossier alone|We are not scholars|The words sit in/);
+    assert.equal(script.sources.some(source => source.includes('2:238') || source.includes('ayah 238')), true);
   });
 
   it('refuses a glued title and a failed job', () => {

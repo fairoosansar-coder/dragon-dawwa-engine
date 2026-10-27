@@ -88,12 +88,14 @@ describe('broadcast script', () => {
         },
       ],
     });
-    assert.match(script, /I am a generated host/);
     assert.match(script, /Welcome, Seeker/);
-    assert.match(script, /Seeker did not speak these words and did not approve them/);
+    assert.match(script, /Today we sit with your question/);
+    assert.match(script, /practical lesson/);
+    assert.doesNotMatch(script, /I am a generated host|generated contributor|We are not scholars|did not speak these words|did not approve|From this dossier alone/);
     assert.equal(script.includes('Brother Feroz'), false);
     assert.match(script, /DR\. TARIQ:/);
-    assert.match(script, /Mushaf reading/);
+    assert.match(script, /there is no god except Him/);
+    assert.doesNotMatch(script, /My role is Mushaf reading/);
     assert.equal(script.includes('SHEIKH YUSUF:'), false);
     assert.equal(script.includes('This finding must not be spoken'), false);
     assert.equal(agentsThatRan([
@@ -116,8 +118,8 @@ describe('broadcast script', () => {
       ],
     });
     assert.match(named, /Welcome, Brother Feroz/);
-    assert.match(named, /Brother Feroz, I am Dr\. Tariq al-Mansoor/);
-    assert.match(named, /Brother Feroz did not speak these words and did not approve them/);
+    assert.match(named, /Brother Feroz, this is Dr\. Tariq al-Mansoor/);
+    assert.doesNotMatch(named, /did not speak these words|did not approve|I am a generated host|We are not scholars/);
   });
 
   test('uses the same writer for every domain', () => {
@@ -134,8 +136,9 @@ describe('broadcast script', () => {
     });
     assert.equal(quran.includes(host), true);
     assert.equal(seerah.includes(host), true);
-    assert.match(quran, /My role is Mushaf reading/);
-    assert.match(seerah, /My role is Event narrative/);
+    assert.match(quran, /The ayah was opened/);
+    assert.match(seerah, /The book was opened/);
+    assert.doesNotMatch(quran + seerah, /My role is/);
     assert.equal(/\bisnad\b/i.test(quran + seerah), false);
   });
 });
@@ -264,7 +267,9 @@ describe('Parallel category dispatch', () => {
     assert.ok(posted.task_spec.output_schema.json_schema.properties.agents);
     assert.equal(parallelTaskInput(DOMAIN_CONFIGS.quran, 'What does Qur’an 2:255 mean?', 'en').includes('mushaf'), true);
     const script = result.agent_6_synthesis.podcast_script;
-    assert.match(script, /I am a generated host/);
+    assert.match(script, /Welcome, Seeker/);
+    assert.match(script, /Ever-Living/);
+    assert.doesNotMatch(script, /I am a generated host|generated contributor|We are not scholars|From this dossier alone/);
     assert.match(script, /DR\. TARIQ:/);
     assert.match(script, /DR\. LAYLA:/);
     assert.match(script, /DR\. ZAINAB:/);

@@ -183,12 +183,12 @@ export function buildPresenterGreeting(lang: Lang, prefs?: StudioListenerPrefere
       : '';
 
   if (lang === 'ta') {
-    return `அஸ்ஸலாமு அலைக்கும். Dragon Dawwa Studio-விற்கு வரவேற்கிறோம். இது உருவாக்கப்பட்ட AI நிகழ்ச்சித் தொகுப்பாளர் — ஓர் அறிஞரோ முஃப்தியோ அல்ல. குர்ஆன் மற்றும் ஹதீஸ் ஆதாரங்களை நேரடியாகக் கேட்டுச் சிந்திப்போம்.${goalNote}`;
+    return `அஸ்ஸலாமு அலைக்கும். வரவேற்கிறோம். இன்று நாம் உங்கள் கேள்வியுடன் அமைதியாக அமர்கிறோம்.${goalNote}`;
   }
   if (lang === 'si') {
-    return `අස්සලාමු අලයිකුම්. Dragon Dawwa Studio වෙත සාදරයෙන් පිළිගනිමු. මෙය ජනනය කළ AI ඉදිරිපත් කිරීමකි — විද්වතෙකු හෝ මුෆ්තිවරයෙකු නොවේ. කුර්ආනය සහ හදීස් මූලාශ්‍රවලට සන්සුන්ව සවන් දී මෙනෙහි කරමු.${goalNote}`;
+    return `අස්සලාමු අලයිකුම්. සාදරයෙන් පිළිගනිමු. අද අපි ඔබේ ප්‍රශ්නය සමඟ සන්සුන්ව වාඩි වෙමු.${goalNote}`;
   }
-  return `Assalamu Alaikum, and welcome to Dragon Dawwa Studio. This is a generated AI studio presenter — not a human scholar or mufti. Listen to the retrieved passages, inspect every source, and pause whenever you wish to ask a question.${goalNote}`;
+  return `Assalamu Alaikum, and welcome. Today we sit with your question and talk it through as people.${goalNote}`;
 }
 
 export interface BuildVoiceStatusInput {

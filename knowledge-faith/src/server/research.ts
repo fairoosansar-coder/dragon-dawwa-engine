@@ -555,15 +555,45 @@ export function dossierEvidence(dossier: ResearchDossier) {
   return dossier.references.map(referenceEvidence);
 }
 
-/** Spoken draft made only of retrieved passages, used when no script model is configured. */
+function clipLesson(text: string): string {
+  const sentence = text.replace(/\s+/g, ' ').trim().split(/(?<=[.!?؟])\s+/)[0] ?? '';
+  return sentence.length > 160 ? `${sentence.slice(0, 157).trim()}…` : sentence;
+}
+
+function quotedLesson(lang: Lang, text: string): string {
+  const lesson = clipLesson(text);
+  if (lang === 'ta') {
+    const bridged = /[A-Za-z]/.test(lesson) && !/[\u0B80-\u0BFF]/.test(lesson)
+      ? `ஆங்கில மூலத்தின் பொருளைத் தமிழுடன் வைக்கிறேன்: ${lesson}`
+      : lesson;
+    return `நடைமுறைப் பாடம் இது. மேற்கோள் எழுத்துப் பட்டியலில் இருக்கும். ${bridged}`;
+  }
+  if (lang === 'si') {
+    const bridged = /[A-Za-z]/.test(lesson) && !/[\u0D80-\u0DFF]/.test(lesson)
+      ? `ඉංග්‍රීසි මූලයේ අර්ථය සිංහල සමඟ තබමු: ${lesson}`
+      : lesson;
+    return `ප්‍රායෝගික පාඩම මෙයයි. උපුටා දැක්වීම් ලිඛිත ලැයිස්තුවේ ඇත. ${bridged}`;
+  }
+  return `The practical lesson, without reading the page aloud, is ${lesson}`;
+}
+
+/** Spoken draft used when no script model is configured. Citations stay on the line, not as a reading. */
 export function quoteFromEvidence(topic: string, lang: Lang, evidence: Evidence[]): PodcastScript {
   if (!evidence.length) throw new UpstreamError('No sources could be retrieved for this topic.', 422);
+  const welcome = lang === 'ta'
+    ? `வரவேற்கிறோம். இன்று நாம் இந்தக் கேள்வியுடன் அமர்கிறோம்: ${topic}`
+    : lang === 'si'
+      ? `සාදරයෙන් පිළිගනිමු. අද අපි මේ ප්‍රශ්නය සමඟ වාඩි වෙමු: ${topic}`
+      : `Welcome. Today we sit with this question: ${topic}`;
   return {
     id: randomUUID(),
     title: topic.slice(0, 140),
     lang,
     createdAt: new Date().toISOString(),
-    lines: evidence.map(item => ({ speaker: 'Host', text: item.text, citations: [item.id] })),
+    lines: [
+      { speaker: 'Host', text: welcome, citations: [] },
+      ...evidence.slice(0, 4).map(item => ({ speaker: 'Guest' as const, text: quotedLesson(lang, item.text), citations: [item.id] })),
+    ],
     evidence,
     model: 'quotation',
   };

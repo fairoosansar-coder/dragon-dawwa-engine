@@ -146,33 +146,37 @@ function recordFrom(agent: DomainAgentConfig, finding: string, sources: DomainAg
   };
 }
 
+function lessonClip(text: string): string {
+  const sentence = text.replace(/\s+/g, ' ').trim().split(/(?<=[.!?؟])\s+/)[0] ?? '';
+  return sentence.length > 140 ? `${sentence.slice(0, 137).trim()}…` : sentence;
+}
+
 function reconciliationFinding(language: Lang, roles: string, passages: readonly EvidencePassage[] = []): string {
   const ayah = passages.find(isOpenedAyah);
   const commentary = passages.find(passage => passage.role === 'commentary' && passage.source.provider !== 'Parallel' && passage.text.trim());
+  const lesson = lessonClip(commentary?.text || ayah?.text || '');
   if (ayah && language === 'en') {
-    const arabic = ayah.arabic?.trim() ? ` Arabic: “${clip(ayah.arabic, 180)}”.` : '';
-    const tafsir = commentary
-      ? ` The opened tafsir (${commentary.locator}) says: “${clip(commentary.text, 280)}”.`
-      : ' An occasion of revelation is named only when the opened tafsir states it.';
-    return `Your question is answered from ${ayah.locator}: “${clip(ayah.text, 280)}”.${arabic}${tafsir} The spiritual meaning is the theme the ayah itself teaches, including trust in Allah where it speaks of trial, dislike, or reliance. The practical comfort is to hold to that opened wording. The agents who ran were ${roles}. What was not opened was not added. This is not a hadith grade.`;
+    return `Sit with the human moment rather than the page. The practical lesson is ${lesson || 'the comfort the opened moment teaches'}. ${roles} sat with that moment. What was not opened was not added. This is not a hadith grade.`;
   }
   if (ayah && language === 'ta') {
-    const arabic = ayah.arabic?.trim() ? ` அரபு: “${clip(ayah.arabic, 180)}”.` : '';
-    const tafsir = commentary ? ` திறந்த தஃப்சீர் (${commentary.locator}): “${clip(commentary.text, 280)}”.` : ' அருள்வழி இறங்கிய சந்தர்ப்பம் திறந்த தஃப்சீரில் உள்ளபோது மட்டும் சொல்லப்படும்.';
-    return `${ayah.locator}: “${clip(ayah.text, 280)}”.${arabic}${tafsir} ஆன்மீக அர்த்தம் திறந்த சொற்களிலிருந்து. நடைமுறை ஆறுதல்: திறந்த வார்த்தையைப் பிடித்துக் கொள்ளுங்கள். திறக்கப்படாத அஸ்பாப் சேர்க்கப்படவில்லை. ஓடிய முகவர்கள்: ${roles}. இது ஒரு ஹதீஸ் தரம் அல்ல.`;
+    const bridged = lesson && /[A-Za-z]/.test(lesson) && !/[\u0B80-\u0BFF]/.test(lesson)
+      ? `ஆங்கில மூலத்தின் பொருளைத் தமிழுடன் வைக்கிறேன்: ${lesson}`
+      : lesson;
+    return `மனிதத் தருணத்துடன் அமர்கிறோம். பக்கத்தை உரக்க வாசிக்கவில்லை. நடைமுறைப் பாடம்: ${bridged || 'திறந்த தருணத்தின் ஆறுதல்'}. ${roles} அந்தத் தருணத்துடன் அமர்ந்தனர். திறக்காததைச் சேர்க்கவில்லை.`;
   }
   if (ayah && language === 'si') {
-    const arabic = ayah.arabic?.trim() ? ` අරාබි: “${clip(ayah.arabic, 180)}”.` : '';
-    const tafsir = commentary ? ` විවෘත තෆ්සීරය (${commentary.locator}): “${clip(commentary.text, 280)}”.` : ' එළිදරව් වීමේ අවස්ථාව විවෘත තෆ්සීරය පවසන විට පමණක් ඇතුළත් වේ.';
-    return `${ayah.locator}: “${clip(ayah.text, 280)}”.${arabic}${tafsir} අධ්‍යාත්මික අර්ථය විවෘත වචනවලින් ය. ප්‍රායෝගික සැනසීම: විවෘත වචනය අල්ලාගන්න. විවෘත නොකළ අස්බාබ් එකතු නොකෙරේ. ක්‍රියාත්මක වූ නියෝජිතයන්: ${roles}. මෙය හදීස් ශ්‍රේණියක් නොවේ.`;
+    const bridged = lesson && /[A-Za-z]/.test(lesson) && !/[\u0D80-\u0DFF]/.test(lesson)
+      ? `ඉංග්‍රීසි මූලයේ අර්ථය සිංහල සමඟ තබමු: ${lesson}`
+      : lesson;
+    return `මිනිස් මොහොත සමඟ වාඩි වෙමු. පිටුව ශබ්ද නඟා නොකියමු. ප්‍රායෝගික පාඩම: ${bridged || 'විවෘත මොහොතේ සැනසීම'}. ${roles} එම මොහොත සමඟ වාඩි වූහ. නොවිවෘත දේ එකතු නොකෙරේ.`;
   }
   if (language === 'ta') {
-    return `ஓடிய முகவர்கள்: ${roles}. நிறுவப்பட்டது அவர்கள் திறந்த மூலத்திலிருந்து மேற்கோள் காட்டியது மட்டும். திறக்கப்படாதது சேர்க்கப்படவில்லை. இது ஒரு ஹதீஸ் தரம் அல்ல.`;
+    return `${roles} அந்தத் தருணத்துடன் அமர்ந்தனர். நடைமுறைப் பாடம் அவர்கள் திறந்த மூலத்திலிருந்து. திறக்காததைச் சேர்க்கவில்லை.`;
   }
   if (language === 'si') {
-    return `ක්‍රියාත්මක වූ නියෝජිතයන්: ${roles}. පිහිටුවා ඇත්තේ ඔවුන් විවෘත මූලාශ්‍රයෙන් උපුටා දැක්වූ දේ පමණි. නොවිවෘත දේ එකතු කළේ නැත. මෙය හදීස් ශ්‍රේණියක් නොවේ.`;
+    return `${roles} එම මොහොත සමඟ වාඩි වූහ. ප්‍රායෝගික පාඩම ඔවුන් විවෘත කළ මූලයෙනි. නොවිවෘත දේ එකතු නොකෙරේ.`;
   }
-  return `The agents who ran were ${roles}. What is established is only what they quoted from the opened sources. What was not opened was not added. This is not a hadith grade.`;
+  return `${roles} sat with the moment. The practical lesson is only what they opened. What was not opened was not added. This is not a hadith grade.`;
 }
 
 export function buildDomainAgents(

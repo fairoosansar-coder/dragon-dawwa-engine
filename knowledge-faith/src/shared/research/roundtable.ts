@@ -59,16 +59,12 @@ const PERSONAS: readonly Persona[] = [
   { name: DEEP, id: 'amina-generated', team: 'deep-research' },
 ];
 
-/** A generated presenter. The name is the studio voice, not a claim that the person spoke. */
+/** Warm welcome. The page header says the presenters are generated, so the voice does not. */
 function generatedHost(question: string, language: Lang, hostName: string): string {
   const asked = everydayQuestion(question);
-  if (language === 'ta') {
-    return `${hostName}, வரவேற்கிறோம். கேள்வி இது: ${asked} இது உருவாக்கப்பட்ட நிகழ்வு. ${hostName} இந்தச் சொற்களைப் பேசவில்லை, இவற்றை அங்கீகரிக்கவும் இல்லை. நாங்கள் அறிஞர்கள் அல்ல.`;
-  }
-  if (language === 'si') {
-    return `${hostName}, සාදරයෙන් පිළිගනිමු. ප්‍රශ්නය මෙයයි: ${asked} මෙය නිර්මාණය කළ වැඩසටහනකි. ${hostName} මේ වචන කථා කළේ නැත, ඒවා අනුමත කළේත් නැත. අපි විද්වතුන් නොවෙමු.`;
-  }
-  return `Welcome, ${hostName}. Your question is: ${asked} This is a generated episode. I am a generated host. ${hostName} did not speak these words and did not approve them. We are not scholars.`;
+  if (language === 'ta') return `${hostName}, வரவேற்கிறோம். இன்று நாம் உங்கள் கேள்வியுடன் அமர்கிறோம்: ${asked}`;
+  if (language === 'si') return `${hostName}, සාදරයෙන් පිළිගනිමු. අද අපි ඔබේ ප්‍රශ්නය සමඟ වාඩි වෙමු: ${asked}`;
+  return `Welcome, ${hostName}. Today we sit with your question: ${asked}`;
 }
 
 function shortName(name: string): string {
@@ -180,18 +176,15 @@ function corpusConversation(question: string, passages: readonly RoundtablePassa
     prepared.find(passage => passage.wording && !passage.campaign && !passage.unnamed) ??
     prepared.find(passage => passage.wording && !passage.campaign);
   if (campaigns.length < 1 || !contrast) return null;
-  const told = campaigns
-    .slice(0, 2)
-    .map(passage => `At ${passage.ref}, the passage says: ${passage.text}`)
-    .join(' ');
+  const told = campaigns.slice(0, 2).map(campaignMoment).join('. ');
   return [
     line(hostName, generatedHost(question, 'en', hostName)),
-    line(PASSAGE, `${hostName}, I'll start with the passages that name a campaign. ${told}`),
+    line(PASSAGE, `${hostName}, we will not read the page aloud. ${told}.`),
     line(
       DISTINCTION,
-      `${hostName}, those are named campaigns, because the passage itself names the event and says what happened. A wording hit is different. What does the passage we kept for that contrast actually say?`,
+      `${hostName}, those are named campaigns, the historical moments themselves. A wording hit is a different human situation. What does the contrast teach?`,
     ),
-    line(PASSAGE, `${hostName}, ${contrast.ref} says: ${contrast.text} That passage does not tell the story of a named campaign.`),
+    line(PASSAGE, `${hostName}, that other wording is not the story of a named campaign. A word can appear while the subject is patience, hardship, or ordinary life.`),
     line(
       DISTINCTION,
       `${hostName}, the wording can be present while the subject is something else. What is established is that the wording count and the named campaigns are separate. What is not established is one mixed total. These passages do not give one.`,
@@ -209,7 +202,26 @@ function gist(text: string): string {
   const sentences = spoken.split(/(?<=[.!?؟])\s/).map(sentence => sentence.trim()).filter(sentence => sentence.length >= 12);
   let sentence = sentences[0] ?? spoken;
   if (sentence.length < 40 && sentences[1]) sentence = `${sentence} ${sentences[1]}`;
-  return sentence.length > 180 ? `${sentence.slice(0, 177).trim()}…` : sentence;
+  return sentence.length > 160 ? `${sentence.slice(0, 157).trim()}…` : sentence;
+}
+
+/** Keep one language. A foreign sentence is announced as a translation, not dropped in. */
+function voiced(language: Lang, lesson: string): string {
+  const latin = /[A-Za-z]/.test(lesson);
+  const tamil = /[\u0B80-\u0BFF]/.test(lesson);
+  const sinhala = /[\u0D80-\u0DFF]/.test(lesson);
+  if (language === 'ta' && latin && !tamil) return `ஆங்கில மூலத்தின் பொருளைத் தமிழுடன் வைக்கிறேன்: ${lesson}`;
+  if (language === 'si' && latin && !sinhala) return `ඉංග්‍රීසි මූලයේ අර්ථය සිංහල සමඟ තබමු: ${lesson}`;
+  if (language === 'en' && tamil && !latin) return `The Tamil wording, kept on purpose, is: ${lesson}`;
+  if (language === 'en' && sinhala && !latin) return `The Sinhala wording, kept on purpose, is: ${lesson}`;
+  return lesson;
+}
+
+function campaignMoment(passage: PreparedPassage): string {
+  const name = passage.campaign ?? 'that day';
+  if (/grateful/i.test(passage.text)) return `${name}, when the people were in need, and the lesson is gratitude`;
+  if (/pride/i.test(passage.text)) return `${name}, when pride in their numbers failed them`;
+  return `${name}, the historical moment we are sitting with`;
 }
 
 function generalConversation(input: {
@@ -245,13 +257,13 @@ function generalConversation(input: {
   const hostName = input.hostName;
   if (!reader) return null;
   const close = input.language === 'ta'
-    ? 'இந்தக் கேள்விக்கு இந்த ஆவணத்திலிருந்து இதுவே முடிவு.'
+    ? 'உங்கள் கேள்வியிலிருந்து நாம் எடுத்துச் செல்லும் பாடம் இதுவே.'
     : input.language === 'si'
-      ? 'මෙම ප්‍රශ්නයට මෙම ලේඛනයෙන් මෙය නිගමනයයි.'
-      : 'That is the conclusion for this question, from this dossier alone.';
+      ? 'ඔබේ ප්‍රශ්නයෙන් අප රැගෙන යන පාඩම මෙයයි.'
+      : 'That is the lesson we will carry from your question.';
   const openLead = input.language === 'ta' ? 'இந்தப் பகுதி திறந்தே இருக்கிறது.' : input.language === 'si' ? 'මෙම කොටස විවෘතව පවතී.' : 'This part stays open.';
   if (deniesTotal) {
-    const told = usable.slice(0, 2).map(passage => gist(passage.text)).join(' ');
+    const told = voiced(input.language, usable.slice(0, 2).map(passage => gist(passage.text)).join(' '));
     const countAsk = input.language === 'ta'
       ? 'இந்தப் பகுதிகள் ஒரு மொத்த எண்ணைச் சொல்கின்றனவா, அல்லது இப்போது கேட்டதை மட்டும் சொல்கின்றனவா?'
       : input.language === 'si'
@@ -272,8 +284,8 @@ function generalConversation(input: {
   }
   const primary = usable[0];
   const further = usable.find(passage => passage !== primary && (passage.explained || passage.empirical || recordsPractice(passage.text))) ?? usable[1];
-  const primaryPoint = addressed(input.question, primary.text, primary.context);
-  const furtherPoint = further ? addressed(input.question, further.text, further.context) : '';
+  const primaryPoint = voiced(input.language, addressed(input.question, primary.text, primary.context));
+  const furtherPoint = further ? voiced(input.language, addressed(input.question, further.text, further.context)) : '';
   const practice = further ? recordsPractice(further.text) : recordsPractice(primary.text);
   const grade = input.language === 'en' ? input.answer.match(/The source prints this grade: [^.]+\./)?.[0] ?? '' : '';
   const established = input.language === 'ta'
@@ -289,10 +301,10 @@ function generalConversation(input: {
           ? `මෙම කොටසෙන් පෙනෙන්නේ මූලාශ්‍රයේ පැහැදිලි කිරීමයි. එය නව තීන්දුවක් නොවේ: ${primaryPoint}`
           : `මෙම කොටසෙන් පෙනෙන්නේ මෙයයි: ${primaryPoint}`
       : primary.empirical
-        ? `What this passage establishes is an empirical finding, not scripture and not a narration: ${primaryPoint}`
+        ? `This is an empirical finding, not scripture and not a narration. The practical lesson is ${primaryPoint}`
         : primary.explained
-          ? `What this passage establishes is the source’s explanation, not a new ruling: ${primaryPoint}`
-          : `What this passage establishes is this: ${primaryPoint}`;
+          ? `The lesson is the explanation we opened, not a new ruling: ${primaryPoint}`
+          : `Let us sit with the person and the moment. The practical lesson is ${primaryPoint}`;
   const ask = further
     ? input.language === 'ta'
       ? `${hostName}, இன்னொரு பகுதி இதைச் சேர்க்கிறது: ${furtherPoint} முதல் பகுதி விட்டுவைத்ததை இது முடிக்கிறதா?`
@@ -342,7 +354,6 @@ function generalConversation(input: {
   const recorded = [...new Set((input.disagreements ?? []).map(item => clean(item)))]
     .filter(item => item && !STATUS.test(item) && !INVENTORY.test(item) && !/not independent corroboration|cited \d+ times/i.test(item))
     .slice(0, 1);
-  const woven = primary.ref ? ` The words sit in ${primary.ref}.` : '';
   const stay = input.language === 'ta'
     ? 'இதை இந்தப் பகுதியிலேயே விட்டுவைக்கலாமா?'
     : input.language === 'si'
@@ -350,7 +361,7 @@ function generalConversation(input: {
       : 'Shall we leave it with what the passage says?';
   const lines: RoundtableLine[] = [
     line(hostName, generatedHost(input.question, input.language, hostName)),
-    line(reader, `${hostName}, ${grade ? `${established}${woven} ${grade}` : `${established}${woven}`}`),
+    line(reader, `${hostName}, ${grade ? `${established} ${grade}` : established}`),
   ];
   if (recorded.length) {
     const disagreementSpeaker = can(YUSUF) && YUSUF !== reader ? YUSUF : (asker ?? reader);

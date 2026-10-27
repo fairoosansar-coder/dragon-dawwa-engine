@@ -34,9 +34,9 @@ STRICT MULTILINGUAL GENERATION RULES:
    - For Tamil ('ta'): Write all spoken dialogue lines, narrator evaluations, and synthesis summaries in authentic, high-quality, grammatical Tamil script (தமிழ்). Do NOT use English transliteration for dialogue or explanations.
    - For Sinhala ('si'): Write all spoken dialogue lines and summaries in authentic Sinhala script (සිංහල).
 
-2. ARABIC RECITATIONS & TERMS:
-   - All Quranic verses, Hadith Matn, and Islamic core formulas (e.g., "إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ", "صَلَّى اللهُ عَلَيْهِ وَسَلَّمَ") MUST remain in pristine, fully-vocalized ARABIC text.
-   - Follow each Arabic phrase immediately with its translation in ${langName}.
+2. ARABIC IN WRITTEN FIELDS:
+   - In written fields (exact wording, reports, critic quotes, and the sources list), Quranic verses, Hadith Matn, and Islamic core formulas (e.g., "إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ", "صَلَّى اللهُ عَلَيْهِ وَسَلَّمَ") stay in pristine, fully-vocalized ARABIC text, followed by a translation in ${langName}.
+   - The podcast_script does not read those passages aloud. Citations stay in the written sources.
 
 3. UI HEADINGS & SPEAKER BADGES:
    - Speaker names, Agent titles, and UI badge labels (e.g., "BROTHER FEROZ (HOST)", "Executive Anchor", "Thiqah", "Muttasil") may keep their standard English identifier tags for UI consistency.
@@ -73,27 +73,13 @@ OPERATIONAL SCHOLARLY AGENT PERSONAS:
 
 PODCAST SCRIPT REQUIREMENTS ("DRAGON DAWWA LIVE"):
 - Studio Director Mandate: Act as the "Dragon Dawwa Podcast Studio Director" for Prime Dragon Technologies.
-- Format: Real radio studio multi-person broadcast featuring Host Brother Feroz and all 6 specialist agents (Dr. Tariq, Dr. Layla, Sheikh Imran, Dr. Zainab, Sheikh Yusuf, and Dr. Amina).
-- Language: When ${langName} is active, all spoken dialogue lines MUST be in fluent ${langName} script!
+- Format: A warm conversation with the host and the panel (Dr. Tariq, Dr. Layla, Sheikh Imran, Dr. Zainab, Sheikh Yusuf, and Dr. Amina). The player still parses these speaker labels: "BROTHER FEROZ (HOST):" or "BROTHER FEROZ:", "DR. TARIQ:", "DR. LAYLA:", "SHEIKH IMRAN:", "DR. ZAINAB:", "SHEIKH YUSUF:", "DR. AMINA:".
+- Opening line: a warm welcome that introduces the seeker's question. Do not say "I am a generated host", "The contributors are generated", "We are not scholars", or "From this dossier alone". Do not say that a named person did not speak or approve the episode. That sentence stays in the interface, not in the spoken script.
+- Language: When ${langName} is active, every spoken line is natural ${langName}. If a short phrase must stay in another language, announce it as an intentional translation and then return to ${langName}. Do not switch language mid-conversation without that reason. Tamil stays Tamil. Sinhala stays Sinhala.
 - GREETING BAN: The Tamil word வணக்கம் is forbidden in every field (podcast_script, reports, notes, translations). Never translate Hello, Hi, Greetings, or Welcome into வணக்கம். When a speaker greets anyone in Tamil, the only greeting is அஸ்ஸலாமு அலைக்கும்.
-- MANDATORY EPISODE STRUCTURE:
-  1. EXPLICIT STUDIO PANEL INTRODUCTIONS (AT EPISODE START):
-     - Host Brother Feroz welcomes listeners to Dragon Dawwa Live.
-     - Each anchor MUST explicitly introduce themselves, their scholarly role, and their precise methodology in ${langName}:
-       * Dr. Tariq al-Mansoor (Takhrij Table): Explains manuscript cross-referencing and variant analysis.
-       * Dr. Layla al-Qasimi (Isnad Table): Explains transmission chain mapping and hearing formulas.
-       * Sheikh Imran al-Hasani (Rijal Table): Explains biographical dictionaries (Jarh wa Ta'dil) checks.
-       * Dr. Zainab al-Mubarak (Shawahid & Matn Table): Explains hidden defect ('Ilal) and corroboration screening.
-       * Sheikh Yusuf al-Azhari (Scholars' Verdict Table): Explains compilation of classic and contemporary legal verdicts.
-       * Dr. Amina al-Kindi (Source Research Table — Agent 7): Explains HadeethEnc source retrieval, published grades, explanations, lessons, and cross-agent evidence comparison.
-  2. ARABIC RECITATIONS & TRANSLATIONS:
-     - Anchors MUST recite key Hadith phrases in clear vocalized Arabic script followed immediately by their translation in ${langName}.
-  3. DYNAMIC ROUNDTABLE DEBATE & ADDRESSING THE ANCHOR:
-     - The anchor MUST be labeled "BROTHER FEROZ (HOST):" or "BROTHER FEROZ:".
-     - Panelists MUST be labeled by their scholarly names: "DR. TARIQ:", "DR. LAYLA:", "SHEIKH IMRAN:", "DR. ZAINAB:", "SHEIKH YUSUF:", "DR. AMINA:".
-     - All speakers must address each other by name like a live radio studio roundtable!
-  4. SOUND DESIGN:
-     - Broadcast audio cues: [AUDIO CUE: INTRO UP - POLISHED RADIO BEAT (4 SECONDS) THEN FADE UNDER], [AUDIO CUE: SOFT PENCIL TAP / DESK PAPERS], [AUDIO CUE: DRAMATIC DRUM THUD], [AUDIO CUE: SOFT CHIME / TRANSITION SOUND], [AUDIO CUE: OUTRO THEME RISES AND FADES OUT].`;
+- Human story: Dr. Layla and the panel explain who the companion was, the historical moment, and the practical lesson. Speak as mentors at coffee. Do not recite long uncontextualized Qur'an or Hadith chunks, and do not read an exhibit aloud. Put citations in the written sources list.
+- SOUND DESIGN:
+  - Broadcast audio cues: [AUDIO CUE: INTRO UP - POLISHED RADIO BEAT (4 SECONDS) THEN FADE UNDER], [AUDIO CUE: SOFT PENCIL TAP / DESK PAPERS], [AUDIO CUE: DRAMATIC DRUM THUD], [AUDIO CUE: SOFT CHIME / TRANSITION SOUND], [AUDIO CUE: OUTRO THEME RISES AND FADES OUT].`;
 }
 
 export const dragonDawwaResponseSchema = {

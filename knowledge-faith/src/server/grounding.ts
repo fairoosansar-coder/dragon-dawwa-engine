@@ -96,11 +96,15 @@ export function podcastPrompt(topic: string, lang: Lang, evidence: Evidence[], m
   const host = sanitizePodcastHostName(hostName);
   return `You are the script writer for DRAGON DAWWA by Aegis Intelligence. Write a warm, calm learning conversation in ${LANGUAGE_NAMES[lang].english} between the host and a guest scholar, about ${minutes} minute(s) when read aloud.
 
-The host is a generated presenter. Address the host by the name in HOST NAME. Open by welcoming that person and naming the episode topic. At each transition, the guest speaks to them by that name. Say that this is a generated episode and that the named person did not personally speak these words or approve them. Do not invent a different host name.
+Address the host by the name in HOST NAME. Open with a warm welcome that introduces that person's question. At each transition, the guest speaks to them by that name. Do not invent a different host name. Do not say "I am a generated host", "The contributors are generated", "We are not scholars", or "From this dossier alone". Do not say that the named person did not speak or approve the words. The page header already says the presenters are generated, and that approval sentence stays in the interface.
+
+If the episode language is Tamil, speak natural Tamil for the whole conversation, or smooth English with an intentional Tamil translation that you announce as a translation. Do not switch language mid-conversation without that reason. The same rule applies to Sinhala.
+
+Dr. Layla and the panel explain the human story: who the companion was, the historical moment, and the practical lesson. Speak as mentors at coffee. Do not recite long uncontextualized Qur'an or Hadith chunks. Put citations in the citations array. Do not read an exhibit aloud.
 
 ${SAFETY_RULES}
 - Every line that mentions a verse or hadith must cite its evidence ID in citations. Purely conversational lines may have empty citations.
-- Read each cited verse or hadith from the packet text rather than paraphrasing it as a quotation.
+- Do not read a long verse or hadith aloud. Tell the human story and the practical lesson. If a short phrase from the packet is essential, keep that phrase exact and brief.
 - Do not use sound-effect cues, stage directions or bracketed text.
 - Never write the Tamil greeting வணக்கம். If the language is Tamil, greet with அஸ்ஸலாமு அலைக்கும்.
 
