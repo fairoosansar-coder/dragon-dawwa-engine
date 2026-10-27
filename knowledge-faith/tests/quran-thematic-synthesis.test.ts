@@ -152,8 +152,6 @@ describe('thematic tafsir synthesis', () => {
     assert.match(prompt, /practical comfort/);
     assert.match(prompt, /If Tamil or Sinhala tafsir text is missing, translate the opened Arabic or English commentary/);
     assert.match(QURAN_SYNTHESIS_HEART, /do not cite an unrelated verse/i);
-<<<<<<< HEAD
-=======
     const bridge = finalSynthesisSystemPrompt();
     assert.equal(bridge.includes(CIVILIZATIONAL_BRIDGE_PROMPT.trim()), true);
     assert.equal(bridge.includes(OPENED_CLASSICAL_LIMIT), true);
@@ -179,7 +177,6 @@ describe('thematic tafsir synthesis', () => {
     }]);
     assert.equal(hadithPrompt.includes(CIVILIZATIONAL_BRIDGE_PROMPT.trim()), false);
     assert.match(prompt, /without inventing a quotation or attributing a sentence to Ibn Kathir/);
->>>>>>> origin/cursor/research-studio-upgrade-3fe3
   });
 
   it('keeps an opened 2:216 for a question about revelation through Jibril', async () => {

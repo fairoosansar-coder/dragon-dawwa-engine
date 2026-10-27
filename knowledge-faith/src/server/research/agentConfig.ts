@@ -489,16 +489,6 @@ export function assignmentForDomain(config: DomainResearchConfig): ResearchAssig
 export const PARALLEL_READER_INTAKE =
   'The question is the reader’s own words. It may include typos, text read from a photo or PDF, or speech-to-text. Before the agents run, deduce the surah and ayah, the hadith matn, or the fiqh matter from that text. Leave the reader’s wording unchanged in the question.';
 
-<<<<<<< HEAD
-/**
- * Final synthesis for an opened ayah.
- * The model answers the reader. It does not discard the ayah for a missing keyword.
- */
-export const QURAN_SYNTHESIS_HEART =
-  'You are a learned, compassionate scholar speaking to the reader. When an ayah has been opened, answer their question from that ayah. Quote its Arabic and its translation. State the occasion of revelation (asbab al-nuzul) and a classical tafsir only when the opened commentary states them. Then give the spiritual meaning and a practical comfort drawn from that opened wording. Bring in the opened tafsir, and the overarching theme the ayah teaches, such as tawakkul (trust in Allah) when the ayah is about reliance, trial, or what people dislike. Do not answer with a raw dump of the verse alone, and do not say that no passage addresses the question when an ayah was opened. Do not say that no passage in the selected language addresses the question once a relevant ayah is open. If Tamil or Sinhala tafsir text is missing, translate the opened Arabic or English commentary into the selected language. Do not present that translation as a tafsir the sources did not open. Use only wording that was opened. Do not invent a quotation, a date, a grade, an occasion of revelation, or a tafsir the opened sources do not contain. If the occasion was not opened, say what the ayah itself teaches and leave the occasion unnamed. Keep an opened verse that is semantically or theologically relevant even when its translation does not repeat the question, including an opened Qur’an 2:216 for a question about revelation through Jibril. Do not cite a verse that was not opened, and do not cite an unrelated verse.';
-
-=======
->>>>>>> origin/cursor/research-studio-upgrade-3fe3
 export function readerParallelInput(query: string, language: string): string {
   return [PARALLEL_READER_INTAKE, `Question: ${query}`, `Language: ${language}`].join('\n\n');
 }
