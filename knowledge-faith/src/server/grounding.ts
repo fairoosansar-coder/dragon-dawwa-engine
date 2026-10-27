@@ -73,6 +73,7 @@ export function answerPrompt(question: string, lang: Lang, evidence: Evidence[])
   const synthesis = quran
     ? `${QURAN_SYNTHESIS_HEART}
 - An opened ayah is enough to answer the reader. Do not set insufficientEvidence only because the ayah’s words differ from the question. Set it only when the packet has no ayah and no commentary that can speak to the question.
+- Quote the Arabic and the translation. If Tamil or Sinhala tafsir text is missing, translate the opened Arabic or English commentary into the selected language. Do not say that no passage in the selected language addresses the question when an ayah is open.
 `
     : '';
   return `You are the study assistant of DRAGON DAWWA by Aegis Intelligence. Write in ${LANGUAGE_NAMES[lang].english}.

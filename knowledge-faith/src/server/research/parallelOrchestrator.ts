@@ -150,10 +150,21 @@ function reconciliationFinding(language: Lang, roles: string, passages: readonly
   const ayah = passages.find(isOpenedAyah);
   const commentary = passages.find(passage => passage.role === 'commentary' && passage.source.provider !== 'Parallel' && passage.text.trim());
   if (ayah && language === 'en') {
+    const arabic = ayah.arabic?.trim() ? ` Arabic: “${clip(ayah.arabic, 180)}”.` : '';
     const tafsir = commentary
       ? ` The opened tafsir (${commentary.locator}) says: “${clip(commentary.text, 280)}”.`
       : ' An occasion of revelation is named only when the opened tafsir states it.';
-    return `Your question is answered from ${ayah.locator}: “${clip(ayah.text, 280)}”.${tafsir} Read this ayah for the theme it teaches, including trust in Allah where it speaks of trial, dislike, or reliance. The agents who ran were ${roles}. What was not opened was not added. This is not a hadith grade.`;
+    return `Your question is answered from ${ayah.locator}: “${clip(ayah.text, 280)}”.${arabic}${tafsir} The spiritual meaning is the theme the ayah itself teaches, including trust in Allah where it speaks of trial, dislike, or reliance. The practical comfort is to hold to that opened wording. The agents who ran were ${roles}. What was not opened was not added. This is not a hadith grade.`;
+  }
+  if (ayah && language === 'ta') {
+    const arabic = ayah.arabic?.trim() ? ` அரபு: “${clip(ayah.arabic, 180)}”.` : '';
+    const tafsir = commentary ? ` திறந்த தஃப்சீர் (${commentary.locator}): “${clip(commentary.text, 280)}”.` : ' அருள்வழி இறங்கிய சந்தர்ப்பம் திறந்த தஃப்சீரில் உள்ளபோது மட்டும் சொல்லப்படும்.';
+    return `${ayah.locator}: “${clip(ayah.text, 280)}”.${arabic}${tafsir} ஆன்மீக அர்த்தம் திறந்த சொற்களிலிருந்து. நடைமுறை ஆறுதல்: திறந்த வார்த்தையைப் பிடித்துக் கொள்ளுங்கள். திறக்கப்படாத அஸ்பாப் சேர்க்கப்படவில்லை. ஓடிய முகவர்கள்: ${roles}. இது ஒரு ஹதீஸ் தரம் அல்ல.`;
+  }
+  if (ayah && language === 'si') {
+    const arabic = ayah.arabic?.trim() ? ` අරාබි: “${clip(ayah.arabic, 180)}”.` : '';
+    const tafsir = commentary ? ` විවෘත තෆ්සීරය (${commentary.locator}): “${clip(commentary.text, 280)}”.` : ' එළිදරව් වීමේ අවස්ථාව විවෘත තෆ්සීරය පවසන විට පමණක් ඇතුළත් වේ.';
+    return `${ayah.locator}: “${clip(ayah.text, 280)}”.${arabic}${tafsir} අධ්‍යාත්මික අර්ථය විවෘත වචනවලින් ය. ප්‍රායෝගික සැනසීම: විවෘත වචනය අල්ලාගන්න. විවෘත නොකළ අස්බාබ් එකතු නොකෙරේ. ක්‍රියාත්මක වූ නියෝජිතයන්: ${roles}. මෙය හදීස් ශ්‍රේණියක් නොවේ.`;
   }
   if (language === 'ta') {
     return `ஓடிய முகவர்கள்: ${roles}. நிறுவப்பட்டது அவர்கள் திறந்த மூலத்திலிருந்து மேற்கோள் காட்டியது மட்டும். திறக்கப்படாதது சேர்க்கப்படவில்லை. இது ஒரு ஹதீஸ் தரம் அல்ல.`;

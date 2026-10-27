@@ -155,6 +155,27 @@ export function isNamedReference(question: string, passage: Pick<EvidencePassage
 }
 
 /**
+ * Commentary opened beside a same-language ayah stays available for synthesis.
+ * A Tamil or Sinhala tafsir may be missing; the opened Arabic or English commentary is then translated, not discarded.
+ * An unrelated verse in the wrong language is not kept by this rule.
+ */
+export function commentaryAccompaniesOpenedAyah(
+  passage: Pick<EvidencePassage, 'text' | 'role' | 'source' | 'locator'>,
+  language: Lang,
+  passages: readonly Pick<EvidencePassage, 'text' | 'role' | 'context' | 'source' | 'locator'>[],
+): boolean {
+  if (passage.role !== 'commentary' || passage.source.provider === 'Parallel') return false;
+  if (!passage.text.trim() || passageMatchesLanguage(passage, language)) return false;
+  return passages.some(item => {
+    if (!isOpenedAyah(item) || !passageMatchesLanguage(item, language)) return false;
+    const surah = Number(item.source.id.split(':')[0]);
+    if (!Number.isFinite(surah) || surah < 1) return false;
+    const blob = `${passage.locator} ${passage.source.id}`;
+    return passage.source.id === `tafsir-${surah}` || new RegExp(`(?:^|[^\\d])${surah}:`).test(blob);
+  });
+}
+
+/**
  * An ayah the research engine opened for this question.
  * Keyword overlap with the reader’s sentence is not required.
  * A neighbouring ayah is context and is not itself the answer.
@@ -287,9 +308,17 @@ export function reviewMaterialCoverage(input: {
       return { ...part, status: 'unresolved', note: `The opened text is not in the selected language (${input.language}). A missing translation is not a finding that the subject is absent.` };
     }
     if (part.kind === 'meaning') {
-      return explained
-        ? { ...part, status: 'answered', note: 'An attributed explanation in the selected language addresses this part.' }
-        : { ...part, status: 'unresolved', note: 'A quotation was not treated as the meaning. No attributed explanation in the selected language addresses it.' };
+      if (explained) {
+        const translatedCommentary = sameLanguage.some(passage =>
+          passage.role === 'commentary'
+          && passage.source.provider !== 'Parallel'
+          && !passageMatchesLanguage(passage, input.language),
+        );
+        return translatedCommentary && (input.language === 'ta' || input.language === 'si')
+          ? { ...part, status: 'answered', note: 'The opened commentary is read in the selected language from the Arabic or English wording that was opened. Nothing beyond that wording is added.' }
+          : { ...part, status: 'answered', note: 'An attributed explanation in the selected language addresses this part.' };
+      }
+      return { ...part, status: 'unresolved', note: 'A quotation was not treated as the meaning. No attributed explanation in the selected language addresses it.' };
     }
     if (part.kind === 'application') {
       return applied
@@ -318,6 +347,9 @@ export function reviewMaterialCoverage(input: {
     }
     if (partAnswered(part.kind, sameLanguage, input.question)) {
       return { ...part, status: 'answered', note: 'A passage in the selected language addresses this part.' };
+    }
+    if (sameLanguage.some(isOpenedAyah)) {
+      return { ...part, status: 'unresolved', note: 'The opened ayah stays with the reader. What the opened commentary does not state is left unnamed.' };
     }
     return { ...part, status: 'unresolved', note: 'No passage in the selected language addresses this part of the question.' };
   });

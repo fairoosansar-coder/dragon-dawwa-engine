@@ -91,8 +91,10 @@ export function HadithSearchForm({
   const [voiceSpeechMode, setVoiceSpeechMode] = useState<'webspeech' | 'ai_gemini'>('webspeech');
   const [dictationLang, setDictationLang] = useState<'en-US' | 'ta-IN' | 'si-LK' | 'ar-SA'>(dictationCode(currentLanguage));
   const [speechFeedback, setSpeechFeedback] = useState<string | null>(null);
+  const [extractPreview, setExtractPreview] = useState<{ label: string; excerpt: string } | null>(null);
   const speechRecognitionRef = useRef<any>(null);
   const baseMatnAtStartRef = useRef<string>('');
+  const lastSpeechRef = useRef<string>('');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<any>(null);
@@ -215,6 +217,8 @@ export function HadithSearchForm({
     if (extractedIsnad) {
       setIsnad(extractedIsnad);
     }
+    const excerpt = [matn, extractedIsnad].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim().slice(0, 160);
+    if (excerpt) setExtractPreview({ label: 'Extracted text', excerpt });
     if (autoRun) {
       saveSearchToLocalStorage(matn, extractedIsnad || isnad);
       onRunEngine(matn, extractedIsnad || isnad);
@@ -318,6 +322,7 @@ export function HadithSearchForm({
 
           const currentSpeech = `${finalTranscript} ${interimTranscript}`.trim();
           if (currentSpeech) {
+            lastSpeechRef.current = currentSpeech;
             const base = baseMatnAtStartRef.current;
             setHadithMatn(base ? `${base} ${currentSpeech}` : currentSpeech);
           }
@@ -340,6 +345,8 @@ export function HadithSearchForm({
 
         recognition.onend = () => {
           setIsRecording(false);
+          const spoken = lastSpeechRef.current.trim();
+          if (spoken) setExtractPreview({ label: 'Dictation', excerpt: spoken.slice(0, 160) });
           setSpeechFeedback('Voice dictation captured!');
           setTimeout(() => setSpeechFeedback(null), 3500);
         };
@@ -415,6 +422,7 @@ export function HadithSearchForm({
 
             if (result.text && result.text.trim().length > 0) {
               setHadithMatn(result.text.trim());
+              setExtractPreview({ label: 'Dictation', excerpt: result.text.trim().slice(0, 160) });
               setSpeechFeedback('Transcribed successfully with Gemini!');
             } else {
               setSpeechFeedback('No speech detected in audio clip.');
@@ -456,6 +464,7 @@ export function HadithSearchForm({
     setIsnad("");
     setActiveBenchmark(null);
     setNormalizationData(null);
+    setExtractPreview(null);
     if (onClearInputs) {
       onClearInputs();
     }
@@ -735,6 +744,13 @@ export function HadithSearchForm({
             </div>
 
             {/* Voice Feedback Banner */}
+            {extractPreview && (
+              <p data-testid="hadith-extract-preview" className="inline-flex max-w-full items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs text-amber-200">
+                <span className="shrink-0 font-semibold">{extractPreview.label}</span>
+                <span className="truncate">{extractPreview.excerpt}</span>
+              </p>
+            )}
+
             {speechFeedback && (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 animate-fadeIn">
                 <span className={`w-2 h-2 rounded-full ${isRecording ? 'bg-rose-500 animate-ping' : isTranscribing ? 'bg-amber-400 animate-spin' : 'bg-emerald-400'}`} />

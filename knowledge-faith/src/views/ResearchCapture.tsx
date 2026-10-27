@@ -38,6 +38,7 @@ export function ResearchCapture({
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ label: string; excerpt: string } | null>(null);
   const [engine, setEngine] = useState<'webspeech' | 'ai_gemini'>('webspeech');
   const [dictationLang, setDictationLang] = useState<DictationLang>(dictationCode(lang));
   const sessionRef = useRef<DictationSession | null>(null);
@@ -80,6 +81,11 @@ export function ResearchCapture({
     setTranscribing(false);
     setFeedback(null);
   }, [disabled]);
+
+  function showPreview(label: string, text: string) {
+    const excerpt = text.replace(/\s+/g, ' ').trim().slice(0, 160);
+    if (excerpt) setPreview({ label, excerpt });
+  }
 
   function appendText(incoming: string) {
     const next = incoming.replace(/\s+/g, ' ').trim();
@@ -177,7 +183,10 @@ export function ResearchCapture({
                 const result = (await response.json()) as { text?: string };
                 if (!current()) return;
                 const spoken = result.text?.trim() ?? '';
-                if (spoken) appendText(spoken);
+                if (spoken) {
+                  appendText(spoken);
+                  showPreview('Dictation', spoken);
+                }
                 finish(spoken ? 'Speech added to the question.' : 'No speech was detected.');
               } catch (err) {
                 finish(err instanceof Error ? err.message : 'Transcription failed.');
@@ -233,7 +242,13 @@ export function ResearchCapture({
             void recordWithGemini();
           }
         };
-        recognition.onend = () => finish('Voice dictation captured.');
+        recognition.onend = () => {
+          const full = valueRef.current.trim();
+          const base = baseRef.current.trim();
+          const added = base && full.startsWith(base) ? full.slice(base.length).trim() : full;
+          if (added) showPreview('Dictation', added);
+          finish('Voice dictation captured.');
+        };
         recognition.start();
         return;
       } catch {
@@ -317,6 +332,12 @@ export function ResearchCapture({
           {transcribing ? <Loader2 className="h-4 w-4 animate-spin" /> : recording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
         </button>
       </div>
+      {preview && (
+        <p data-testid="research-extract-preview" className="inline-flex max-w-full items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs text-amber-200">
+          <span className="shrink-0 font-semibold">{preview.label}</span>
+          <span className="truncate">{preview.excerpt}</span>
+        </p>
+      )}
 
       <HadithMediaUploadModal
         isOpen={mode != null}
@@ -324,7 +345,10 @@ export function ResearchCapture({
         onClose={() => setMode(null)}
         onApplyExtracted={(matn, isnad) => {
           const extracted = [matn, isnad].map(part => part.trim()).filter(Boolean).join('\n\n');
-          if (extracted) appendText(extracted);
+          if (extracted) {
+            appendText(extracted);
+            showPreview('Extracted text', extracted);
+          }
           setMode(null);
         }}
       />

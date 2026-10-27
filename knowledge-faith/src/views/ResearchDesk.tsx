@@ -272,6 +272,11 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
               }
               void submit(event, { asked });
             }}
+            onStarter={asked => {
+              setQuestion(asked);
+              setClarify(false);
+              void submit(undefined, { asked });
+            }}
           />
         </ResearchFrame>
       )}

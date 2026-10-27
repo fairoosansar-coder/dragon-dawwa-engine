@@ -148,5 +148,86 @@ describe('thematic tafsir synthesis', () => {
     }]);
     assert.match(prompt, /do not say that no passage addresses the question/i);
     assert.match(prompt, /Do not set insufficientEvidence only because the ayah/);
+    assert.match(prompt, /Quote its Arabic and its translation/);
+    assert.match(prompt, /practical comfort/);
+    assert.match(prompt, /If Tamil or Sinhala tafsir text is missing, translate the opened Arabic or English commentary/);
+    assert.match(QURAN_SYNTHESIS_HEART, /do not cite an unrelated verse/i);
+  });
+
+  it('keeps an opened 2:216 for a question about revelation through Jibril', async () => {
+    const question = 'How did revelation reach the Prophet through Jibril?';
+    assert.equal(questionInvitesScripture(question), true);
+    assert.equal(questionInvitesScripture('What did Jibril bring?'), true);
+    const result = await executeResearch({
+      question,
+      language: 'en',
+      ports: ports({
+        suggestSearch: async () => ({ available: true, failed: false, phrases: [], ayahs: [{ surah: 2, ayah: 216 }] }),
+        getVerses: async refs => refs.map(ref => ({
+          surah: ref.surah,
+          ayah: ref.ayah,
+          arabic: ref.ayah === 216 ? 'كُتِبَ عَلَيْكُمُ الْقِتَالُ' : 'جِيرَان',
+          translation: ref.ayah === 216 ? AYAH : 'A neighbouring ayah opened for context.',
+          translator: 'Saheeh International',
+          version: null,
+          edition: 'quran-uthmani',
+          url: `https://quranenc.com/en/ayah/${ref.surah}/${ref.ayah}`,
+        })),
+      }),
+      assignment: { scope: 'knowledge', teams: ['quran'], bookId: null, noticeId: null, forwardedFrom: null },
+    });
+    const text = result.dossier.answer?.paragraphs.map(paragraph => paragraph.text).join('\n') ?? '';
+    assert.equal(result.dossier.passages.some(passage => passage.source.id === '2:216'), true);
+    assert.match(text, /كُتِبَ عَلَيْكُمُ الْقِتَالُ/);
+    assert.match(text, /hateful to you/);
+    assert.match(text, /spiritual meaning/i);
+    assert.match(text, /practical comfort/i);
+    assert.match(text, /only when the opened tafsir states it/);
+    assert.doesNotMatch(text, /No passage in the selected language addresses/);
+    assert.doesNotMatch(text, /A passage that answers the question was not opened/);
+    assert.doesNotMatch(text, /revealed in the year/i);
+  });
+
+  it('translates an opened English commentary into a Tamil answer without dropping the ayah', async () => {
+    const result = await executeResearch({
+      question: QUESTION,
+      language: 'ta',
+      ports: ports({
+        searchQuran: async () => ({
+          total: 1,
+          refs: [{ surah: 2, ayah: 216 }],
+          hits: [{ surah: 2, ayah: 216, text: 'போர் உங்களுக்கு விதிக்கப்பட்டுள்ளது' }],
+        }),
+        getVerses: async refs => refs.filter(ref => ref.ayah === 216).map(ref => ({
+          surah: ref.surah,
+          ayah: ref.ayah,
+          arabic: 'كُتِبَ عَلَيْكُمُ الْقِتَالُ',
+          translation: 'போர் உங்களுக்கு விதிக்கப்பட்டுள்ளது; அது உங்களுக்கு வெறுப்பானது.',
+          translator: 'Jan Trust',
+          version: null,
+          edition: 'ta',
+          url: `https://quranenc.com/ta/ayah/${ref.surah}/${ref.ayah}`,
+        })),
+        loadCommentary: async () => ({
+          ok: true as const,
+          spans: [{
+            locator: 'Al-Mukhtasar 2:216',
+            text: TAFSIR,
+            url: 'https://quranenc.com/en/browse/english_mokhtasar/2',
+          }],
+        }),
+      }),
+      assignment: { scope: 'quran', teams: ['quran'], bookId: null, noticeId: null, forwardedFrom: null },
+    });
+    const text = result.dossier.answer?.paragraphs.map(paragraph => paragraph.text).join('\n') ?? '';
+    assert.equal(result.dossier.passages.some(passage => passage.source.id === '2:216'), true);
+    assert.equal(result.dossier.passages.some(passage => passage.role === 'commentary'), true);
+    assert.match(text, /كُتِبَ عَلَيْكُمُ الْقِتَالُ/);
+    assert.match(text, /போர் உங்களுக்கு விதிக்கப்பட்டுள்ளது/);
+    assert.match(text, /Trust the One who prescribed it/);
+    assert.match(text, /ஆன்மீக அர்த்தம்/);
+    assert.match(text, /நடைமுறை ஆறுதல்/);
+    assert.doesNotMatch(text, /No passage in the selected language addresses/);
+    assert.doesNotMatch(text, /A passage that answers the question was not opened/);
   });
 });
