@@ -58,6 +58,11 @@ import { spiritualRouter } from './src/server/spiritual/routes.ts';
 import { studioRouter } from './src/server/studio/routes.ts';
 import { HumanReviewStore } from './src/server/research/humanReviewStore.ts';
 import { humanReviewRouter } from './src/server/research/humanReviewRoutes.ts';
+import { applyPersistDir, persistRoot } from './src/server/persist.ts';
+import { collectionSummary } from './src/server/hadeethenc/collection.ts';
+import { listSavedEpisodes, readSavedEpisode, saveEpisodeAudio } from './src/server/research/savedWork.ts';
+
+applyPersistDir();
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -84,7 +89,7 @@ if (process.env.CODESPACES === 'true' || process.env.CODESPACE_NAME) {
 }
 app.use(ummahQuranMiddleware);
 app.use(ummahStudyMiddleware);
-app.use(['/api/extract-hadith-media', '/api/transcribe-audio'], express.json({ limit: '15mb' }));
+app.use(['/api/extract-hadith-media', '/api/transcribe-audio', '/api/research/episodes'], express.json({ limit: '20mb' }));
 app.use(express.json({ limit: '64kb' }));
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
@@ -429,6 +434,55 @@ app.post(
   }),
 );
 
+app.get('/api/sources/hadeethenc', route(async (_req, res) => res.json(collectionSummary())));
+
+app.get('/api/research/episodes', route(async (_req, res) => res.json({ episodes: listSavedEpisodes() })));
+
+app.get(
+  '/api/research/episodes/:id',
+  route(async (req, res) => {
+    const episode = readSavedEpisode(String(req.params.id));
+    if (!episode) throw new UpstreamError('Unknown saved episode', 404);
+    res.json(episode);
+  }),
+);
+
+app.post(
+  '/api/research/episodes',
+  route(async (req, res) => {
+    const lines = Array.isArray(req.body?.lines) ? req.body.lines.slice(0, 24) : [];
+    if (!lines.length) throw new UpstreamError('A saved episode needs its transcript.', 400);
+    const audio = typeof req.body?.audioBase64 === 'string' ? req.body.audioBase64 : undefined;
+    const saved = saveEpisodeAudio(
+      {
+        id: text(req.body?.id, 120, 'id'),
+        jobId: typeof req.body?.jobId === 'string' ? req.body.jobId.slice(0, 80) : '',
+        question: text(req.body?.question, 800, 'question'),
+        language: toLang(req.body?.language ?? req.body?.lang),
+        participants: Array.isArray(req.body?.participants)
+          ? req.body.participants.slice(0, 12).map((item: { id?: string; role?: string; team?: string }) => ({
+              id: String(item?.id ?? '').slice(0, 80),
+              role: String(item?.role ?? '').slice(0, 120),
+              team: String(item?.team ?? '').slice(0, 40),
+            }))
+          : [],
+        lines: lines.map((line: { speaker?: string; role?: string; text?: string }) => ({
+          speaker: String(line?.speaker ?? '').slice(0, 120),
+          role: String(line?.role ?? '').slice(0, 120),
+          text: String(line?.text ?? '').slice(0, 4000),
+        })),
+        sources: Array.isArray(req.body?.sources) ? req.body.sources.slice(0, 40).map((item: unknown) => String(item).slice(0, 300)) : [],
+        reportHtml: typeof req.body?.reportHtml === 'string' ? req.body.reportHtml.slice(0, 80_000) : '',
+        mimeType: typeof req.body?.mimeType === 'string' ? req.body.mimeType.slice(0, 80) : 'audio/wav',
+        savedAt: new Date().toISOString(),
+        hasAudio: Boolean(audio),
+      },
+      audio,
+    );
+    res.status(201).json({ id: saved.id, hasAudio: saved.hasAudio });
+  }),
+);
+
 app.get('/api/research/podcasts', route(async (_req, res) => res.json({ episodes: listCommunityPodcasts() })));
 
 app.post(
@@ -710,7 +764,7 @@ app.post(
   }),
 );
 
-const dataDir = path.resolve(process.env.KF_DATA_DIR || path.join(import.meta.dirname, '.data'));
+const dataDir = persistRoot();
 const editorAccounts = parseEditorAccounts(process.env.EDITORIAL_USERS);
 app.use(
   spiritualRouter({
