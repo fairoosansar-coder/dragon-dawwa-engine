@@ -26,8 +26,24 @@ export function researchOutcome(input: {
   passageCount: number;
   coverage: readonly OutcomeNote[];
   investigation?: 'complete' | 'partial' | 'blocked';
+  parallelStatus?: 'credentials_missing' | 'running' | 'completed' | 'failed' | null;
+  jobStatus?: 'done' | 'running' | 'error' | 'cancelled' | 'queued' | null;
 }): ResearchOutcome | null {
   const question = kept(input.question);
+  if (input.jobStatus === 'error') {
+    return {
+      title: 'Research failed.',
+      detail: `The investigation stopped because a source failed. This is not a completed answer.${question} You can retry.`,
+      retry: true,
+    };
+  }
+  if (input.parallelStatus === 'running') {
+    return {
+      title: 'Research is still running.',
+      detail: `Supported findings stay visible while the remaining sources finish. This revision is not the completed investigation. A later revision will not replace audio that is playing.${question}`,
+      retry: false,
+    };
+  }
   if (input.investigation === 'blocked') {
     return {
       title: 'Research is blocked.',
@@ -40,6 +56,13 @@ export function researchOutcome(input: {
       title: 'Research is partial.',
       detail: `The records that were opened do not settle every part of the question. What follows is only what those records say.${question}`,
       retry: false,
+    };
+  }
+  if (input.investigation === 'complete' && input.passageCount === 0) {
+    return {
+      title: 'This is not a completed answer.',
+      detail: `No passage was kept for this question.${question} You can retry.`,
+      retry: true,
     };
   }
   const unreachable = input.coverage.some(note => note.kind === 'source_unavailable' || note.kind === 'language_unavailable');

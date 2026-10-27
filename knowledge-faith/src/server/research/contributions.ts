@@ -165,10 +165,19 @@ function quranAgents(input: {
   coverage: readonly CoverageNote[];
 }): AgentContribution[] {
   const verses = input.passages.filter(passage => passage.source.provider === 'QuranEnc' && passage.role !== 'commentary');
+  const empirical = input.passages.filter(passage => passage.role === 'empirical' || passage.source.contentType === 'science');
   const arabic = verses.filter(passage => passage.arabic);
   const translated = verses.filter(passage => passage.text.trim());
   const commentary = input.passages.filter(passage => passage.role === 'commentary');
   const tried = verses.length > 0 || input.tafsir.length > 0 || input.coverage.some(note => note.provider === 'QuranEnc');
+  if (!tried && empirical.length) {
+    const locators = empirical.map(passage => passage.locator).join('; ');
+    return [
+      ...idle('quran', QURAN_ROLES.slice(0, 4), 'No verse was identified, so the Qur’an team did not open a text.'),
+      agent('quran', 'passage', 'Passage analysis', 'ran', `The empirical abstract was read. It is not a Qur’an verse: ${locators}.`),
+      agent('quran', 'evidence', 'Evidence review', 'ran', `Empirical records were read and were not treated as scripture: ${locators}.`),
+    ];
+  }
   if (!tried) {
     return idle('quran', QURAN_ROLES, 'No verse was identified, so the Qur’an team did not open a text.');
   }
@@ -209,7 +218,7 @@ function quranAgents(input: {
   const context = input.contextCount
     ? agent('quran', 'context', 'Contextual research', 'ran', `${input.contextCount} neighbouring ayah(s) were opened so the cited verse is not read alone.`)
     : agent('quran', 'context', 'Contextual research', 'not_run', 'No neighbouring ayah was opened.');
-  const reviewed = verses.length > 0 || commentary.length > 0 || input.claims.some(claim => claim.passageIds.length > 0);
+  const reviewed = verses.length > 0 || commentary.length > 0 || empirical.length > 0 || input.claims.some(claim => claim.passageIds.length > 0);
   const evidence = reviewed
     ? agent(
         'quran',

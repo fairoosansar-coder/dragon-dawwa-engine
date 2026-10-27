@@ -15,14 +15,15 @@ export function SourceResearch() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const remote = useRemote<ResearchJobResponse>(jobId ? `/api/research/jobs/${jobId}` : null);
   const running = remote.data?.job.status === 'running' || remote.data?.job.status === 'queued';
+  const parallelPending = remote.data?.job.status === 'done' && remote.data.job.parallel?.status === 'running';
 
   useEffect(() => {
-    if (!running) return;
+    if (!running && !parallelPending) return;
     // A step can last longer than one refresh without changing its progress count.
     // Keep asking until the job leaves running, including when the snapshot looks unchanged.
-    const timer = window.setInterval(() => remote.reload(), 700);
+    const timer = window.setInterval(() => remote.reload(), parallelPending ? 2000 : 700);
     return () => window.clearInterval(timer);
-  }, [running, remote.reload]);
+  }, [running, parallelPending, remote.reload]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -52,6 +53,8 @@ export function SourceResearch() {
         passageCount,
         coverage: job.coverage,
         investigation: job.investigation,
+        parallelStatus: job.parallel?.status,
+        jobStatus: job.status,
       })
     : null;
 
@@ -136,7 +139,7 @@ export function SourceResearch() {
               ))}
             </ul>
           )}
-          {outcome && passageCount === 0 && (
+          {outcome && (
             <div className="mt-4">
               <Notice>
                 <p className="font-semibold">{outcome.title}</p>
