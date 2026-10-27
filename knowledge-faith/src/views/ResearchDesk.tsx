@@ -8,6 +8,7 @@ import { toLang, type Lang } from '../shared/sources.ts';
 import { useRemote } from '../lib/api.ts';
 import { beginResearch, noticeText, readResearchHistory, rememberResearch, researchDeskHref, researchHref, type StoredResearch } from '../lib/researchDesk.ts';
 import type { ResearchDeskName } from '../lib/route.ts';
+import { PodcastHostChip } from '../components/PodcastHostChip.tsx';
 import { ResearchActionRow, ResearchFrame } from '../engine/ResearchFrame.tsx';
 import { DomainResearchForm } from './DomainResearchForm.tsx';
 import { questionsToResearch, separateQuestions } from '../shared/research/questions.ts';
@@ -249,12 +250,15 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
           arabic={frame.arabic}
           subtitle={frame.subtitle}
           actions={
-            <ResearchActionRow
-              onFullReport={() => document.getElementById('research-full-report')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-              onRoundtable={() => {
-                if (job && offersPodcast) window.location.hash = `#/podcast?job=${job.id}&lang=${lang}`;
-              }}
-            />
+            <>
+              <PodcastHostChip />
+              <ResearchActionRow
+                onFullReport={() => document.getElementById('research-full-report')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                onRoundtable={() => {
+                  if (job && offersPodcast) window.location.hash = `#/podcast?job=${job.id}&lang=${lang}`;
+                }}
+              />
+            </>
           }
         >
           <DomainResearchForm

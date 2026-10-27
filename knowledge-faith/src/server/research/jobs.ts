@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { ResearchAssignmentView, ResearchJobResponse } from '../../shared/contracts/v1.ts';
+import type { ResearchAssignmentView, ResearchJobResponse, ResearchJobView } from '../../shared/contracts/v1.ts';
+import { sanitizePodcastHostName } from '../../shared/podcastHost.ts';
 import { researchFingerprint } from '../../shared/research/coordinator.ts';
 import type { Lang } from '../../shared/sources.ts';
 import { UpstreamError } from '../http.ts';
@@ -83,11 +84,15 @@ export function cancelSharedResearchJob(id: string): ResearchJobResponse | undef
   return getSharedResearchJob(id);
 }
 
+function keepHost(job: ResearchJobView, hostName: string | undefined): ResearchJobView {
+  return hostName ? { ...job, hostName } : job;
+}
+
 export function startSharedResearchJob(
   question: string,
   language: Lang,
   ports: ResearchPorts = defaultResearchPorts(),
-  options?: { assignment?: ResearchAssignmentView | null; force?: boolean; desk?: string | null },
+  options?: { assignment?: ResearchAssignmentView | null; force?: boolean; desk?: string | null; hostName?: string | null },
 ): string {
   prune();
   const assignment = options?.assignment ?? null;
@@ -104,6 +109,7 @@ export function startSharedResearchJob(
   if (running >= MAX_RUNNING) throw new UpstreamError('Too many research jobs are already running.', 429);
   const id = randomUUID();
   const controller = new AbortController();
+  const hostName = typeof options?.hostName === 'string' && options.hostName.trim() ? sanitizePodcastHostName(options.hostName) : undefined;
   const stored: StoredJob = {
     contractVersion: '1.0.0',
     controller,
@@ -125,6 +131,7 @@ export function startSharedResearchJob(
       timingsMs: { totalMs: 0, sources: {} },
       assignment,
       agents: [],
+      hostName,
     },
   };
   jobs.set(id, stored);
@@ -141,7 +148,7 @@ export function startSharedResearchJob(
       const current = jobs.get(id);
       if (!current || current.job.status === 'cancelled') return;
       if (current.job.status !== 'running' && current.job.status !== 'queued') return;
-      current.job = { ...snapshot, id, status: 'running' };
+      current.job = keepHost({ ...snapshot, id, status: 'running' }, current.job.hostName);
     },
   })
     .then(result => {
@@ -149,11 +156,11 @@ export function startSharedResearchJob(
       if (!current) return;
       if (current.job.status === 'cancelled') {
         current.dossier = result.dossier;
-        current.job = { ...result.job, id, status: 'cancelled' };
+        current.job = keepHost({ ...result.job, id, status: 'cancelled' }, current.job.hostName);
         remember(current);
         return;
       }
-      current.job = result.job;
+      current.job = keepHost(result.job, current.job.hostName);
       current.dossier = result.dossier;
       remember(current);
       const runId = result.job.parallel?.status === 'running' ? result.job.parallel.runId : null;
@@ -162,12 +169,15 @@ export function startSharedResearchJob(
     .catch((err: unknown) => {
       const current = jobs.get(id);
       if (!current || current.job.status === 'cancelled') return;
-      current.job = {
-        ...current.job,
-        status: 'error',
-        finishedAt: new Date().toISOString(),
-        errors: [...current.job.errors, { provider: 'research', message: err instanceof Error ? err.message : 'Research failed.' }],
-      };
+      current.job = keepHost(
+        {
+          ...current.job,
+          status: 'error',
+          finishedAt: new Date().toISOString(),
+          errors: [...current.job.errors, { provider: 'research', message: err instanceof Error ? err.message : 'Research failed.' }],
+        },
+        current.job.hostName,
+      );
       remember(current);
     });
   return id;
@@ -187,7 +197,7 @@ function resumeParallel(id: string, runId: string) {
       if (!current || current.job.status === 'cancelled' || !current.dossier) return;
       if (consult.status === 'running' || consult.status === 'credentials_missing') return;
       const revised = publishParallelRevision({ job: current.job, dossier: current.dossier }, consult);
-      current.job = revised.job;
+      current.job = keepHost(revised.job, current.job.hostName);
       current.dossier = revised.dossier;
       remember(current);
     })

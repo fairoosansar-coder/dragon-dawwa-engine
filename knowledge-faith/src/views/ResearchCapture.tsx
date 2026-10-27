@@ -4,21 +4,10 @@ import { HadithMediaUploadModal } from '../engine/components/HadithMediaUploadMo
 import { dictationCode, languageLabel } from '../engine/utils/contentLanguage.ts';
 import { useApp } from '../lib/store.tsx';
 import { DictationSession } from './dictationSession.ts';
+import { beginDictationTap, MICROPHONE_DENIED_MESSAGE, requestMicrophoneFromTap, type SpeechEngine } from './microphoneTap.ts';
 
 type CaptureMode = 'camera' | 'upload_photo' | 'upload_file';
 type DictationLang = 'en-US' | 'ta-IN' | 'si-LK' | 'ar-SA';
-
-interface SpeechRecognitionLike {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onstart: (() => void) | null;
-  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void) | null;
-  onerror: ((event: { error?: string }) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-}
 
 const ribbonButton =
   'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer shadow-sm';
@@ -99,13 +88,23 @@ export function ResearchCapture({
     setMode(next);
   }
 
-  async function toggleMic() {
+  function releaseUnused(microphone: Promise<MediaStream>) {
+    void microphone.then(stream => {
+      stream.getTracks().forEach(track => { try { track.stop(); } catch { /* continue */ } });
+    }).catch(() => { /* The browser already closed this request. */ });
+  }
+
+  function toggleMic(microphone: Promise<MediaStream>) {
     // Stop/cancel remains usable even before permission or onstart resolves.
     if (stopRef.current) {
       stopRef.current();
+      releaseUnused(microphone);
       return;
     }
-    if (disabled || sessionRef.current) return;
+    if (disabled || sessionRef.current) {
+      releaseUnused(microphone);
+      return;
+    }
     const session = new DictationSession();
     sessionRef.current = session;
     const current = () => sessionRef.current === session && !session.cancelled && !disabledRef.current;
@@ -116,25 +115,16 @@ export function ResearchCapture({
       setTranscribing(false);
       setFeedback(message);
     };
-    stopRef.current = () => finish('Microphone stopped.');
     setRecording(true);
     baseRef.current = valueRef.current.trim();
-    const SpeechRecognitionCtor = (
-      window as unknown as {
-        SpeechRecognition?: new () => SpeechRecognitionLike;
-        webkitSpeechRecognition?: new () => SpeechRecognitionLike;
-      }
-    ).SpeechRecognition ?? (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognitionLike }).webkitSpeechRecognition;
+    setFeedback('Requesting microphone access.');
 
-    async function recordWithGemini() {
-      if (!current()) return;
-      if (!navigator.mediaDevices?.getUserMedia) {
-        finish('This browser cannot record audio.');
+    function recordWithGemini(stream: MediaStream) {
+      if (!current()) {
+        stream.getTracks().forEach(track => { try { track.stop(); } catch { /* continue */ } });
         return;
       }
-      setFeedback('Requesting microphone access.');
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         session.ownStream(stream);
         if (!current()) { session.cancel(); return; }
         const chunks: Blob[] = [];
@@ -177,7 +167,7 @@ export function ResearchCapture({
                   method: 'POST',
                   signal: abort.signal,
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ audio_base64: audio, mime_type: recorder.mimeType || 'audio/webm' }),
+                  body: JSON.stringify({ audio_base64: audio, mime_type: recorder.mimeType || 'audio/webm', language: dictationLang }),
                 });
                 if (!response.ok) throw new Error(`Transcription returned ${response.status}.`);
                 const result = (await response.json()) as { text?: string };
@@ -213,49 +203,41 @@ export function ResearchCapture({
       }
     }
 
-    if (SpeechRecognitionCtor && engine === 'webspeech') {
-      try {
-        const recognition = new SpeechRecognitionCtor();
+    beginDictationTap({
+      microphone,
+      lang: dictationLang,
+      preferWebSpeech: engine === 'webspeech',
+      isActive: current,
+      onArmed: stop => {
+        session.own(stop);
+        stopRef.current = () => finish('Microphone stopped.');
+      },
+      onSpeechStart: recognition => {
+        if (!current()) return;
         session.own(() => {
           recognition.onstart = recognition.onresult = recognition.onerror = recognition.onend = null;
-          recognition.stop();
         });
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = dictationLang;
-        recognition.onstart = () => { if (current()) setFeedback('Listening. Speak the question or the passage.'); };
-        recognition.onresult = event => {
-          if (!current()) return;
-          let spoken = '';
-          for (let i = 0; i < event.results.length; i += 1) spoken += event.results[i]?.[0]?.transcript ?? '';
-          const text = spoken.trim();
-          if (text) onChange(baseRef.current ? `${baseRef.current} ${text}` : text);
-        };
-        recognition.onerror = event => {
-          if (!current()) return;
-          session.release();
-          if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-            finish('Microphone permission is required.');
-          } else if (event.error === 'no-speech') {
-            finish('No speech detected. Press the microphone to try again.');
-          } else {
-            void recordWithGemini();
-          }
-        };
-        recognition.onend = () => {
-          const full = valueRef.current.trim();
-          const base = baseRef.current.trim();
-          const added = base && full.startsWith(base) ? full.slice(base.length).trim() : full;
-          if (added) showPreview('Dictation', added);
-          finish('Voice dictation captured.');
-        };
-        recognition.start();
-        return;
-      } catch {
-        session.release();
-      }
-    }
-    await recordWithGemini();
+        setFeedback('Listening. Speak the question or the passage.');
+      },
+      onSpeechResult: event => {
+        if (!current()) return;
+        let spoken = '';
+        for (let i = 0; i < event.results.length; i += 1) spoken += event.results[i]?.[0]?.transcript ?? '';
+        const text = spoken.trim();
+        if (text) onChange(baseRef.current ? `${baseRef.current} ${text}` : text);
+      },
+      onSpeechEnd: () => {
+        const full = valueRef.current.trim();
+        const base = baseRef.current.trim();
+        const added = base && full.startsWith(base) ? full.slice(base.length).trim() : full;
+        if (added) showPreview('Dictation', added);
+        finish('Voice dictation captured.');
+      },
+      onNoSpeech: () => finish('No speech detected. Press the microphone to try again.'),
+      onGemini: stream => recordWithGemini(stream),
+      onDenied: () => finish(MICROPHONE_DENIED_MESSAGE),
+      onUnavailable: message => finish(message),
+    });
   }
 
   return (
@@ -321,7 +303,16 @@ export function ResearchCapture({
         <button
           type="button"
           data-research-capture="mic"
-          onClick={() => void toggleMic()}
+          onClick={() => {
+            if (stopRef.current) {
+              stopRef.current();
+              return;
+            }
+            if (disabled || transcribing) return;
+            // The permission prompt is tied to this tap. Do not await before this call.
+            const microphone = requestMicrophoneFromTap();
+            toggleMic(microphone);
+          }}
           disabled={!recording && (disabled || transcribing)}
           aria-label={recording ? 'Stop dictation' : 'Start dictation'}
           title={recording ? 'Stop dictation' : 'Dictate the question'}

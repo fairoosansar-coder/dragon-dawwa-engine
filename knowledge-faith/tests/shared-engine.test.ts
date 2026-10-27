@@ -283,7 +283,7 @@ describe('shared engine against the current desks', () => {
       status: 'done',
     });
     if (script) {
-      assert.match(script.lines.map(line => line.speaker).join(' '), /Brother Feroz/);
+      assert.match(script.lines.map(line => line.speaker).join(' '), /Seeker/);
       assert.match(script.lines.map(line => line.text).join(' '), /stays open|application/i);
     }
     const model = buildReportModel(result.job, result.dossier);

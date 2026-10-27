@@ -370,10 +370,11 @@ export async function writePodcast(
   minutes: number,
   evidence: Evidence[],
   model: JsonModel = generateJson,
+  hostName?: string | null,
 ): Promise<PodcastScript> {
   if (evidence.length === 0) throw new UpstreamError('No sources could be retrieved for this topic.', 422);
   const { value, model: used } = await model<{ title: string; lines: PodcastLine[] }>(
-    podcastPrompt(topic, lang, evidence, minutes),
+    podcastPrompt(topic, lang, evidence, minutes, hostName),
     podcastSchema,
   );
   const lines = sanitizeLines(value.lines ?? [], evidence);

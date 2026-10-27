@@ -26,6 +26,7 @@ import { BENCHMARK_CORPUS, normalizeHadithQuery } from '../utils/fuzzyNormalizer
 import { HadithMediaUploadModal } from './HadithMediaUploadModal';
 import { SupportedLanguage, TRANSLATIONS } from '../utils/localization';
 import { dictationCode, languageChip, languageLabel } from '../utils/contentLanguage.ts';
+import { beginDictationTap, isMicrophoneDenial, MICROPHONE_DENIED_MESSAGE, requestMicrophoneFromTap } from '../../views/microphoneTap.ts';
 import {
   podcastAvailability,
   readSavedResearch,
@@ -93,6 +94,7 @@ export function HadithSearchForm({
   const [speechFeedback, setSpeechFeedback] = useState<string | null>(null);
   const [extractPreview, setExtractPreview] = useState<{ label: string; excerpt: string } | null>(null);
   const speechRecognitionRef = useRef<any>(null);
+  const tapRef = useRef<{ stop: () => void } | null>(null);
   const baseMatnAtStartRef = useRef<string>('');
   const lastSpeechRef = useRef<string>('');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -249,6 +251,8 @@ export function HadithSearchForm({
   // Handle speech transcription cleanup on unmount
   useEffect(() => {
     return () => {
+      tapRef.current?.stop();
+      tapRef.current = null;
       if (speechRecognitionRef.current) {
         try {
           speechRecognitionRef.current.stop();
@@ -265,10 +269,11 @@ export function HadithSearchForm({
     };
   }, []);
 
-  // Web Speech API / AI Voice Recognition
-  const handleToggleVoiceInput = async () => {
-    // If currently recording, stop it
+  // Web Speech API / AI Voice Recognition. The click calls getUserMedia before this function does anything else.
+  const handleToggleVoiceInput = (microphone?: Promise<MediaStream>) => {
     if (isRecording) {
+      tapRef.current?.stop();
+      tapRef.current = null;
       if (speechRecognitionRef.current) {
         try {
           speechRecognitionRef.current.stop();
@@ -285,95 +290,73 @@ export function HadithSearchForm({
       return;
     }
 
-    // Capture starting text to prevent duplication during continuous interim recognition
     baseMatnAtStartRef.current = hadithMatn.trim();
-
-    // Check if Browser SpeechRecognition is available
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (SpeechRecognition && voiceSpeechMode === 'webspeech') {
-      try {
-        const recognition = new SpeechRecognition();
+    lastSpeechRef.current = '';
+    setIsRecording(true);
+    setSpeechFeedback('Requesting microphone access...');
+    const tap = beginDictationTap({
+      microphone: microphone ?? requestMicrophoneFromTap(),
+      lang: dictationLang,
+      preferWebSpeech: voiceSpeechMode === 'webspeech',
+      onArmed: stop => {
+        tapRef.current = { stop };
+      },
+      onSpeechStart: recognition => {
         speechRecognitionRef.current = recognition;
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = dictationLang; // 'en-US' or 'ar-SA'
-
-        recognition.onstart = () => {
-          setIsRecording(true);
-          setSpeechFeedback(
-            dictationLang === 'ar-SA'
-              ? '🎤 جاري الاستماع باللغة العربية... اقرأ متن الحديث أو السؤال'
-              : '🎤 Listening... Speak Hadith narration or topic now'
-          );
-        };
-
-        recognition.onresult = (event: any) => {
-          let interimTranscript = '';
-          let finalTranscript = '';
-
-          for (let i = 0; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-              finalTranscript += event.results[i][0].transcript;
-            } else {
-              interimTranscript += event.results[i][0].transcript;
-            }
-          }
-
-          const currentSpeech = `${finalTranscript} ${interimTranscript}`.trim();
-          if (currentSpeech) {
-            lastSpeechRef.current = currentSpeech;
-            const base = baseMatnAtStartRef.current;
-            setHadithMatn(base ? `${base} ${currentSpeech}` : currentSpeech);
-          }
-        };
-
-        recognition.onerror = (event: any) => {
-          console.warn('SpeechRecognition error:', event.error);
-          setIsRecording(false);
-          // If browser speech recognition failed or blocked, prompt AI Gemini recording fallback
-          if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-            setSpeechFeedback('Microphone permission denied. Please allow microphone access in your browser.');
-          } else if (event.error === 'no-speech') {
-            setSpeechFeedback('No speech detected. Click mic to speak again.');
-            setTimeout(() => setSpeechFeedback(null), 3500);
-          } else {
-            setSpeechFeedback(`Speech recognition notice: ${event.error}. Switching to AI audio fallback...`);
-            startGeminiAudioRecorder();
-          }
-        };
-
-        recognition.onend = () => {
-          setIsRecording(false);
-          const spoken = lastSpeechRef.current.trim();
-          if (spoken) setExtractPreview({ label: 'Dictation', excerpt: spoken.slice(0, 160) });
-          setSpeechFeedback('Voice dictation captured!');
-          setTimeout(() => setSpeechFeedback(null), 3500);
-        };
-
-        recognition.start();
-        return;
-      } catch (e) {
-        console.warn('Web Speech API start error, fallback to audio recording:', e);
-        startGeminiAudioRecorder();
-        return;
-      }
-    }
-
-    // Otherwise use MediaRecorder with Gemini Multimodal Audio-to-Text
-    startGeminiAudioRecorder();
+        setIsRecording(true);
+        setSpeechFeedback(
+          dictationLang === 'ar-SA'
+            ? '🎤 جاري الاستماع باللغة العربية... اقرأ متن الحديث أو السؤال'
+            : dictationLang === 'ta-IN'
+              ? '🎤 கேட்டுக்கொண்டிருக்கிறது... தமிழில் பேசுங்கள்'
+              : '🎤 Listening... Speak Hadith narration or topic now',
+        );
+      },
+      onSpeechResult: event => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+        for (let i = 0; i < event.results.length; ++i) {
+          const piece = event.results[i]?.[0]?.transcript ?? '';
+          if (event.results[i]?.isFinal) finalTranscript += piece;
+          else interimTranscript += piece;
+        }
+        const currentSpeech = `${finalTranscript} ${interimTranscript}`.trim();
+        if (currentSpeech) {
+          lastSpeechRef.current = currentSpeech;
+          const base = baseMatnAtStartRef.current;
+          setHadithMatn(base ? `${base} ${currentSpeech}` : currentSpeech);
+        }
+      },
+      onSpeechEnd: () => {
+        setIsRecording(false);
+        const spoken = lastSpeechRef.current.trim();
+        if (spoken) setExtractPreview({ label: 'Dictation', excerpt: spoken.slice(0, 160) });
+        setSpeechFeedback('Voice dictation captured!');
+        setTimeout(() => setSpeechFeedback(null), 3500);
+      },
+      onNoSpeech: () => {
+        setIsRecording(false);
+        setSpeechFeedback('No speech detected. Click mic to speak again.');
+        setTimeout(() => setSpeechFeedback(null), 3500);
+      },
+      onGemini: stream => {
+        void startGeminiAudioRecorder(stream);
+      },
+      onDenied: () => {
+        setIsRecording(false);
+        setSpeechFeedback(MICROPHONE_DENIED_MESSAGE);
+      },
+      onUnavailable: message => {
+        setIsRecording(false);
+        setSpeechFeedback(message);
+        setTimeout(() => setSpeechFeedback(null), 4000);
+      },
+    });
+    tapRef.current = tap;
   };
 
-  const startGeminiAudioRecorder = async () => {
+  const startGeminiAudioRecorder = async (stream: MediaStream) => {
     try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setSpeechFeedback('Audio recording is not supported in this browser.');
-        setTimeout(() => setSpeechFeedback(null), 4000);
-        return;
-      }
-
-      setSpeechFeedback('Requesting microphone access...');
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
 
       const mediaRecorder = new MediaRecorder(stream);
@@ -451,9 +434,10 @@ export function HadithSearchForm({
 
     } catch (micErr: any) {
       console.error('Microphone error:', micErr);
+      stream.getTracks().forEach(track => { try { track.stop(); } catch { /* continue */ } });
       setIsRecording(false);
       setIsTranscribing(false);
-      setSpeechFeedback('Microphone permission required for voice search.');
+      setSpeechFeedback(isMicrophoneDenial(micErr) ? MICROPHONE_DENIED_MESSAGE : 'Audio recording failed. Please try again.');
       setTimeout(() => setSpeechFeedback(null), 4500);
     }
   };
@@ -714,7 +698,16 @@ export function HadithSearchForm({
 
                 <button
                   type="button"
-                  onClick={handleToggleVoiceInput}
+                  onClick={() => {
+                    if (isRecording) {
+                      handleToggleVoiceInput();
+                      return;
+                    }
+                    if (isTranscribing) return;
+                    // The permission prompt is tied to this tap. Do not await before this call.
+                    const microphone = requestMicrophoneFromTap();
+                    handleToggleVoiceInput(microphone);
+                  }}
                   disabled={isTranscribing}
                   className={`p-2.5 rounded-xl flex items-center justify-center transition-all cursor-pointer shadow-lg ${
                     isRecording

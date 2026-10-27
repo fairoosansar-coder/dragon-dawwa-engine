@@ -153,6 +153,8 @@ export interface ResearchJobView {
   investigation?: 'complete' | 'partial' | 'blocked';
   /** Parts of the question that must be answered or left open before a podcast. */
   materialParts?: { id: string; kind: string; text: string; status: 'answered' | 'unresolved'; note: string }[];
+  /** Spoken studio partner for the episode script. Older jobs omit it. */
+  hostName?: string;
   /** Parallel Task API status. Confidence inside findings is provider metadata, not a grade. */
   parallel?: {
     status: 'credentials_missing' | 'running' | 'completed' | 'failed';

@@ -2,6 +2,7 @@ import type { ResearchJobResponse, ResearchNoticeId, ResearchScope } from '../sh
 import type { ResearchDeskName } from './route.ts';
 import type { Lang } from '../shared/sources.ts';
 import { postJson } from './api.ts';
+import { getPodcastHostLabel } from './podcastHost.ts';
 
 const HISTORY_KEY = 'kf-research-history';
 
@@ -88,6 +89,7 @@ export async function beginResearch(input: {
     clarified: input.clarified === true,
     priorQuestion: input.priorQuestion ?? null,
     force: input.force === true,
+    hostName: getPodcastHostLabel(),
   });
 }
 

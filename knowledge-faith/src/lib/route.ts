@@ -22,13 +22,14 @@ const ALIASES: Record<string, string> = {
   'screen-15': 'hadith/research',
   'screen-16': 'spiritual',
   'screen-17': 'hub/scholar',
-  podcasts: 'studio/roundtable',
+  podcasts: 'podcast',
 };
 
 export function resolveHashPath(raw: string): string {
   const clean = raw.replace(/^#\/?/, '').split('?')[0].replace(/\/+$/, '');
   if (ALIASES[clean]) return ALIASES[clean];
   if (clean === 'prayer' || clean.startsWith('prayer/')) return `spiritual${clean.slice('prayer'.length)}`;
+  if (clean === 'studio' || clean.startsWith('studio/')) return `podcast${clean.slice('studio'.length)}`;
   return clean;
 }
 
