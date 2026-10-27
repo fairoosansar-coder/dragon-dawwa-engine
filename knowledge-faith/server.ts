@@ -1,6 +1,6 @@
 import './src/server/loadEnv.ts';
 import express, { type NextFunction, type Request, type Response } from 'express';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { HADITH_COLLECTIONS, PRAYER_METHODS, RECITERS, quranPronunciationEdition, toLang } from './src/shared/sources.ts';
@@ -758,7 +758,9 @@ app.post(
   }),
 );
 
-const dataDir = path.resolve(process.env.KF_DATA_DIR || path.join(import.meta.dirname, '.data'));
+const dataDir = path.resolve(
+  process.env.DD_PERSIST_DIR || process.env.KF_DATA_DIR || (process.env.RAILWAY_ENVIRONMENT && existsSync('/data') ? '/data' : path.join(import.meta.dirname, '.data')),
+);
 const editorAccounts = parseEditorAccounts(process.env.EDITORIAL_USERS);
 app.use(
   spiritualRouter({

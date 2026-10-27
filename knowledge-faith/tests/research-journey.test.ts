@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
-import { readArchivedEpisodes, readArchivedRevisions, saveArchivedEpisode } from '../src/server/research/archive.ts';
+import { readArchivedEpisodes, readArchivedRevisions, researchArchiveDir, saveArchivedEpisode } from '../src/server/research/archive.ts';
 import type { ResearchPorts } from '../src/server/research/engine.ts';
 import { executeResearch, publishParallelRevision } from '../src/server/research/engine.ts';
 import { clearSharedResearchJobs, getSharedResearchJob, startSharedResearchJob } from '../src/server/research/jobs.ts';
@@ -103,6 +103,41 @@ describe('saved research outlives the memory cache', () => {
     });
     assert.equal(merged.episodes.find(item => item.id === 'pod-journey')?.audioBase64, 'UklGRg==');
     assert.equal(merged.episodes.find(item => item.id === 'pod-journey-r2')?.audioBase64, 'NEW');
+  });
+
+  it('writes dossiers and audio on the persist volume', () => {
+    const persist = fs.mkdtempSync(path.join(os.tmpdir(), 'dd-volume-'));
+    const savedResearch = process.env.RESEARCH_ARCHIVE_DIR;
+    const savedPersist = process.env.DD_PERSIST_DIR;
+    delete process.env.RESEARCH_ARCHIVE_DIR;
+    process.env.DD_PERSIST_DIR = persist;
+    try {
+      assert.equal(researchArchiveDir(), path.join(persist, 'research', 'archive'));
+      saveArchivedEpisode({
+        id: 'pod-volume',
+        jobId: 'job-volume',
+        revision: 1,
+        question: 'Where is this file kept?',
+        language: 'en',
+        lines: [{ speaker: 'Brother Feroz', role: 'host', text: 'On the volume.' }],
+        sources: [],
+        participants: [],
+        reportHtml: '<p>saved</p>',
+        state: 'playable',
+        savedAt: '2026-10-27T04:17:00.000Z',
+        audioBase64: 'UklGRg==',
+        mimeType: 'audio/wav',
+      });
+      const audio = path.join(persist, 'research', 'archive', 'job-volume', 'pod-volume.b64');
+      assert.equal(fs.readFileSync(audio, 'utf8'), 'UklGRg==');
+      assert.equal(readArchivedEpisodes('job-volume')[0]?.audioBase64, 'UklGRg==');
+    } finally {
+      if (savedResearch === undefined) delete process.env.RESEARCH_ARCHIVE_DIR;
+      else process.env.RESEARCH_ARCHIVE_DIR = savedResearch;
+      if (savedPersist === undefined) delete process.env.DD_PERSIST_DIR;
+      else process.env.DD_PERSIST_DIR = savedPersist;
+      fs.rmSync(persist, { recursive: true, force: true });
+    }
   });
 });
 

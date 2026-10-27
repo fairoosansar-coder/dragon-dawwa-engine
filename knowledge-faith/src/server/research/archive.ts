@@ -25,8 +25,18 @@ interface ArchiveFile {
   revisions: { revision: number; savedAt: string; response: ResearchJobResponse }[];
 }
 
+/** An explicit directory wins. Otherwise use the Railway volume at DD_PERSIST_DIR or /data. */
+export function researchArchiveDir(): string {
+  if (process.env.RESEARCH_ARCHIVE_DIR) return path.resolve(process.env.RESEARCH_ARCHIVE_DIR);
+  const persist = process.env.DD_PERSIST_DIR;
+  if (persist) return path.join(path.resolve(persist), 'research', 'archive');
+  const onRailway = Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID);
+  if (onRailway && fs.existsSync('/data')) return '/data/research/archive';
+  return path.join(process.cwd(), '.data', 'research-archive');
+}
+
 function archiveDir(): string {
-  return process.env.RESEARCH_ARCHIVE_DIR || path.join(process.cwd(), '.data', 'research-archive');
+  return researchArchiveDir();
 }
 
 function safe(id: string): string {
