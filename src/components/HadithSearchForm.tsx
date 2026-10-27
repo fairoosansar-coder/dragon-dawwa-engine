@@ -34,6 +34,7 @@ export interface RecentSearchItem {
   isnad?: string;
   timestamp: number;
   language?: SupportedLanguage;
+  category?: string;
 }
 
 interface HadithSearchFormProps {
@@ -180,7 +181,7 @@ export function HadithSearchForm({
     }
   }, []);
 
-  const saveSearchToLocalStorage = (matnText: string, isnadText: string) => {
+  const saveSearchToLocalStorage = (matnText: string, isnadText: string, categoryToSave = category) => {
     if (!matnText || !matnText.trim()) return;
     try {
       if (typeof window === 'undefined' || !window.localStorage) return;
@@ -196,7 +197,8 @@ export function HadithSearchForm({
         matn: cleanMatn,
         isnad: cleanIsnad,
         timestamp: Date.now(),
-        language: currentLanguage
+        language: currentLanguage,
+        category: categoryToSave,
       };
 
       const updated = [newItem, ...filtered].slice(0, 15);
@@ -239,8 +241,10 @@ export function HadithSearchForm({
   const handleSelectRecentSearch = (item: RecentSearchItem) => {
     setHadithMatn(item.matn);
     setIsnad(item.isnad || '');
-    saveSearchToLocalStorage(item.matn, item.isnad || '');
-    onRunEngine(item.matn, item.isnad || '', category);
+    const savedCategory = item.category ?? HADITH_AUTHENTICATION_CATEGORY;
+    setCategory(savedCategory);
+    saveSearchToLocalStorage(item.matn, item.isnad || '', savedCategory);
+    onRunEngine(item.matn, item.isnad || '', savedCategory);
   };
 
   const formatTimeAgo = (timestamp: number): string => {

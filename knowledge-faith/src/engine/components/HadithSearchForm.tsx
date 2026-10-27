@@ -205,6 +205,7 @@ export function HadithSearchForm({
   const handleSelectRecentSearch = (item: SavedResearchRecord) => {
     setHadithMatn(item.question);
     setIsnad(item.isnad || '');
+    setCategory(item.category ?? HADITH_AUTHENTICATION_CATEGORY);
     onOpenSaved?.(item);
   };
 
@@ -990,7 +991,7 @@ export function HadithSearchForm({
                         type="button"
                         data-testid="saved-research-again"
                         className="rounded-lg px-2 py-1 text-[10px] font-semibold text-[#3d3428] underline decoration-[#c4a46a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0f6b4c]"
-                        onClick={() => onResearchAgain?.(item, category)}
+                        onClick={() => onResearchAgain?.(item, item.category ?? HADITH_AUTHENTICATION_CATEGORY)}
                       >
                         Run Research Again
                       </button>

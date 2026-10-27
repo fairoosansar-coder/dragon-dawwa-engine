@@ -103,7 +103,9 @@ export default function App() {
 
   // Dynamically computed analysis reflecting active language (Tamil script when 'ta' is active)
   const displayedAnalysis = React.useMemo(() => {
-    return getLocalizedAnalysis(currentAnalysis, currentLanguage);
+    return currentAnalysis.content_language
+      ? currentAnalysis
+      : getLocalizedAnalysis(currentAnalysis, currentLanguage);
   }, [currentAnalysis, currentLanguage]);
   
   // Tri-Tab Master Selector: Tab 1 Dossier vs Tab 2 Live Studio vs Tab 3 Public Wall

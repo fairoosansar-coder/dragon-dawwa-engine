@@ -5,6 +5,9 @@ import { executeDragonDawwaAnalysis } from '../src/engine/server/hadithEngine.ts
 import { getAllPodcastPersonas, getGeminiVoiceForSpeaker } from '../src/engine/server/geminiTtsService.ts';
 import { executeParallelResearch } from '../src/server/research/categoryResearch.ts';
 import { parallelApiKey } from '../src/server/research/parallelTask.ts';
+import { generatedContentForLanguage } from '../src/engine/utils/contentLanguage.ts';
+import { buildFullReportMarkdown } from '../src/engine/utils/agent7SourceResearch.ts';
+import { readSavedResearch, upsertSavedResearch } from '../src/engine/utils/savedResearch.ts';
 import { executeDragonDawwaAnalysis as executeRootAnalysis } from '../../src/server/hadithEngine.ts';
 import { getGeminiVoiceForSpeaker as rootVoiceForSpeaker } from '../../src/server/geminiTtsService.ts';
 
@@ -16,11 +19,11 @@ const FINDING = {
   confidence: 'medium',
 };
 
-function parallelBody() {
+function parallelBody(finding = FINDING) {
   return {
     run_id: 'run-test',
     status: 'completed',
-    output: { content: { findings: [FINDING] } },
+    output: { content: { findings: [finding] } },
   };
 }
 
@@ -128,7 +131,100 @@ describe('category routing', () => {
     assert.match(analysis.agent_6_synthesis.podcast_script, /generated studio presenter/);
     assert.match(analysis.agent_6_synthesis.executive_report_markdown, /https:\/\/example\.test\/comparison/);
     assert.equal(analysis.content_language, 'en');
+    assert.equal(analysis.research_category, 'Comparative Religion');
     assert.equal(analysis.agent_7_source_research, undefined);
+    const report = buildFullReportMarkdown(analysis);
+    assert.match(report, /Comparative Religion Research/);
+    assert.doesNotMatch(report, /Agent 7|HadeethEnc/);
+  });
+
+  it('resumes the original Parallel run and excludes verbatim source excerpts from language validation', async () => {
+    process.env.PARALLEL_AI_API_KEY = 'parallel-ai-test-key';
+    const resultUrls: string[] = [];
+    let resultCalls = 0;
+    const analysis = await executeParallelResearch('Comparative Religion', 'Compare these accounts', 'en', {
+      pollMs: 1,
+      deadlineMs: 500,
+      geminiApiKey: '',
+      fetchImpl: async (input, init) => {
+        const url = String(input);
+        if (init?.method === 'POST') {
+          return Response.json({ run_id: 'same-run', status: 'running' });
+        }
+        resultUrls.push(url);
+        resultCalls += 1;
+        if (resultCalls === 1) return new Response('', { status: 408 });
+        if (resultCalls === 2) return Response.json({ run_id: 'same-run', status: 'running' });
+        return Response.json(parallelBody({
+          ...FINDING,
+          title: 'தமிழ் source title',
+          excerpt: 'தமிழ் மொழியில் உள்ள மூல உரை மேற்கோள்.',
+        }));
+      },
+      generateContent: async () => modelJson(),
+    });
+    assert.equal(resultCalls, 3);
+    assert.ok(resultUrls.every(url => url.includes('/same-run/')));
+    assert.equal(analysis.content_language, 'en');
+    assert.match(analysis.agent_6_synthesis.executive_report_markdown, /தமிழ்/);
+    assert.doesNotMatch(
+      generatedContentForLanguage(
+        'An English podcast script.',
+        'An English report.\n\n## Sources returned by Parallel.ai\n- தமிழ் source title',
+      ),
+      /தமிழ்/,
+    );
+  });
+
+  it('fails only after the Parallel research deadline when its original run remains active', async () => {
+    process.env.PARALLEL_AI_API_KEY = 'parallel-ai-test-key';
+    await assert.rejects(
+      () => executeParallelResearch('Comparative Religion', 'Compare these accounts', 'en', {
+        pollMs: 1,
+        deadlineMs: 30,
+        fetchImpl: async (_input, init) => init?.method === 'POST'
+          ? Response.json({ run_id: 'never-finished', status: 'running' })
+          : new Response('', { status: 408 }),
+        generateContent: async () => {
+          assert.fail('Gemini must not receive an unfinished Parallel run');
+        },
+      }),
+      /completion deadline/,
+    );
+  });
+
+  it('adds the selected-language host disclaimer', async () => {
+    process.env.PARALLEL_AI_API_KEY = 'parallel-ai-test-key';
+    const tamil = JSON.parse(modelJson()) as ReturnType<typeof JSON.parse>;
+    tamil.agent_6_synthesis.executive_report_markdown = 'இந்த ஒப்பீடு திரும்பிய ஆய்வில் விவரிக்கப்படுகிறது.';
+    tamil.agent_6_synthesis.podcast_script = [
+      'BROTHER FEROZ (HOST): This is a generated studio presenter. These words are not a personal statement or approval by Feroz.',
+      'ZAYD (The Polymath Researcher): இந்த ஆய்வு ஒப்பீட்டைப் பற்றி விளக்குகிறது.',
+    ].join('\n');
+    const analysis = await executeParallelResearch('Comparative Religion', 'ஒப்பீடு என்ன?', 'ta', {
+      pollMs: 1,
+      geminiApiKey: '',
+      fetchImpl: async () => Response.json(parallelBody()),
+      generateContent: async () => JSON.stringify(tamil),
+    });
+    assert.match(analysis.agent_6_synthesis.podcast_script, /இது உருவாக்கப்பட்ட ஸ்டூடியோ தொகுப்பாளர் உரை/);
+    assert.doesNotMatch(analysis.agent_6_synthesis.podcast_script, /generated studio presenter/);
+  });
+
+  it('retains the saved category and defaults legacy records to hadith', () => {
+    const stored = JSON.stringify([
+      { question: 'saved question', language: 'en', category: 'Comparative Religion' },
+      { question: 'legacy question', language: 'en' },
+    ]);
+    const records = readSavedResearch({ getItem: () => stored });
+    assert.equal(records[0].category, 'Comparative Religion');
+    assert.equal(records[1].category, 'Hadith & Authentication');
+    const updated = upsertSavedResearch(records, {
+      question: 'saved question',
+      language: 'en',
+      category: 'Modern Science & Religion',
+    });
+    assert.equal(updated[0].category, 'Modern Science & Religion');
   });
 
   it('does not complete an answer when Parallel returns nothing', async () => {
@@ -163,6 +259,7 @@ describe('category routing', () => {
   });
 
   it('keeps Hadith & Authentication on the six-agent path and routes every other category to Parallel', async () => {
+    process.env.PARALLEL_AI_API_KEY = 'parallel-ai-test-key';
     const calls: string[] = [];
     const original = globalThis.fetch;
     globalThis.fetch = async (input, init) => {
@@ -203,6 +300,7 @@ describe('category routing', () => {
   });
 
   it('routes the root analyzer the same way', async () => {
+    process.env.PARALLEL_AI_API_KEY = 'parallel-ai-test-key';
     const calls: string[] = [];
     const original = globalThis.fetch;
     const gemini = process.env.GEMINI_API_KEY;

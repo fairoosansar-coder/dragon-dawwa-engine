@@ -14,6 +14,7 @@ import { EngineFrame } from './EngineFrame.tsx';
 import { useDossier } from './DossierContext.tsx';
 import { useApp } from '../lib/store.tsx';
 import { languageLabel } from './utils/contentLanguage.ts';
+import { usesHadithAuthentication } from './categories.ts';
 
 export function DossierActions() {
   const d = useDossier();
@@ -92,6 +93,7 @@ export default function DossierWorkbench() {
   const { t, config } = useApp();
   const data = d.displayed;
   const agent7 = data?.agent_7_source_research;
+  const isHadithResearch = usesHadithAuthentication(data?.research_category ?? d.category);
   const showReport = data != null && (d.reportOrigin === 'live' || d.reportOrigin === 'saved' || d.reportOrigin === 'example');
 
   const openFullReport = () => {
@@ -152,6 +154,7 @@ export default function DossierWorkbench() {
         </p>
       )}
       {data && showReport && <div id="dossier-results-anchor" className="space-y-6">
+        {isHadithResearch ? <>
         <StarDivider label="تحقيق الحديث" />
 
         {/* Unified 7-Agent Journey Callout Bar */}
@@ -225,6 +228,46 @@ export default function DossierWorkbench() {
             onClip={d.rememberClip}
           />
         )}
+        </> : <>
+          <section className="rounded-2xl border border-teal-500/35 bg-slate-900/90 p-5 text-slate-100">
+            <p className="text-xs font-semibold uppercase tracking-wide text-teal-300">{data.research_category} Research</p>
+            <h2 className="mt-2 text-xl font-bold">{data.query_hadith}</h2>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button type="button" className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs" onClick={() => d.setStep('roundtable')}>Podcast</button>
+              <button type="button" className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs" onClick={() => d.setStep('report')}>Full Report</button>
+              <button type="button" className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs" onClick={() => d.setStep('source_research')}>Parallel Sources</button>
+            </div>
+          </section>
+          {d.step === 'report' && (
+            <CompleteResearchReportView
+              analysis={data}
+              currentLanguage={data.content_language ?? d.lang}
+              onPrint={d.print}
+              onDownloadFullReport={d.downloadFullReport}
+              onOpenRoundtableTab={() => d.setStep('roundtable')}
+            />
+          )}
+          {d.step === 'source_research' && <Agent7SourceResearchView analysis={data} currentLanguage={d.lang} />}
+          {d.step === 'roundtable' && (
+            <PodcastScriptPlayer
+              key={`${data.query_hadith}-${data.content_language ?? d.lang}-${data.research_job_id ?? 'saved'}`}
+              script={data.agent_6_synthesis.podcast_script}
+              executiveReport={data.agent_6_synthesis.executive_report_markdown}
+              onShare={() => void d.share()}
+              neuralVoice={config == null || config.ai === true}
+              language={data.content_language ?? d.lang}
+              audioReady={d.audioReady}
+              savedClips={d.savedClips}
+              onClip={d.rememberClip}
+            />
+          )}
+          {d.step === 'overview' && (
+            <section className="rounded-2xl border border-slate-700 bg-slate-900/90 p-5 text-slate-100" lang={data.content_language ?? d.lang}>
+              <h3 className="text-lg font-bold">Executive Report</h3>
+              <div className="mt-3 whitespace-pre-wrap text-sm">{data.agent_6_synthesis.executive_report_markdown}</div>
+            </section>
+          )}
+        </>}
       </div>}
     </EngineFrame>
   );

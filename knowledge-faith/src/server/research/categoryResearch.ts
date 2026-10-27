@@ -6,10 +6,10 @@
  */
 
 import type { DragonDawwaAnalysis } from '../../engine/types/hadith.ts';
-import { scriptMatchesLanguage, languageFailureMessage } from '../../engine/utils/contentLanguage.ts';
+import { generatedContentForLanguage, scriptMatchesLanguage, languageFailureMessage } from '../../engine/utils/contentLanguage.ts';
 import { scrubVanakkam } from '../../engine/utils/tamilGreeting.ts';
 import { hasGeminiApiKey } from '../loadEnv.ts';
-import { consultParallel, type ParallelConsult, type ParallelFinding } from './parallelTask.ts';
+import { awaitParallelResult, consultParallel, type ParallelConsult, type ParallelFinding } from './parallelTask.ts';
 
 const CHAIR_PROMPT =
   "You are Amina, the Chair. Use this Parallel.ai research data to write an executive report and a podcast script. Output the exact JSON schema. Fill Agents 1-5 with 'N/A' or empty arrays since this is not a Hadith. For agent_6_synthesis.podcast_script, write a multi-voice script between BROTHER FEROZ (Host) and ZAYD (The Polymath Researcher). Zayd presents the scientific/comparative findings.";
@@ -20,6 +20,7 @@ export interface ParallelResearchDeps {
   geminiApiKey?: string;
   fetchImpl?: typeof fetch;
   pollMs?: number;
+  deadlineMs?: number;
   generateContent?: (input: { systemInstruction: string; prompt: string }) => Promise<string>;
 }
 
@@ -77,9 +78,19 @@ function sourceAppendix(findings: ParallelFinding[]): string {
   return `## Sources returned by Parallel.ai\n${lines}\n\nOnly these sources were returned. Nothing outside this list was added.`;
 }
 
-function frameGeneratedHost(script: string): string {
-  if (/generated studio presenter/i.test(script)) return script.trim();
-  return `BROTHER FEROZ (HOST): This is a generated studio presenter. These words are not a personal statement or approval by Feroz.\n\n${script.trim()}`;
+function hostDisclaimer(lang: 'en' | 'ta' | 'si'): string {
+  if (lang === 'ta') return 'இது உருவாக்கப்பட்ட ஸ்டூடியோ தொகுப்பாளர் உரை. இவை ஃபெரோஸின் தனிப்பட்ட அறிக்கையோ ஒப்புதலோ அல்ல.';
+  if (lang === 'si') return 'මෙය නිර්මාණය කළ ස්ටුඩියෝ ඉදිරිපත් කරන්නෙකුගේ කථාවකි. මෙම වචන ෆෙරෝස්ගේ පුද්ගලික ප්‍රකාශයක් හෝ අනුමැතියක් නොවේ.';
+  return 'This is a generated studio presenter. These words are not a personal statement or approval by Feroz.';
+}
+
+function frameGeneratedHost(script: string, lang: 'en' | 'ta' | 'si'): string {
+  const disclaimer = hostDisclaimer(lang);
+  const cleaned = script
+    .replace(/^BROTHER FEROZ \(HOST\): This is a generated studio presenter\. These words are not a personal statement or approval by Feroz\.\s*/im, '')
+    .trim();
+  if (cleaned.includes(disclaimer)) return cleaned;
+  return `BROTHER FEROZ (HOST): ${disclaimer}\n\n${cleaned}`;
 }
 
 function blankAgents(query: string): Pick<
@@ -111,6 +122,7 @@ function systemInstruction(lang: 'en' | 'ta' | 'si'): string {
   return `${CHAIR_PROMPT}
 
 The host speaker label must stay "BROTHER FEROZ (HOST):" because the player splits on that label. In the host's spoken words, say that this is a generated studio presenter and not a personal statement or approval by Feroz.
+Use this exact localized host disclaimer: "${hostDisclaimer(lang)}"
 Label Zayd exactly "ZAYD (The Polymath Researcher):".
 Write the executive report and the spoken podcast lines in ${languageName(lang)}. Keep speaker labels and UI headings in English. Keep Arabic quotations in Arabic.
 Do not invent sources, URLs, quotations, or disagreements that are not in the Parallel.ai research data.
@@ -170,12 +182,38 @@ export async function executeParallelResearch(
   if (!topic) throw new Error('A category is required for Parallel research. No sources were invented.');
   if (!question) throw new Error('A question is required. No research was run.');
 
-  const consult = await consultParallel({
-    question: parallelQuestion(topic, question, lang),
-    language: lang,
-    fetchImpl: deps?.fetchImpl,
-    pollMs: deps?.pollMs ?? 45_000,
-  });
+  const deadline = Date.now() + (deps?.deadlineMs ?? 600_000);
+  const pollController = new AbortController();
+  const deadlineTimer = setTimeout(() => pollController.abort(), Math.max(1, deadline - Date.now()));
+  let consult: ParallelConsult;
+  try {
+    consult = await consultParallel({
+      question: parallelQuestion(topic, question, lang),
+      language: lang,
+      fetchImpl: deps?.fetchImpl,
+      pollMs: deps?.pollMs ?? 45_000,
+      signal: pollController.signal,
+    });
+    while (consult.status === 'running' && consult.runId && Date.now() < deadline) {
+      consult = await awaitParallelResult({
+        runId: consult.runId,
+        fetchImpl: deps?.fetchImpl,
+        signal: pollController.signal,
+        timeoutSec: Math.max(1, Math.ceil((deps?.pollMs ?? 45_000) / 1000)),
+        attempts: Math.max(1, Math.min(6, Math.ceil((deadline - Date.now()) / (deps?.pollMs ?? 45_000)))),
+      });
+    }
+  } catch (error) {
+    if (Date.now() >= deadline) {
+      throw new Error('Parallel research exceeded its completion deadline. The unfinished result was not marked as a completed answer.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(deadlineTimer);
+  }
+  if (consult.status === 'running' && Date.now() >= deadline) {
+    throw new Error('Parallel research exceeded its completion deadline. The unfinished result was not marked as a completed answer.');
+  }
   if (consult.status !== 'completed' || consult.findings.length === 0) throw parallelFailure(consult);
 
   const system = systemInstruction(lang);
@@ -205,12 +243,13 @@ export async function executeParallelResearch(
     throw new Error('Gemini did not return a podcast script the player can split into the host and Zayd. No completed answer was saved.');
   }
 
-  const spokenScript = frameGeneratedHost(script);
+  const spokenScript = frameGeneratedHost(script, lang);
   const executive = `${report}\n\n${sourceAppendix(consult.findings)}\n\n---\n*Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prime Dragon Technologies*`;
   const consensus = parsed.agent_6_synthesis?.consensus_and_disagreements?.trim()
     || 'Scholarly disagreements are limited to what Parallel.ai returned. No additional disagreement was invented.';
   const dossier: DragonDawwaAnalysis = scrubVanakkam({
     ...blankAgents(question),
+    research_category: topic,
     version: '2.5 Enterprise Engine',
     platform_owner: 'Prime Dragon Technologies (Pvt) Ltd',
     designed_and_created_by: 'Aegis Intelligence Pvt Ltd, Sri Lanka',
@@ -223,7 +262,7 @@ export async function executeParallelResearch(
       podcast_script: spokenScript,
     },
   });
-  const spoken = `${dossier.agent_6_synthesis.podcast_script}\n${dossier.agent_6_synthesis.executive_report_markdown}`;
+  const spoken = generatedContentForLanguage(dossier.agent_6_synthesis.podcast_script, report);
   if (!scriptMatchesLanguage(spoken, lang)) throw new Error(languageFailureMessage(lang));
   dossier.content_language = lang;
   return dossier;

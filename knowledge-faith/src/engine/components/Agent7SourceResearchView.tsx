@@ -14,11 +14,26 @@ import type { Agent7SourceResearch, DragonDawwaAnalysis } from '../types/hadith.
 import { attachAgent7ToAnalysis } from '../utils/agent7SourceResearch.ts';
 import { HadithReportPaper } from './HadithReportPaper.tsx';
 import type { SupportedLanguage } from '../utils/localization.ts';
+import { usesHadithAuthentication } from '../categories.ts';
 
 export const Agent7SourceResearchView: React.FC<{
   analysis: DragonDawwaAnalysis;
   currentLanguage?: SupportedLanguage;
 }> = ({ analysis, currentLanguage = 'en' }) => {
+  if (!usesHadithAuthentication(analysis.research_category)) {
+    const sources = analysis.agent_6_synthesis.executive_report_markdown
+      .split(/\n## Sources returned by Parallel\.ai\s*\n/i)[1]
+      ?.split(/\n---\s*\n/)[0]
+      ?.trim();
+    return (
+      <section className="space-y-4 rounded-2xl border border-teal-500/35 bg-slate-900/90 p-6" lang={currentLanguage}>
+        <h2 className="text-xl font-bold text-white">Parallel.ai Research Sources</h2>
+        <pre className="whitespace-pre-wrap break-words text-sm text-slate-200">
+          {sources || 'No Parallel.ai source appendix was returned.'}
+        </pre>
+      </section>
+    );
+  }
   const enriched = analysis.agent_7_source_research
     ? analysis
     : attachAgent7ToAnalysis(analysis, currentLanguage);

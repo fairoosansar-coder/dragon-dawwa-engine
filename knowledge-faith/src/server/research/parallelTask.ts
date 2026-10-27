@@ -47,6 +47,14 @@ interface TaskRun {
   basis?: BasisItem[];
 }
 
+function taskStillRunning(status: string | undefined): boolean {
+  return status === 'running' || status === 'queued' || status === 'pending';
+}
+
+function taskFailed(status: string | undefined): boolean {
+  return status === 'failed' || status === 'cancelled' || status === 'error';
+}
+
 interface BasisItem {
   confidence?: string;
   reasoning?: string;
@@ -152,6 +160,9 @@ export async function consultParallel(input: {
     const run = (await created.json()) as TaskRun;
     const runId = run.run_id ?? null;
     const immediate = findingsFrom(run);
+    if (taskFailed(run.status)) {
+      return { status: 'failed', liveCallMade: true, runId, findings: [], setup: 'Parallel task failed. No finding was invented.', processor, durationMs: elapsed() };
+    }
     if (immediate.length || run.status === 'completed') {
       return { status: 'completed', liveCallMade: true, runId, findings: immediate, setup: null, processor, durationMs: elapsed() };
     }
@@ -170,6 +181,12 @@ export async function consultParallel(input: {
       return { status: 'failed', liveCallMade: true, runId, findings: [], setup: `Parallel result returned HTTP ${result.status}. No finding was invented.`, processor, durationMs: elapsed() };
     }
     const body = (await result.json()) as TaskRun;
+    if (taskStillRunning(body.status)) {
+      return { status: 'running', liveCallMade: true, runId, findings: [], setup: 'Parallel is still running. A later poll will check this same task.', processor, durationMs: elapsed() };
+    }
+    if (taskFailed(body.status)) {
+      return { status: 'failed', liveCallMade: true, runId, findings: [], setup: 'Parallel task failed. No finding was invented.', processor, durationMs: elapsed() };
+    }
     return { status: 'completed', liveCallMade: true, runId, findings: findingsFrom(body), setup: null, processor, durationMs: elapsed() };
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') throw err;
@@ -234,6 +251,18 @@ export async function awaitParallelResult(input: {
       }
       const body = (await result.json()) as TaskRun;
       const findings = findingsFrom(body);
+      if (taskFailed(body.status)) {
+        return {
+          status: 'failed',
+          liveCallMade: true,
+          runId: input.runId,
+          findings: [],
+          setup: 'Parallel task failed. No finding was invented.',
+          processor,
+          durationMs: Date.now() - started,
+        };
+      }
+      if (taskStillRunning(body.status)) continue;
       if (body.status === 'completed' || findings.length > 0 || result.status === 200) {
         return { status: 'completed', liveCallMade: true, runId: input.runId, findings, setup: null, processor, durationMs: Date.now() - started };
       }

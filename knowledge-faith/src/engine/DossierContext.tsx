@@ -9,7 +9,7 @@ import { humanVerificationMarkdown } from './components/HumanVerification.tsx';
 import { reportIdFor } from './utils/reportPresentation.ts';
 import { reportIdentity } from '../shared/research/revision.ts';
 import { bindReport } from './utils/reportBinding.ts';
-import { languageFailureMessage, languageLabel, scriptMatchesLanguage, selectionStillCurrent, type SelectionStamp } from './utils/contentLanguage.ts';
+import { generatedContentForLanguage, languageFailureMessage, languageLabel, scriptMatchesLanguage, selectionStillCurrent, type SelectionStamp } from './utils/contentLanguage.ts';
 import { episodeAudioKey, loadEpisodeClips, saveEpisodeClip } from './utils/episodeAudio.ts';
 import { readSavedResearch, upsertSavedResearch, writeSavedResearch, type SavedResearchRecord } from './utils/savedResearch.ts';
 import type { AgentStep } from './components/AgentStatusTracker.tsx';
@@ -17,7 +17,7 @@ import { ShareModal } from './components/ShareModal.tsx';
 import { PrintDossierReport } from './components/PrintDossierReport.tsx';
 import { useApp } from '../lib/store.tsx';
 import type { Lang } from '../shared/sources.ts';
-import { HADITH_AUTHENTICATION_CATEGORY } from './categories.ts';
+import { HADITH_AUTHENTICATION_CATEGORY, usesHadithAuthentication } from './categories.ts';
 
 const DEFAULT_PRESET = SAMPLE_HADITHS.find(p => p.id === 'saturday-fasting') ?? SAMPLE_HADITHS[0];
 
@@ -167,8 +167,10 @@ export function DossierProvider({ children }: { children: ReactNode }) {
   const displayed = useMemo(() => {
     if (reportOrigin === 'researching' || reportOrigin === 'failed') return null;
     if (analysis.content_language && analysis.content_language !== lang) return null;
-    return bindReport(getLocalizedAnalysis(analysis, analysis.content_language ?? lang));
-  }, [analysis, lang, reportOrigin]);
+    if (!usesHadithAuthentication(analysis.research_category ?? category)) return analysis;
+    const localized = getLocalizedAnalysis(analysis, analysis.content_language ?? lang);
+    return bindReport(localized);
+  }, [analysis, category, lang, reportOrigin]);
 
   useEffect(() => {
     setMatn(current => (isPresetMatn(preset, current) ? presetMatn(preset, lang) : current));
@@ -205,6 +207,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
           return;
         }
         setAnalysis(body.analysis);
+        setCategory(body.analysis.research_category ?? HADITH_AUTHENTICATION_CATEGORY);
         setMatn(body.analysis.query_hadith || '');
         setReportOrigin('live');
       })
@@ -272,7 +275,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
       setAudioReady(false);
       setSavedClips({});
       setReportOrigin('researching');
-      rememberSelection({ question, isnad: nextIsnad, language: requestLang, status: 'researching' });
+      rememberSelection({ question, isnad: nextIsnad, language: requestLang, category: requestCategory, status: 'researching' });
       const stillCurrent = () => selectionStillCurrent(selectionRef.current, incoming);
       try {
         const res = await fetch('/api/analyze', {
@@ -301,11 +304,19 @@ export function DossierProvider({ children }: { children: ReactNode }) {
           ? (body as DragonDawwaAnalysis)
           : await waitForResearch(String(body.id ?? ''), controller.signal);
         if (!stillCurrent()) return;
-        const spoken = `${result.agent_6_synthesis?.podcast_script ?? ''}\n${result.agent_6_synthesis?.executive_report_markdown ?? ''}`;
+        const spoken = generatedContentForLanguage(
+          result.agent_6_synthesis?.podcast_script ?? '',
+          result.agent_6_synthesis?.executive_report_markdown ?? '',
+        );
         if ((result.content_language && result.content_language !== requestLang) || !scriptMatchesLanguage(spoken, requestLang)) {
           throw new Error(languageFailureMessage(requestLang));
         }
-        const stamped: DragonDawwaAnalysis = { ...result, query_hadith: question, content_language: requestLang };
+        const stamped: DragonDawwaAnalysis = {
+          ...result,
+          query_hadith: question,
+          content_language: requestLang,
+          research_category: result.research_category ?? requestCategory,
+        };
         const identity = reportIdentity(stamped, reportIdFor(question), requestLang);
         setAnalysis(stamped);
         setReportOrigin('live');
@@ -314,6 +325,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
           question,
           isnad: nextIsnad,
           language: requestLang,
+          category: requestCategory,
           status: 'ready',
           analysis: stamped,
           reportId: identity.reportId,
@@ -349,7 +361,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
         const message = e.name === 'TimeoutError' ? 'Research timed out. Please retry.' : e.message || 'Live research failed. Please retry.';
         setReportOrigin('failed');
         setError(message);
-        rememberSelection({ question, isnad: nextIsnad, language: requestLang, status: 'failed', error: message });
+        rememberSelection({ question, isnad: nextIsnad, language: requestLang, category: requestCategory, status: 'failed', error: message });
       } finally {
         if (inFlight.current === controller) {
           inFlight.current = null;
@@ -371,11 +383,18 @@ export function DossierProvider({ children }: { children: ReactNode }) {
     }
     setMatn(record.question);
     setIsnad(record.isnad || '');
+    const savedCategory = record.category ?? HADITH_AUTHENTICATION_CATEGORY;
+    setCategory(savedCategory);
     setAudioReady(false);
     setSavedClips({});
     selectionRef.current = { token: tokenRef.current, question: record.question, language: record.language };
     if (record.status === 'ready' && record.analysis) {
-      const stamped = { ...record.analysis, query_hadith: record.question, content_language: record.language };
+      const stamped = {
+        ...record.analysis,
+        query_hadith: record.question,
+        content_language: record.language,
+        research_category: record.analysis.research_category ?? savedCategory,
+      };
       setAnalysis(stamped);
       setReportOrigin('saved');
       setError(null);
@@ -470,7 +489,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
 
   const downloadFullReport = useCallback(() => {
     if (!displayed) return;
-    const bound = bindReport(displayed);
+    const bound = usesHadithAuthentication(displayed.research_category ?? category) ? bindReport(displayed) : displayed;
     const identity = reportIdentity(bound, reportIdFor(bound.query_hadith), displayed.content_language ?? lang);
     const fullMarkdown = buildFullReportMarkdown(displayed, displayed.content_language ?? lang) + humanVerificationMarkdown({
       question: bound.query_hadith,
@@ -486,7 +505,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
     a.download = `hadith-full-report-${Date.now()}.md`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(href), 0);
-  }, [displayed, lang]);
+  }, [category, displayed, lang]);
 
   const print = useCallback(() => {
     if (!displayed) return;
@@ -557,7 +576,14 @@ export function DossierProvider({ children }: { children: ReactNode }) {
       {printing && displayed &&
         createPortal(
           <div className="print-only">
-            <PrintDossierReport analysis={displayed} currentUser={READER} currentLanguage={displayed.content_language ?? lang} />
+            usesHadithAuthentication(displayed.research_category ?? category)
+              ? <PrintDossierReport analysis={displayed} currentUser={READER} currentLanguage={displayed.content_language ?? lang} />
+              : <article className="print-only" lang={displayed.content_language ?? lang}>
+                  <h1>Dragon Dawwa · {displayed.research_category}</h1>
+                  <h2>{displayed.query_hadith}</h2>
+                  <section>{displayed.agent_6_synthesis.executive_report_markdown}</section>
+                  <section>{displayed.agent_6_synthesis.podcast_script}</section>
+                </article>
           </div>,
           document.body,
         )}

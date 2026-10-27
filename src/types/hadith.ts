@@ -101,6 +101,8 @@ export interface DragonDawwaAnalysis {
   platform_owner?: string;
   designed_and_created_by?: string;
   query_hadith: string;
+  content_language?: 'en' | 'ta' | 'si';
+  research_category?: string;
   agent_1_takhrij: Agent1Takhrij;
   agent_2_isnad: Agent2Isnad;
   agent_3_rijal: Agent3Rijal;

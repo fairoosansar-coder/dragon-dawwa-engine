@@ -14,6 +14,7 @@ import { authenticityAndLaw, bindReport, splitNarration } from '../utils/reportB
 import { reportIdentity } from '../../shared/research/revision.ts';
 import { HumanVerification } from './HumanVerification.tsx';
 import type { SourceTakhrij } from '../types/hadith.ts';
+import { usesHadithAuthentication } from '../categories.ts';
 
 const AGENTS = [
   { n: '01', accent: '#0f6e56', persona: 'Dr. Tariq al-Mansoor', role: 'Takhrij and textual variants' },
@@ -157,6 +158,26 @@ export const HadithReportPaper: React.FC<{
   readerName?: string;
 }> = ({ analysis, currentLanguage = 'en', readerName }) => {
   const [reviewLabel, setReviewLabel] = React.useState('Awaiting human verification');
+  if (!usesHadithAuthentication(analysis.research_category)) {
+    return (
+      <article className="hadith-report-paper" lang={currentLanguage}>
+        <header className="hr-header">
+          <p className="hr-brand">DRAGON DAWWA · By Aegis Intelligence</p>
+          <h1 className="hr-title">{analysis.research_category} Research Report</h1>
+          <p className="hr-question">{analysis.query_hadith}</p>
+          {readerName && <p>{readerName}</p>}
+        </header>
+        <section className="hr-section" lang={currentLanguage}>
+          <h2>Executive Report</h2>
+          <p className="whitespace-pre-wrap">{analysis.agent_6_synthesis.executive_report_markdown}</p>
+        </section>
+        <section className="hr-section" lang={currentLanguage}>
+          <h2>Podcast Script</h2>
+          <p className="whitespace-pre-wrap">{analysis.agent_6_synthesis.podcast_script}</p>
+        </section>
+      </article>
+    );
+  }
   const enriched = bindReport(
     analysis.agent_7_source_research ? analysis : attachAgent7ToAnalysis(analysis, currentLanguage),
   );
