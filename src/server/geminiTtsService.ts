@@ -95,6 +95,15 @@ export const PODCAST_PERSONA_PROFILES: Record<string, SpeakerVoiceProfile> = {
     style: 'Authoritative, stately, measured male classical jurist providing serene legal perspective and harmonizing consensus gradings across Islamic legal history',
     description: 'The Legal Weight Keeper contextualizing scholar gradings into actionable understanding'
   },
+  zayd: {
+    id: 'zayd',
+    personaName: 'Zayd (The Polymath Researcher)',
+    role: 'Polymath Researcher',
+    voiceName: 'Orus',
+    gender: 'M',
+    style: 'Clear, measured male researcher presenting sourced scientific and comparative findings without adopting the host voice',
+    description: 'Presents Parallel research beside the generated studio presenter'
+  },
   narrator: {
     id: 'narrator',
     personaName: 'Prime Dragon Radio Desk',
@@ -171,6 +180,11 @@ export function getGeminiVoiceForSpeaker(speaker: string): SpeakerVoiceProfile {
     s.includes('jurist')
   ) {
     return PODCAST_PERSONA_PROFILES.yusuf;
+  }
+
+  // Zayd (Polymath Researcher). Orus is not the host voice.
+  if (s.includes('zayd') || s.includes('polymath') || s.includes('researcher')) {
+    return PODCAST_PERSONA_PROFILES.zayd;
   }
 
   // 6. Host (Brother Feroz / Agent 6 Synthesis Moderator / Anchor)

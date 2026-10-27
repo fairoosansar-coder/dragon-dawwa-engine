@@ -58,13 +58,18 @@ app.post('/api/extract-hadith-media', async (req, res) => {
 // API route for Hadith Analysis
 app.post('/api/analyze', async (req, res) => {
   try {
-    const { hadith_input, isnad_input, preferred_language } = req.body;
+    const { hadith_input, isnad_input, preferred_language, category } = req.body;
     if (!hadith_input || typeof hadith_input !== 'string') {
       return res.status(400).json({ error: 'hadith_input is required and must be text.' });
     }
 
     const lang = (preferred_language === 'ta' || preferred_language === 'si') ? preferred_language : 'en';
-    const analysis = await executeDragonDawwaAnalysis(hadith_input, isnad_input, lang);
+    const analysis = await executeDragonDawwaAnalysis(
+      hadith_input,
+      isnad_input,
+      lang,
+      typeof category === 'string' ? category : undefined,
+    );
     return res.json(analysis);
   } catch (error: any) {
     console.error('Dragon Dawwa API Error:', error);

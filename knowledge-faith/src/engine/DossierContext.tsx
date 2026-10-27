@@ -17,6 +17,7 @@ import { ShareModal } from './components/ShareModal.tsx';
 import { PrintDossierReport } from './components/PrintDossierReport.tsx';
 import { useApp } from '../lib/store.tsx';
 import type { Lang } from '../shared/sources.ts';
+import { HADITH_AUTHENTICATION_CATEGORY } from './categories.ts';
 
 const DEFAULT_PRESET = SAMPLE_HADITHS.find(p => p.id === 'saturday-fasting') ?? SAMPLE_HADITHS[0];
 
@@ -116,13 +117,14 @@ interface DossierState {
   preset: SampleHadithPreset;
   matn: string;
   isnad: string;
+  category: string;
   analysis: DragonDawwaAnalysis;
   displayed: DragonDawwaAnalysis | null;
   step: AgentStep;
   setStep: (step: AgentStep) => void;
   isAnalyzing: boolean;
   error: string | null;
-  run: (matn: string, isnad: string, language?: Lang) => Promise<void>;
+  run: (matn: string, isnad: string, language?: Lang, category?: string) => Promise<void>;
   selectBenchmark: (id: string) => void;
   clear: () => void;
   reportOrigin: 'idle' | 'example' | 'live' | 'saved' | 'researching' | 'failed';
@@ -149,6 +151,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
   const [preset, setPreset] = useState(start.preset);
   const [matn, setMatn] = useState(start.query ?? presetMatn(start.preset, lang));
   const [isnad, setIsnad] = useState('');
+  const [category, setCategory] = useState<string>(HADITH_AUTHENTICATION_CATEGORY);
   const [analysis, setAnalysis] = useState<DragonDawwaAnalysis>(start.preset.defaultData);
   const [step, setStep] = useState<AgentStep>('overview');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -246,9 +249,11 @@ export function DossierProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const run = useCallback(
-    async (nextMatn: string, nextIsnad: string, language?: Lang) => {
+    async (nextMatn: string, nextIsnad: string, language?: Lang, category?: string) => {
       const question = nextMatn.trim();
       if (!question) return;
+      const requestCategory = category?.trim() || HADITH_AUTHENTICATION_CATEGORY;
+      setCategory(requestCategory);
       const requestLang = language ?? langRef.current;
       if (requestLang !== langRef.current) {
         langRef.current = requestLang;
@@ -274,7 +279,12 @@ export function DossierProvider({ children }: { children: ReactNode }) {
           method: 'POST',
           signal: controller.signal,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ hadith_input: question, isnad_input: nextIsnad, preferred_language: requestLang }),
+          body: JSON.stringify({
+            category: requestCategory,
+            hadith_input: question,
+            isnad_input: nextIsnad,
+            preferred_language: requestLang,
+          }),
         });
         const body = (await res.json().catch(() => ({}))) as { id?: string; error?: string; agent_6_synthesis?: unknown };
         if (!stillCurrent()) return;
@@ -509,6 +519,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
     preset,
     matn,
     isnad,
+    category,
     analysis,
     displayed,
     step,

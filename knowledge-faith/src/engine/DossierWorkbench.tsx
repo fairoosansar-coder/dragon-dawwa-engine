@@ -118,9 +118,9 @@ export default function DossierWorkbench() {
         initialIsnad={d.isnad}
         isAnalyzing={d.isAnalyzing}
         analysisError={d.error}
-        onRunEngine={(matn, isnad) => void d.run(matn, isnad)}
+        onRunEngine={(matn, isnad, category) => void d.run(matn, isnad, undefined, category)}
         onOpenSaved={d.openSaved}
-        onResearchAgain={item => void d.run(item.question, item.isnad, item.language)}
+        onResearchAgain={(item, category) => void d.run(item.question, item.isnad, item.language, category)}
         onOpenFullReport={openFullReport}
         onClearInputs={d.clear}
         onSelectBenchmark={d.selectBenchmark}
@@ -140,7 +140,7 @@ export default function DossierWorkbench() {
           <button
             type="button"
             className="mt-3 rounded-xl bg-[#0f6b4c] px-4 py-2 text-xs font-bold text-white"
-            onClick={() => void d.run(d.matn, d.isnad, d.lang)}
+            onClick={() => void d.run(d.matn, d.isnad, d.lang, d.category)}
           >
             Retry
           </button>

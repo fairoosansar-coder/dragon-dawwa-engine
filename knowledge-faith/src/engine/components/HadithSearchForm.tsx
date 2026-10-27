@@ -34,6 +34,7 @@ import {
   type SavedResearchRecord,
 } from '../utils/savedResearch.ts';
 import type { Lang } from '../../shared/sources.ts';
+import { ANALYSIS_CATEGORIES, HADITH_AUTHENTICATION_CATEGORY } from '../categories.ts';
 
 export interface RecentSearchItem {
   id: string;
@@ -48,9 +49,9 @@ interface HadithSearchFormProps {
   initialIsnad?: string;
   isAnalyzing: boolean;
   analysisError: string | null;
-  onRunEngine: (matn: string, isnad: string) => void;
+  onRunEngine: (matn: string, isnad: string, category: string) => void;
   onOpenSaved?: (record: SavedResearchRecord) => void;
-  onResearchAgain?: (record: SavedResearchRecord) => void;
+  onResearchAgain?: (record: SavedResearchRecord, category: string) => void;
   onOpenFullReport?: () => void;
   onClearInputs?: () => void;
   onSelectBenchmark?: (benchmarkId: string) => void;
@@ -75,6 +76,7 @@ export function HadithSearchForm({
   const t = TRANSLATIONS[currentLanguage];
   const [hadithMatn, setHadithMatn] = useState<string>(initialMatn);
   const [isnad, setIsnad] = useState<string>(initialIsnad);
+  const [category, setCategory] = useState<string>(HADITH_AUTHENTICATION_CATEGORY);
   const [activeBenchmark, setActiveBenchmark] = useState<string | null>("saturday_fast");
   const [normalizationData, setNormalizationData] = useState<FuzzyNormalizationResult | null>(null);
 
@@ -217,7 +219,7 @@ export function HadithSearchForm({
     }
     if (autoRun) {
       saveSearchToLocalStorage(matn, extractedIsnad || isnad);
-      onRunEngine(matn, extractedIsnad || isnad);
+      onRunEngine(matn, extractedIsnad || isnad, category);
     }
   };
 
@@ -487,7 +489,7 @@ export function HadithSearchForm({
     e.preventDefault();
     if (!hadithMatn.trim()) return;
     saveSearchToLocalStorage(hadithMatn, isnad);
-    onRunEngine(hadithMatn, isnad);
+    onRunEngine(hadithMatn, isnad, category);
   };
 
   return (
@@ -569,6 +571,25 @@ export function HadithSearchForm({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
+          <div className="space-y-1.5">
+            <label htmlFor="analysis-category" className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+              Category
+            </label>
+            <select
+              id="analysis-category"
+              data-testid="analysis-category"
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+              className="w-full rounded-xl border border-slate-700/80 bg-[var(--surface-inset)] px-4 py-3 text-sm text-slate-100 focus:border-amber-500 focus:outline-none"
+            >
+              {ANALYSIS_CATEGORIES.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+            <p className="text-[11px] text-slate-400">
+              Hadith & Authentication keeps the 7-agent check on this page. Every other category researches the question here as well.
+            </p>
+          </div>
           {/* OPTICAL MEDIA & MULTIMODAL CAPTURE RIBBON */}
           <div className="p-3 rounded-2xl bg-[var(--surface-modal)] border border-slate-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
             <div className="flex items-center gap-2">
@@ -816,7 +837,7 @@ export function HadithSearchForm({
               <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                 <button
                   type="button"
-                  onClick={() => onRunEngine(hadithMatn, isnad)}
+                  onClick={() => onRunEngine(hadithMatn, isnad, category)}
                   disabled={isAnalyzing}
                   className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-[var(--on-gold)] font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
                 >
@@ -969,7 +990,7 @@ export function HadithSearchForm({
                         type="button"
                         data-testid="saved-research-again"
                         className="rounded-lg px-2 py-1 text-[10px] font-semibold text-[#3d3428] underline decoration-[#c4a46a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0f6b4c]"
-                        onClick={() => onResearchAgain?.(item)}
+                        onClick={() => onResearchAgain?.(item, category)}
                       >
                         Run Research Again
                       </button>

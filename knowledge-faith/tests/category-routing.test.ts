@@ -1,0 +1,248 @@
+import assert from 'node:assert/strict';
+import { afterEach, describe, it } from 'node:test';
+import { ANALYSIS_CATEGORIES, HADITH_AUTHENTICATION_CATEGORY, usesHadithAuthentication } from '../src/engine/categories.ts';
+import { executeDragonDawwaAnalysis } from '../src/engine/server/hadithEngine.ts';
+import { getAllPodcastPersonas, getGeminiVoiceForSpeaker } from '../src/engine/server/geminiTtsService.ts';
+import { executeParallelResearch } from '../src/server/research/categoryResearch.ts';
+import { parallelApiKey } from '../src/server/research/parallelTask.ts';
+import { executeDragonDawwaAnalysis as executeRootAnalysis } from '../../src/server/hadithEngine.ts';
+import { getGeminiVoiceForSpeaker as rootVoiceForSpeaker } from '../../src/server/geminiTtsService.ts';
+
+const FINDING = {
+  claim: 'Researchers disagree about how the comparison should be framed.',
+  excerpt: 'The cited page records a disagreement and the surrounding historical context.',
+  url: 'https://example.test/comparison',
+  title: 'Comparison study',
+  confidence: 'medium',
+};
+
+function parallelBody() {
+  return {
+    run_id: 'run-test',
+    status: 'completed',
+    output: { content: { findings: [FINDING] } },
+  };
+}
+
+function modelJson(): string {
+  return JSON.stringify({
+    app_name: 'Dragon Dawwa',
+    query_hadith: 'ignored',
+    agent_1_takhrij: {
+      sources: [{ collection: 'Invented', hadith_number: '1', exact_wording: 'should be cleared' }],
+      variants_summary: 'invented',
+    },
+    agent_2_isnad: { narrator_sequence: ['Invented'], chain_links: [], overall_chain_status: 'invented' },
+    agent_3_rijal: { narrators: [{ narrator_name: 'Invented', critic_verdicts: [], status: 'Thiqah', citations: [] }] },
+    agent_4_shawahid_matn: { supporting_reports: ['invented'], hidden_defects_ilal: [], contradictions: [] },
+    agent_5_scholars_verdict: { gradings: [{ scholar: 'Invented', grading: 'Sahih', reference: 'none' }] },
+    agent_6_synthesis: {
+      final_status: 'Sahih',
+      purity_confidence_score: 99,
+      consensus_and_disagreements: 'The cited page records a disagreement.',
+      executive_report_markdown: 'The comparison is discussed in the returned study.',
+      podcast_script: [
+        'BROTHER FEROZ (HOST): This is a generated studio presenter. These words are not a personal statement or approval by Feroz.',
+        'ZAYD (The Polymath Researcher): The cited study records a scholarly disagreement about the comparison.',
+      ].join('\n'),
+    },
+  });
+}
+
+describe('category routing', () => {
+  const saved = {
+    parallelAi: process.env.PARALLEL_AI_API_KEY,
+    parallel: process.env.PARALLEL_API_KEY,
+    gemini: process.env.GEMINI_API_KEY,
+  };
+
+  afterEach(() => {
+    if (saved.parallelAi === undefined) delete process.env.PARALLEL_AI_API_KEY;
+    else process.env.PARALLEL_AI_API_KEY = saved.parallelAi;
+    if (saved.parallel === undefined) delete process.env.PARALLEL_API_KEY;
+    else process.env.PARALLEL_API_KEY = saved.parallel;
+    if (saved.gemini === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = saved.gemini;
+  });
+
+  it('lists the fifteen analyzer categories and keeps an omitted category on the hadith path', () => {
+    assert.equal(ANALYSIS_CATEGORIES.length, 15);
+    assert.equal(ANALYSIS_CATEGORIES[3], HADITH_AUTHENTICATION_CATEGORY);
+    assert.equal(usesHadithAuthentication(undefined), true);
+    assert.equal(usesHadithAuthentication(''), true);
+    assert.equal(usesHadithAuthentication('Hadith & Authentication'), true);
+    assert.equal(usesHadithAuthentication('Modern Science & Religion'), false);
+    assert.ok(ANALYSIS_CATEGORIES.includes("Qur'an & Tafsir"));
+    assert.ok(ANALYSIS_CATEGORIES.includes('Ask a Question'));
+  });
+
+  it('reads PARALLEL_AI_API_KEY first and PARALLEL_API_KEY when that is unset', () => {
+    process.env.PARALLEL_AI_API_KEY = 'parallel-ai-test-key';
+    process.env.PARALLEL_API_KEY = 'parallel-fallback-test-key';
+    assert.equal(parallelApiKey(), 'parallel-ai-test-key');
+    delete process.env.PARALLEL_AI_API_KEY;
+    assert.equal(parallelApiKey(), 'parallel-fallback-test-key');
+    delete process.env.PARALLEL_API_KEY;
+    assert.equal(parallelApiKey(), null);
+  });
+
+  it('sends a non-hadith category through Parallel and forces the podcast schema', async () => {
+    process.env.PARALLEL_AI_API_KEY = 'parallel-ai-test-key';
+    let sawKey = false;
+    let sawTask = false;
+    const analysis = await executeParallelResearch('Comparative Religion', 'How do the accounts compare?', 'en', {
+      pollMs: 1,
+      geminiApiKey: '',
+      fetchImpl: async (input, init) => {
+        const url = String(input);
+        sawTask = url === 'https://api.parallel.ai/v1/tasks/runs';
+        const header = new Headers(init?.headers).get('x-api-key') ?? '';
+        sawKey = header === 'parallel-ai-test-key';
+        const body = JSON.parse(String(init?.body ?? '{}')) as { input?: string };
+        assert.match(body.input ?? '', /Comparative Religion/);
+        assert.match(body.input ?? '', /scholarly disagreements/);
+        assert.match(body.input ?? '', /sources/i);
+        return Response.json(parallelBody());
+      },
+      generateContent: async ({ systemInstruction, prompt }) => {
+        assert.match(systemInstruction, /You are Amina, the Chair/);
+        assert.match(systemInstruction, /ZAYD \(The Polymath Researcher\)/);
+        assert.match(systemInstruction, /generated studio presenter/);
+        assert.match(prompt, /https:\/\/example\.test\/comparison/);
+        return modelJson();
+      },
+    });
+    assert.equal(sawTask, true);
+    assert.equal(sawKey, true);
+    assert.equal(analysis.agent_1_takhrij.sources.length, 0);
+    assert.equal(analysis.agent_1_takhrij.variants_summary, 'N/A');
+    assert.deepEqual(analysis.agent_2_isnad.narrator_sequence, []);
+    assert.equal(analysis.agent_2_isnad.overall_chain_status, 'N/A');
+    assert.equal(analysis.agent_3_rijal.narrators.length, 0);
+    assert.deepEqual(analysis.agent_4_shawahid_matn.supporting_reports, []);
+    assert.equal(analysis.agent_5_scholars_verdict.gradings.length, 0);
+    assert.equal(analysis.agent_6_synthesis.final_status, 'Not a hadith grade');
+    assert.equal(analysis.agent_6_synthesis.purity_confidence_score, 0);
+    assert.match(analysis.agent_6_synthesis.podcast_script, /BROTHER FEROZ \(HOST\):/);
+    assert.match(analysis.agent_6_synthesis.podcast_script, /ZAYD \(The Polymath Researcher\):/);
+    assert.match(analysis.agent_6_synthesis.podcast_script, /generated studio presenter/);
+    assert.match(analysis.agent_6_synthesis.executive_report_markdown, /https:\/\/example\.test\/comparison/);
+    assert.equal(analysis.content_language, 'en');
+    assert.equal(analysis.agent_7_source_research, undefined);
+  });
+
+  it('does not complete an answer when Parallel returns nothing', async () => {
+    process.env.PARALLEL_API_KEY = 'parallel-fallback-test-key';
+    delete process.env.PARALLEL_AI_API_KEY;
+    let generated = false;
+    await assert.rejects(
+      () => executeParallelResearch('Faith & Philosophy', 'What is the argument?', 'en', {
+        pollMs: 1,
+        fetchImpl: async () => Response.json({ run_id: 'run-empty', status: 'completed', output: { content: { findings: [] } } }),
+        generateContent: async () => {
+          generated = true;
+          return modelJson();
+        },
+      }),
+      /no sources/,
+    );
+    assert.equal(generated, false);
+
+    delete process.env.PARALLEL_API_KEY;
+    let called = false;
+    await assert.rejects(
+      () => executeParallelResearch('Ask a Question', 'A question', 'en', {
+        fetchImpl: async () => {
+          called = true;
+          return Response.json(parallelBody());
+        },
+      }),
+      /not configured/,
+    );
+    assert.equal(called, false);
+  });
+
+  it('keeps Hadith & Authentication on the six-agent path and routes every other category to Parallel', async () => {
+    const calls: string[] = [];
+    const original = globalThis.fetch;
+    globalThis.fetch = async (input, init) => {
+      const url = String(input);
+      calls.push(url);
+      if (url.includes('api.parallel.ai')) return Response.json(parallelBody());
+      return original(input, init);
+    };
+    try {
+      const hadith = await executeDragonDawwaAnalysis(
+        'Do not fast on Saturdays except for what has been made obligatory for you',
+        '',
+        'en',
+        '',
+        'Hadith & Authentication',
+      );
+      assert.match(hadith.agent_6_synthesis.podcast_script, /DR\.\s*AMINA:|BROTHER FEROZ/i);
+      assert.equal(calls.some(url => url.includes('api.parallel.ai')), false);
+
+      calls.length = 0;
+      const omitted = await executeDragonDawwaAnalysis(
+        'Do not fast on Saturdays except for what has been made obligatory for you',
+        '',
+        'en',
+        '',
+      );
+      assert.ok(omitted.agent_6_synthesis.executive_report_markdown.length > 20);
+      assert.equal(calls.some(url => url.includes('api.parallel.ai')), false);
+
+      await assert.rejects(
+        () => executeDragonDawwaAnalysis('How does fasting relate to metabolism?', '', 'en', '', 'Modern Science & Religion'),
+        /GEMINI_API_KEY is missing/,
+      );
+      assert.equal(calls.some(url => url.includes('api.parallel.ai')), true);
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
+  it('routes the root analyzer the same way', async () => {
+    const calls: string[] = [];
+    const original = globalThis.fetch;
+    const gemini = process.env.GEMINI_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+    globalThis.fetch = async (input, init) => {
+      calls.push(String(input));
+      if (String(input).includes('api.parallel.ai')) return Response.json(parallelBody());
+      return original(input, init);
+    };
+    try {
+      const hadith = await executeRootAnalysis('actions are by intentions', '', 'en', 'Hadith & Authentication');
+      assert.ok(hadith.agent_6_synthesis.podcast_script.length > 10);
+      assert.equal(calls.some(url => url.includes('api.parallel.ai')), false);
+      await assert.rejects(
+        () => executeRootAnalysis('How do the accounts compare?', '', 'en', 'Comparative Religion'),
+        /GEMINI_API_KEY is missing/,
+      );
+      assert.equal(calls.some(url => url.includes('api.parallel.ai')), true);
+    } finally {
+      globalThis.fetch = original;
+      if (gemini === undefined) delete process.env.GEMINI_API_KEY;
+      else process.env.GEMINI_API_KEY = gemini;
+    }
+  });
+
+  it('maps Zayd to Orus and leaves the host voice on Puck', () => {
+    assert.equal(getAllPodcastPersonas().length, 7);
+    const host = getGeminiVoiceForSpeaker('BROTHER FEROZ (HOST)');
+    assert.equal(host.voiceName, 'Puck');
+    for (const speaker of ['Zayd', 'Polymath', 'Researcher', 'ZAYD (The Polymath Researcher)']) {
+      const voice = getGeminiVoiceForSpeaker(speaker);
+      assert.equal(voice.voiceName, 'Orus', speaker);
+      assert.equal(voice.personaName.includes('Zayd'), true);
+      assert.notEqual(voice.voiceName, host.voiceName);
+    }
+    assert.equal(getGeminiVoiceForSpeaker('DR. AMINA').voiceName, 'Aoede');
+    assert.equal(getGeminiVoiceForSpeaker('Host').personaName.includes('Feroz'), true);
+    const rootHost = rootVoiceForSpeaker('Brother Feroz');
+    assert.equal(rootHost.voiceName, 'Puck');
+    assert.equal(rootVoiceForSpeaker('Researcher').voiceName, 'Orus');
+    assert.notEqual(rootVoiceForSpeaker('Zayd').voiceName, rootHost.voiceName);
+  });
+});

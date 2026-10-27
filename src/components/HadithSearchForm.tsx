@@ -26,6 +26,7 @@ import { BenchmarkCorpusItem, FuzzyNormalizationResult } from '../types/normaliz
 import { BENCHMARK_CORPUS, normalizeHadithQuery } from '../utils/fuzzyNormalizer';
 import { HadithMediaUploadModal } from './HadithMediaUploadModal';
 import { SupportedLanguage, TRANSLATIONS } from '../utils/localization';
+import { ANALYSIS_CATEGORIES, HADITH_AUTHENTICATION_CATEGORY } from '../../knowledge-faith/src/engine/categories.ts';
 
 export interface RecentSearchItem {
   id: string;
@@ -40,7 +41,7 @@ interface HadithSearchFormProps {
   initialIsnad?: string;
   isAnalyzing: boolean;
   analysisError: string | null;
-  onRunEngine: (matn: string, isnad: string) => void;
+  onRunEngine: (matn: string, isnad: string, category: string) => void;
   onClearInputs?: () => void;
   onSelectBenchmark?: (benchmarkId: string) => void;
   currentLanguage?: SupportedLanguage;
@@ -59,6 +60,7 @@ export function HadithSearchForm({
   const t = TRANSLATIONS[currentLanguage];
   const [hadithMatn, setHadithMatn] = useState<string>(initialMatn);
   const [isnad, setIsnad] = useState<string>(initialIsnad);
+  const [category, setCategory] = useState<string>(HADITH_AUTHENTICATION_CATEGORY);
   const [activeBenchmark, setActiveBenchmark] = useState<string | null>("saturday_fast");
   const [normalizationData, setNormalizationData] = useState<FuzzyNormalizationResult | null>(null);
 
@@ -238,7 +240,7 @@ export function HadithSearchForm({
     setHadithMatn(item.matn);
     setIsnad(item.isnad || '');
     saveSearchToLocalStorage(item.matn, item.isnad || '');
-    onRunEngine(item.matn, item.isnad || '');
+    onRunEngine(item.matn, item.isnad || '', category);
   };
 
   const formatTimeAgo = (timestamp: number): string => {
@@ -305,7 +307,7 @@ export function HadithSearchForm({
     }
     if (autoRun) {
       saveSearchToLocalStorage(matn, extractedIsnad || isnad);
-      onRunEngine(matn, extractedIsnad || isnad);
+      onRunEngine(matn, extractedIsnad || isnad, category);
     }
   };
 
@@ -575,7 +577,7 @@ export function HadithSearchForm({
     e.preventDefault();
     if (!hadithMatn.trim()) return;
     saveSearchToLocalStorage(hadithMatn, isnad);
-    onRunEngine(hadithMatn, isnad);
+    onRunEngine(hadithMatn, isnad, category);
   };
 
   return (
@@ -656,6 +658,25 @@ export function HadithSearchForm({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
+          <div className="space-y-1.5">
+            <label htmlFor="analysis-category" className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+              Category
+            </label>
+            <select
+              id="analysis-category"
+              data-testid="analysis-category"
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+              className="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl px-4 py-3 text-sm text-slate-100 focus:outline-none focus:border-amber-500"
+            >
+              {ANALYSIS_CATEGORIES.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+            <p className="text-[11px] text-slate-400">
+              Hadith & Authentication keeps the 6-agent check on this page. Every other category researches the question here as well.
+            </p>
+          </div>
           {/* OPTICAL MEDIA & MULTIMODAL CAPTURE RIBBON */}
           <div className="p-3 rounded-2xl bg-[#090e17] border border-slate-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
             <div className="flex items-center gap-2">
@@ -910,7 +931,7 @@ export function HadithSearchForm({
               <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                 <button
                   type="button"
-                  onClick={() => onRunEngine(hadithMatn, isnad)}
+                  onClick={() => onRunEngine(hadithMatn, isnad, category)}
                   disabled={isAnalyzing}
                   className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
                 >
