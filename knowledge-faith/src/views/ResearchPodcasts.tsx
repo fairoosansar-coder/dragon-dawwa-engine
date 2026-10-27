@@ -5,7 +5,7 @@ import { prependEpisodeRevision } from '../shared/research/episodeRevision.ts';
 import { roundtableFromResearch, scriptMayBeSpoken, type RoundtableScript } from '../shared/research/roundtable.ts';
 import { separateQuestions } from '../shared/research/questions.ts';
 import type { Lang } from '../shared/sources.ts';
-import { postJson, useRemote } from '../lib/api.ts';
+import { getJson, postJson, useRemote } from '../lib/api.ts';
 import { decodeBase64, downloadBytes, readResponseBytes } from '../lib/episodeWav.ts';
 import { readResearchHistory } from '../lib/researchDesk.ts';
 import { useApp } from '../lib/store.tsx';
@@ -148,7 +148,40 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
   const [error, setError] = useState<string | null>(null);
   const [download, setDownload] = useState<{ id: string; percent: number } | null>(null);
 
-  useEffect(() => setMine(readEpisodes()), []);
+  useEffect(() => {
+    setMine(readEpisodes());
+    let active = true;
+    getJson<{ episodes: { id: string }[] }>('/api/research/episodes')
+      .then(async data => {
+        const restored = await Promise.all(
+          data.episodes.map(async episode => {
+            const full = await getJson<LocalEpisode & { audioBase64?: string }>(`/api/research/episodes/${episode.id}`).catch(() => null);
+            if (!full) return null;
+            return {
+              ...full,
+              participants: full.participants ?? [],
+              state: full.audioBase64 ? ('playable' as const) : ('script-ready' as const),
+            };
+          }),
+        );
+        const savedEpisodes = restored.flatMap(item => (item ? [item] : []));
+        if (!active) return;
+        setMine(current => {
+          const known = new Set(current.map(item => item.id));
+          const extras = savedEpisodes.filter(item => !known.has(item.id) && scriptMayBeSpoken(item.lines ?? [], item.question ?? ''));
+          const merged = current.map(item => {
+            const saved = savedEpisodes.find(candidate => candidate.id === item.id);
+            if (!saved?.audioBase64 || item.audioBase64) return item;
+            return { ...item, audioBase64: saved.audioBase64, mimeType: saved.mimeType || item.mimeType, state: 'playable' as const };
+          });
+          return extras.length ? [...extras, ...merged] : merged;
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!jobId || readEpisodes().some(item => item.jobId === jobId)) return;
@@ -173,9 +206,13 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
       setError('The dossier did not produce a spoken script, so no episode was written.');
       return;
     }
-    const next = [created, ...readEpisodes()];
-    writeEpisodes(next);
-    setMine(next);
+    setMine(current => {
+      if (current.some(item => item.jobId === response.job.id && item.audioBase64)) return current;
+      if (current.some(item => item.jobId === response.job.id)) return current;
+      const next = [created, ...current];
+      writeEpisodes(next);
+      return next;
+    });
   }, [jobId, remote.data]);
 
   useEffect(() => {
@@ -211,6 +248,21 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
   function save(next: LocalEpisode[]) {
     writeEpisodes(next);
     setMine(next);
+    for (const episode of next) {
+      if (!episode.lines.length || episode.state === 'audio-generating') continue;
+      void postJson('/api/research/episodes', {
+        id: episode.id,
+        jobId: episode.jobId,
+        question: episode.question,
+        language: episode.language,
+        participants: episode.participants,
+        lines: episode.lines,
+        sources: episode.sources ?? [],
+        reportHtml: episode.reportHtml,
+        mimeType: episode.mimeType,
+        audioBase64: episode.audioBase64,
+      }).catch(() => undefined);
+    }
   }
 
   function episodeFromJob(response: ResearchJobResponse): LocalEpisode | null {
@@ -260,7 +312,18 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
     save([created, ...mine]);
   }
 
+  async function savedAudio(episode: LocalEpisode): Promise<{ audioBase64: string; mimeType: string } | null> {
+    if (episode.audioBase64) return { audioBase64: episode.audioBase64, mimeType: episode.mimeType || 'audio/wav' };
+    const saved = await getJson<LocalEpisode & { audioBase64?: string }>(`/api/research/episodes/${episode.id}`).catch(() => null);
+    if (!saved?.audioBase64) return null;
+    const ready = { audioBase64: saved.audioBase64, mimeType: saved.mimeType || 'audio/wav' };
+    setMine(current => current.map(item => (item.id === episode.id ? { ...item, ...ready, state: 'playable' as const, error: undefined } : item)));
+    return ready;
+  }
+
   async function generate(episode: LocalEpisode, onProgress?: (percent: number) => void): Promise<{ audioBase64: string; mimeType: string } | null> {
+    const kept = await savedAudio(episode);
+    if (kept) return kept;
     if (!scriptMayBeSpoken(episode.lines, episode.question)) {
       save(readEpisodes().map(item => (item.id === episode.id ? { ...item, state: 'failed', error: 'This script is not safe to speak.' } : item)));
       return null;
@@ -309,9 +372,7 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
     setError(null);
     setDownload({ id: episode.id, percent: 0 });
     try {
-      const ready = episode.audioBase64
-        ? { audioBase64: episode.audioBase64, mimeType: episode.mimeType || 'audio/wav' }
-        : await generate(episode, percent => setDownload({ id: episode.id, percent }));
+      const ready = (await savedAudio(episode)) ?? (await generate(episode, percent => setDownload({ id: episode.id, percent })));
       if (!ready?.audioBase64) return;
       const bytes = decodeBase64(ready.audioBase64);
       const step = 256 * 1024;
