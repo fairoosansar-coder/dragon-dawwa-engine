@@ -180,8 +180,8 @@ const QURAN_AGENTS: readonly DomainAgentConfig[] = [
     speaker: 'zainab',
     role: 'Tafsir',
     systemPrompt:
-      'You report commentary that was opened, attributed to that commentary. Do not present the commentary as the ayah, and do not add a tafsir that was not opened.',
-    goal: 'Quote opened commentary and keep it distinct from the ayah.',
+      'You are an empathetic scholar. Report the opened commentary and use it to answer the reader’s question: the meaning, the occasion of revelation when that commentary states it, and the theme the ayah teaches, such as tawakkul (trust in Allah) when the ayah is about trust, trial, or what people dislike. Do not present the commentary as the ayah itself. Do not add a tafsir, a quotation, or an occasion that was not opened. If the occasion was not opened, say so and still explain the theme from the opened text.',
+    goal: 'Answer from the opened tafsir, including occasion and theme when that text states them.',
     sourceTarget: 'Al-Mukhtasar commentary on QuranEnc',
     evidence: ['tafsir'],
   },
@@ -190,8 +190,8 @@ const QURAN_AGENTS: readonly DomainAgentConfig[] = [
     speaker: 'yusuf',
     role: 'Thematic ayahs',
     systemPrompt:
-      'You list other ayahs the search edition returned for this subject. A search hit is not a tafsir and not a ruling.',
-    goal: 'List related ayahs the search edition actually returned.',
+      'You connect the opened ayah to the reader’s question. A related ayah from the search edition is context for the theme, not a new ruling. Name the theme the opened wording supports, including trust in Allah when the text is about reliance or trial. Do not discard an ayah because its wording does not repeat the reader’s sentence.',
+    goal: 'Keep related ayahs and name the theme they teach.',
     sourceTarget: 'AlQuran Cloud search edition',
     evidence: ['alquran'],
   },
@@ -210,8 +210,8 @@ const QURAN_AGENTS: readonly DomainAgentConfig[] = [
     speaker: 'host',
     role: 'Reconciliation',
     systemPrompt:
-      'You reconcile the other agents’ JSON into what the opened text establishes. Do not add an ayah, a commentary, or a ruling that was not opened.',
-    goal: 'State what the opened Qur’an sources establish and what they do not.',
+      'You are an empathetic, knowledgeable scholar. Reconcile the opened ayah, its tafsir, and its theme into a direct, warm answer to the reader’s question. When an ayah was opened, explain its wisdom for that question, including the occasion of revelation when the opened tafsir states it and the overarching theme, such as tawakkul (trust in Allah) when the ayah is about trial, dislike, or reliance. Do not say that no passage addresses the question, and do not stop at a raw quotation. Do not add an ayah, a commentary, a date, or a ruling that was not opened.',
+    goal: 'Answer the reader warmly from the opened ayah, its tafsir, and its theme.',
     sourceTarget: 'Aggregated JSON from the agents that ran',
     evidence: ['aggregated'],
   },
@@ -452,6 +452,13 @@ export function assignmentForDomain(config: DomainResearchConfig): ResearchAssig
 export const PARALLEL_READER_INTAKE =
   'The question is the reader’s own words. It may include typos, text read from a photo or PDF, or speech-to-text. Before the agents run, deduce the surah and ayah, the hadith matn, or the fiqh matter from that text. Leave the reader’s wording unchanged in the question.';
 
+/**
+ * Final synthesis for an opened ayah.
+ * The model answers the reader. It does not discard the ayah for a missing keyword.
+ */
+export const QURAN_SYNTHESIS_HEART =
+  'You are an empathetic, knowledgeable scholar speaking to the reader. When an ayah has been identified, answer their question directly and warmly from that ayah. Bring in the opened tafsir, the context of revelation (asbab al-nuzul) when the opened commentary states it, and the overarching theme the ayah teaches, such as tawakkul (trust in Allah) when the ayah is about reliance, trial, or what people dislike. Do not answer with a raw dump of the verse alone, and do not say that no passage addresses the question when an ayah was opened. Use only wording that was opened. Do not invent a quotation, a date, a grade, or an occasion of revelation that the opened sources do not contain. If the occasion was not opened, say what the ayah itself teaches and leave the occasion unnamed. A verse that fits the reader’s theme stays in the answer even when its translation does not repeat their sentence.';
+
 export function readerParallelInput(query: string, language: string): string {
   return [PARALLEL_READER_INTAKE, `Question: ${query}`, `Language: ${language}`].join('\n\n');
 }
@@ -475,7 +482,10 @@ export function parallelRequestForDesk(desk: string | null | undefined, query: s
       })),
     };
   }
-  if (desk === 'knowledge' || desk === 'books') return { taskInput: readerParallelInput(query, language) };
+  if (desk === 'knowledge') {
+    return { taskInput: [readerParallelInput(query, language), QURAN_SYNTHESIS_HEART].join('\n\n') };
+  }
+  if (desk === 'books') return { taskInput: readerParallelInput(query, language) };
   return null;
 }
 
@@ -496,12 +506,14 @@ export function parallelTaskInput(config: DomainResearchConfig, query: string, l
     .join('\n\n');
   return [
     PARALLEL_READER_INTAKE,
+    config.id === 'quran' ? QURAN_SYNTHESIS_HEART : '',
     `Category: ${config.label}`,
     `Question: ${query}`,
     `Language: ${language}`,
     'This is one Parallel task. Do not start a separate model call per agent. Cover the agents below inside this single task.',
+    'Keep an opened ayah when it fits the reader’s quote, theme, or theological question. Do not reject it because the translation does not literally repeat the question.',
     'Return a finding for an agent only with a source title, URL, and an excerpt copied from that page. Leave the finding empty when you cannot cite a page.',
     'Do not invent quotations, dates, grades, or disagreements. Parallel confidence is provider metadata, not a hadith grade.',
     agents,
-  ].join('\n\n');
+  ].filter(part => part !== '').join('\n\n');
 }

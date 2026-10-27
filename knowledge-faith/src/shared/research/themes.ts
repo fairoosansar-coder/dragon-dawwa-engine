@@ -105,3 +105,15 @@ export function themeWordingSupports(question: string, passage: string): boolean
   const haystack = passage.toLocaleLowerCase('en');
   return matchingThemes(question).some(theme => theme.synonyms.some(word => haystack.includes(word.toLocaleLowerCase('en'))));
 }
+
+/**
+ * The reader is asking about faith, an ayah, or a theological theme.
+ * A study suggestion may then be kept even when the translation does not repeat the question.
+ * An unrelated request, such as a lost bicycle, does not qualify.
+ */
+const SCRIPTURE_QUESTION =
+  /allah|god\b|lord|qur['’]?an|\bayah\b|\bverse\b|\bsurah\b|islam|\biman\b|\bfaith\b|tawakkul|tawakkal|hardship|\btrial\b|tribulation|wisdom|revelation|worship|pray|mercy|forgiv|\bsabr\b|\bqadr\b|resent|dislike|\bhate\b|hateful|jihad|taqwa|reliance|\brely\b|struggl|burden|prescribed|decree|\bpatient\b|blessing|\bafflict/i;
+
+export function questionInvitesScripture(question: string): boolean {
+  return SCRIPTURE_QUESTION.test(question) || matchingThemes(question).length > 0;
+}

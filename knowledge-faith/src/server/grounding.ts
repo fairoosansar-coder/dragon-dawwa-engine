@@ -1,6 +1,7 @@
 import type { EncyclopediaHadith } from '../shared/hadeethenc.ts';
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
 import { withoutVanakkam } from '../engine/utils/tamilGreeting.ts';
+import { QURAN_SYNTHESIS_HEART } from './research/agentConfig.ts';
 import type { AnswerParagraph, Evidence, Hadith, PodcastLine, Verse } from '../shared/types.ts';
 
 export function verseEvidence(verses: Verse[]): Evidence[] {
@@ -68,11 +69,17 @@ export const SAFETY_RULES = `- Use ONLY the evidence packet. Do not quote or cit
 - Keep Arabic quotations exactly as given in the packet.`;
 
 export function answerPrompt(question: string, lang: Lang, evidence: Evidence[]): string {
+  const quran = evidence.some(item => item.kind === 'quran');
+  const synthesis = quran
+    ? `${QURAN_SYNTHESIS_HEART}
+- An opened ayah is enough to answer the reader. Do not set insufficientEvidence only because the ayah’s words differ from the question. Set it only when the packet has no ayah and no commentary that can speak to the question.
+`
+    : '';
   return `You are the study assistant of DRAGON DAWWA by Aegis Intelligence. Write in ${LANGUAGE_NAMES[lang].english}.
 
 ${SAFETY_RULES}
 - Write 1-4 short paragraphs. Every paragraph must cite one or more evidence IDs (e.g. "Q1", "H2") in its citations array.
-- If the evidence does not answer the question, set insufficientEvidence to true and explain briefly what the retrieved sources do cover.
+${synthesis}- If the evidence does not answer the question, set insufficientEvidence to true and explain briefly what the retrieved sources do cover.
 - If the question asks how many times something is mentioned, describe what the cited passages say. Do not invent a total, and do not treat the number of passages as a total the source already stated.
 - If the question asks for a total a source would have to state, such as how many prophets there are, and the packet does not state that number, set insufficientEvidence to true. Do not supply a number, a verse, or a grade that is not written in the packet.
 

@@ -10,6 +10,7 @@ import type { DomainAgentResult, DragonDawwaAnalysis } from '../../engine/types/
 import { scriptMatchesLanguage } from '../../engine/utils/contentLanguage.ts';
 import { scrubVanakkam } from '../../engine/utils/tamilGreeting.ts';
 import type { EvidencePassage } from '../../shared/contracts/v1.ts';
+import { isOpenedAyah } from '../../shared/research/materialCoverage.ts';
 import type { Lang } from '../../shared/sources.ts';
 import {
   assignmentForDomain,
@@ -145,7 +146,15 @@ function recordFrom(agent: DomainAgentConfig, finding: string, sources: DomainAg
   };
 }
 
-function reconciliationFinding(language: Lang, roles: string): string {
+function reconciliationFinding(language: Lang, roles: string, passages: readonly EvidencePassage[] = []): string {
+  const ayah = passages.find(isOpenedAyah);
+  const commentary = passages.find(passage => passage.role === 'commentary' && passage.source.provider !== 'Parallel' && passage.text.trim());
+  if (ayah && language === 'en') {
+    const tafsir = commentary
+      ? ` The opened tafsir (${commentary.locator}) says: “${clip(commentary.text, 280)}”.`
+      : ' An occasion of revelation is named only when the opened tafsir states it.';
+    return `Your question is answered from ${ayah.locator}: “${clip(ayah.text, 280)}”.${tafsir} Read this ayah for the theme it teaches, including trust in Allah where it speaks of trial, dislike, or reliance. The agents who ran were ${roles}. What was not opened was not added. This is not a hadith grade.`;
+  }
   if (language === 'ta') {
     return `ஓடிய முகவர்கள்: ${roles}. நிறுவப்பட்டது அவர்கள் திறந்த மூலத்திலிருந்து மேற்கோள் காட்டியது மட்டும். திறக்கப்படாதது சேர்க்கப்படவில்லை. இது ஒரு ஹதீஸ் தரம் அல்ல.`;
   }
@@ -188,7 +197,7 @@ export function buildDomainAgents(
     const roles = specialists.map(item => item.role).join(', ');
     return recordFrom(
       defined,
-      reconciliationFinding(language, roles),
+      reconciliationFinding(language, roles, passages),
       specialists.flatMap(item => item.sources).slice(0, 8),
       'ran',
     );
