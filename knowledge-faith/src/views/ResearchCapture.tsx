@@ -3,6 +3,7 @@ import { Camera, FileText, Image as ImageIcon, Loader2, Mic, MicOff } from 'luci
 import { HadithMediaUploadModal } from '../engine/components/HadithMediaUploadModal.tsx';
 import { dictationCode, languageLabel } from '../engine/utils/contentLanguage.ts';
 import { useApp } from '../lib/store.tsx';
+import { DictationSession } from './dictationSession.ts';
 
 type CaptureMode = 'camera' | 'upload_photo' | 'upload_file';
 type DictationLang = 'en-US' | 'ta-IN' | 'si-LK' | 'ar-SA';
@@ -39,9 +40,10 @@ export function ResearchCapture({
   const [feedback, setFeedback] = useState<string | null>(null);
   const [engine, setEngine] = useState<'webspeech' | 'ai_gemini'>('webspeech');
   const [dictationLang, setDictationLang] = useState<DictationLang>(dictationCode(lang));
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  const sessionRef = useRef<DictationSession | null>(null);
+  const stopRef = useRef<(() => void) | null>(null);
+  const disabledRef = useRef(disabled);
+  disabledRef.current = disabled;
   const baseRef = useRef('');
   const valueRef = useRef(value);
   valueRef.current = value;
@@ -50,16 +52,34 @@ export function ResearchCapture({
     setDictationLang(dictationCode(lang));
   }, [lang]);
 
+  function cancelCapture() {
+    sessionRef.current?.cancel();
+    sessionRef.current = null;
+    stopRef.current = null;
+  }
+
   useEffect(() => {
+    const leave = () => {
+      cancelCapture();
+      setRecording(false);
+      setTranscribing(false);
+      setFeedback(null);
+    };
+    window.addEventListener('pagehide', leave);
+    window.addEventListener('hashchange', leave);
     return () => {
-      try {
-        recognitionRef.current?.stop();
-      } catch {
-        /* already stopped */
-      }
-      if (recorderRef.current && recorderRef.current.state === 'recording') recorderRef.current.stop();
+      window.removeEventListener('pagehide', leave);
+      window.removeEventListener('hashchange', leave);
+      cancelCapture();
     };
   }, []);
+  useEffect(() => {
+    if (!disabled) return;
+    cancelCapture();
+    setRecording(false);
+    setTranscribing(false);
+    setFeedback(null);
+  }, [disabled]);
 
   function appendText(incoming: string) {
     const next = incoming.replace(/\s+/g, ' ').trim();
@@ -74,19 +94,24 @@ export function ResearchCapture({
   }
 
   async function toggleMic() {
-    if (disabled || transcribing) return;
-    if (recording) {
-      try {
-        recognitionRef.current?.stop();
-      } catch {
-        /* already stopped */
-      }
-      if (recorderRef.current && recorderRef.current.state === 'recording') recorderRef.current.stop();
-      setRecording(false);
-      setFeedback('Microphone stopped.');
-      window.setTimeout(() => setFeedback(null), 3000);
+    // Stop/cancel remains usable even before permission or onstart resolves.
+    if (stopRef.current) {
+      stopRef.current();
       return;
     }
+    if (disabled || sessionRef.current) return;
+    const session = new DictationSession();
+    sessionRef.current = session;
+    const current = () => sessionRef.current === session && !session.cancelled && !disabledRef.current;
+    const finish = (message: string) => {
+      if (!current()) return;
+      cancelCapture();
+      setRecording(false);
+      setTranscribing(false);
+      setFeedback(message);
+    };
+    stopRef.current = () => finish('Microphone stopped.');
+    setRecording(true);
     baseRef.current = valueRef.current.trim();
     const SpeechRecognitionCtor = (
       window as unknown as {
@@ -95,113 +120,127 @@ export function ResearchCapture({
       }
     ).SpeechRecognition ?? (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognitionLike }).webkitSpeechRecognition;
 
+    async function recordWithGemini() {
+      if (!current()) return;
+      if (!navigator.mediaDevices?.getUserMedia) {
+        finish('This browser cannot record audio.');
+        return;
+      }
+      setFeedback('Requesting microphone access.');
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        session.ownStream(stream);
+        if (!current()) { session.cancel(); return; }
+        const chunks: Blob[] = [];
+        const recorder = new MediaRecorder(stream);
+        session.own(() => {
+          recorder.ondataavailable = null;
+          recorder.onstop = null;
+          recorder.onerror = null;
+          if (recorder.state !== 'inactive') recorder.stop();
+        });
+        recorder.ondataavailable = event => {
+          if (current() && event.data.size > 0) chunks.push(event.data);
+        };
+        recorder.onerror = () => finish('Audio recording failed. Please try again.');
+        recorder.onstop = () => {
+          session.release();
+          if (!current()) return;
+          stopRef.current = null;
+          setRecording(false);
+          setTranscribing(true);
+          setFeedback('Transcribing speech.');
+          const reader = new FileReader();
+          const abort = new AbortController();
+          session.own(() => abort.abort());
+          session.own(() => {
+            reader.onloadend = null;
+            reader.onerror = null;
+            reader.onabort = null;
+            if (reader.readyState === FileReader.LOADING) reader.abort();
+          });
+          reader.onerror = () => finish('The recording could not be read.');
+          reader.onabort = () => finish('Transcription cancelled.');
+          reader.onloadend = () => {
+            if (!current()) return;
+            void (async () => {
+              try {
+                const audio = String(reader.result ?? '').split(',')[1] ?? '';
+                if (!audio) throw new Error('The recording could not be read.');
+                const response = await fetch('/api/transcribe-audio', {
+                  method: 'POST',
+                  signal: abort.signal,
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ audio_base64: audio, mime_type: recorder.mimeType || 'audio/webm' }),
+                });
+                if (!response.ok) throw new Error(`Transcription returned ${response.status}.`);
+                const result = (await response.json()) as { text?: string };
+                if (!current()) return;
+                const spoken = result.text?.trim() ?? '';
+                if (spoken) appendText(spoken);
+                finish(spoken ? 'Speech added to the question.' : 'No speech was detected.');
+              } catch (err) {
+                finish(err instanceof Error ? err.message : 'Transcription failed.');
+              }
+            })();
+          };
+          try {
+            reader.readAsDataURL(new Blob(chunks, { type: recorder.mimeType || 'audio/webm' }));
+          } catch { finish('The recording could not be read.'); }
+        };
+        stopRef.current = () => {
+          // Release tracks synchronously; transcription waits for the final data event.
+          stopRef.current = null;
+          setRecording(false);
+          setTranscribing(true);
+          try { recorder.stop(); }
+          catch { finish('Audio recording failed. Please try again.'); }
+          finally { stream.getTracks().forEach(track => { try { track.stop(); } catch { /* continue */ } }); }
+        };
+        recorder.start();
+        setFeedback('Listening. Press the microphone again to transcribe.');
+      } catch {
+        finish('Microphone access or audio recording failed. Please try again.');
+      }
+    }
+
     if (SpeechRecognitionCtor && engine === 'webspeech') {
       try {
         const recognition = new SpeechRecognitionCtor();
-        recognitionRef.current = recognition;
+        session.own(() => {
+          recognition.onstart = recognition.onresult = recognition.onerror = recognition.onend = null;
+          recognition.stop();
+        });
         recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = dictationLang;
-        recognition.onstart = () => {
-          setRecording(true);
-          setFeedback('Listening. Speak the question or the passage.');
-        };
+        recognition.onstart = () => { if (current()) setFeedback('Listening. Speak the question or the passage.'); };
         recognition.onresult = event => {
+          if (!current()) return;
           let spoken = '';
-          for (let i = 0; i < event.results.length; i += 1) {
-            spoken += event.results[i]?.[0]?.transcript ?? '';
-          }
-          const current = spoken.trim();
-          if (!current) return;
-          const base = baseRef.current;
-          onChange(base ? `${base} ${current}` : current);
+          for (let i = 0; i < event.results.length; i += 1) spoken += event.results[i]?.[0]?.transcript ?? '';
+          const text = spoken.trim();
+          if (text) onChange(baseRef.current ? `${baseRef.current} ${text}` : text);
         };
         recognition.onerror = event => {
-          setRecording(false);
+          if (!current()) return;
+          session.release();
           if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-            setFeedback('Microphone permission is required.');
-            return;
+            finish('Microphone permission is required.');
+          } else if (event.error === 'no-speech') {
+            finish('No speech detected. Press the microphone to try again.');
+          } else {
+            void recordWithGemini();
           }
-          if (event.error === 'no-speech') {
-            setFeedback('No speech detected. Press the microphone to try again.');
-            window.setTimeout(() => setFeedback(null), 3500);
-            return;
-          }
-          void recordWithGemini();
         };
-        recognition.onend = () => {
-          setRecording(false);
-          setFeedback('Voice dictation captured.');
-          window.setTimeout(() => setFeedback(null), 3500);
-        };
+        recognition.onend = () => finish('Voice dictation captured.');
         recognition.start();
         return;
       } catch {
-        await recordWithGemini();
-        return;
+        session.release();
       }
     }
     await recordWithGemini();
-  }
-
-  async function recordWithGemini() {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setFeedback('This browser cannot record audio.');
-      window.setTimeout(() => setFeedback(null), 4000);
-      return;
-    }
-    setFeedback('Requesting microphone access.');
-    let stream: MediaStream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      setRecording(false);
-      setFeedback('Microphone permission is required.');
-      window.setTimeout(() => setFeedback(null), 4000);
-      return;
-    }
-    chunksRef.current = [];
-    const recorder = new MediaRecorder(stream);
-    recorderRef.current = recorder;
-    recorder.ondataavailable = event => {
-      if (event.data.size > 0) chunksRef.current.push(event.data);
-    };
-    recorder.onstop = () => {
-      stream.getTracks().forEach(track => track.stop());
-      setRecording(false);
-      setTranscribing(true);
-      setFeedback('Transcribing speech.');
-      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        void (async () => {
-          try {
-            const dataUrl = String(reader.result ?? '');
-            const audio = dataUrl.split(',')[1] ?? '';
-            if (!audio) throw new Error('The recording could not be read.');
-            const response = await fetch('/api/transcribe-audio', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ audio_base64: audio, mime_type: recorder.mimeType || 'audio/webm' }),
-            });
-            if (!response.ok) throw new Error(`Transcription returned ${response.status}.`);
-            const result = (await response.json()) as { text?: string };
-            const spoken = result.text?.trim() ?? '';
-            if (spoken) appendText(spoken);
-            setFeedback(spoken ? 'Speech added to the question.' : 'No speech was detected.');
-          } catch (err) {
-            setFeedback(err instanceof Error ? err.message : 'Transcription failed.');
-          } finally {
-            setTranscribing(false);
-            window.setTimeout(() => setFeedback(null), 4000);
-          }
-        })();
-      };
-      reader.readAsDataURL(blob);
-    };
-    recorder.start();
-    setRecording(true);
-    setFeedback('Listening. Press the microphone again to transcribe.');
   }
 
   return (
@@ -268,7 +307,7 @@ export function ResearchCapture({
           type="button"
           data-research-capture="mic"
           onClick={() => void toggleMic()}
-          disabled={disabled || transcribing}
+          disabled={!recording && (disabled || transcribing)}
           aria-label={recording ? 'Stop dictation' : 'Start dictation'}
           title={recording ? 'Stop dictation' : 'Dictate the question'}
           className={`absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-xl border ${
