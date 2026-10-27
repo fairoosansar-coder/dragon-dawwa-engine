@@ -22,7 +22,7 @@ export function researchHref(scope: ResearchScope, jobId: string, lang: Lang, fo
   const params = new URLSearchParams({ job: jobId, lang });
   if (forwarded) params.set('fwd', '1');
   if (bookId && bookId > 0) params.set('book', String(bookId));
-  if (question?.trim()) params.set('q', question.trim().slice(0, 800));
+  if (question?.trim()) params.set('q', question.trim().slice(0, 4000));
   return `#/${researchRoot(scope)}/research?${params.toString()}`;
 }
 
@@ -39,7 +39,7 @@ export function researchDeskHref(
   if (desk === 'fiqh' || desk === 'seerah') {
     const params = new URLSearchParams({ job: jobId, lang });
     if (forwarded) params.set('fwd', '1');
-    if (question?.trim()) params.set('q', question.trim().slice(0, 800));
+    if (question?.trim()) params.set('q', question.trim().slice(0, 4000));
     return `#/hub/${desk}?${params.toString()}`;
   }
   return researchHref(scope, jobId, lang, forwarded, bookId, question);
@@ -70,6 +70,7 @@ export interface StartedResearch {
 export async function beginResearch(input: {
   question: string;
   entry: ResearchScope;
+  desk?: ResearchDeskName;
   lang: Lang;
   bookId?: number | null;
   forwarded?: boolean;
@@ -81,6 +82,7 @@ export async function beginResearch(input: {
     question: input.question,
     lang: input.lang,
     entry: input.entry,
+    desk: input.desk ?? input.entry,
     bookId: input.bookId ?? null,
     forwarded: input.forwarded === true,
     clarified: input.clarified === true,

@@ -405,7 +405,7 @@ app.post(
   '/api/research/jobs',
   rateLimiter(20, 'Too many research jobs. Please wait a few minutes.'),
   route(async (req, res) => {
-    const question = text(req.body?.question, 800, 'question');
+    const question = text(req.body?.question, 4000, 'question');
     const lang = toLang(req.body?.lang);
     const entryRaw = typeof req.body?.entry === 'string' ? req.body.entry : '';
     const force = req.body?.force === true;
@@ -431,7 +431,7 @@ app.post(
       bookId: Number.isInteger(bookId) && bookId > 0 ? bookId : null,
       forwarded: req.body?.forwarded === true,
       clarified: req.body?.clarified === true,
-      priorQuestion: typeof req.body?.priorQuestion === 'string' ? req.body.priorQuestion.slice(0, 800) : null,
+      priorQuestion: typeof req.body?.priorQuestion === 'string' ? req.body.priorQuestion.slice(0, 4000) : null,
     });
     if (decision.action === 'clarify') {
       res.json({ action: 'clarify', clarificationId: decision.clarificationId, contractVersion: '1.0.0' });
@@ -449,9 +449,11 @@ app.post(
         return;
       }
     }
+    const deskRaw = typeof req.body?.desk === 'string' ? req.body.desk : entryRaw;
     const id = startSharedResearchJob(researched, lang, undefined, {
       assignment: decision.assignment,
       force,
+      desk: deskRaw,
     });
     res.status(202).json({
       action: decision.action,

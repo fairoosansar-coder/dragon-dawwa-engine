@@ -3,6 +3,7 @@ import type { ResearchAssignmentView, ResearchJobResponse } from '../../shared/c
 import { researchFingerprint } from '../../shared/research/coordinator.ts';
 import type { Lang } from '../../shared/sources.ts';
 import { UpstreamError } from '../http.ts';
+import { parallelRequestForDesk } from './agentConfig.ts';
 import { executeResearch, publishParallelRevision, type ResearchPorts } from './engine.ts';
 import { awaitParallelResult } from './parallelTask.ts';
 import { defaultResearchPorts } from './ports.ts';
@@ -86,7 +87,7 @@ export function startSharedResearchJob(
   question: string,
   language: Lang,
   ports: ResearchPorts = defaultResearchPorts(),
-  options?: { assignment?: ResearchAssignmentView | null; force?: boolean },
+  options?: { assignment?: ResearchAssignmentView | null; force?: boolean; desk?: string | null },
 ): string {
   prune();
   const assignment = options?.assignment ?? null;
@@ -127,6 +128,7 @@ export function startSharedResearchJob(
     },
   };
   jobs.set(id, stored);
+  const parallel = parallelRequestForDesk(options?.desk, question, language);
   void executeResearch({
     id,
     question,
@@ -134,6 +136,7 @@ export function startSharedResearchJob(
     signal: controller.signal,
     ports,
     assignment,
+    parallel: parallel ?? undefined,
     onProgress: snapshot => {
       const current = jobs.get(id);
       if (!current || current.job.status === 'cancelled') return;

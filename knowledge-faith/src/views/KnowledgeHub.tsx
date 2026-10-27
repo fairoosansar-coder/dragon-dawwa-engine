@@ -18,7 +18,7 @@ import { EmptyState, FeatureCard, PrayerStrip } from '../components/shell/widget
 import { Button, Card, ErrorNote, Loading, Notice, SectionTitle } from '../components/ui.tsx';
 import { ResearchActionRow, ResearchFrame } from '../engine/ResearchFrame.tsx';
 import { DomainResearchForm } from './DomainResearchForm.tsx';
-import { composeKnowledgeQuestion } from './domainQuestion.ts';
+import { readerQuestion } from './domainQuestion.ts';
 
 function VerseList({ refs }: { refs: string[] }) {
   const { lang, t } = useApp();
@@ -189,8 +189,6 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
   const surahs = useRemote<SurahInfo[]>('/api/quran/surahs');
   const [topicId, setTopicId] = useState<string | null>(null);
   const [asked, setAsked] = useState('');
-  const [subject, setSubject] = useState('');
-  const [aspect, setAspect] = useState('');
   const [askError, setAskError] = useState<string | null>(null);
   const [clarify, setClarify] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -215,12 +213,12 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
 
   async function research(event: FormEvent, clarified = false) {
     event.preventDefault();
-    const question = composeKnowledgeQuestion(subject, aspect, asked);
+    const question = readerQuestion(asked);
     if (asked.trim().length < 3 || busy) return;
     setBusy(true);
     setAskError(null);
     try {
-      const started = await beginResearch({ question, entry: 'knowledge', lang, clarified });
+      const started = await beginResearch({ question, entry: 'knowledge', desk: 'knowledge', lang, clarified });
       if (started.action === 'clarify' || !started.id || !started.scope) {
         setClarify(true);
         return;
@@ -253,30 +251,10 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
       >
         <DomainResearchForm
           desk="knowledge"
-          surah=""
-          ayah=""
-          bookId=""
-          passage=""
-          subject={subject}
-          aspect={aspect}
-          act=""
-          situation=""
-          eventName=""
-          period=""
           question={asked}
           running={busy}
           clarify={clarify}
           clarifyText={t.clarifyMeaning}
-          onSurah={() => {}}
-          onAyah={() => {}}
-          onBookId={() => {}}
-          onPassage={() => {}}
-          onSubject={setSubject}
-          onAspect={setAspect}
-          onAct={() => {}}
-          onSituation={() => {}}
-          onEventName={() => {}}
-          onPeriod={() => {}}
           onQuestion={setAsked}
           onSubmit={event => void research(event, clarify)}
         />
