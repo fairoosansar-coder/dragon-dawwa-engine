@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { passageSupportsTopic } from '../src/shared/research.ts';
 import { questionInvitesScripture } from '../src/shared/research/themes.ts';
-import { QURAN_SYNTHESIS_HEART, parallelRequestForDesk, parallelTaskInput, DOMAIN_CONFIGS } from '../src/server/research/agentConfig.ts';
+import { CIVILIZATIONAL_BRIDGE_PROMPT, OPENED_CLASSICAL_LIMIT, QURAN_SYNTHESIS_HEART, finalSynthesisSystemPrompt, parallelRequestForDesk, parallelTaskInput, DOMAIN_CONFIGS } from '../src/server/research/agentConfig.ts';
 import { answerPrompt } from '../src/server/grounding.ts';
 import { executeResearch, type ResearchPorts } from '../src/server/research/engine.ts';
 
@@ -152,6 +152,31 @@ describe('thematic tafsir synthesis', () => {
     assert.match(prompt, /practical comfort/);
     assert.match(prompt, /If Tamil or Sinhala tafsir text is missing, translate the opened Arabic or English commentary/);
     assert.match(QURAN_SYNTHESIS_HEART, /do not cite an unrelated verse/i);
+    const bridge = finalSynthesisSystemPrompt();
+    assert.equal(bridge.includes(CIVILIZATIONAL_BRIDGE_PROMPT.trim()), true);
+    assert.equal(bridge.includes(OPENED_CLASSICAL_LIMIT), true);
+    for (const desk of ['quran', 'fiqh', 'seerah', 'knowledge', 'books'] as const) {
+      const request = parallelRequestForDesk(desk, QUESTION, 'en');
+      assert.equal(request?.taskInput.includes(CIVILIZATIONAL_BRIDGE_PROMPT.trim()), true, desk);
+      assert.equal(request?.taskInput.includes(OPENED_CLASSICAL_LIMIT), true, desk);
+    }
+    assert.equal(parallelRequestForDesk('hadith', QUESTION, 'en'), null);
+    for (const id of ['quran', 'fiqh', 'seerah'] as const) {
+      const reconciliation = DOMAIN_CONFIGS[id].agents.find(agent => agent.id === 'reconciliation');
+      assert.equal(reconciliation?.systemPrompt, bridge);
+    }
+    assert.equal(DOMAIN_CONFIGS.hadith.agents.find(agent => agent.id === 'synthesis')?.systemPrompt.includes('Ibn Kathir'), false);
+    const hadithPrompt = answerPrompt(QUESTION, 'en', [{
+      id: 'H1',
+      kind: 'hadith',
+      label: 'Bukhari 1',
+      arabic: '',
+      text: 'Actions are by intentions.',
+      attribution: 'HadeethEnc',
+      grades: [],
+    }]);
+    assert.equal(hadithPrompt.includes(CIVILIZATIONAL_BRIDGE_PROMPT.trim()), false);
+    assert.match(prompt, /without inventing a quotation or attributing a sentence to Ibn Kathir/);
   });
 
   it('keeps an opened 2:216 for a question about revelation through Jibril', async () => {

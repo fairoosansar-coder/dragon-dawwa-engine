@@ -1,7 +1,7 @@
 import type { EncyclopediaHadith } from '../shared/hadeethenc.ts';
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
 import { withoutVanakkam } from '../engine/utils/tamilGreeting.ts';
-import { QURAN_SYNTHESIS_HEART } from './research/agentConfig.ts';
+import { finalSynthesisSystemPrompt } from './research/agentConfig.ts';
 import type { AnswerParagraph, Evidence, Hadith, PodcastLine, Verse } from '../shared/types.ts';
 
 export function verseEvidence(verses: Verse[]): Evidence[] {
@@ -69,13 +69,13 @@ export const SAFETY_RULES = `- Use ONLY the evidence packet. Do not quote or cit
 - Keep Arabic quotations exactly as given in the packet.`;
 
 export function answerPrompt(question: string, lang: Lang, evidence: Evidence[]): string {
-  const quran = evidence.some(item => item.kind === 'quran');
-  const synthesis = quran
-    ? `${QURAN_SYNTHESIS_HEART}
+  const hadithOnly = evidence.length > 0 && evidence.every(item => item.kind === 'hadith');
+  const synthesis = hadithOnly
+    ? ''
+    : `${finalSynthesisSystemPrompt()}
 - An opened ayah is enough to answer the reader. Do not set insufficientEvidence only because the ayah’s words differ from the question. Set it only when the packet has no ayah and no commentary that can speak to the question.
 - Quote the Arabic and the translation. If Tamil or Sinhala tafsir text is missing, translate the opened Arabic or English commentary into the selected language. Do not say that no passage in the selected language addresses the question when an ayah is open.
-`
-    : '';
+`;
   return `You are the study assistant of DRAGON DAWWA by Aegis Intelligence. Write in ${LANGUAGE_NAMES[lang].english}.
 
 ${SAFETY_RULES}
