@@ -1,5 +1,7 @@
 import type { DragonDawwaAnalysis } from '../types/hadith.ts';
 import { scrubVanakkam } from './tamilGreeting.ts';
+import { attachAgent7ToAnalysis } from './agent7SourceResearch.ts';
+import { isChinaQuestion, isIntentionsQuestion, isSaturdayFastingQuestion } from './reportBinding.ts';
 
 /**
  * Returns localized dynamic analysis benchmarks for Tamil (தமிழ்) and Sinhala (සිංහල).
@@ -11,11 +13,10 @@ import { scrubVanakkam } from './tamilGreeting.ts';
  * 5. UI badge IDs remain standard for visual styling.
  */
 
-export function getLocalizedAnalysis(
+function buildLocalizedAnalysisCore(
   analysis: DragonDawwaAnalysis,
   lang: 'en' | 'ta' | 'si'
 ): DragonDawwaAnalysis {
-  analysis = scrubVanakkam(analysis);
   if (lang === 'en') {
     return analysis;
   }
@@ -25,7 +26,7 @@ export function getLocalizedAnalysis(
     const query = analysis.query_hadith.toLowerCase();
 
     // 1. Actions are by Intentions Benchmark
-    if (query.includes('intentions') || query.includes('niyyat') || query.includes('actions are by')) {
+    if (query.includes('intentions') || query.includes('niyyat') || query.includes('actions are by') || query.includes('எண்ணங்களைப்') || query.includes('செயல்கள்')) {
       return {
         ...analysis,
         agent_1_takhrij: {
@@ -178,13 +179,155 @@ BROTHER FEROZ (HOST): மாஷா அல்லாஹ்! அனைத்து 
     }
 
     // 2. Saturday Fasting Benchmark
-    if (query.includes('saturday') || query.includes('fasting') || query.includes('sabt')) {
+    if (isSaturdayFastingQuestion(query)) {
       return {
         ...analysis,
+        agent_1_takhrij: {
+          sources: [
+            {
+              collection: 'Sunan Abu Dawud',
+              hadith_number: '2421',
+              exact_wording: 'لا تصوموا يوم السبت إلا فيما افترض عليكم ، فإن لم يجد أحدكم إلا لحاء عنبة أو عود شجرة فليمضغه',
+              wording_differences: 'திராட்சைத் தோல் (லிஹா இனபா) மற்றும் மரக் கிளையைக் குறிப்பிடும் பிரதான அறிவிப்பு.'
+            },
+            {
+              collection: "Jami' at-Tirmidhi",
+              hadith_number: '744',
+              exact_wording: 'لا تصوموا يوم السبت إلا فيما افترض عليكم',
+              wording_differences: 'மரக் கிளை பற்றிய கூடுதல் வாசகம் இல்லாத சுருக்கமான அறிவிப்பு; இமாம் திர்மிதி இதனை ஹஸன் எனக் குறிப்பிட்டு சனிக்கிழமை மட்டும் தனித்து நோன்பு நோற்பது மக்ரூஹ் என்கிறார்.'
+            },
+            {
+              collection: 'Sunan Ibn Majah',
+              hadith_number: '1726',
+              exact_wording: 'لا تصوموا يوم السبت إلا فيما افترض عليكم',
+              wording_differences: 'கிதாப் அஸ்-ஸியாம், பாப் ஸியாம் யவ்மஸ் ஸப்த் பகுதியில் பதிவு செய்யப்பட்டுள்ளது.'
+            },
+            {
+              collection: "Sunan an-Nasa'i (Al-Kubra)",
+              hadith_number: '2761',
+              exact_wording: 'من لم يجد منكم إلا لحاء شجرة فليفطر عليه ولا يصم يوم السبت',
+              wording_differences: 'மரப்பட்டை வாசகத்தை முதலில் வைக்கும் அறிவிப்பு வேறுபாடு.'
+            },
+            {
+              collection: 'Musnad Ahmad',
+              hadith_number: '17684',
+              exact_wording: 'عن عبد الله بن بسر عن أخته الصماء أن رسول الله صلى الله عليه وسلم قال...',
+              wording_differences: 'ஷாம் (சிரியா) நாட்டு அறிவிப்பாளர்கள் வழியாகப் பதிவான முழுத் தொடர்.'
+            }
+          ],
+          variants_summary: 'அப்துல்லாஹ் இப்னு புஸ்ர் (ரழி) அவர்கள் வழியாகப் பல அறிவிப்பு வழிகளில் (சிலவற்றில் அவரது சகோதரி அஸ்-ஸம்மாஃ பின்த் புஸ்ர் வழியாகவும், சிலவற்றில் அவரது தந்தை புஸ்ர் வழியாகவும், சிலவற்றில் நேரடியாகவும்) அறிவிக்கப்பட்டுள்ளது. இந்த வாசக மற்றும் தொடர் வேறுபாடுகளே (இள்திராப்) இமாம் மாலிக், அஸ்-ஸுஹ்ரி மற்றும் அபூ தாவூத் ஆகியோரின் விமர்சனத்திற்குக் காரணமாகும்.'
+        },
+        agent_2_isnad: {
+          ...analysis.agent_2_isnad,
+          overall_chain_status: 'மேலோட்டமாகத் தொடர்ச்சியாக (முத்தஸில்) தோன்றினாலும், நபித்தோழர் அடுக்கில் அப்துல்லாஹ் இப்னு புஸ்ர், அவரது சகோதரி அஸ்-ஸம்மாஃ மற்றும் அவரது தந்தை ஆகியோருக்கு இடையில் அறிவிப்பாளர் தடுமாற்றம் (இள்திராப் - Idtirab) உள்ளது.'
+        },
+        agent_3_rijal: {
+          narrators: [
+            {
+              narrator_name: "Qutaybah ibn Sa'id al-Baghlandi (d. 240 AH)",
+              critic_verdicts: [
+                'இமாம் அஹ்மத் இப்னு ஹன்பல்: "இவர் ஸிகாஹ் (நம்பகமானவர்), சுன்னா மற்றும் ஹதீஸ் கலையின் வல்லுநர்."',
+                'அன்-நஸாஈ: "ஸிகாஹ் ஸப்த் (உறுதியான நம்பகமானவர்)."'
+              ],
+              critic_quotes_translated: 'குதைபா இப்னு ஸயீத் அனைத்து ஹதீஸ் இமாம்களாலும் ஒருமனதாக ஏற்றுக்கொள்ளப்பட்ட உறுதியான அறிவிப்பாளர்.',
+              status: 'Thiqah Thiqah',
+              citations: ['தஹ்தீப் அத்-தஹ்தீப் தொகுதி 8, பக். 312', 'சியர் அஃலாம் அந்-நுபலா தொகுதி 11, பக். 13']
+            },
+            {
+              narrator_name: 'Yahya ibn Hamza al-Hadrami (d. 183 AH)',
+              critic_verdicts: [
+                'இப்னு மஈன்: "திமிஷ்க் நகரின் நீதிபதி; நம்பகமானவர் (ஸிகாஹ்)."',
+                'இப்னு ஹஜர்: "ஸதூக் (உண்மையாளர்), தவ்ரான் இப்னு யஸீதிடமிருந்து நேரடியாகக் கேட்டவர்."'
+              ],
+              critic_quotes_translated: 'திமிஷ்க் நீதிபதியான யஹ்யா இப்னு ஹம்ஸா, தவ்ரானின் ஹதீஸ் ஏடுகளை நேரடியாகப் பெற்றவர்.',
+              status: 'Saduq / Thiqah',
+              citations: ['தஹ்தீப் அல்-கமால் தொகுதி 31, பக். 278']
+            },
+            {
+              narrator_name: "Thawran ibn Yazid al-Kila'i (Hims)",
+              critic_verdicts: [
+                'யஹ்யா இப்னு மஈன்: "லாய்பஸ பிஹி (அவரிடம் தவறில்லை / ஸதூக்)."',
+                'அபூ தாவூத் & நஸாஈ: "காலித் இப்னு மஃதானிடமிருந்து அறிவிப்பதில் சில வேளைகளில் தனித்து (தஃபர்ருத்) அறிவித்துள்ளார்."'
+              ],
+              critic_quotes_translated: 'தவ்ரான் இப்னு யஸீத் நேர்மையானவர் என்றாலும், இந்த சனிக்கிழமை நோன்பு அறிவிப்பில் மற்ற பிரதான மாணவர்களிலிருந்து வேறுபடுகிறார்.',
+              status: 'Saduq Yahim',
+              citations: ['தஹ்தீப் அத்-தஹ்தீப் தொகுதி 2, பக். 33', 'மீஸான் அல்-இஃதிதால் தொகுதி 1, பக். 374']
+            },
+            {
+              narrator_name: "Khalid ibn Ma'dan al-Kila'i (d. 103 AH)",
+              critic_verdicts: [
+                'இப்னு ஸஃத் & அல்-இஜ்லி: "ஸிகாஹ் (நம்பகமானவர்), ஷாம் நாட்டின் தலைசிறந்த தாபிஈ அறிஞர்."'
+              ],
+              critic_quotes_translated: 'காலித் இப்னு மஃதான் ஷாம் நாட்டின் மிக உயர்ந்த தாபிஈ இமாம்களில் ஒருவர்.',
+              status: 'Thiqah',
+              citations: ['சியர் அஃலாம் அந்-நுபலா தொகுதி 4, பக். 536']
+            },
+            {
+              narrator_name: "'Abdullah ibn Busr al-Mazini & Al-Samma' bint Busr (Companions)",
+              critic_verdicts: [
+                'இப்னு ஹஜர் (அல்-இஸாபா): "சகோதர-சகோதரிகளான இருவரும் நபித்தோழர்கள் (ஸஹாபா); நபித்தோழர்கள் அனைவரும் நீதிமான்கள்."'
+              ],
+              critic_quotes_translated: 'அப்துல்லாஹ் இப்னு புஸ்ர் மற்றும் அவரது சகோதரி அஸ்-ஸம்மாஃ (ரழி) ஆகிய இருவரும் நபித்தோழர்கள்.',
+              status: 'Thiqah (Sahabi)',
+              citations: ['அல்-இஸாபா ஃபீ தம்யீஸ் அஸ்-ஸஹாபா தொகுதி 4, பக். 26']
+            }
+          ]
+        },
+        agent_4_shawahid_matn: {
+          supporting_reports: [
+            'ஸஹீஹ் அல்-புஹாரி (#1986): ஜுவைரிய்யா (ரழி) அவர்கள் வெள்ளிக்கிழமை நோன்பு நோற்றிருந்தபோது நபி (ஸல்) அவர்கள், "நேற்று நோன்பு நோற்றாயா? நாளை (சனிக்கிழமை) நோன்பு நோற்க விரும்புகிறாயா?" என்று கேட்டார்கள் — இது சனிக்கிழமை நோன்பு நோற்பது அனுமதிக்கப்பட்டது என்பதைக் காட்டுகிறது.',
+            'ஸஹீஹ் அல்-புஹாரி & முஸ்லிம் (HadeethEnc #4508): வழமையான நோன்பு நோற்பவர் ரமழானுக்கு முந்தைய நாளிலும் நோன்பு நோற்கலாம்.',
+            'சுனன் அத்-திர்மிதி (#744): சனிக்கிழமையை மட்டும் தனித்து (இஃப்ராத்) நோன்பு நோற்பதே வெறுக்கத்தக்கது (மக்ரூஹ்) என்ற சமரச விளக்கம்.'
+          ],
+          quranic_corroboration_arabic: 'يَا أَيُّهَا الَّذِينَ آمَنُوا كُتِبَ عَلَيْكُمُ الصِّيَامُ كَمَا كُتِبَ عَلَى الَّذِينَ مِن قَبْلِكُمْ لَعَلَّكُمْ تَتَّقُونَ',
+          quranic_corroboration_english: 'அல்குர்ஆன் (சூரா அல்-பகரா 2:183): "ஈமான் கொண்டவர்களே! உங்களுக்கு முன் இருந்தவர்கள் மீது கடமையாக்கப்பட்டது போல் உங்கள் மீதும் நோன்பு கடமையாக்கப்பட்டுள்ளது."',
+          hidden_defects_ilal: [
+            "இள்திராப் ஃபில் இஸ்னாத் (Idtirab): காலித் இப்னு மஃதானிடமிருந்து அறிவிக்கும் அறிவிப்பாளர்கள் அப்துல்லாஹ் இப்னு புஸ்ர், அவரது சகோதரி அஸ்-ஸம்மாஃ, மற்றும் அவரது தந்தை என மாறி மாறி அறிவித்துள்ளனர்.",
+            "ஷுதூத் ஃபில் மத்ன் (Shudhudh): புஹாரி மற்றும் முஸ்லிமில் உள்ள வலுவான நபிமொழிகளுக்கு (ஜுவைரிய்யா ரழி ஹதீஸ் #1986 மற்றும் தாவூத் அலை நோன்பு ஹதீஸ்) நேர்மாறாகத் தனித்து நிற்கிறது."
+          ],
+          contradictions: [
+            'ஸஹீஹ் அல்-புஹாரி #1986-ல் வெள்ளிக்கிழமையுடன் சனிக்கிழமையைச் சேர்த்து நோன்பு நோற்க நபி (ஸல்) அவர்கள் பணித்ததற்கு முரண்படுகிறது.',
+            'ஒரு நாள் விட்டு ஒரு நாள் நோன்பு நோற்கும் (ஸவ்ம் தாவூத்) மிகச் சிறந்த உபரி நோன்பில் சனிக்கிழமை தவிர்க்க முடியாமல் வரும் என்பதற்கு முரண்படுகிறது.'
+          ]
+        },
+        agent_5_scholars_verdict: {
+          gradings: [
+            {
+              scholar: 'இமாம் மாலிக் இப்னு அனஸ் (Imam Malik, d. 179 AH)',
+              grading: 'மத்ரூக் / கத்ப் (நிராகரிக்கப்பட்டது)',
+              reference: 'சுனன் அபூ தாவூத் #2423-ல் அபூ தாவூத் பதிவு செய்த குறிப்பு'
+            },
+            {
+              scholar: 'இமாம் இப்னு ஷிஹாப் அஸ்-ஸுஹ்ரி (Al-Zuhri, d. 124 AH)',
+              grading: 'லய்ச பி-ஷைஇன் (ஆதாரமாகக் கொள்ளத்தக்கதல்ல)',
+              reference: 'சுனன் அபூ தாவூத் #2422'
+            },
+            {
+              scholar: 'இமாம் அபூ தாவூத் அஸ்-ஸிஜிஸ்தானி (Abu Dawud, d. 275 AH)',
+              grading: 'மன்சூக் (மாற்றப்பட்டது / Abrogated)',
+              reference: 'சுனன் அபூ தாவூத் #2421'
+            },
+            {
+              scholar: 'இமாம் அத்-திர்மிதி (Al-Tirmidhi, d. 279 AH)',
+              grading: 'ஹஸன் (தனித்து நோன்பு நோற்பது மக்ரூஹ் என்ற பொருளில்)',
+              reference: 'ஜாமிஉ அத்-திர்மிதி #744'
+            },
+            {
+              scholar: 'இப்னு ஹஜர் அல்-அஸ்கலானி (Ibn Hajar, d. 852 AH)',
+              grading: 'முள்தரிப் (தொடரில் தடுமாற்றம் கொண்டது; சமரசப் பொருளில் மட்டுமே ஏற்புடையது)',
+              reference: 'தல்கீஸ் அல்-ஹபீர் தொகுதி 2, பக். 216'
+            },
+            {
+              scholar: 'ஷைகுல் அல்பானி (Sheikh al-Albani, d. 1420 AH)',
+              grading: 'ஸஹீஹ் (இஸ்னாத் அடிப்படையில்)',
+              reference: 'இர்வா அல்-கலீல் #960'
+            }
+          ]
+        },
         agent_6_synthesis: {
           ...analysis.agent_6_synthesis,
           final_status: "ஷாத் (விசித்திரமானது) / முத்தரிப் - இமாம் மாலிக் & அபூ தாவூத் தீர்ப்பு",
-          consensus_and_disagreements: "சனிக்கிழமைகளில் நோன்பு நோற்பதைத் தடை செய்யும் இந்த ஹதீஸ் குறித்து உலாமாக்களிடையே கடுமையான கருத்து வேறுபாடு நிலவுகிறது. இமாம் அல்பானி இதனை ஸஹீஹ் என்றாலும், இமாம் மாலிக் மற்றும் அஹ்மத் இதனை ஸஹீஹான நோன்பு ஹதீஸ்களுக்கு முரணான 'ஷாத்' (நிராகரிக்கப்பட்டது) எனக் கருதுகின்றனர்.",
+          consensus_and_disagreements: "சனிக்கிழமைகளில் நோன்பு நோற்பதைத் தடை செய்யும் இந்த ஹதீஸ் குறித்து உலாமாக்களிடையே கடுமையான கருத்து வேறுபாடு நிலவுகிறது. இமாம் அல்பானி இதனை ஸஹீஹ் என்றாலும், இமாம் மாலிக் மற்றும் அஹ்மத் இதனை ஸஹீஹான நோன்பு ஹதீஸ்களுக்கு முரணான 'ஷாத்' (நிராகரிக்கப்பட்டது) எனக் கருதுகின்றனர்; இமாம் திர்மிதி மற்றும் இப்னு ஹஜர் சனிக்கிழமையை மட்டும் தனித்து நோன்பு நோற்பதே மக்ரூஹ் எனச் சமரசம் செய்கின்றனர்.",
           executive_report_markdown: `### டிராகன் தஃவா கல்விசார் ஆய்வு அறிக்கை: சனிக்கிழமை நோன்பு தடை
 
 **ஆய்வு செய்யப்பட்ட உரை:** "${analysis.query_hadith}"  
@@ -207,6 +350,8 @@ SHEIKH IMRAN: அறிவிப்பாளர்கள் தனித்த�
 
 DR. ZAINAB: மிக முக்கியமாக, புகாரியின் ஸஹீஹான நபிமொழிகளோடு இது நேரடியாக முரண்படுகிறது!
 
+SHEIKH YUSUF: அதனால்தான் இமாம் மாலிக் இதனை நிராகரித்தார்; இமாம் அபூ தாவூத் இது மாற்றப்பட்டது என்றார்; இமாம் திர்மிதி சனிக்கிழமை மட்டும் தனித்து நோன்பு நோற்பது மக்ரூஹ் எனச் சமரசம் செய்தார்!
+
 BROTHER FEROZ (HOST): எனவே டிராகன் தஃவா எஞ்சின் இதற்கு 54.5% மதிப்பீட்டை வழங்கி, இது 'ஷாத்' (விசித்திரமானது) என்று தீர்ப்பளிக்கிறது!
 
 [AUDIO CUE: OUTRO THEME RISES AND FADES OUT]`
@@ -215,7 +360,7 @@ BROTHER FEROZ (HOST): எனவே டிராகன் தஃவா எஞ்�
     }
 
     // 3. Seek Knowledge Even Unto China Benchmark
-    if (query.includes('china') || query.includes('knowledge') || query.includes('sin')) {
+    if (query.includes('china') || query.includes('knowledge') || query.includes('sin') || query.includes('சீனா') || query.includes('கல்வி')) {
       return {
         ...analysis,
         agent_3_rijal: {
@@ -271,15 +416,8 @@ BROTHER FEROZ (HOST): எனவே, டிராகன் தஃவா ஆய்
       };
     }
 
-    // Default translation wrapper for dynamic queries in Tamil
-    return {
-      ...analysis,
-      agent_6_synthesis: {
-        ...analysis.agent_6_synthesis,
-        final_status: `${analysis.agent_6_synthesis.final_status} (சரிபார்க்கப்பட்டது)`,
-        consensus_and_disagreements: "குதுபுஸ் ஸித்தாஹ் நூல்களின் அடிப்படையில் ஆராயப்பட்டு அறிஞர்களின் ஒருமித்த கருத்தின்படி வகைப்படுத்தப்பட்டுள்ளது."
-      }
-    };
+    // Keep this job's own synthesis. Do not replace it with a canned consensus.
+    return analysis;
   }
 
   if (lang === 'si') {
@@ -440,7 +578,7 @@ BROTHER FEROZ (HOST): මාෂා අල්ලාහ්! පර්යේෂණ 
     }
 
     // 2. Saturday Fasting Benchmark
-    if (query.includes('saturday') || query.includes('fasting') || query.includes('sabt') || query.includes('සෙනසුරාදා') || query.includes('උපවාස')) {
+    if (isSaturdayFastingQuestion(query)) {
       return {
         ...analysis,
         agent_1_takhrij: {
@@ -639,16 +777,21 @@ BROTHER FEROZ (HOST): එමනිසා ඩ්‍රැගන් දඃවා �
       };
     }
 
-    // Default translation wrapper for dynamic queries in Sinhala
-    return {
-      ...analysis,
-      agent_6_synthesis: {
-        ...analysis.agent_6_synthesis,
-        final_status: `${analysis.agent_6_synthesis.final_status} (සත්‍යාපනය කරන ලදී)`,
-        consensus_and_disagreements: "කුතුබ් අල්-සිත්තාහ් මූලාශ්‍ර මත පදනම්ව විද්වත් තීන්දු සංසන්දනය කර වර්ගීකරණය කර ඇත."
-      }
-    };
+    // Keep this job's own synthesis. Do not replace it with a canned consensus.
+    return analysis;
   }
 
   return analysis;
+}
+
+export function getLocalizedAnalysis(
+  analysis: DragonDawwaAnalysis,
+  lang: 'en' | 'ta' | 'si'
+): DragonDawwaAnalysis {
+  const cleaned = scrubVanakkam(analysis);
+  // A finished job is already written in one language. Do not recast it into another
+  // language or into a canned dossier for a different question.
+  if (cleaned.content_language) return cleaned;
+  const core = buildLocalizedAnalysisCore(cleaned, lang);
+  return scrubVanakkam(attachAgent7ToAnalysis(core, lang));
 }

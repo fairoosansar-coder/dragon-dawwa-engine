@@ -6,8 +6,10 @@ import path from 'node:path';
 import { HADITH_COLLECTIONS, PRAYER_METHODS, RECITERS, quranPronunciationEdition, toLang } from './src/shared/sources.ts';
 import { dedupeRefs, parseRefs, refKey, type HadithRef } from './src/shared/refs.ts';
 import type { PodcastLine } from './src/shared/types.ts';
-import { getSurah, getSurahArabic, getSurahMeaning, getVerses, listSurahs } from './src/server/quran.ts';
+import { getSurah, getSurahArabic, getSurahMeaning, getVerses, listSurahs, locateJuz, locatePage } from './src/server/quran.ts';
 import { audioManifestEdition, listQuranEncEditions, loadAudioManifest, loadMukhtasar, MEANING_AUDIO_NOT_LISTED } from './src/server/quranenc.ts';
+import { fetchMcpMorphology, fetchMcpTafsir, listMcpEditions, searchMcpQuran } from './src/server/quranMcp.ts';
+import { parseEditionId, readTafsirQuery, type McpEditionType } from './src/shared/quranMcp.ts';
 import { readEditionQuery } from './src/shared/quranenc.ts';
 import { getAsma } from './src/server/asma.ts';
 import { getHadith, getSection, listSections } from './src/server/hadith.ts';
@@ -20,6 +22,8 @@ import { loadHadeeth, loadHadeethCategories, loadHadeethList, searchHadeeth } fr
 import { pageByRelevance } from './src/shared/hadeethenc.ts';
 import { askPilot, loadPilotEpisode } from './src/server/pilot.ts';
 import { loadKnowledgeShelf, loadLibrary, loadLibraryItem } from './src/server/islamhouse.ts';
+import { loadBookDetail, loadBookMeta, loadBookShelf, loadBookStats } from './src/server/bookShelf.ts';
+import { readingPages } from './src/server/pdfPages.ts';
 import { readLibraryItem } from './src/server/libraryRead.ts';
 import { allowedMediaUrl, readMedia } from './src/server/media.ts';
 import { listNames, readName } from './src/server/names.ts';
@@ -41,7 +45,8 @@ import {
   type SourceFetchers,
 } from './src/server/gemini.ts';
 import { executeDragonDawwaAnalysis } from './src/engine/server/hadithEngine.ts';
-import { getResearchJob, startResearchJob } from './src/engine/server/researchJobs.ts';
+import { randomUUID } from 'node:crypto';
+import { getResearchJob, seedResearchJob, startResearchJob } from './src/engine/server/researchJobs.ts';
 import { synthesizeRoundtableVoice } from './src/engine/server/geminiTtsService.ts';
 import { extractHadithFromMedia } from './src/engine/server/hadithOcrService.ts';
 import { transcribeAudioWithGemini } from './src/engine/server/geminiAudioTranscribe.ts';
@@ -51,6 +56,13 @@ import { publicAppUrl, viteDevServerOptions } from './src/server/publicUrl.ts';
 import { EditorialStore, parseEditorAccounts } from './src/server/spiritual/editorialStore.ts';
 import { spiritualRouter } from './src/server/spiritual/routes.ts';
 import { studioRouter } from './src/server/studio/routes.ts';
+import { HumanReviewStore } from './src/server/research/humanReviewStore.ts';
+import { humanReviewRouter } from './src/server/research/humanReviewRoutes.ts';
+import { applyPersistDir, persistRoot } from './src/server/persist.ts';
+import { collectionSummary } from './src/server/hadeethenc/collection.ts';
+import { listSavedEpisodes, readSavedEpisode, saveEpisodeAudio } from './src/server/research/savedWork.ts';
+
+applyPersistDir();
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -77,7 +89,7 @@ if (process.env.CODESPACES === 'true' || process.env.CODESPACE_NAME) {
 }
 app.use(ummahQuranMiddleware);
 app.use(ummahStudyMiddleware);
-app.use(['/api/extract-hadith-media', '/api/transcribe-audio'], express.json({ limit: '15mb' }));
+app.use(['/api/extract-hadith-media', '/api/transcribe-audio', '/api/research/episodes'], express.json({ limit: '20mb' }));
 app.use(express.json({ limit: '64kb' }));
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
@@ -155,6 +167,8 @@ function editionKeyFrom(value: unknown): string | undefined {
 }
 
 app.get('/api/quran/surahs', route(async (_req, res) => res.json(await listSurahs())));
+app.get('/api/quran/page/:n', route(async (req, res) => res.json(await locatePage(Number(req.params.n)))));
+app.get('/api/quran/juz/:n', route(async (req, res) => res.json(await locateJuz(Number(req.params.n)))));
 app.get('/api/quran/editions', route(async (req, res) => res.json(await listQuranEncEditions(toLang(req.query.lang)))));
 app.get(
   '/api/quran/audio-manifest',
@@ -181,6 +195,48 @@ app.get(
   route(async (req, res) => {
     const surah = Number(req.query.surah);
     res.json(await loadMukhtasar(toLang(req.query.lang), surah));
+  }),
+);
+
+function mcpEditionType(value: unknown): McpEditionType {
+  if (value === 'quran' || value === 'tafsir' || value === 'translation') return value;
+  throw new UpstreamError('That edition list cannot be requested.', 400);
+}
+
+app.get(
+  '/api/quran/mcp/editions',
+  route(async (req, res) => {
+    res.json(await listMcpEditions(mcpEditionType(req.query.type)));
+  }),
+);
+
+app.get(
+  '/api/quran/mcp/tafsir',
+  route(async (req, res) => {
+    const read = readTafsirQuery(req.query.ayah, req.query.edition);
+    if ('error' in read) throw new UpstreamError(read.error, 400);
+    res.json(await fetchMcpTafsir(read.ayah, read.edition));
+  }),
+);
+
+app.get(
+  '/api/quran/mcp/morphology',
+  route(async (req, res) => {
+    res.json(await fetchMcpMorphology(typeof req.query.ayah === 'string' ? req.query.ayah : ''));
+  }),
+);
+
+app.get(
+  '/api/quran/mcp/search',
+  route(async (req, res) => {
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    if (q.length < 2 || q.length > 200) throw new UpstreamError('Enter a short search.', 400);
+    const edition = req.query.edition == null || req.query.edition === '' ? null : parseEditionId(req.query.edition);
+    if (req.query.edition && !edition) throw new UpstreamError('That edition cannot be used. No other translation was substituted.', 400);
+    const surahRaw = req.query.surah;
+    const surah = surahRaw == null || surahRaw === '' ? null : Number(surahRaw);
+    if (surah != null && (!Number.isInteger(surah) || surah < 1 || surah > 114)) throw new UpstreamError('Surah must be between 1 and 114', 400);
+    res.json(await searchMcpQuran(q, edition, surah));
   }),
 );
 
@@ -278,9 +334,44 @@ app.get(
   route(async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) throw new UpstreamError('Unknown item', 404);
-    res.json(await readLibraryItem(id, toLang(req.query.lang)));
+    const document = await readLibraryItem(id, toLang(req.query.lang));
+    if (req.query.pages !== '1') {
+      res.json(document);
+      return;
+    }
+    const pages = await readingPages(document);
+    res.json({ ...document, pages });
   }),
 );
+
+function bookShelfQuery(req: Request) {
+  const category = Number(req.query.category);
+  const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 80) : '';
+  if (q && q.length < 3) throw new UpstreamError('Search needs at least 3 characters', 400);
+  return {
+    lang: toLang(req.query.lang),
+    page: pageNumber(req.query.page),
+    categoryId: Number.isInteger(category) && category > 0 ? category : null,
+    q,
+    essential: req.query.shelf === 'essential',
+    format: req.query.format === 'pdf' ? 'pdf' as const : 'any' as const,
+    sort: req.query.sort === 'title' ? 'title' as const : 'newest' as const,
+  };
+}
+
+app.get('/api/library/books/meta', route(async (req, res) => res.json(await loadBookMeta(toLang(req.query.lang)))));
+app.get('/api/library/books/stats', route(async (req, res) => res.json(await loadBookStats(toLang(req.query.lang)))));
+
+app.get(
+  '/api/library/books/:id',
+  route(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) throw new UpstreamError('Unknown book', 404);
+    res.json(await loadBookDetail(id, toLang(req.query.lang)));
+  }),
+);
+
+app.get('/api/library/books', route(async (req, res) => res.json(await loadBookShelf(bookShelfQuery(req)))));
 
 app.get('/api/library/media', async (req, res, next) => {
   try {
@@ -340,6 +431,55 @@ app.post(
       noticeId: decision.assignment.noticeId,
       contractVersion: '1.0.0',
     });
+  }),
+);
+
+app.get('/api/sources/hadeethenc', route(async (_req, res) => res.json(collectionSummary())));
+
+app.get('/api/research/episodes', route(async (_req, res) => res.json({ episodes: listSavedEpisodes() })));
+
+app.get(
+  '/api/research/episodes/:id',
+  route(async (req, res) => {
+    const episode = readSavedEpisode(String(req.params.id));
+    if (!episode) throw new UpstreamError('Unknown saved episode', 404);
+    res.json(episode);
+  }),
+);
+
+app.post(
+  '/api/research/episodes',
+  route(async (req, res) => {
+    const lines = Array.isArray(req.body?.lines) ? req.body.lines.slice(0, 24) : [];
+    if (!lines.length) throw new UpstreamError('A saved episode needs its transcript.', 400);
+    const audio = typeof req.body?.audioBase64 === 'string' ? req.body.audioBase64 : undefined;
+    const saved = saveEpisodeAudio(
+      {
+        id: text(req.body?.id, 120, 'id'),
+        jobId: typeof req.body?.jobId === 'string' ? req.body.jobId.slice(0, 80) : '',
+        question: text(req.body?.question, 800, 'question'),
+        language: toLang(req.body?.language ?? req.body?.lang),
+        participants: Array.isArray(req.body?.participants)
+          ? req.body.participants.slice(0, 12).map((item: { id?: string; role?: string; team?: string }) => ({
+              id: String(item?.id ?? '').slice(0, 80),
+              role: String(item?.role ?? '').slice(0, 120),
+              team: String(item?.team ?? '').slice(0, 40),
+            }))
+          : [],
+        lines: lines.map((line: { speaker?: string; role?: string; text?: string }) => ({
+          speaker: String(line?.speaker ?? '').slice(0, 120),
+          role: String(line?.role ?? '').slice(0, 120),
+          text: String(line?.text ?? '').slice(0, 4000),
+        })),
+        sources: Array.isArray(req.body?.sources) ? req.body.sources.slice(0, 40).map((item: unknown) => String(item).slice(0, 300)) : [],
+        reportHtml: typeof req.body?.reportHtml === 'string' ? req.body.reportHtml.slice(0, 80_000) : '',
+        mimeType: typeof req.body?.mimeType === 'string' ? req.body.mimeType.slice(0, 80) : 'audio/wav',
+        savedAt: new Date().toISOString(),
+        hasAudio: Boolean(audio),
+      },
+      audio,
+    );
+    res.status(201).json({ id: saved.id, hasAudio: saved.hasAudio });
   }),
 );
 
@@ -543,7 +683,6 @@ app.post(
   route(async (req, res) => {
     const hadith = text(req.body?.hadith_input, 4000, 'hadith_input');
     const isnad = typeof req.body?.isnad_input === 'string' ? req.body.isnad_input.slice(0, 2000) : '';
-    requireAi();
     const id = startResearchJob(
       () => executeDragonDawwaAnalysis(hadith, isnad, toLang(req.body?.preferred_language)),
       err => engineFailure(err, 'The hadith research engine could not complete this request. Please retry.').message,
@@ -571,9 +710,10 @@ app.post(
     const body = text(req.body?.text, 3000, 'text');
     const speaker = typeof req.body?.speaker === 'string' ? req.body.speaker.slice(0, 80) : 'Host';
     const voice = typeof req.body?.voiceName === 'string' ? req.body.voiceName.slice(0, 40) : undefined;
+    const lang = toLang(req.body?.lang);
     requireAi();
     try {
-      res.json(await synthesizeRoundtableVoice(body, speaker, voice));
+      res.json(await synthesizeRoundtableVoice(body, speaker, voice, lang));
     } catch (err) {
       throw engineFailure(err, 'Gemini neural voice failed. The robotic system voice is not used. Please retry.');
     }
@@ -624,7 +764,7 @@ app.post(
   }),
 );
 
-const dataDir = path.resolve(process.env.KF_DATA_DIR || path.join(import.meta.dirname, '.data'));
+const dataDir = persistRoot();
 const editorAccounts = parseEditorAccounts(process.env.EDITORIAL_USERS);
 app.use(
   spiritualRouter({
@@ -643,6 +783,20 @@ app.use(
     aiLimiter,
   }),
 );
+
+const reviewStore = new HumanReviewStore(path.join(dataDir, 'human-reviews.json'));
+app.use(humanReviewRouter({ accounts: editorAccounts, reviews: reviewStore }));
+if (process.env.REVIEW_DEMO === '1') {
+  app.post('/api/review-demo/seed', (req, res) => {
+    const id = typeof req.body?.id === 'string' && /^[A-Za-z0-9-]{8,80}$/.test(req.body.id) ? req.body.id : randomUUID();
+    if (!req.body?.analysis || typeof req.body.analysis !== 'object') {
+      res.status(400).json({ error: 'analysis is required' });
+      return;
+    }
+    seedResearchJob(id, req.body.analysis);
+    res.status(201).json({ id, status: 'done' });
+  });
+}
 
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'Not found' });

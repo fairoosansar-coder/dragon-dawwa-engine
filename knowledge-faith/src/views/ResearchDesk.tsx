@@ -5,6 +5,7 @@ import { researchOutcome } from '../shared/research/outcomes.ts';
 import { toLang, type Lang } from '../shared/sources.ts';
 import { useRemote } from '../lib/api.ts';
 import { beginResearch, noticeText, readResearchHistory, rememberResearch, researchHref, type StoredResearch } from '../lib/researchDesk.ts';
+import { questionsToResearch, separateQuestions } from '../shared/research/questions.ts';
 import { useApp } from '../lib/store.tsx';
 import { Button, ErrorNote, Loading, Notice } from '../components/ui.tsx';
 import { FullReport } from './FullReport.tsx';
@@ -25,8 +26,10 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
   const [clarified, setClarified] = useState(params.get('clarified') === '1');
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<StoredResearch[]>([]);
+  const [chapters, setChapters] = useState<{ id: string; scope: ResearchScope; question: string; forwarded?: boolean }[]>([]);
   const remote = useRemote<ResearchJobResponse>(jobId ? `/api/research/jobs/${jobId}` : null);
   const running = remote.data?.job.status === 'running' || remote.data?.job.status === 'queued';
+  const parallelPending = remote.data?.job.status === 'done' && remote.data.job.parallel?.status === 'running';
 
   useEffect(() => {
     if (paramLang === 'en' || paramLang === 'ta' || paramLang === 'si') setLang(paramLang);
@@ -34,18 +37,29 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
 
   useEffect(() => {
     setJobId(jobParam);
-    if (askedParam) setQuestion(askedParam);
+    if (!askedParam) return;
+    const parts = separateQuestions(askedParam);
+    setQuestion(parts[0] ?? askedParam);
   }, [jobParam, askedParam]);
+
+  useEffect(() => {
+    try {
+      const parsed = JSON.parse(sessionStorage.getItem('kf-research-chapters') || '[]') as { id: string; scope: ResearchScope; question: string; forwarded?: boolean }[];
+      setChapters(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      setChapters([]);
+    }
+  }, [jobId]);
 
   useEffect(() => {
     setHistory(readResearchHistory().filter(item => item.scope === entry));
   }, [entry, remote.data?.job.status]);
 
   useEffect(() => {
-    if (!running) return;
-    const timer = window.setInterval(() => remote.reload(), 700);
+    if (!running && !parallelPending) return;
+    const timer = window.setInterval(() => remote.reload(), parallelPending ? 2000 : 700);
     return () => window.clearInterval(timer);
-  }, [running, remote.reload]);
+  }, [running, parallelPending, remote.reload]);
 
   useEffect(() => {
     const response = remote.data;
@@ -69,29 +83,67 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
     if (text) setNotice(text);
   }, [remote.data?.job.assignment?.noticeId, t]);
 
+  async function researchOne(asked: string, extra?: { clarified?: boolean; prior?: string | null; force?: boolean }) {
+    return beginResearch({
+      question: asked,
+      entry,
+      lang,
+      bookId: selectedBook,
+      forwarded: params.get('fwd') === '1',
+      clarified: extra?.clarified ?? clarified,
+      priorQuestion: extra?.clarified ? extra.prior ?? null : null,
+      force: extra?.force,
+    });
+  }
+
   async function submit(event?: FormEvent, extra?: { clarified?: boolean; prior?: string | null; force?: boolean }) {
     event?.preventDefault();
-    const asked = question.trim();
-    if (asked.length < 3) return;
+    const clarifying = extra?.clarified === true;
+    const pieces = questionsToResearch(question, clarifying ? null : remote.data?.job.question ?? null, clarifying);
+    if (!pieces.length) return;
     setError(null);
     try {
-      const started = await beginResearch({
-        question: asked,
-        entry,
-        lang,
-        bookId: selectedBook,
-        forwarded: params.get('fwd') === '1',
-        clarified: extra?.clarified ?? clarified,
-        priorQuestion: extra?.prior ?? remote.data?.job.question ?? null,
-        force: extra?.force,
-      });
+      const startedChapters: { id: string; scope: ResearchScope; question: string; forwarded: boolean }[] = [];
+      for (const piece of pieces) {
+        const started = await researchOne(piece, extra);
+        if (started.action === 'clarify' || !started.id || !started.scope) {
+          setClarify(true);
+          setQuestion(piece);
+          return;
+        }
+        startedChapters.push({ id: started.id, scope: started.scope, question: piece, forwarded: started.action === 'forward' });
+      }
+      setClarify(false);
+      setQuestion(startedChapters[0].question);
+      if (startedChapters.length > 1) {
+        sessionStorage.setItem('kf-research-chapters', JSON.stringify(startedChapters));
+        setChapters(startedChapters);
+      }
+      const first = startedChapters[0];
+      const href = researchHref(first.scope, first.id, lang, first.forwarded, selectedBook, first.question);
+      if (first.scope !== entry || window.location.hash !== href) {
+        window.location.hash = href;
+        return;
+      }
+      setJobId(first.id);
+      remote.reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The research job could not be started.');
+    }
+  }
+
+  async function researchSeparate(piece: string) {
+    setError(null);
+    try {
+      const started = await researchOne(piece, { force: true });
       if (started.action === 'clarify' || !started.id || !started.scope) {
         setClarify(true);
+        setQuestion(piece);
         return;
       }
       setClarify(false);
-      const forwarded = started.action === 'forward';
-      const href = researchHref(started.scope, started.id, lang, forwarded, selectedBook, asked);
+      setQuestion(piece);
+      const href = researchHref(started.scope, started.id, lang, started.action === 'forward', selectedBook, piece);
       if (started.scope !== entry || window.location.hash !== href) {
         window.location.hash = href;
         return;
@@ -103,8 +155,9 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
     }
   }
 
-  const job = remote.data?.job;
-  const dossier = remote.data?.dossier ?? null;
+  const savedReport = useMemo(() => history.find(item => item.id === jobId) ?? null, [history, jobId]);
+  const job = remote.data?.job ?? (remote.loading ? undefined : savedReport?.response.job);
+  const dossier = remote.data?.dossier ?? (remote.loading ? null : savedReport?.response.dossier ?? null);
   const model = job ? buildReportModel(job, dossier) : null;
   const finished = job?.status === 'done' || job?.status === 'error' || job?.status === 'cancelled';
   const outcome = job && finished
@@ -113,6 +166,7 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
         queryCount: job.subquestions.reduce((total, sub) => total + sub.queries.length, 0),
         passageCount: dossier?.passages.length ?? 0,
         coverage: job.coverage,
+        investigation: job.investigation,
       })
     : null;
   const heading = entry === 'knowledge' ? t.askIslam : entry === 'quran' ? t.researchQuran : entry === 'hadith' ? t.researchHadith : t.researchBooks;
@@ -129,8 +183,12 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
     setTimeout(() => URL.revokeObjectURL(href), 0);
   }
 
-  const savedReport = useMemo(() => history.find(item => item.id === jobId) ?? null, [history, jobId]);
-  const liveModel = model ?? (savedReport ? buildReportModel(savedReport.response.job, savedReport.response.dossier) : null);
+  const liveModel = model ?? (savedReport && !remote.loading ? buildReportModel(savedReport.response.job, savedReport.response.dossier) : null);
+  const citedPassages = (liveModel?.passages ?? []).filter(
+    passage => !passage.context?.startsWith('Neighbouring') && (liveModel?.citationIds.length ? liveModel.citationIds.includes(passage.id) : true),
+  );
+  const otherQuestions = job ? separateQuestions(job.question).slice(1) : [];
+  const offersPodcast = job?.investigation !== 'blocked' && otherQuestions.length === 0 && (dossier?.passages.length ?? savedReport?.response.dossier?.passages.length ?? 0) > 0;
 
   return (
     <div className="space-y-6">
@@ -142,6 +200,7 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
           <label className="sr-only" htmlFor="research-question">{heading}</label>
           <textarea
             id="research-question"
+            lang={lang}
             value={question}
             onChange={event => setQuestion(event.target.value)}
             rows={4}
@@ -153,6 +212,27 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
             {t.researchMyQuestion}
           </Button>
         </form>
+        {otherQuestions.length > 0 && (
+          <div className="mt-4 space-y-2">
+            <p className="text-sm leading-relaxed text-ink/75">This record joined more than one question. Each question keeps its own research.</p>
+            {otherQuestions.map(item => (
+              <Button key={item} type="button" variant="soft" onClick={() => void researchSeparate(item)}>
+                {item}
+              </Button>
+            ))}
+          </div>
+        )}
+        {chapters.length > 1 && (
+          <ul className="mt-4 space-y-2">
+            {chapters.map((chapter, index) => (
+              <li key={chapter.id}>
+                <a href={researchHref(chapter.scope, chapter.id, lang, chapter.forwarded === true, selectedBook, chapter.question)} className="text-sm font-medium text-pine hover:underline">
+                  Chapter {index + 1}. {chapter.question}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
         {notice && <div className="mt-4"><Notice>{notice}</Notice></div>}
         {clarify && (
           <form
@@ -175,39 +255,21 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
         {error && <div className="mt-4"><ErrorNote message={error} /></div>}
       </section>
 
-      {job && (
+      {job && running && (
         <section className="rounded-3xl border border-pine/10 bg-parchment p-5" aria-live="polite">
           <h2 className="font-display text-2xl font-bold text-pine">{t.researchProgress}</h2>
-          <p className="mt-2 text-sm text-ink/80">
-            {job.status === 'running' ? job.progress.step : job.status} · {job.progress.completed}/{job.progress.total}
-            {job.language ? ` · ${job.language}` : ''}
-          </p>
-          <ul className="mt-3 space-y-2 text-sm">
-            {(job.agents ?? []).map(agent => (
-              <li key={agent.id}>
-                <span className="font-medium text-pine">{agent.role}</span>
-                <span className="text-muted"> · {agent.status === 'ran' ? 'contributed' : agent.status === 'unavailable' ? 'source unavailable' : 'did not run'}</span>
-              </li>
-            ))}
-          </ul>
-          {job.subquestions.length > 0 && (
-            <ul className="mt-3 space-y-1 text-sm text-ink/75">
-              {job.subquestions.map(sub => (
-                <li key={sub.id}>{sub.text}{sub.queries.length ? ` · ${sub.queries.join(' · ')}` : ''}</li>
-              ))}
-            </ul>
-          )}
+          <ResearchActivity job={job} />
         </section>
       )}
       {running && <Loading label={t.researchProgress} />}
-      {remote.error && <ErrorNote message={remote.error} onRetry={remote.reload} />}
-      {outcome && (dossier?.passages.length ?? 0) === 0 && (
+      {remote.error && !savedReport && <ErrorNote message={remote.error} onRetry={remote.reload} />}
+      {outcome && (
         <Notice>
           <span className="font-semibold">{outcome.title} </span>
           {outcome.detail}
           {outcome.retry && (
             <span className="mt-3 block">
-              <Button type="button" variant="soft" onClick={() => void submit(undefined, { force: true, prior: job?.question ?? null })}>
+              <Button type="button" variant="soft" onClick={() => void submit(undefined, { force: true })}>
                 {t.retry}
               </Button>
             </span>
@@ -217,9 +279,48 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
 
       {liveModel && finished && (
         <div className="space-y-4">
+          <section className="rounded-3xl border border-gold bg-white p-5" data-research-answer>
+            <h2 className="font-display text-2xl font-bold text-pine">Answer</h2>
+            {job?.interpretation?.meaning && <p className="mt-2 text-sm leading-relaxed text-ink/80">{job.interpretation.meaning}</p>}
+            {job?.interpretation?.scopes?.length ? (
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-ink/80">
+                {job.interpretation.scopes.map(scope => (
+                  <li key={scope.id}>{scope.text}</li>
+                ))}
+              </ul>
+            ) : null}
+            {liveModel.answer ? <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed" lang={job?.language ?? liveModel.language}>{liveModel.answer}</p> : <p className="mt-3 text-sm text-muted">No answer was written from the retrieved passages.</p>}
+            {job?.materialParts?.some(part => part.status === 'unresolved') && (
+              <ul className="mt-3 space-y-1 text-sm text-ink/80" data-material-coverage>
+                {job.materialParts.filter(part => part.status === 'unresolved').map(part => (
+                  <li key={part.id}><span className="font-semibold text-pine">{part.kind}. </span>{part.note}</li>
+                ))}
+              </ul>
+            )}
+            {job?.parallel && (
+              <p className="mt-3 text-sm leading-relaxed text-ink/75" data-parallel-status>
+                Deep Research & Source Verification: {job.parallel.liveCallMade ? job.parallel.status : 'not called'}.
+                {' '}
+                {job.parallel.setup ?? 'Parallel confidence is provider metadata, not a hadith grade, a religious certainty score, or human approval.'}
+              </p>
+            )}
+            {liveModel.answerArabic && (
+              <p className="mt-3 font-arabic text-2xl leading-loose" dir="rtl" lang="ar">{liveModel.answerArabic}</p>
+            )}
+            <h3 className="mt-4 font-display text-lg font-bold text-pine">Citations</h3>
+            {citedPassages.length === 0 && <p className="mt-2 text-sm text-muted">No passage was kept.</p>}
+            <ul className="mt-2 space-y-2 text-sm">
+              {citedPassages.map(passage => (
+                <li key={passage.id}>
+                  <span className="font-semibold text-pine">{passage.locator}</span>
+                  <span className="text-muted"> · {passage.source.provider}{passage.publishedGrade ? ` · ${passage.publishedGrade}` : ''}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
           <div className="flex flex-wrap gap-3">
             <Button type="button" onClick={download}>{t.downloadReport}</Button>
-            {job && (
+            {job && offersPodcast && (
               <a href={`#/podcast?job=${job.id}&lang=${lang}`} className="inline-flex items-center rounded-full border border-pine/20 px-4 py-2 text-sm font-medium text-pine">
                 {t.makePodcast}
               </a>
@@ -227,6 +328,12 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
           </div>
           <FullReport model={liveModel} />
         </div>
+      )}
+      {job && finished && (
+        <details className="rounded-3xl border border-pine/10 bg-parchment p-5">
+          <summary className="cursor-pointer font-display text-xl font-bold text-pine">{t.researchProgress}</summary>
+          <ResearchActivity job={job} />
+        </details>
       )}
 
       {entry === 'hadith' && (
@@ -254,6 +361,32 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
         </ul>
       </section>
     </div>
+  );
+}
+
+function ResearchActivity({ job }: { job: ResearchJobResponse['job'] }) {
+  return (
+    <>
+      <p className="mt-2 text-sm text-ink/80">
+        {job.status === 'running' ? job.progress.step : job.status} · {job.progress.completed}/{job.progress.total}
+        {job.language ? ` · ${job.language}` : ''}
+      </p>
+      <ul className="mt-3 space-y-2 text-sm">
+        {(job.agents ?? []).map(agent => (
+          <li key={agent.id}>
+            <span className="font-medium text-pine">{agent.role}</span>
+            <span className="text-muted"> · {agent.status === 'ran' ? 'contributed' : agent.status === 'unavailable' ? 'source unavailable' : 'did not run'}</span>
+          </li>
+        ))}
+      </ul>
+      {job.subquestions.length > 0 && (
+        <ul className="mt-3 space-y-1 text-sm text-ink/75">
+          {job.subquestions.map(sub => (
+            <li key={sub.id}>{sub.text}{sub.queries.length ? ` · ${sub.queries.join(' · ')}` : ''}</li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }
 

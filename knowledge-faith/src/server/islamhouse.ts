@@ -165,6 +165,8 @@ export interface ItemPayload {
   reviewers: string[];
   files: LibraryItem['files'];
   sourceUrl: string | null;
+  image: string | null;
+  importance: string | null;
 }
 
 export type ItemLookup =
@@ -199,8 +201,19 @@ export async function loadItemPayload(id: number, siteLang: Lang): Promise<ItemL
       reviewers: names('reviewer'),
       files: parsed.files,
       sourceUrl: parsed.sourceUrl,
+      image: parsed.image,
+      importance: parsed.importance,
     },
   };
+}
+
+/** Same address loadItemPayload fetches, so the JSON cache is shared. */
+export function itemRequestUrl(id: number, siteLang: Lang): string {
+  return `https://api3.islamhouse.com/v3/${apiKey()}/main/get-item/${id}/${siteLang}/json`;
+}
+
+export function islamHouseMain(path: string): string {
+  return `https://api3.islamhouse.com/v3/${apiKey()}/main/${path.replace(/^\/+/, '')}`;
 }
 
 export async function loadLibraryItem(id: string, lang: Lang, topicId: string): Promise<{ lang: Lang; topic: string; item: LibraryItem }> {

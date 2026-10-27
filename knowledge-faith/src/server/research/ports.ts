@@ -1,10 +1,12 @@
 import type { Lang } from '../../shared/sources.ts';
 import { worshipTopicForQuestion } from '../../shared/research/themes.ts';
-import { suggestSearchPlan } from '../gemini.ts';
+import { assessRelevance, geminiConfigured, generateJson, listWordings, suggestSearchPlan, writeAnswer as writeGroundedAnswer } from '../gemini.ts';
+import type { Evidence } from '../../shared/types.ts';
+import { findStudyHadiths } from '../hadith.ts';
 import { loadHadeeth, searchHadeeth } from '../hadeethenc.ts';
 import { loadKnowledgeShelf, loadLibrary } from '../islamhouse.ts';
 import { readLibraryItem } from '../libraryRead.ts';
-import { getVerses } from '../quran.ts';
+import { getVerses, searchQuranAyahs } from '../quran.ts';
 import { loadMukhtasar } from '../quranenc.ts';
 import type { BookRead, ResearchPorts } from './engine.ts';
 import { searchOpenAlex } from './science.ts';
@@ -34,7 +36,25 @@ export function defaultResearchPorts(): ResearchPorts {
         attribution: hadith.attribution,
         explanation: hadith.explanation,
         url: hadith.sourceUrl,
+        version: hadith.sourceVersion ?? null,
       };
+    },
+    async searchStudyHadith(lang, question, phrases, collectionIds, signal) {
+      if (signal.aborted) throw aborted(signal);
+      const found = await findStudyHadiths(lang, question, phrases, collectionIds);
+      if (signal.aborted) throw aborted(signal);
+      return found.map(hadith => ({
+        id: `${hadith.collection}:${hadith.number}`,
+        collectionName: hadith.collectionName,
+        number: hadith.number,
+        book: hadith.book,
+        inBook: hadith.inBook,
+        section: hadith.section,
+        text: hadith.text,
+        arabic: hadith.arabic,
+        grade: hadith.grades.map(grade => [grade.name, grade.grade].filter(Boolean).join(': ')).filter(Boolean).join('; ') || null,
+        url: `https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/eng-${hadith.collection}/${hadith.number}.min.json`,
+      }));
     },
     async getVerses(refs, lang, signal) {
       if (signal.aborted) throw aborted(signal);
@@ -54,6 +74,32 @@ export function defaultResearchPorts(): ResearchPorts {
       }));
     },
     searchScience: searchOpenAlex,
+    async searchQuran(phrase, signal) {
+      if (signal.aborted) throw aborted(signal);
+      const found = await searchQuranAyahs(phrase);
+      if (signal.aborted) throw aborted(signal);
+      return found;
+    },
+    async listWordings(question, subject, signal) {
+      if (signal.aborted) throw aborted(signal);
+      const limited = AbortSignal.any([signal, AbortSignal.timeout(12_000)]);
+      try {
+        return await listWordings(question, subject, limited);
+      } catch (err) {
+        if (signal.aborted) throw err;
+        return { available: true, failed: true, english: [], arabic: [] };
+      }
+    },
+    async assessRelevance(question, meaning, passages, signal) {
+      if (signal.aborted) throw aborted(signal);
+      const limited = AbortSignal.any([signal, AbortSignal.timeout(12_000)]);
+      try {
+        return await assessRelevance(question, meaning, passages, limited);
+      } catch (err) {
+        if (signal.aborted) throw err;
+        return { available: true, failed: true, keep: [], events: [] };
+      }
+    },
     async suggestSearch(question, lang, signal) {
       if (signal.aborted) throw aborted(signal);
       const limited = AbortSignal.any([signal, AbortSignal.timeout(10_000)]);
@@ -62,6 +108,18 @@ export function defaultResearchPorts(): ResearchPorts {
       } catch (err) {
         if (signal.aborted) throw err;
         return { available: true, failed: true, phrases: [], ayahs: [] };
+      }
+    },
+    async writeAnswer(question, lang, evidence: Evidence[], signal) {
+      if (signal.aborted) throw aborted(signal);
+      if (!geminiConfigured() || !evidence.length) return { paragraphs: [], insufficientEvidence: true };
+      const limited = AbortSignal.any([signal, AbortSignal.timeout(12_000)]);
+      try {
+        const written = await writeGroundedAnswer(question, lang, evidence, (prompt, schema) => generateJson(prompt, schema, limited));
+        return { paragraphs: written.paragraphs, insufficientEvidence: written.insufficientEvidence };
+      } catch (err) {
+        if (signal.aborted) throw err;
+        return { paragraphs: [], insufficientEvidence: true };
       }
     },
     async loadCommentary(lang, surah, ayahs, signal) {

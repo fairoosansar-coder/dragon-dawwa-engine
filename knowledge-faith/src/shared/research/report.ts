@@ -1,4 +1,4 @@
-import type { AgentContribution, CoverageNote, EvidencePassage, ResearchDossierView, ResearchJobView } from '../contracts/v1.ts';
+import type { AgentContribution, CoverageNote, EvidencePassage, ResearchAnswer, ResearchDossierView, ResearchJobView } from '../contracts/v1.ts';
 
 export interface ReportChartRow {
   label: string;
@@ -10,6 +10,9 @@ export interface ReportModel {
   language: string;
   scope: string;
   teams: string[];
+  answer: string | null;
+  answerArabic: string | null;
+  citationIds: string[];
   agentsRan: AgentContribution[];
   agentsIdle: AgentContribution[];
   passages: EvidencePassage[];
@@ -23,6 +26,7 @@ export interface ReportModel {
   chain: string[] | null;
   chart: ReportChartRow[];
   verificationNote: string;
+  investigation: 'complete' | 'partial' | 'blocked' | null;
 }
 
 function escapeHtml(value: string): string {
@@ -33,17 +37,78 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function chainFromPassages(passages: readonly EvidencePassage[]): string[] | null {
-  for (const passage of passages) {
-    if (passage.source.provider !== 'HadeethEnc') continue;
-    const raw = passage.locator;
-    const parts = raw
-      .split(/\s+(?:from|عن|←|->|➔)\s+/i)
-      .map(part => part.replace(/\s+/g, ' ').trim())
-      .filter(part => part.length > 1 && !/^hadeethenc\b/i.test(part));
-    if (parts.length >= 2) return parts;
+const ARABIC_MARKS = /[\u064B-\u065F\u0670\u0640\u06D6-\u06ED]/g;
+
+function namesInIsnad(arabic: string): string[] | null {
+  const bare = arabic.replace(ARABIC_MARKS, '').replace(/ـ/g, ' ').replace(/\s+/g, ' ').trim();
+  const cut = bare.search(/(?:^|\s)قال(?:\s|$)/);
+  const head = (cut === -1 ? bare : bare.slice(0, cut)).replace(/رض[ىي] الله عنه/g, ' ');
+  const parts = head
+    .split(/\s*(?:حدثنا|حدثني|أخبرنا|اخبرنا|أنبأنا|انبأنا|عن(?!ه))\s*/)
+    .map(part => part.replace(/[،,]/g, ' ').replace(/\s+/g, ' ').trim())
+    .filter(part => part.length > 1);
+  return parts.length >= 2 ? parts : null;
+}
+
+/** Narrator names printed on the opened record. Nothing is added when the record has no chain. */
+const QURAN_CHAIN = /surah|ayah|\bverse\b|qur[’']?an|குர்ஆன்|வசனம்|سورة|denies faith|work has become worthless|al-ma['’]?idah/i;
+
+export function transmissionNames(passage: Pick<EvidencePassage, 'arabic' | 'locator' | 'source'>): string[] | null {
+  if (passage.source.contentType === 'quran') return null;
+  const fromArabic = passage.arabic ? namesInIsnad(passage.arabic) : null;
+  if (fromArabic && fromArabic.length >= 2) {
+    if (fromArabic.some(part => part.length > 48 || QURAN_CHAIN.test(part))) return null;
+    return fromArabic;
   }
-  return null;
+  if (passage.source.provider !== 'HadeethEnc' && passage.source.provider !== 'hadith-api') return null;
+  const parts = passage.locator
+    .split(/\s+(?:from|عن|←|->|➔)\s+/i)
+    .map(part => part.replace(/\s+/g, ' ').trim())
+    .filter(part => part.length > 1 && !/^hadeethenc\b/i.test(part) && !/^hadith-api\b/i.test(part));
+  if (parts.some(part => part.length > 48 || QURAN_CHAIN.test(part))) return null;
+  return parts.length >= 2 ? parts : null;
+}
+
+function chainFromPassages(passages: readonly EvidencePassage[]): string[] | null {
+  let best: string[] | null = null;
+  for (const passage of passages) {
+    const names = transmissionNames(passage);
+    if (names && (!best || names.length > best.length)) best = names;
+  }
+  return best;
+}
+
+function writtenAnswer(answer: ResearchAnswer | null | undefined, passages: readonly EvidencePassage[]): { answer: string | null; arabic: string | null; citationIds: string[] } {
+  const paragraphs = (answer?.paragraphs ?? []).filter(paragraph => {
+    const text = paragraph.text.trim();
+    if (!text) return false;
+    if (paragraph.citations.length > 0 || text.startsWith('Word occurrence.')) return true;
+    return /stays open|not treated as|selected language|provider failure|not answered|was not opened|source did not respond/i.test(text);
+  });
+  const fallback = evidencedAnswer(passages);
+  if (!paragraphs.length) return { ...fallback, citationIds: passages.map(passage => passage.id) };
+  const citationIds = [...new Set(paragraphs.flatMap(paragraph => paragraph.citations))];
+  const arabic = passages.find(passage => citationIds.includes(passage.id) && passage.arabic)?.arabic ?? fallback.arabic;
+  return { answer: paragraphs.map(paragraph => paragraph.text.trim()).join('\n\n'), arabic, citationIds };
+}
+
+function evidencedAnswer(passages: readonly EvidencePassage[]): { answer: string | null; arabic: string | null } {
+  if (!passages.length) return { answer: null, arabic: null };
+  const hadiths = passages.filter(passage => passage.source.contentType === 'hadith');
+  const study = hadiths.filter(passage => passage.source.provider === 'hadith-api');
+  const lead = study[0] ?? hadiths[0] ?? passages[0];
+  const refs = (hadiths.length ? hadiths : [lead]).map(passage => `${passage.locator} (${passage.source.provider})`).join('; ');
+  const grades = [...new Set(hadiths.map(passage => passage.publishedGrade).filter((grade): grade is string => Boolean(grade)))];
+  return {
+    answer: [
+      `Retrieved: ${refs}.`,
+      grades.length ? `Grade printed by the source: ${grades.join('; ')}.` : null,
+      `The source text says: “${lead.text.trim()}”`,
+    ]
+      .filter(Boolean)
+      .join(' '),
+    arabic: lead.arabic,
+  };
 }
 
 export function buildReportModel(job: ResearchJobView, dossier: ResearchDossierView | null): ReportModel {
@@ -52,26 +117,35 @@ export function buildReportModel(job: ResearchJobView, dossier: ResearchDossierV
   const coverage = job.coverage ?? [];
   const counts = new Map<string, number>();
   for (const passage of passages) counts.set(passage.source.provider, (counts.get(passage.source.provider) ?? 0) + 1);
+  const retrievalFailed = passages.length === 0 && (job.status === 'done' || job.status === 'error');
+  const failureNotes = coverage.filter(note =>
+    ['source_unavailable', 'language_unavailable', 'budget_exhausted', 'no_relevant_evidence'].includes(note.kind),
+  );
+  const answer = writtenAnswer(dossier?.answer, passages);
   return {
     question: job.question,
     language: job.language,
     scope: job.assignment?.scope ?? 'knowledge',
     teams: job.assignment?.teams ?? [],
+    answer: answer.answer,
+    answerArabic: answer.arabic,
+    citationIds: answer.citationIds,
     agentsRan: agents.filter(agent => agent.status === 'ran'),
     agentsIdle: agents.filter(agent => agent.status !== 'ran'),
     passages,
     claims: dossier?.claims ?? [],
     disagreements: dossier?.disagreements ?? [],
     unresolved: dossier?.unresolved ?? [],
-    unavailable: coverage.filter(note => note.kind === 'source_unavailable' || note.kind === 'language_unavailable'),
-    incomplete: coverage.filter(note => note.kind === 'budget_exhausted'),
-    insufficient: coverage.filter(note => note.kind === 'no_relevant_evidence'),
+    unavailable: retrievalFailed ? [] : coverage.filter(note => note.kind === 'source_unavailable' || note.kind === 'language_unavailable'),
+    incomplete: retrievalFailed ? failureNotes : coverage.filter(note => note.kind === 'budget_exhausted'),
+    insufficient: retrievalFailed ? [] : coverage.filter(note => note.kind === 'no_relevant_evidence'),
     otherNotes: coverage.filter(
       note => !['source_unavailable', 'language_unavailable', 'budget_exhausted', 'no_relevant_evidence'].includes(note.kind),
     ),
     chain: chainFromPassages(passages),
     chart: [...counts.entries()].map(([label, count]) => ({ label, count })),
     verificationNote: dossier?.verificationNote ?? '',
+    investigation: job.investigation ?? null,
   };
 }
 
@@ -82,6 +156,11 @@ function section(title: string, tone: string, body: string): string {
 function paragraphs(lines: readonly string[]): string {
   if (!lines.length) return '<p class="muted">None recorded.</p>';
   return lines.map(line => `<p>${escapeHtml(line)}</p>`).join('');
+}
+
+function gapSection(title: string, lines: readonly string[]): string {
+  if (!lines.length) return '';
+  return section(title, 'gap', paragraphs(lines));
 }
 
 /** The file the reader downloads. The on-screen report is built from the same model. */
@@ -95,7 +174,7 @@ export function renderReportHtml(model: ReportModel): string {
   const passages = model.passages
     .map(passage => {
       const arabic = passage.arabic ? `<p class="arabic" dir="rtl" lang="ar">${escapeHtml(passage.arabic)}</p>` : '';
-      return `<article class="passage"><h3>${escapeHtml(passage.locator)}</h3><p class="meta">${escapeHtml(passage.source.provider)} · ${escapeHtml(passage.source.title)}</p>${arabic}<p>${escapeHtml(passage.text)}</p>${passage.context ? `<p class="context">${escapeHtml(passage.context)}</p>` : ''}<p class="meta">${escapeHtml(passage.source.canonicalUrl)}</p></article>`;
+      return `<article class="passage"><h3>${escapeHtml(passage.locator)}</h3><p class="meta">${escapeHtml(passage.source.provider)} · ${escapeHtml(passage.source.title)}</p>${arabic}<p lang="${escapeHtml(model.language)}">${escapeHtml(passage.text)}</p>${passage.context ? `<p class="context">${escapeHtml(passage.context)}</p>` : ''}<p class="meta">${escapeHtml(passage.source.canonicalUrl)}</p></article>`;
     })
     .join('');
   const chart = model.chart
@@ -106,8 +185,15 @@ export function renderReportHtml(model: ReportModel): string {
     .join('');
   const chain = model.chain
     ? `<ol class="chain">${model.chain.map(name => `<li>${escapeHtml(name)}</li>`).join('')}</ol>`
-    : '<p class="muted">No narrator chain was printed on the opened records, so no chain map is drawn.</p>';
+    : '';
   const claims = model.claims.map(claim => `${claim.support}: ${claim.claim} — ${claim.note}${claim.passageIds.length ? ` (${claim.passageIds.join(', ')})` : ''}`);
+  const answer = model.answer
+    ? section(
+        'Answer',
+        'gold',
+        `<p lang="${escapeHtml(model.language)}">${escapeHtml(model.answer)}</p>${model.answerArabic ? `<p class="arabic" dir="rtl" lang="ar">${escapeHtml(model.answerArabic)}</p>` : ''}`,
+      )
+    : '';
   return `<!DOCTYPE html>
 <html lang="${escapeHtml(model.language)}">
 <head>
@@ -138,21 +224,25 @@ export function renderReportHtml(model: ReportModel): string {
   <header class="hero">
     <p>DRAGON DAWWA · full research report</p>
     <h1>${escapeHtml(model.question)}</h1>
-    <p>Language: ${escapeHtml(model.language)}. Scope: ${escapeHtml(model.scope)}. Teams: ${escapeHtml(model.teams.join(', ') || '—')}.</p>
+    <p>Language: ${escapeHtml(model.language)}. Scope: ${escapeHtml(model.scope)}. Teams: ${escapeHtml(model.teams.join(', ') || '—')}.${model.investigation ? ` Investigation: ${escapeHtml(model.investigation)}.` : ''}</p>
   </header>
-  ${section('Agents who contributed', 'gold', agents || '<p class="muted">No assigned agent recorded a contribution.</p>')}
-  ${section('Agents who did not produce a finding', 'parchment', idle ? `<ul>${idle}</ul>` : '<p class="muted">Every assigned role that was attempted is listed above.</p>')}
-  ${section('Narrator chain', 'lapis', chain)}
-  ${section('Evidence chart', 'gold', chart || '<p class="muted">No passage was kept.</p>')}
-  ${section('Supporting sources', 'lapis', passages || '<p class="muted">No passage was kept.</p>')}
+  ${answer}
   ${section('Claims', 'parchment', paragraphs(claims))}
+  ${section('Supporting sources', 'lapis', passages || '<p class="muted">No passage was kept.</p>')}
+  ${section('Evidence chart', 'gold', chart || '<p class="muted">No passage was kept.</p>')}
   ${section('Disagreements', 'gold', paragraphs(model.disagreements))}
   ${section('Unresolved', 'parchment', paragraphs(model.unresolved))}
-  ${section('Sources that could not be reached', 'gap', paragraphs(model.unavailable.map(note => note.detail)))}
-  ${section('Incomplete research', 'gap', paragraphs(model.incomplete.map(note => note.detail)))}
-  ${section('Evidence that does not yet support an answer', 'gap', paragraphs(model.insufficient.map(note => note.detail)))}
-  ${section('Other notes', 'parchment', paragraphs(model.otherNotes.map(note => note.detail)))}
-  ${model.verificationNote ? section('How to read this report', 'parchment', `<p>${escapeHtml(model.verificationNote)}</p>`) : ''}
+  ${chain ? section('Transmission map', 'lapis', chain) : ''}
+  <details class="block parchment" data-research-activity>
+    <summary>Research activity</summary>
+    ${gapSection('Sources that could not be reached', model.unavailable.map(note => note.detail))}
+    ${gapSection('Incomplete research', model.incomplete.map(note => note.detail))}
+    ${gapSection('Evidence that does not yet support an answer', model.insufficient.map(note => note.detail))}
+    ${model.otherNotes.length ? section('Other notes', 'parchment', paragraphs(model.otherNotes.map(note => note.detail))) : ''}
+    ${model.verificationNote ? section('How to read this report', 'parchment', `<p>${escapeHtml(model.verificationNote)}</p>`) : ''}
+  </details>
+  ${section('Agents who contributed', 'gold', agents || '<p class="muted">No assigned agent recorded a contribution.</p>')}
+  ${section('Agents who did not produce a finding', 'parchment', idle ? `<ul>${idle}</ul>` : '<p class="muted">Every assigned role that was attempted is listed above.</p>')}
 </main>
 </body>
 </html>`;

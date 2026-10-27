@@ -70,6 +70,9 @@ export interface EncyclopediaHadith {
   languages: string[];
   sourceUrl: string;
   audioIncluded: false;
+  /** Spreadsheet edition, such as v1.25.0. Absent when the record came from the live API. */
+  sourceVersion?: string;
+  sourceUpdated?: string;
 }
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -240,6 +243,7 @@ export function hadeethShareText(hadith: EncyclopediaHadith): string {
   if (hadith.attribution) parts.push(hadith.attribution);
   if (hadith.attributionArabic) parts.push(hadith.attributionArabic);
   parts.push(`HadeethEnc ${hadith.id}`);
+  if (hadith.sourceVersion) parts.push(hadith.sourceVersion);
   parts.push(hadith.lang);
   parts.push(hadith.sourceUrl);
   return parts.join('\n\n');

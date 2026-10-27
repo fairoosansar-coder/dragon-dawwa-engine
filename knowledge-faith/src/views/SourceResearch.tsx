@@ -1,13 +1,16 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react';
 import { postJson, useRemote } from '../lib/api.ts';
 import { useApp } from '../lib/store.tsx';
 import type { ResearchJobResponse } from '../shared/contracts/v1.ts';
 import { researchOutcome } from '../shared/research/outcomes.ts';
-import { Button, Card, ErrorNote, Notice } from '../components/ui.tsx';
+import { Button, Card, ErrorNote, Loading, Notice } from '../components/ui.tsx';
+
+const DossierWorkbench = lazy(() => import('../engine/DossierWorkbench.tsx'));
 
 export function SourceResearch() {
   const { lang, config } = useApp();
   const [question, setQuestion] = useState('');
+  const [reportOpen, setReportOpen] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const remote = useRemote<ResearchJobResponse>(jobId ? `/api/research/jobs/${jobId}` : null);
@@ -48,14 +51,28 @@ export function SourceResearch() {
         queryCount: job.subquestions.reduce((total, sub) => total + sub.queries.length, 0),
         passageCount,
         coverage: job.coverage,
+        investigation: job.investigation,
       })
     : null;
 
   return (
     <div className="mb-8 space-y-4">
       <Card>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Source research</p>
-        <h2 className="mt-2 font-display text-2xl font-bold text-pine">Ask with the sources in view</h2>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Source research</p>
+            <h2 className="mt-2 font-display text-2xl font-bold text-pine">Ask with the sources in view</h2>
+          </div>
+          <Button
+            type="button"
+            variant={reportOpen ? 'primary' : 'soft'}
+            aria-expanded={reportOpen}
+            aria-controls="generated-report"
+            onClick={() => setReportOpen(open => !open)}
+          >
+            Generated report
+          </Button>
+        </div>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink/70">
           A question is split into searches. A retrieved passage keeps the grade and reference printed by its source. This check does not call a library sahih.
         </p>
@@ -89,6 +106,18 @@ export function SourceResearch() {
           </div>
         </form>
         {submitError && <div className="mt-3"><ErrorNote message={submitError} /></div>}
+        {reportOpen && (
+          <div id="generated-report" className="mt-6 border-t border-pine/10 pt-6">
+            <p className="max-w-2xl text-sm leading-relaxed text-ink/70">
+              This workbench is separate from the retrieved passages below. A score shown here is not a published source grade, and it does not mean a library or an answer is sahih.
+            </p>
+            <div className="mt-4">
+              <Suspense fallback={<Loading />}>
+                <DossierWorkbench />
+              </Suspense>
+            </div>
+          </div>
+        )}
       </Card>
 
       {job && (

@@ -214,6 +214,19 @@ function DragonDawwaRadioStudio() {
     }
   }
 
+  const combinedReferences = useMemo(() => {
+    if (!episode) return [];
+    const base = [...episode.references];
+    if (answer?.references) {
+      for (const ref of answer.references) {
+        if (!base.some(r => r.id === ref.id)) {
+          base.push(ref);
+        }
+      }
+    }
+    return base;
+  }, [answer?.references, episode]);
+
   const greeting = useMemo(() => buildPresenterGreeting(lang, prefs), [lang, prefs]);
   const isEpisodeSaved = episode ? savedEpisodes.includes(episode.id) : false;
 
@@ -571,9 +584,35 @@ function DragonDawwaRadioStudio() {
                 >
                   <p className="font-semibold text-pine">
                     <Volume2 className="mr-1.5 inline h-4 w-4 text-gold" aria-hidden="true" />
-                    Voice Provider Status: {remoteVoiceStatus.data.provider} (HTTP {remoteVoiceStatus.data.narrateHttpStatus})
+                    {remoteVoiceStatus.data.userMessage}
                   </p>
-                  <p className="mt-1 text-ink/80">{remoteVoiceStatus.data.blocker}</p>
+                  <details className="mt-2 border-t border-pine/10 pt-2 text-[11px] text-muted">
+                    <summary
+                      data-testid="voice-diagnostics-summary"
+                      className="cursor-pointer font-semibold text-pine"
+                    >
+                      Technical diagnostics (configuration, recorded test evidence & live status)
+                    </summary>
+                    <div className="mt-2 space-y-1.5 font-mono">
+                      <p>
+                        Configuration: provider={remoteVoiceStatus.data.configuration.provider} · models=
+                        {remoteVoiceStatus.data.configuration.configuredTtsModels.join(',')}
+                      </p>
+                      <p>
+                        Live capability: presenterNarration={remoteVoiceStatus.data.liveCapability.presenterNarration} · probedUpstream=
+                        {String(remoteVoiceStatus.data.liveCapability.probedUpstream)}
+                      </p>
+                      <p>
+                        Diagnostics: GEMINI_API_KEY={remoteVoiceStatus.data.diagnostics.envVars.GEMINI_API_KEY} · /api/voice/narrate=HTTP{' '}
+                        {remoteVoiceStatus.data.diagnostics.endpoints['/api/voice/narrate'].httpStatus} (
+                        {remoteVoiceStatus.data.diagnostics.endpoints['/api/voice/narrate'].detail})
+                      </p>
+                      <p className="font-sans text-ink/70">
+                        Recorded test note ({remoteVoiceStatus.data.recordedTestEvidence.recordedOn}):{' '}
+                        {remoteVoiceStatus.data.recordedTestEvidence.note}
+                      </p>
+                    </div>
+                  </details>
                 </div>
               )}
 
@@ -764,9 +803,37 @@ function DragonDawwaRadioStudio() {
 
               {answer.arabicTermExplanation && (
                 <div className="rounded-xl border border-gold/50 bg-white p-3">
-                  <p className="text-xs font-bold text-pine">{answer.arabicTermExplanation.term}</p>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-bold text-pine">{answer.arabicTermExplanation.term}</p>
+                    {answer.arabicTermExplanation.readerRoute && (
+                      <a
+                        href={answer.arabicTermExplanation.readerRoute}
+                        data-testid="open-name-detail-link"
+                        className="rounded-full bg-mint px-2.5 py-0.5 text-xs font-semibold text-pine hover:bg-pine hover:text-sand"
+                      >
+                        Open Name Detail in Dragon Dawwa
+                      </a>
+                    )}
+                  </div>
                   <p lang="ar" dir="rtl" className="arabic mt-1 text-2xl text-ink">
                     {answer.arabicTermExplanation.arabic}
+                  </p>
+                </div>
+              )}
+
+              {answer.researchJob && answer.researchJob.subquestions.length > 0 && (
+                <div
+                  data-testid="studio-research-job-summary"
+                  className="rounded-xl border border-pine/15 bg-white/80 p-3 text-xs text-muted"
+                >
+                  <p className="font-semibold text-pine">
+                    Shared Research Engine (v{answer.contractVersion}) · {answer.researchJob.timingsMs.totalMs} ms
+                  </p>
+                  <p className="mt-1">
+                    Queries run:{' '}
+                    <span className="font-mono text-ink">
+                      {answer.researchJob.subquestions.flatMap(sq => sq.queries).join(', ') || 'none'}
+                    </span>
                   </p>
                 </div>
               )}
@@ -847,7 +914,7 @@ function DragonDawwaRadioStudio() {
       <div id="studio-explore-anchor">
         {episode && (activeDrawer === 'explore' || activeDrawer === 'both') && (
           <SourceReaderPanel
-            references={episode.references}
+            references={combinedReferences}
             selectedId={selectedCitationId}
             onSelectId={setSelectedCitationId}
             gaps={episode.gaps}

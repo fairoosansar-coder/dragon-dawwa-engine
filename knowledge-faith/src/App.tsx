@@ -85,9 +85,10 @@ function Shell() {
   const routeKey = `${location.path}/${location.segments.join('/')}?${location.params.toString()}`;
 
   useEffect(() => {
-    setQuery('');
+    const booksLibrary = location.path === 'books' && location.segments.length === 0;
+    if (!booksLibrary) setQuery('');
     if (location.path !== 'quran') setFocus(false);
-  }, [routeKey, location.path, setQuery, setFocus]);
+  }, [routeKey, location.path, location.segments.length, setQuery, setFocus]);
 
   useEffect(() => {
     if (location.path === 'spiritual') return;
@@ -95,7 +96,7 @@ function Shell() {
   }, [route, t, location.path]);
 
   return (
-    <AppFrame path={location.path} section={t[route.label]} showSearch={showSectionSearch(location.path, location.segments)}>
+    <AppFrame path={location.path} section={t[route.label]} segments={location.segments} showSearch={showSectionSearch(location.path, location.segments)}>
       <Suspense fallback={<Loading />}>
         {entry ? (
           <ResearchDesk entry={entry} params={location.params} />

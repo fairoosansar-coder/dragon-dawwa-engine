@@ -10,6 +10,15 @@ import { stopAudio } from '../lib/audio.ts';
 export default function Roundtable() {
   const { t, config } = useApp();
   const d = useDossier();
+  if (!d.displayed) {
+    return (
+      <EngineFrame className="space-y-6">
+        <p data-testid="roundtable-empty" className="rounded-2xl bg-[#f6efe2] px-4 py-3 text-sm text-[#1c1915]">
+          No podcast is loaded for this content language. Open a saved research item, or generate again. The previous episode is not played in its place.
+        </p>
+      </EngineFrame>
+    );
+  }
   const s = d.displayed.agent_6_synthesis;
   useEffect(() => stopAudio(), []);
   return (
@@ -35,11 +44,15 @@ export default function Roundtable() {
       </div>
       <StarDivider label="مجلس العلم" />
       <PodcastScriptPlayer
-        key={d.analysis.query_hadith}
+        key={`${d.displayed.query_hadith}-${d.displayed.content_language ?? d.lang}`}
         script={s.podcast_script}
         executiveReport={s.executive_report_markdown}
         onShare={() => void d.share()}
         neuralVoice={config == null || config.ai === true}
+        language={d.displayed.content_language ?? d.lang}
+        audioReady={d.audioReady}
+        savedClips={d.savedClips}
+        onClip={d.rememberClip}
       />
     </EngineFrame>
   );

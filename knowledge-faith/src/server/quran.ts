@@ -1,5 +1,7 @@
 import { DAY, fetchJson, UpstreamError } from './http.ts';
+import { wordingInText } from '../shared/research/counts.ts';
 import { attachQuranEnc } from '../shared/quranenc.ts';
+import { mushafMark, type MushafMark } from '../shared/readingNav.ts';
 import { QURAN_ARABIC_EDITION, type Lang } from '../shared/sources.ts';
 import { isValidRef, refKey, type AyahRef } from '../shared/refs.ts';
 import type { SurahInfo, Verse } from '../shared/types.ts';
@@ -19,12 +21,41 @@ interface RawAyah {
   text: string;
   surah?: { number: number; englishName: string };
   edition?: { identifier: string };
+  page?: number;
+  juz?: number;
+  hizbQuarter?: number;
 }
 
 interface RawEdition {
   ayahs: RawAyah[];
   number: number;
   englishName: string;
+}
+
+const PLACE_MISSING = 'That place was not returned. No verse was substituted.';
+
+async function firstMark(url: string, expect: (mark: MushafMark) => boolean): Promise<MushafMark> {
+  const res = await fetchJson<Envelope<{ ayahs?: RawAyah[] }>>(url, 7 * DAY);
+  const first = res.data?.ayahs?.[0];
+  const mark = mushafMark({
+    surah: first?.surah?.number,
+    ayah: first?.numberInSurah,
+    page: first?.page,
+    juz: first?.juz,
+    hizbQuarter: first?.hizbQuarter,
+  });
+  if (!mark || !expect(mark)) throw new UpstreamError(PLACE_MISSING, 502);
+  return mark;
+}
+
+export async function locatePage(page: number): Promise<MushafMark> {
+  if (!Number.isInteger(page) || page < 1 || page > 604) throw new UpstreamError('Pages are 1 to 604.', 400);
+  return firstMark(`${BASE}/page/${page}/${QURAN_ARABIC_EDITION}`, mark => mark.page === page);
+}
+
+export async function locateJuz(juz: number): Promise<MushafMark> {
+  if (!Number.isInteger(juz) || juz < 1 || juz > 30) throw new UpstreamError('Juz are 1 to 30.', 400);
+  return firstMark(`${BASE}/juz/${juz}/${QURAN_ARABIC_EDITION}`, mark => mark.juz === juz);
 }
 
 export async function listSurahs(): Promise<SurahInfo[]> {
@@ -69,6 +100,9 @@ export interface ArabicVerse {
   number: number;
   arabic: string;
   surahName: string;
+  page?: number;
+  juz?: number;
+  hizbQuarter?: number;
   transliteration?: string;
   transliterationEdition?: string;
 }
@@ -104,6 +138,9 @@ export async function getSurahArabic(
       number: a.number,
       arabic: stripBismillah(a.text, surah, a.numberInSurah),
       surahName: info.englishName,
+      ...(typeof a.page === 'number' ? { page: a.page } : {}),
+      ...(typeof a.juz === 'number' ? { juz: a.juz } : {}),
+      ...(typeof a.hizbQuarter === 'number' ? { hizbQuarter: a.hizbQuarter } : {}),
       ...spokenFields(paired?.get(a.numberInSurah), paired ? pronunciationEdition : null),
     })),
   };
@@ -225,4 +262,43 @@ export async function getVerses(
       return attached[0];
     }),
   );
+}
+
+export interface QuranSearchHit {
+  surah: number;
+  ayah: number;
+  text: string;
+}
+
+/**
+ * Whole-word matches for one wording.
+ * `total` is the filtered unique count. `hits` is capped; the remainder is `total - hits.length`.
+ * Arabic is searched in the Uthmani text. A 404 means the wording was not found.
+ */
+export async function searchQuranAyahs(phrase: string): Promise<{ total: number; refs: AyahRef[]; hits: QuranSearchHit[] }> {
+  const query = phrase.replace(/\s+/g, ' ').trim();
+  const arabic = /[\u0600-\u06FF]/.test(query);
+  if ((arabic ? query.length < 2 : query.length < 3) || query.length > 32) return { total: 0, refs: [], hits: [] };
+  const edition = arabic ? QURAN_ARABIC_EDITION : 'en.sahih';
+  try {
+    const res = await fetchJson<Envelope<{ matches?: { numberInSurah?: number; text?: string; surah?: { number?: number } }[] }>>(
+      `${BASE}/search/${encodeURIComponent(query)}/all/${edition}`,
+      DAY,
+    );
+    const keys = new Map<string, QuranSearchHit>();
+    for (const match of res.data?.matches ?? []) {
+      const surah = match.surah?.number;
+      const ayah = match.numberInSurah;
+      const text = match.text ?? '';
+      if (!surah || !ayah || !text || !wordingInText(query, text)) continue;
+      const key = `${surah}:${ayah}`;
+      if (!keys.has(key)) keys.set(key, { surah, ayah, text });
+    }
+    const all = [...keys.values()];
+    const hits = all.slice(0, 120);
+    return { total: all.length, refs: hits.map(({ surah, ayah }) => ({ surah, ayah })), hits };
+  } catch (err) {
+    if (err instanceof UpstreamError && err.status === 404) return { total: 0, refs: [], hits: [] };
+    throw err;
+  }
 }

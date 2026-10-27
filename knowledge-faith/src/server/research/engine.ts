@@ -2,21 +2,44 @@ import { randomUUID } from 'node:crypto';
 import type {
   CoverageNote,
   EvidencePassage,
+  ClaimEvidence,
+  ResearchAnswer,
   ResearchDossierView,
   ResearchJobView,
   ResearchSubquestion,
   SourceRecord,
 } from '../../shared/contracts/v1.ts';
 import type { Lang } from '../../shared/sources.ts';
+import type { Evidence } from '../../shared/types.ts';
 import { contentTokens, passageSupportsTopic } from '../../shared/research.ts';
 import { verifyClaim } from '../../shared/research/claims.ts';
 import { asksScience, decomposeQuestion } from '../../shared/research/decompose.ts';
+import {
+  acceptedCampaign,
+  capOccurrences,
+  corpusPassageContext,
+  distinctWordings,
+  fallbackWordings,
+  formatCorpusCount,
+  groupCampaigns,
+  occurrenceContext,
+  wordingInText,
+  type CampaignGroup,
+  type WordingOccurrence,
+} from '../../shared/research/counts.ts';
+import { interpretQuestion, type QuestionInterpretation } from '../../shared/research/scopes.ts';
 import { ayahsMentioned } from '../../shared/research.ts';
 import { ISLAMHOUSE_RIGHTS } from '../../shared/sourceRegistry.ts';
 import { UpstreamError } from '../http.ts';
+import { classifyResearchTask, namedStudyCollections } from '../../shared/research/coordinator.ts';
 import { themeAyahs, themeWordingSupports } from '../../shared/research/themes.ts';
+import { HADITH_COLLECTIONS } from '../../shared/sources.ts';
 import { contentHash, createContentIndex, type ContentIndex } from './contentIndex.ts';
 import { buildAgentContributions, type OpenedBook, type TafsirAttempt } from './contributions.ts';
+import { openHadeethEncForQuestion } from './hadeethOpen.ts';
+import { dedupePassages } from '../../shared/research/corroboration.ts';
+import { passageMatchesLanguage, reviewMaterialCoverage } from '../../shared/research/materialCoverage.ts';
+import { CONFIDENCE_NOTE, consultParallel, type ParallelConsult } from './parallelTask.ts';
 import type { ScienceWork } from './science.ts';
 import type { ResearchAssignmentView } from '../../shared/contracts/v1.ts';
 
@@ -35,6 +58,21 @@ const QURAN_RIGHTS = {
   conditions: ISLAMHOUSE_RIGHTS.conditions,
   generatedWork: false,
   checkedOn: '2026-10-21',
+} as const;
+
+const ALQURAN_RIGHTS = {
+  source: 'AlQuran Cloud',
+  conditions: 'Ayah text retrieved from the AlQuran Cloud search edition. The wording is quoted as stored.',
+  generatedWork: false,
+  checkedOn: '2026-10-25',
+} as const;
+
+const STUDY_RIGHTS = {
+  source: 'hadith-api (fawazahmed0)',
+  conditions:
+    'English and Arabic text retrieved from the hadith-api edition files. The wording is quoted as stored. No words were added where an edition file ends.',
+  generatedWork: false,
+  checkedOn: '2026-10-24',
 } as const;
 
 const SCIENCE_RIGHTS = {
@@ -68,6 +106,8 @@ export interface HadithRecord {
   attribution: string | null;
   explanation: string | null;
   url: string;
+  /** HadeethEnc spreadsheet edition, when the record was opened from the imported collection. */
+  version?: string | null;
 }
 
 export interface VerseRecord {
@@ -81,9 +121,29 @@ export interface VerseRecord {
   url: string;
 }
 
+export interface StudyHadithRecord {
+  id: string;
+  collectionName: string;
+  number: number;
+  book: number;
+  inBook: number;
+  section: string | null;
+  text: string;
+  arabic: string | null;
+  grade: string | null;
+  url: string;
+}
+
 export interface ResearchPorts {
   searchHadeeth(lang: Lang, phrase: string, page: number, signal: AbortSignal): Promise<HadithHit[]>;
   loadHadeeth(lang: Lang, id: string, signal: AbortSignal): Promise<HadithRecord>;
+  searchStudyHadith?(
+    lang: Lang,
+    question: string,
+    phrases: string[],
+    collectionIds: string[],
+    signal: AbortSignal,
+  ): Promise<StudyHadithRecord[]>;
   getVerses(refs: { surah: number; ayah: number }[], lang: Lang, signal: AbortSignal): Promise<VerseRecord[]>;
   searchScience(query: string, signal: AbortSignal): Promise<ScienceWork[] | 'not_configured'>;
   suggestSearch?(
@@ -91,6 +151,27 @@ export interface ResearchPorts {
     lang: Lang,
     signal: AbortSignal,
   ): Promise<{ available: boolean; failed: boolean; phrases: string[]; ayahs: { surah: number; ayah: number }[] }>;
+  searchQuran?(
+    phrase: string,
+    signal: AbortSignal,
+  ): Promise<{ total: number; refs: { surah: number; ayah: number }[]; hits?: { surah: number; ayah: number; text: string }[] }>;
+  listWordings?(
+    question: string,
+    subject: string,
+    signal: AbortSignal,
+  ): Promise<{ available: boolean; failed: boolean; english: string[]; arabic: string[] }>;
+  assessRelevance?(
+    question: string,
+    meaning: string,
+    passages: { id: string; text: string }[],
+    signal: AbortSignal,
+  ): Promise<{ available: boolean; failed: boolean; keep: string[]; events?: { id: string; campaign: string }[] }>;
+  writeAnswer?(
+    question: string,
+    lang: Lang,
+    evidence: Evidence[],
+    signal: AbortSignal,
+  ): Promise<{ paragraphs: { text: string; citations: string[] }[]; insufficientEvidence: boolean }>;
   loadCommentary?(
     lang: Lang,
     surah: number,
@@ -152,6 +233,22 @@ function variants(token: string): string[] {
   return [...(SPELLING[token] ?? [token])];
 }
 
+function supportsNarration(question: string, text: string): boolean {
+  const torah = /\b(?:torah|tawrah|taurat|tawrat)\b/i.test(question);
+  const hebrew = /\bhebrew\b/i.test(question);
+  if (torah && hebrew) return /torah|tawrah|taurat|tawrat/i.test(text) && /hebrew/i.test(text);
+  return passageSupportsTopic(question, text);
+}
+
+function refFromJudgement(value: string): string | null {
+  const match = value.match(/(\d{1,3})\s*[:/\-]\s*(\d{1,3})/);
+  if (!match) return null;
+  const surah = Number(match[1]);
+  const ayah = Number(match[2]);
+  if (surah < 1 || surah > 114 || ayah < 1 || ayah > 286) return null;
+  return `${surah}:${ayah}`;
+}
+
 function score(question: string, text: string): number {
   const haystack = text.toLocaleLowerCase('en');
   return contentTokens(question).reduce((total, token) => {
@@ -186,16 +283,28 @@ export async function executeResearch(input: {
   now?: () => Date;
   onProgress?: (job: ResearchJobView) => void;
   assignment?: ResearchAssignmentView | null;
+  parallel?: { apiKey?: string | null; fetchImpl?: typeof fetch; pollMs?: number };
 }): Promise<ResearchRun> {
   const signal = input.signal ?? new AbortController().signal;
+  const interpretation = interpretQuestion(input.question);
   const budget =
-    input.assignment && input.assignment.teams.length > 1
-      ? { queries: 8, opens: 6, callsPerSource: 16, timeMs: 45_000, concurrency: 2 }
-      : BUDGET;
+    interpretation.kind === 'corpus-count'
+      ? { queries: 6, opens: 4, callsPerSource: 16, timeMs: 35_000, concurrency: 2 }
+      : input.assignment && input.assignment.teams.length > 1
+        ? { queries: 8, opens: 6, callsPerSource: 16, timeMs: 45_000, concurrency: 2 }
+        : BUDGET;
   const useHadith = !input.assignment || input.assignment.teams.includes('hadith');
   const useQuran = !input.assignment || input.assignment.teams.includes('quran');
   const useBooks = Boolean(input.assignment?.teams.includes('books'));
-  const useScience = !input.assignment || input.assignment.scope === 'knowledge';
+  const consultHadith =
+    interpretation.corpus === 'quran'
+      ? false
+      : interpretation.corpus === 'hadith'
+        ? true
+        : useHadith || interpretation.consultHadith;
+  const plan = decomposeQuestion(input.question);
+  const scienceRequested = asksScience(input.question) || plan.subquestions.some(sub => sub.domain === 'science' || asksScience(sub.text));
+  const useScience = scienceRequested || !input.assignment;
   const index = input.index ?? createContentIndex();
   const clock = input.now ?? (() => new Date());
   const started = clock();
@@ -210,7 +319,42 @@ export async function executeResearch(input: {
   const tafsirAttempts: TafsirAttempt[] = [];
   const ranQueries: string[] = [];
   let contextCount = 0;
-  const plan = decomposeQuestion(input.question);
+  let researchAnswer: ResearchAnswer | null = null;
+  let investigation: ResearchJobView['investigation'];
+  let hadeethProviderFailed = false;
+  let directSourceFailed = false;
+  let sharedSourceNotes: string[] = [];
+  let parallelConsult: ParallelConsult | null = null;
+  let materialReview: ReturnType<typeof reviewMaterialCoverage> | null = null;
+  const occurrenceItems: WordingOccurrence[] = [];
+  let occurrenceUnlisted = 0;
+  let searchTruncated = false;
+  let countedEnglish: string[] = [];
+  let countedArabic: string[] = [];
+  const campaignHits: { key: string; label: string; surah: number; ayah: number }[] = [];
+  const unnamedEvents: { surah: number; ayah: number }[] = [];
+  let corpusSplit: {
+    english: string[];
+    arabic: string[];
+    occurrences: WordingOccurrence[];
+    campaigns: CampaignGroup[];
+    unnamed: { surah: number; ayah: number }[];
+    unlisted: number;
+    truncated?: boolean;
+  } | null = null;
+  const publishSplit = () => {
+    const capped = capOccurrences(occurrenceItems);
+    corpusSplit = {
+      english: countedEnglish,
+      arabic: countedArabic,
+      occurrences: capped.listed,
+      campaigns: groupCampaigns(campaignHits),
+      unnamed: [...unnamedEvents].sort((a, b) => a.surah - b.surah || a.ayah - b.ayah),
+      unlisted: occurrenceUnlisted + capped.unlisted,
+      truncated: searchTruncated,
+    };
+    return corpusSplit;
+  };
   const job: ResearchJobView = {
     contractVersion: VERSION,
     id: input.id ?? randomUUID(),
@@ -226,6 +370,9 @@ export async function executeResearch(input: {
     timingsMs: { totalMs: 0, sources: timings },
     assignment: input.assignment ?? null,
     agents: [],
+    interpretation: interpretation.meaning
+      ? { meaning: interpretation.meaning, scopes: interpretation.scopes.map(scope => ({ id: scope.id, text: scope.text })) }
+      : null,
   };
   const publish = (step: string, completed: number) => {
     job.progress = { step, completed, total: 4 };
@@ -239,10 +386,25 @@ export async function executeResearch(input: {
     job.timingsMs = { totalMs: Math.max(0, clock().getTime() - startedMs), sources: { ...timings } };
     job.coverage = coverage;
     job.errors = errors;
-    const claims = plan.subquestions.map(sub => claimFor(sub, passages, coverage));
+    job.investigation = investigation;
+    job.materialParts = materialReview?.parts;
+    job.parallel = parallelConsult
+      ? {
+          status: parallelConsult.status,
+          liveCallMade: parallelConsult.liveCallMade,
+          runId: parallelConsult.runId,
+          setup: parallelConsult.setup,
+          processor: parallelConsult.processor,
+          revision: 1,
+        }
+      : undefined;
+    const claims = plan.subquestions.map(sub => claimFor(sub, passages, coverage, interpretation, corpusSplit));
     const unresolved = claims.filter(claim => claim.support !== 'supported').map(claim => `${claim.claim} — ${claim.note}`);
+    for (const note of materialReview?.unresolved ?? []) {
+      if (!unresolved.includes(note)) unresolved.push(note);
+    }
     if (status === 'cancelled') unresolved.unshift('The research job was cancelled. Any passages below are partial.');
-    const disagreements: string[] = [];
+    const disagreements: string[] = [...sharedSourceNotes];
     if (input.assignment?.teams.includes('hadith')) {
       const grades = [...new Set(passages.filter(item => item.source.provider === 'HadeethEnc' && item.publishedGrade).map(item => item.publishedGrade as string))];
       if (grades.length > 1) {
@@ -251,8 +413,10 @@ export async function executeResearch(input: {
     }
     if (input.assignment) {
       job.assignment = input.assignment;
+      const teams = [...input.assignment.teams];
+      if (consultHadith && !teams.includes('hadith')) teams.push('hadith');
       job.agents = buildAgentContributions({
-        teams: input.assignment.teams,
+        teams,
         question: input.question,
         passages,
         coverage,
@@ -263,6 +427,17 @@ export async function executeResearch(input: {
         contextCount,
       });
     }
+    const parallelStatus = parallelConsult?.status;
+    job.agents = [
+      ...(job.agents ?? []),
+      {
+        id: 'deep-research',
+        team: input.assignment?.teams[0] ?? 'hadith',
+        role: 'Deep Research & Source Verification (Agent 7)',
+        status: parallelStatus === 'completed' ? 'ran' : parallelStatus === 'failed' ? 'unavailable' : 'not_run',
+        detail: parallelConsult?.setup ?? (parallelConsult?.findings.length ? 'Parallel returned findings. Its confidence is provider metadata, not a hadith grade.' : parallelConsult?.liveCallMade ? 'Parallel was called. No finding is cited until the task returns one.' : 'Parallel was not called.'),
+      },
+    ];
     return {
       job,
       dossier: {
@@ -272,8 +447,11 @@ export async function executeResearch(input: {
         claims,
         unresolved,
         disagreements,
-        verificationNote:
+        verificationNote: [
           'Citation existence, quotation fidelity and claim support are checked separately. A citation id alone is not support. This is not a scholarly verdict and not a claim of complete coverage.',
+          parallelConsult?.setup ?? (parallelConsult?.liveCallMade ? CONFIDENCE_NOTE : ''),
+        ].filter(Boolean).join(' '),
+        answer: researchAnswer,
       },
     };
   };
@@ -357,6 +535,13 @@ export async function executeResearch(input: {
         });
       }
     }
+    if (host && interpretation.searchPhrases.length) {
+      const merged = [...interpretation.searchPhrases, ...host.queries];
+      host.queries = [];
+      for (const phrase of merged) {
+        if (phrase && !host.queries.includes(phrase) && host.queries.length < 6) host.queries.push(phrase);
+      }
+    }
     // Planning is optional. It must not consume the time kept for opening sources.
     sourceStartedMs = clock().getTime();
     const queries: { sub: ResearchSubquestion; phrase: string }[] = [];
@@ -367,7 +552,7 @@ export async function executeResearch(input: {
         if (!queries.some(item => item.phrase === phrase)) queries.push({ sub, phrase });
       }
     }
-    const unprocessed = useHadith && religious.length > 0 && queries.length === 0;
+    const unprocessed = consultHadith && religious.length > 0 && queries.length === 0;
     if (unprocessed) {
       pushCoverage({
         kind: 'no_relevant_evidence',
@@ -376,100 +561,222 @@ export async function executeResearch(input: {
       });
     }
     publish('search', 2);
-    const hits: (HadithHit & { subId: string })[] = [];
-    for (const query of useHadith ? queries : []) {
-      ranQueries.push(query.phrase);
-      if (!allow('HadeethEnc')) break;
+    if (consultHadith && queries.length) {
       try {
-        const rows = await timed('HadeethEnc', () => attempt(() => input.ports.searchHadeeth(input.language, query.phrase, 1, signal), signal));
-        if (!rows.length) {
+        const opened = await openHadeethEncForQuestion({
+          question: input.question,
+          language: input.language,
+          queries: queries.map(item => item.phrase),
+          search: async (language, phrase) => {
+            ranQueries.push(phrase);
+            if (!allow('HadeethEnc')) return [];
+            return timed('HadeethEnc', () => attempt(() => input.ports.searchHadeeth(language, phrase, 1, signal), signal));
+          },
+          load: async (language, id) => {
+            if (!allow('HadeethEnc')) return null;
+            const record = await timed('HadeethEnc', () => attempt(() => input.ports.loadHadeeth(language, id, signal), signal));
+            return { ...record, lessons: [] };
+          },
+        });
+        hadeethProviderFailed = opened.providerFailed;
+        if (opened.providerFailed) directSourceFailed = true;
+        for (const failure of opened.errors) {
+          errors.push(failure);
+          pushCoverage({
+            kind: 'source_unavailable',
+            provider: 'HadeethEnc',
+            detail: `A source could not be reached. ${failure.message} This is not a finding that the subject is absent.`,
+          });
+        }
+        for (const record of opened.records) {
+          const blob = `${record.text}\n${record.arabic ?? ''}`;
+          const supported = supportsNarration(input.question, blob) || plan.subquestions.some(sub => supportsNarration(sub.text, blob));
+          if (!supported) {
+            pushCoverage({
+              kind: 'no_relevant_evidence',
+              provider: 'HadeethEnc',
+              detail: `HadeethEnc ${record.id} was opened. Its text did not contain a content term from the question, so it is not cited.`,
+            });
+            continue;
+          }
+          const hash = remember('HadeethEnc', record.id, contentHash(record.text), record.text);
+          passages.push(hadithPassage(record, input.language, clock().toISOString(), hash, 'source_text'));
+        }
+        if (!opened.records.length && !opened.providerFailed) {
           pushCoverage({
             kind: 'no_relevant_evidence',
             provider: 'HadeethEnc',
-            detail: `Search returned no records for “${query.phrase}”. Other searches still run.`,
+            detail: opened.recovery.length
+              ? `Search returned no records for the question’s own words. ${opened.recovery.length} shorter phrase(s) were tried. This empty catalogue result is not a provider failure.`
+              : `Search returned no records for “${queries[0]?.phrase ?? input.question}”. Other searches still run.`,
           });
-        }
-        for (const row of rows) {
-          if (!hits.some(hit => hit.id === row.id)) hits.push({ ...row, subId: query.sub.id });
         }
       } catch (err) {
         if (isAbort(err, signal)) return finish('cancelled');
         const message = err instanceof Error ? err.message : 'HadeethEnc search failed.';
+        hadeethProviderFailed = true;
+        directSourceFailed = true;
         errors.push({ provider: 'HadeethEnc', message });
         pushCoverage({
           kind: 'source_unavailable',
           provider: 'HadeethEnc',
           detail: `A source could not be reached. HadeethEnc search failed: ${message} This is not a finding that the subject is absent.`,
         });
-        continue;
       }
-    }
-
-    const perSub = Math.max(1, Math.floor(budget.opens / Math.max(1, religious.length)));
-    const chosen: HadithHit[] = [];
-    let unseen = 0;
-    for (const sub of religious) {
-      const mine = hits.filter(hit => hit.subId === sub.id && !chosen.some(item => item.id === hit.id));
-      const preferred = mine.filter(hit => score(sub.text, hit.title) > 0).sort((a, b) => score(sub.text, b.title) - score(sub.text, a.title));
-      const queue = [...preferred, ...mine.filter(hit => !preferred.includes(hit))];
-      unseen += Math.max(0, queue.length - perSub);
-      for (const hit of queue.slice(0, perSub)) chosen.push(hit);
-    }
-    if (unseen > 0) {
-      pushCoverage({
-        kind: 'budget_exhausted',
-        provider: 'HadeethEnc',
-        detail: `${unseen} search rows were not opened. A title was only used to choose what to open.`,
-      });
     }
     publish('read', 3);
-    await pool(chosen, budget.concurrency, signal, async hit => {
-      if (!allow('HadeethEnc')) return;
-      try {
-        const record = await timed('HadeethEnc', () => attempt(() => input.ports.loadHadeeth(input.language, hit.id, signal), signal));
-        if (!passageSupportsTopic(input.question, record.text) && !plan.subquestions.some(sub => passageSupportsTopic(sub.text, record.text))) {
-          pushCoverage({
-            kind: 'no_relevant_evidence',
-            provider: 'HadeethEnc',
-            detail: `HadeethEnc ${record.id} was opened. Its text did not contain a content term from the question, so it is not cited.`,
-          });
-          return;
-        }
-        const hash = remember('HadeethEnc', record.id, contentHash(record.text), record.text);
-        passages.push(hadithPassage(record, input.language, clock().toISOString(), hash));
-      } catch (err) {
-        if (isAbort(err, signal)) throw abortError();
-        const message = err instanceof Error ? err.message : 'The hadith record could not be opened.';
-        const language = /not available/i.test(message);
-        errors.push({ provider: 'HadeethEnc', message });
-        pushCoverage({
-          kind: language ? 'language_unavailable' : 'source_unavailable',
-          provider: 'HadeethEnc',
-          detail: language
-            ? `HadeethEnc ${hit.id} is not available in ${input.language}. Another language was not substituted.`
-            : `HadeethEnc ${hit.id} could not be opened: ${message}`,
-        });
-      }
-    });
     if (signal.aborted) return finish('cancelled');
 
+    const verifyNarration = classifyResearchTask(input.question) === 'verify-narration';
+    const encyclopediaKept = passages.filter(item => item.source.provider === 'HadeethEnc');
+    const numberedReference = encyclopediaKept.some(item =>
+      /(?:bukh\w*|muslim|dawud|tirmidh\w*|nasai|majah|malik)\s+\d{2,}/i.test(`${item.locator} ${item.source.title} ${item.context ?? ''}`),
+    );
+    const encyclopediaLacksNarration = encyclopediaKept.length === 0;
+    if (hadeethProviderFailed && encyclopediaLacksNarration) {
+      pushCoverage({
+        kind: 'source_unavailable',
+        provider: 'hadith-api',
+        detail: 'The study collections were not searched in place of a failed HadeethEnc response. A provider error is not absence of evidence.',
+      });
+    }
+    if (
+      consultHadith &&
+      !hadeethProviderFailed &&
+      input.ports.searchStudyHadith &&
+      (encyclopediaLacksNarration || (verifyNarration && !numberedReference))
+    ) {
+      const named = namedStudyCollections(
+        `${input.question}\n${encyclopediaKept.map(item => `${item.locator}\n${item.text}`).join('\n')}`,
+      );
+      const collectionIds = named.length ? named : HADITH_COLLECTIONS.map(item => item.id);
+      if (allow('hadith-api')) {
+        try {
+          const rows = await timed('hadith-api', () =>
+            attempt(
+              () => input.ports.searchStudyHadith!(input.language, input.question, ranQueries, collectionIds, signal),
+              signal,
+            ),
+          );
+          if (!rows.length) {
+            pushCoverage({
+              kind: 'no_relevant_evidence',
+              provider: 'hadith-api',
+              detail: encyclopediaLacksNarration
+                ? 'HadeethEnc did not return this narration. The study collections were searched next and no numbered record was kept.'
+                : 'HadeethEnc did not print a collection number. The study collections were searched and no numbered record was kept.',
+            });
+          }
+          for (const row of rows) {
+            const blob = `${row.text}\n${row.arabic ?? ''}`;
+            const supported =
+              supportsNarration(input.question, blob) || plan.subquestions.some(sub => supportsNarration(sub.text, blob));
+            if (!supported) {
+              pushCoverage({
+                kind: 'no_relevant_evidence',
+                provider: 'hadith-api',
+                detail: `${row.collectionName} ${row.number} was opened. Its text did not contain a content term from the question, so it is not cited.`,
+              });
+              continue;
+            }
+            const hash = remember('hadith-api', row.id, contentHash(row.text), `${row.text}\n${row.arabic ?? ''}`);
+            passages.push(studyPassage(row, input.language, clock().toISOString(), hash));
+          }
+        } catch (err) {
+          if (isAbort(err, signal)) return finish('cancelled');
+          const message = err instanceof Error ? err.message : 'The study collection could not be searched.';
+          errors.push({ provider: 'hadith-api', message });
+          pushCoverage({
+            kind: 'source_unavailable',
+            provider: 'hadith-api',
+            detail: `A source could not be reached. hadith-api search failed: ${message} This is not a finding that the narration is absent.`,
+          });
+        }
+      }
+    }
+    if (signal.aborted) return finish('cancelled');
+
+    const countingCorpus = interpretation.kind === 'corpus-count' && interpretation.corpus !== 'hadith' && useQuran;
+    if (countingCorpus) {
+      const fallback = fallbackWordings(interpretation.subject);
+      countedEnglish = fallback.english;
+      countedArabic = fallback.arabic;
+      if (input.ports.listWordings) {
+        try {
+          const listed = await timed('Gemini', () =>
+            attempt(() => input.ports.listWordings!(input.question, interpretation.subject, signal), signal),
+          );
+          const cleaned = distinctWordings(listed.english, listed.arabic);
+          if (!listed.available || listed.failed || (cleaned.english.length === 0 && cleaned.arabic.length === 0)) {
+            pushCoverage({
+              kind: 'scholarly_review_required',
+              provider: 'Gemini',
+              detail: 'A wording list was not returned. The subject’s own word and its singular or plural were counted instead.',
+            });
+          } else {
+            countedEnglish = cleaned.english;
+            countedArabic = cleaned.arabic;
+          }
+        } catch (err) {
+          if (isAbort(err, signal)) return finish('cancelled');
+          pushCoverage({
+            kind: 'scholarly_review_required',
+            provider: 'Gemini',
+            detail: 'A wording list was not returned. The subject’s own word and its singular or plural were counted instead.',
+          });
+        }
+      }
+      const wordings = [
+        ...countedEnglish.map(wording => ({ wording, script: 'english' as const })),
+        ...countedArabic.map(wording => ({ wording, script: 'arabic' as const })),
+      ];
+      if (input.ports.searchQuran) {
+        for (const phrase of wordings) {
+          if (!allow('AlQuran')) break;
+          try {
+            const found = await timed('AlQuran', () => attempt(() => input.ports.searchQuran!(phrase.wording, signal), signal));
+            const hits = found.hits;
+            if (hits) {
+              if (hits.length < found.total) searchTruncated = true;
+              for (const hit of hits) {
+                if (!hit.text || !wordingInText(phrase.wording, hit.text)) continue;
+                occurrenceItems.push({
+                  surah: hit.surah,
+                  ayah: hit.ayah,
+                  wording: phrase.wording,
+                  script: phrase.script,
+                  text: hit.text,
+                });
+              }
+            }
+          } catch (err) {
+            if (isAbort(err, signal)) return finish('cancelled');
+            const message = err instanceof Error ? err.message : 'The Qur’an search did not respond.';
+            errors.push({ provider: 'AlQuran', message });
+            pushCoverage({
+              kind: 'source_unavailable',
+              provider: 'AlQuran',
+              detail: `A source could not be reached. The Qur’an search failed: ${message} Passages already nominated are still opened. This is not a finding that the subject is absent.`,
+            });
+          }
+        }
+      }
+      publishSplit();
+    }
     const namedAyahs = useQuran ? ayahsMentioned(input.question) : [];
     const ayahs = [...namedAyahs];
     const themeKeys = new Set<string>();
+    const ayahCap = 8;
     if (useQuran) {
-      for (const ayah of suggestedAyahs) {
-        if (ayahs.length >= 8) break;
+      for (const ayah of themeAyahs(input.question)) {
+        const key = `${ayah.surah}:${ayah.ayah}`;
+        themeKeys.add(key);
+        if (ayahs.length >= ayahCap) continue;
         if (!ayahs.some(item => item.surah === ayah.surah && item.ayah === ayah.ayah)) ayahs.push(ayah);
       }
-      if (input.assignment) {
-        for (const ayah of themeAyahs(input.question)) {
-          if (ayahs.length >= 8) break;
-          const key = `${ayah.surah}:${ayah.ayah}`;
-          if (!ayahs.some(item => item.surah === ayah.surah && item.ayah === ayah.ayah)) {
-            ayahs.push(ayah);
-            themeKeys.add(key);
-          }
-        }
+      for (const ayah of suggestedAyahs) {
+        if (ayahs.length >= ayahCap) break;
+        if (!ayahs.some(item => item.surah === ayah.surah && item.ayah === ayah.ayah)) ayahs.push(ayah);
       }
     }
     const namedKeys = new Set(namedAyahs.map(ayah => `${ayah.surah}:${ayah.ayah}`));
@@ -477,26 +784,99 @@ export async function executeResearch(input: {
       try {
         const verses = await timed('QuranEnc', () => attempt(() => input.ports.getVerses(ayahs, input.language, signal), signal));
         const found = new Set(verses.map(verse => `${verse.surah}:${verse.ayah}`));
+        if (countingCorpus && input.ports.assessRelevance && verses.length) {
+          try {
+            const judged = await timed('Gemini', () =>
+              attempt(
+                () =>
+                  input.ports.assessRelevance!(
+                    input.question,
+                    interpretation.meaning,
+                    verses.map(verse => ({ id: `${verse.surah}:${verse.ayah}`, text: `${verse.arabic}\n${verse.translation}` })),
+                    signal,
+                  ),
+                signal,
+              ),
+            );
+            if (!judged.available || judged.failed) {
+              pushCoverage({
+                kind: 'scholarly_review_required',
+                provider: 'Gemini',
+                detail: 'Meaning review did not name a campaign. A verse is counted only when its text contains a counted wording.',
+              });
+            } else {
+              const wordings = [...countedEnglish, ...countedArabic];
+              for (const event of judged.events ?? []) {
+                const ref = refFromJudgement(event.id);
+                const verse = ref ? verses.find(item => `${item.surah}:${item.ayah}` === ref) : undefined;
+                if (!verse || !ref) continue;
+                const campaign = event.campaign.replace(/\s+/g, ' ').trim();
+                if (!campaign || /^unnamed$/i.test(campaign)) {
+                  const named = campaignHits.some(item => item.surah === verse.surah && item.ayah === verse.ayah);
+                  if (!named && !unnamedEvents.some(item => item.surah === verse.surah && item.ayah === verse.ayah)) {
+                    unnamedEvents.push({ surah: verse.surah, ayah: verse.ayah });
+                  }
+                  continue;
+                }
+                const accepted = acceptedCampaign(campaign, `${verse.translation}\n${verse.arabic}`, wordings);
+                if (!accepted) continue;
+                unnamedEvents.splice(
+                  0,
+                  unnamedEvents.length,
+                  ...unnamedEvents.filter(item => item.surah !== verse.surah || item.ayah !== verse.ayah),
+                );
+                campaignHits.push({ key: accepted.key, label: accepted.label, surah: verse.surah, ayah: verse.ayah });
+              }
+            }
+          } catch (err) {
+            if (isAbort(err, signal)) return finish('cancelled');
+            pushCoverage({
+              kind: 'scholarly_review_required',
+              provider: 'Gemini',
+              detail: 'Meaning review did not name a campaign. A verse is counted only when its text contains a counted wording.',
+            });
+          }
+        }
+        if (countingCorpus) {
+          for (const verse of verses) {
+            for (const wording of countedEnglish) {
+              if (!wordingInText(wording, verse.translation)) continue;
+              occurrenceItems.push({ surah: verse.surah, ayah: verse.ayah, wording, script: 'english', text: verse.translation });
+            }
+            for (const wording of countedArabic) {
+              if (!wordingInText(wording, verse.arabic)) continue;
+              occurrenceItems.push({ surah: verse.surah, ayah: verse.ayah, wording, script: 'arabic', text: verse.arabic });
+            }
+          }
+          publishSplit();
+        }
         for (const verse of verses) {
           const key = `${verse.surah}:${verse.ayah}`;
           const named = namedKeys.has(key);
           const theme = themeKeys.has(key);
           const verseText = `${verse.arabic}\n${verse.translation}`;
-          const supported =
-            named ||
-            passageSupportsTopic(input.question, verseText) ||
-            plan.subquestions.some(sub => passageSupportsTopic(sub.text, verseText)) ||
-            (theme && themeWordingSupports(input.question, verseText));
+          const inCount = Boolean(corpusSplit && splitMentions(corpusSplit, verse.surah, verse.ayah));
+          const supported = countingCorpus
+            ? inCount
+            : named ||
+              passageSupportsTopic(input.question, verseText) ||
+              plan.subquestions.some(sub => passageSupportsTopic(sub.text, verseText)) ||
+              themeWordingSupports(input.question, verseText) ||
+              (theme && interpretation.synonyms.some(word => verseText.toLocaleLowerCase('en').includes(word.toLocaleLowerCase('en'))));
           if (!supported) {
             pushCoverage({
               kind: 'no_relevant_evidence',
               provider: 'QuranEnc',
-              detail: `Qur’an ${key} was opened. Its wording did not share a content term with the question, so it is not cited.`,
+              detail: countingCorpus
+                ? `Qur’an ${key} was opened. It does not contain a counted wording and it does not narrate a named campaign, so it is in neither count. The source was available.`
+                : `Qur’an ${key} was opened. Read for meaning and context, it does not address this question, so it is not cited. The source was available.`,
             });
             continue;
           }
           const hash = remember('QuranEnc', key, verse.version ?? contentHash(verse.translation), verse.translation);
-          passages.push(versePassage(verse, input.language, clock().toISOString(), hash));
+          const passage = versePassage(verse, input.language, clock().toISOString(), hash);
+          if (countingCorpus && corpusSplit) passage.context = corpusPassageContext(verse.surah, verse.ayah, corpusSplit);
+          passages.push(passage);
         }
         for (const ayah of ayahs) {
           if (!found.has(`${ayah.surah}:${ayah.ayah}`)) {
@@ -510,12 +890,22 @@ export async function executeResearch(input: {
       } catch (err) {
         if (isAbort(err, signal)) return finish('cancelled');
         const message = err instanceof Error ? err.message : 'QuranEnc did not respond.';
+        directSourceFailed = true;
         errors.push({ provider: 'QuranEnc', message });
         pushCoverage({
           kind: 'source_unavailable',
           provider: 'QuranEnc',
           detail: `A source could not be reached. QuranEnc did not respond: ${message} The hadith search is not cancelled by this.`,
         });
+      }
+    }
+    if (countingCorpus) {
+      const split = corpusSplit ?? publishSplit();
+      for (const group of groupOccurrenceVerses(split.occurrences)) {
+        const key = `${group[0].surah}:${group[0].ayah}`;
+        if (passages.some(passage => passage.role === 'translation' && passage.source.id === key)) continue;
+        const hash = remember('AlQuran', key, contentHash(group.map(item => item.text).join('\n')), group[0].text);
+        passages.push(occurrenceSnippet(group, input.language, clock().toISOString(), hash));
       }
     }
 
@@ -554,13 +944,13 @@ export async function executeResearch(input: {
       if (input.ports.loadCommentary) {
         const bySurah = new Map<number, number[]>();
         for (const passage of passages) {
-          if (passage.source.provider !== 'QuranEnc' || passage.context) continue;
+          if (passage.source.provider !== 'QuranEnc' || passage.context?.startsWith('Neighbouring')) continue;
           const [surah, ayah] = passage.source.id.split(':').map(Number);
           const list = bySurah.get(surah) ?? [];
           list.push(ayah);
           bySurah.set(surah, list);
         }
-        for (const [surah, ayahList] of [...bySurah.entries()].slice(0, 2)) {
+        for (const [surah, ayahList] of [...bySurah.entries()].slice(0, interpretation.kind === 'corpus-count' ? 4 : 2)) {
           if (!allow('QuranEnc')) break;
           try {
             const commentary = await timed('QuranEnc', () =>
@@ -627,6 +1017,7 @@ export async function executeResearch(input: {
         } catch (err) {
           if (isAbort(err, signal)) return finish('cancelled');
           const message = err instanceof Error ? err.message : 'The book catalogue could not be searched.';
+          directSourceFailed = true;
           pushCoverage({ kind: 'source_unavailable', provider: 'IslamHouse', detail: `A source could not be reached. ${message}` });
         }
       }
@@ -702,6 +1093,7 @@ export async function executeResearch(input: {
         } catch (err) {
           if (isAbort(err, signal)) return finish('cancelled');
           const message = err instanceof Error ? err.message : 'The book could not be opened.';
+          directSourceFailed = true;
           booksOpened.push({ id: bookId, title: '', availability: 'source_unavailable', limitation: message, matched: 0, blocks: 0, url: null });
           pushCoverage({ kind: 'source_unavailable', provider: 'IslamHouse', detail: `Item ${bookId} could not be opened: ${message}` });
         }
@@ -738,6 +1130,7 @@ export async function executeResearch(input: {
       } catch (err) {
         if (isAbort(err, signal)) return finish('cancelled');
         const message = err instanceof Error ? err.message : 'OpenAlex did not respond.';
+        directSourceFailed = true;
         errors.push({ provider: 'OpenAlex', message });
         pushCoverage({
           kind: 'source_unavailable',
@@ -771,11 +1164,98 @@ export async function executeResearch(input: {
         detail: `Research stopped before every planned source was opened. This is incomplete research, not a finding that the sources are silent. The question is still here: ${input.question}`,
       });
     } else if (!coverage.some(note => note.kind === 'source_unavailable' || note.kind === 'science_not_configured' || note.kind === 'language_unavailable')) {
+      const opened = coverage.some(note => /was opened/i.test(note.detail));
       pushCoverage({
         kind: 'no_relevant_evidence',
         provider: 'dossier',
-        detail: `Available evidence does not sufficiently support an answer. Your question is still here: ${input.question}`,
+        detail: opened
+          ? `The opened passages do not address this question. The sources were available. Your question is still here: ${input.question}`
+          : `Available evidence does not sufficiently support an answer. Your question is still here: ${input.question}`,
       });
+    }
+    const deduped = dedupePassages(passages);
+    sharedSourceNotes = deduped.shared.map(item => item.note);
+    passages.splice(0, passages.length, ...deduped.passages);
+    for (const note of sharedSourceNotes) {
+      pushCoverage({ kind: 'evidence_found', provider: 'dossier', detail: note });
+    }
+    try {
+      parallelConsult = await consultParallel({
+        question: input.question,
+        language: input.language,
+        signal,
+        pollMs: input.parallel?.pollMs ?? 2_000,
+        apiKey: input.parallel?.apiKey,
+        fetchImpl: input.parallel?.fetchImpl,
+      });
+      timings.Parallel = parallelConsult.durationMs;
+      for (const finding of parallelConsult.findings) {
+        const text = finding.excerpt.trim();
+        const hash = remember('Parallel', finding.url, 'parallel-task', text);
+        passages.push(parallelPassage(finding, input.language, clock().toISOString(), hash));
+      }
+      if (parallelConsult.findings.length) {
+        const withParallel = dedupePassages(passages);
+        passages.splice(0, passages.length, ...withParallel.passages);
+      }
+      if (parallelConsult.status === 'failed') {
+        pushCoverage({ kind: 'source_unavailable', provider: 'Parallel', detail: parallelConsult.setup ?? 'Parallel did not return findings.' });
+      } else if (parallelConsult.status === 'running') {
+        pushCoverage({ kind: 'budget_exhausted', provider: 'Parallel', detail: parallelConsult.setup ?? 'Parallel is still running. Its citations are not in this revision.' });
+      }
+    } catch (err) {
+      if (isAbort(err, signal)) return finish('cancelled');
+      parallelConsult = { status: 'failed', liveCallMade: true, runId: null, findings: [], setup: err instanceof Error ? err.message : 'Parallel failed.', processor: null, durationMs: 0 };
+    }
+    const reviewedPassages = [...passages];
+    const answerPool = passages.filter(passage => passageMatchesLanguage(passage, input.language));
+    if (answerPool.length !== passages.length) {
+      pushCoverage({
+        kind: 'language_unavailable',
+        provider: 'dossier',
+        detail: `A retrieved passage is not in the selected language (${input.language}). It is not used as the answer.`,
+      });
+      passages.splice(0, passages.length, ...answerPool);
+    }
+    if (corpusSplit) {
+      researchAnswer = {
+        paragraphs: formatCorpusCount(corpusSplit),
+        insufficientEvidence: false,
+        writer: 'retrieved',
+      };
+    } else if (passages.length) {
+      const packet = [
+        ...answerPassages(passages),
+        ...passages.filter(passage => passage.source.provider === 'Parallel' && !answerPassages(passages).some(item => item.id === passage.id)),
+      ];
+      const evidence = packet.map(passageToEvidence);
+      let written: ResearchAnswer | null = null;
+      if (input.ports.writeAnswer && evidence.length) {
+        try {
+          const result = await timed('Gemini', () => attempt(() => input.ports.writeAnswer!(input.question, input.language, evidence, signal), signal));
+          written = acceptWrittenAnswer(input.question, result, packet, interpretation);
+        } catch (err) {
+          if (isAbort(err, signal)) return finish('cancelled');
+          written = null;
+        }
+      }
+      researchAnswer = ensureParallelCited(written ?? retrievedAnswer(input.question, packet, interpretation), packet, input.question, interpretation);
+    }
+    materialReview = reviewMaterialCoverage({
+      question: input.question,
+      language: input.language,
+      passages: reviewedPassages,
+      providerFailed: (directSourceFailed || hadeethProviderFailed) && answerPool.length === 0,
+    });
+    investigation = materialReview.investigation;
+    const open = materialReview.parts.filter(part => part.status === 'unresolved');
+    if (open.length) {
+      const sentence = open.map(part => part.note).join(' ');
+      researchAnswer = {
+        paragraphs: [...(researchAnswer?.paragraphs ?? []), { text: sentence, citations: [] }],
+        insufficientEvidence: researchAnswer?.insufficientEvidence ?? false,
+        writer: researchAnswer?.writer ?? 'retrieved',
+      };
     }
     publish('verify', 4);
     if (signal.aborted) return finish('cancelled');
@@ -789,7 +1269,17 @@ export async function executeResearch(input: {
   }
 }
 
-function claimFor(sub: ResearchSubquestion, passages: EvidencePassage[], coverage: CoverageNote[]) {
+function claimFor(
+  sub: ResearchSubquestion,
+  passages: EvidencePassage[],
+  coverage: CoverageNote[],
+  interpretation: QuestionInterpretation,
+  split: {
+    occurrences: readonly WordingOccurrence[];
+    campaigns: readonly CampaignGroup[];
+    unnamed: readonly { surah: number; ayah: number }[];
+  } | null,
+): ClaimEvidence {
   if (sub.domain === 'science' || asksScience(sub.text)) {
     const papers = passages.filter(item => item.role === 'empirical');
     if (coverage.some(note => note.kind === 'science_not_configured')) {
@@ -824,6 +1314,39 @@ function claimFor(sub: ResearchSubquestion, passages: EvidencePassage[], coverag
           : check.note,
     };
   }
+  if (interpretation.kind === 'corpus-count') {
+    const words = split?.occurrences.length ?? 0;
+    const campaigns = split?.campaigns.length ?? 0;
+    const unnamed = split?.unnamed.length ?? 0;
+    if (!words && !campaigns && !unnamed) {
+      const unavailable = coverage.some(note => note.kind === 'source_unavailable' || note.kind === 'language_unavailable');
+      return {
+        claim: sub.text,
+        passageIds: [] as string[],
+        support: 'insufficient' as const,
+        citationExists: false,
+        quotationFaithful: null,
+        citationRelevant: false,
+        note: unavailable
+          ? 'A source could not be reached, so this count was not finished.'
+          : 'No counted wording and no named campaign was found in the retrieved text. The sources that responded were available.',
+      };
+    }
+    const ids = [
+      ...(split?.occurrences ?? []).map(item => `Q${item.surah}-${item.ayah}`),
+      ...(split?.campaigns ?? []).flatMap(group => group.verses.map(verse => `Q${verse.surah}-${verse.ayah}`)),
+      ...(split?.unnamed ?? []).map(verse => `Q${verse.surah}-${verse.ayah}`),
+    ];
+    return {
+      claim: sub.text,
+      passageIds: [...new Set(ids)].filter(id => passages.some(passage => passage.id === id)).slice(0, 12),
+      support: 'supported' as const,
+      citationExists: true,
+      quotationFaithful: true,
+      citationRelevant: true,
+      note: `Word occurrences and named campaigns are counted separately. ${words} wording occurrence(s) and ${campaigns} named campaign(s) are listed. Neither count is a sentence in the sources.`,
+    };
+  }
   if (!sub.queries.length) {
     return {
       claim: sub.text,
@@ -835,7 +1358,11 @@ function claimFor(sub: ResearchSubquestion, passages: EvidencePassage[], coverag
       note: 'We could not process the question. It is still here.',
     };
   }
-  const related = passages.filter(item => item.role !== 'empirical' && passageSupportsTopic(sub.text, item.text));
+  const related = passages.filter(item => {
+    if (item.role === 'empirical' || item.context?.startsWith('Neighbouring')) return false;
+    const blob = `${item.text}\n${item.arabic ?? ''}`;
+    return passageSupportsTopic(sub.text, blob) || themeWordingSupports(sub.text, blob);
+  });
   if (!related.length) {
     return {
       claim: sub.text,
@@ -852,10 +1379,110 @@ function claimFor(sub: ResearchSubquestion, passages: EvidencePassage[], coverag
     };
   }
   const best = [...related].sort((a, b) => score(sub.text, b.text) - score(sub.text, a.text))[0];
-  return verifyClaim(sub.text, best.id, related.map(item => ({ id: item.id, text: item.text })));
+  const check = verifyClaim(sub.text, best.id, related.map(item => ({ id: item.id, text: item.text })));
+  const passageIds = related.map(item => item.id).slice(0, 8);
+  const onSubject = related.some(item => themeWordingSupports(sub.text, `${item.text}\n${item.arabic ?? ''}`));
+  if (check.support === 'unsupported' && onSubject) {
+    return {
+      ...check,
+      support: 'insufficient',
+      citationRelevant: true,
+      passageIds,
+      note: 'The retrieved passages are about this subject. They do not establish the claim as asked, and no number or grade was added.',
+    };
+  }
+  if (check.support === 'insufficient' || check.support === 'supported') {
+    return {
+      ...check,
+      passageIds,
+      note:
+        check.support === 'supported'
+          ? check.note
+          : 'The retrieved passages share this subject. They are cited for what they say. A word match does not add a number or a grade that they do not state.',
+    };
+  }
+  return check;
 }
 
-function hadithPassage(record: HadithRecord, lang: Lang, retrievedAt: string, hash: string): EvidencePassage {
+function studyPassage(record: StudyHadithRecord, lang: Lang, retrievedAt: string, hash: string): EvidencePassage {
+  const narrator = record.text.match(/^\s*Narrated\s+([^:]{2,80}):/i)?.[1]?.trim() ?? null;
+  const reference = `${record.collectionName} ${record.number}`;
+  const place = [record.book ? `book ${record.book}` : null, record.inBook ? `hadith ${record.inBook}` : null].filter(Boolean).join(', ');
+  const editionEnds = !/[.!?…"»]$/.test(record.text.trim());
+  const collectionId = record.id.split(':')[0] || 'bukhari';
+  return {
+    contractVersion: VERSION,
+    id: `H${record.id.replace(/[^\dA-Za-z]+/g, '-')}`,
+    source: source({
+      id: record.id,
+      provider: 'hadith-api',
+      language: lang,
+      edition: `eng-${collectionId}`,
+      version: hash,
+      title: reference,
+      credits: narrator ? [{ role: 'narrator', name: narrator }] : [],
+      canonicalUrl: record.url,
+      contentType: 'hadith',
+      rights: STUDY_RIGHTS,
+      retrievedAt,
+      contentHash: hash,
+    }),
+    text: record.text,
+    originalLanguage: lang,
+    arabic: record.arabic,
+    locator: reference,
+    context: [
+      narrator ? `Narrator: ${narrator}.` : null,
+      `Collection reference: ${reference}${place ? ` (${place})` : ''}.`,
+      record.section ? `Section: ${record.section}.` : null,
+      `Arabic text retrieved from https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/ara-${collectionId}/${record.number}.min.json.`,
+      editionEnds ? 'The English edition file ends with the wording quoted here. No words were added.' : null,
+    ]
+      .filter(Boolean)
+      .join(' '),
+    readerRoute: '#/hadith',
+    role: 'source_text',
+    publishedGrade: record.grade,
+  };
+}
+
+function parallelPassage(finding: { claim: string; excerpt: string; url: string; title: string; providerConfidence: string | null }, lang: Lang, retrievedAt: string, hash: string): EvidencePassage {
+  return {
+    contractVersion: VERSION,
+    id: `P${hash.slice(0, 8)}`,
+    source: source({
+      id: finding.url,
+      provider: 'Parallel',
+      language: lang,
+      edition: null,
+      version: hash,
+      title: finding.title,
+      credits: [],
+      canonicalUrl: finding.url,
+      contentType: 'article',
+      rights: { source: 'Parallel Task API', conditions: 'Cited page text only. Parallel confidence is provider metadata.', generatedWork: false, checkedOn: retrievedAt.slice(0, 10) },
+      retrievedAt,
+      contentHash: hash,
+    }),
+    text: finding.excerpt,
+    originalLanguage: lang,
+    arabic: null,
+    locator: finding.title,
+    context: `${CONFIDENCE_NOTE}${finding.providerConfidence ? ` Provider confidence: ${finding.providerConfidence}.` : ''} ${finding.claim}`,
+    readerRoute: finding.url,
+    role: 'commentary',
+    publishedGrade: null,
+  };
+}
+
+function hadithPassage(
+  record: HadithRecord,
+  lang: Lang,
+  retrievedAt: string,
+  hash: string,
+  role: EvidencePassage['role'] = 'source_text',
+): EvidencePassage {
+  const edition = `hadeethenc-${lang}`;
   return {
     contractVersion: VERSION,
     id: `E${record.id}`,
@@ -863,8 +1490,8 @@ function hadithPassage(record: HadithRecord, lang: Lang, retrievedAt: string, ha
       id: record.id,
       provider: 'HadeethEnc',
       language: lang,
-      edition: null,
-      version: hash,
+      edition,
+      version: record.version || hash,
       title: record.title,
       credits: [],
       canonicalUrl: record.url,
@@ -877,10 +1504,260 @@ function hadithPassage(record: HadithRecord, lang: Lang, retrievedAt: string, ha
     originalLanguage: lang,
     arabic: record.arabic,
     locator: [record.attribution, `HadeethEnc ${record.id}`].filter(Boolean).join('. '),
-    context: record.explanation ? `HadeethEnc explanation on this record: ${record.explanation}` : null,
+    context: [
+      `Language edition: ${edition}.`,
+      record.version ? `Source edition: HadeethEnc ${record.version}.` : null,
+      record.attribution ? `Collection attribution printed on this edition: ${record.attribution}.` : null,
+      record.grade ? `Grade printed on this edition: ${record.grade}. This grade is a transmission judgement, not a legal ruling.` : null,
+      record.explanation ? `Publisher explanation on this edition, kept as a legal reading and not as the grade: ${record.explanation}` : null,
+    ].filter(Boolean).join(' '),
     readerRoute: `#/hadith/${record.id}?lang=${lang}`,
-    role: 'source_text',
+    role,
     publishedGrade: record.grade,
+  };
+}
+
+const COUNT_QUESTION = /\bhow many\b|\bnumber of\b|\bhow much\b|எத்தனை|කීයක්|كم/i;
+
+function answerPassages(passages: readonly EvidencePassage[]): EvidencePassage[] {
+  const primary = passages.filter(passage => passage.role !== 'empirical' && !passage.context?.startsWith('Neighbouring'));
+  const study = primary.filter(passage => passage.source.provider === 'hadith-api');
+  const ordered = study.length ? [...study, ...primary.filter(passage => passage.source.provider !== 'hadith-api')] : primary;
+  return ordered.slice(0, 8);
+}
+
+function passageToEvidence(passage: EvidencePassage): Evidence {
+  const kind = passage.source.contentType === 'hadith' ? 'hadith' : passage.source.contentType === 'quran' ? 'quran' : 'guide';
+  return {
+    id: passage.id,
+    kind,
+    label: passage.locator,
+    arabic: passage.arabic,
+    text: passage.text,
+    attribution: [passage.source.provider, passage.source.title, passage.publishedGrade ? `Grade: ${passage.publishedGrade}` : '']
+      .filter(Boolean)
+      .join('. '),
+    grades: passage.publishedGrade ? [{ name: passage.source.provider, grade: passage.publishedGrade }] : [],
+    locator: passage.locator,
+    sourceUrl: passage.source.canonicalUrl,
+  };
+}
+
+function packetBlob(passages: readonly EvidencePassage[]): string {
+  return passages.map(passage => `${passage.locator}\n${passage.id}\n${passage.text}\n${passage.arabic ?? ''}\n${passage.publishedGrade ?? ''}`).join('\n');
+}
+
+function inventsNumber(question: string, paragraph: string, packet: string): boolean {
+  if (!COUNT_QUESTION.test(question)) return false;
+  const compact = packet.replace(/,/g, '');
+  for (const match of paragraph.matchAll(/\b\d{1,3}:\d{1,3}\b|\b\d[\d,]*\b/g)) {
+    const token = match[0];
+    const bare = token.replace(/,/g, '');
+    if (bare.length < 2) continue;
+    if (packet.includes(token) || compact.includes(bare)) continue;
+    return true;
+  }
+  return false;
+}
+
+function passageStatesCount(passages: readonly EvidencePassage[]): boolean {
+  return passages.some(passage => {
+    const text = `${passage.text}\n${passage.arabic ?? ''}`;
+    if (!/prophet|messenger|نبي|أنبياء|انبياء|رسل|رسول/i.test(text)) return false;
+    return /\b\d{2,}\b|[\u0660-\u0669]{2,}/.test(text);
+  });
+}
+
+function acceptWrittenAnswer(
+  question: string,
+  result: { paragraphs: { text: string; citations: string[] }[]; insufficientEvidence: boolean },
+  passages: readonly EvidencePassage[],
+  interpretation: QuestionInterpretation,
+): ResearchAnswer | null {
+  const ids = new Set(passages.map(passage => passage.id));
+  const packet = packetBlob(passages);
+  const paragraphs = result.paragraphs
+    .map(paragraph => ({
+      text: paragraph.text.replace(/\s+/g, ' ').trim(),
+      citations: [...new Set(paragraph.citations.filter(id => ids.has(id)))],
+    }))
+    .filter(paragraph => paragraph.text && paragraph.citations.length > 0 && !inventsNumber(question, paragraph.text, packet));
+  if (!paragraphs.length) return null;
+  const asksStatedTotal = interpretation.kind === 'stated-total' || (interpretation.kind !== 'corpus-count' && COUNT_QUESTION.test(question));
+  return {
+    paragraphs,
+    insufficientEvidence: result.insufficientEvidence || (asksStatedTotal && !passageStatesCount(passages)),
+    writer: 'assistant',
+  };
+}
+
+function splitMentions(
+  split: { occurrences: readonly WordingOccurrence[]; campaigns: readonly CampaignGroup[]; unnamed: readonly { surah: number; ayah: number }[] },
+  surah: number,
+  ayah: number,
+): boolean {
+  return (
+    split.occurrences.some(item => item.surah === surah && item.ayah === ayah) ||
+    split.campaigns.some(group => group.verses.some(verse => verse.surah === surah && verse.ayah === ayah)) ||
+    split.unnamed.some(verse => verse.surah === surah && verse.ayah === ayah)
+  );
+}
+
+function groupOccurrenceVerses(items: readonly WordingOccurrence[]): WordingOccurrence[][] {
+  const groups = new Map<string, WordingOccurrence[]>();
+  for (const item of items) {
+    const key = `${item.surah}:${item.ayah}`;
+    const list = groups.get(key) ?? [];
+    list.push(item);
+    groups.set(key, list);
+  }
+  return [...groups.values()];
+}
+
+function occurrenceSnippet(items: readonly WordingOccurrence[], lang: Lang, retrievedAt: string, hash: string): EvidencePassage {
+  const first = items[0];
+  const english = items.find(item => item.script === 'english');
+  const arabic = items.find(item => item.script === 'arabic');
+  const edition = arabic && !english ? 'quran-uthmani' : 'en';
+  return {
+    contractVersion: VERSION,
+    id: `Q${first.surah}-${first.ayah}`,
+    source: source({
+      id: `${first.surah}:${first.ayah}`,
+      provider: 'AlQuran',
+      language: lang,
+      edition,
+      version: null,
+      title: `Qur'an ${first.surah}:${first.ayah}`,
+      credits: [{ role: 'source', name: 'AlQuran Cloud' }],
+      canonicalUrl: `https://api.alquran.cloud/v1/ayah/${first.surah}:${first.ayah}/${edition}`,
+      contentType: 'quran',
+      rights: ALQURAN_RIGHTS,
+      retrievedAt,
+      contentHash: hash,
+    }),
+    text: english?.text || arabic?.text || first.text,
+    originalLanguage: arabic && !english ? 'ar' : lang,
+    arabic: arabic?.text ?? null,
+    locator: `Surah ${first.surah}, ayah ${first.ayah}`,
+    context: occurrenceContext(items),
+    readerRoute: `#/quran/${first.surah}?ayah=${first.ayah}`,
+    role: 'translation',
+    publishedGrade: null,
+  };
+}
+
+function answerFromFinalPool(
+  question: string,
+  passages: readonly EvidencePassage[],
+  interpretation: QuestionInterpretation,
+): ResearchAnswer {
+  const base = retrievedAnswer(question, passages, interpretation);
+  const parallel = passages.filter(passage => passage.source.provider === 'Parallel');
+  if (!parallel.length) return base;
+  const quoted = parallel.map(passage => `${passage.locator}: “${passage.text.trim()}”`).join(' ');
+  const lead = base.paragraphs[0];
+  return {
+    paragraphs: [{
+      text: `${lead?.text ?? ''} Parallel findings: ${quoted}`.trim(),
+      citations: [...new Set([...(lead?.citations ?? []), ...parallel.map(passage => passage.id)])],
+    }],
+    insufficientEvidence: base.insufficientEvidence,
+    writer: 'retrieved',
+  };
+}
+
+function ensureParallelCited(
+  answer: ResearchAnswer | null,
+  passages: readonly EvidencePassage[],
+  question: string,
+  interpretation: QuestionInterpretation,
+): ResearchAnswer | null {
+  const parallel = passages.filter(passage => passage.source.provider === 'Parallel');
+  if (!parallel.length) return answer;
+  const written = (answer?.paragraphs ?? []).map(paragraph => paragraph.text).join('\n');
+  const missing = parallel.filter(passage => !written.includes(passage.text.trim().slice(0, 80)));
+  if (!missing.length) return answer;
+  const extra = answerFromFinalPool(question, missing, interpretation);
+  if (!answer) return extra;
+  return { ...answer, paragraphs: [...answer.paragraphs, ...extra.paragraphs] };
+}
+
+export function publishParallelRevision(run: ResearchRun, consult: ParallelConsult, now = new Date()): ResearchRun {
+  const job = structuredClone(run.job);
+  const dossier = structuredClone(run.dossier);
+  const previousRevision = job.parallel?.revision ?? 1;
+  job.parallel = {
+    status: consult.status,
+    liveCallMade: consult.liveCallMade,
+    runId: consult.runId,
+    setup: consult.setup,
+    processor: consult.processor,
+    revision: consult.findings.length ? previousRevision + 1 : previousRevision,
+  };
+  job.finishedAt = now.toISOString();
+  const agent = job.agents?.find(item => item.id === 'deep-research');
+  if (agent) {
+    agent.status = consult.status === 'completed' ? 'ran' : consult.status === 'failed' ? 'unavailable' : 'not_run';
+    agent.detail = consult.setup ?? (consult.findings.length
+      ? 'Parallel returned findings. Its confidence is provider metadata, not a hadith grade.'
+      : 'Parallel was called. No finding is cited until the task returns one.');
+  }
+  if (!consult.findings.length) return { job, dossier };
+  const passages = [...dossier.passages];
+  for (const finding of consult.findings) {
+    const text = finding.excerpt.trim();
+    const hash = contentHash(`${finding.url}\n${text}`);
+    const passage = parallelPassage(finding, job.language, now.toISOString(), hash);
+    if (passages.some(item => item.id === passage.id || (item.source.canonicalUrl === finding.url && item.text.trim() === text))) continue;
+    passages.push(passage);
+  }
+  const deduped = dedupePassages(passages);
+  const pool = deduped.passages.filter(passage => passageMatchesLanguage(passage, job.language));
+  const interpretation = interpretQuestion(job.question);
+  let answer = pool.length ? answerFromFinalPool(job.question, pool, interpretation) : dossier.answer ?? null;
+  const review = reviewMaterialCoverage({
+    question: job.question,
+    language: job.language,
+    passages: deduped.passages,
+    providerFailed: false,
+  });
+  const sentence = review.parts.filter(part => part.status === 'unresolved').map(part => part.note).join(' ');
+  if (sentence && answer && !answer.paragraphs.some(paragraph => paragraph.text.includes(sentence))) {
+    answer = { ...answer, paragraphs: [...answer.paragraphs, { text: sentence, citations: [] }] };
+  }
+  job.materialParts = review.parts;
+  job.investigation = review.investigation;
+  const keptIds = new Set(pool.map(passage => passage.id));
+  dossier.passages = pool;
+  dossier.answer = answer;
+  dossier.unresolved = review.unresolved;
+  dossier.claims = dossier.claims.map(claim => ({
+    ...claim,
+    passageIds: [...new Set(claim.passageIds.map(id => deduped.citationAliases[id] ?? id))].filter(id => keptIds.has(id)),
+  }));
+  dossier.verificationNote = [dossier.verificationNote, consult.findings.length ? CONFIDENCE_NOTE : ''].filter(Boolean).join(' ');
+  return { job, dossier };
+}
+
+function retrievedAnswer(
+  question: string,
+  passages: readonly EvidencePassage[],
+  interpretation: QuestionInterpretation,
+): ResearchAnswer {
+  const cited = passages.slice(0, 6);
+  const asksCount = interpretation.kind === 'stated-total' || (interpretation.kind !== 'corpus-count' && COUNT_QUESTION.test(question));
+  const statesCount = asksCount && passageStatesCount(cited);
+  const locators = cited.map(passage => passage.locator).join('; ');
+  const lead = cited[0];
+  const text =
+    asksCount && !statesCount
+      ? `The retrieved passages do not state a total number. They are cited for what they do say: ${locators}.`
+      : `Retrieved: ${locators}. ${lead?.publishedGrade ? `Grade printed by the source: ${lead.publishedGrade}. ` : ''}The source text says: “${lead?.text.trim() ?? ''}”`;
+  return {
+    paragraphs: [{ text, citations: cited.map(passage => passage.id) }],
+    insufficientEvidence: asksCount && !statesCount,
+    writer: 'retrieved',
   };
 }
 

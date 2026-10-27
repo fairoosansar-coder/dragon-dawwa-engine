@@ -1,4 +1,5 @@
 import type { AgentContribution, ClaimEvidence, CoverageNote, EvidencePassage, ResearchTeamId } from '../../shared/contracts/v1.ts';
+import { transmissionNames } from '../../shared/research/report.ts';
 
 export interface OpenedBook {
   id: number;
@@ -73,8 +74,8 @@ function hadithAgents(input: {
   coverage: readonly CoverageNote[];
   queries: readonly string[];
 }): AgentContribution[] {
-  const records = input.passages.filter(passage => passage.source.provider === 'HadeethEnc');
-  const notes = input.coverage.filter(note => note.provider === 'HadeethEnc' || note.provider === 'planner');
+  const records = input.passages.filter(passage => passage.source.contentType === 'hadith');
+  const notes = input.coverage.filter(note => note.provider === 'HadeethEnc' || note.provider === 'hadith-api' || note.provider === 'planner');
   const attempted = input.queries.length > 0 || notes.length > 0 || records.length > 0;
   if (!attempted) {
     return idle('hadith', HADITH_ROLES, 'The Hadith team was assigned, but no HadeethEnc search ran.');
@@ -84,7 +85,7 @@ function hadithAgents(input: {
     input.queries.length ? `Searches: ${input.queries.join(' · ')}.` : 'No search phrase was built.',
     records.length
       ? `Opened ${records.length} record(s): ${records.map(record => `${record.locator}${record.publishedGrade ? ` (grade printed by the source: ${record.publishedGrade})` : ' (no grade printed)'}`).join('; ')}.`
-      : 'No HadeethEnc record was opened.',
+      : 'No hadith record was opened.',
     ...notes.map(note => note.detail),
   ].join(' ');
 
@@ -106,9 +107,11 @@ function hadithAgents(input: {
       : 'Searches ran and no record was opened, so there is no source list to survey.',
   );
 
-  const chain = records.find(record => record.locator.split(/\s+(?:from|عن)\s+/i).length >= 2);
-  const isnad = chain
-    ? agent('hadith', 'isnad', 'Isnad', 'ran', `A narrator sequence is printed on ${chain.locator}. The map uses only those names.`)
+  const chain = records
+    .map(record => ({ record, names: transmissionNames(record) }))
+    .find(item => item.names && item.names.length >= 2);
+  const isnad = chain?.names
+    ? agent('hadith', 'isnad', 'Isnad', 'ran', `The opened record ${chain.record.locator} prints this narrator sequence: ${chain.names.join(' → ')}. The map uses only those names.`)
     : agent('hadith', 'isnad', 'Isnad', 'not_run', 'The opened records did not include a narrator-by-narrator chain, so no chain was assessed and no chain map was drawn.');
 
   const judged = records.filter(record => /thiqa|trustworthy|weak|liar|matruk|majhul|صدوق|ضعيف|ثقة/i.test(`${record.text} ${record.context ?? ''}`));
@@ -170,13 +173,33 @@ function quranAgents(input: {
     return idle('quran', QURAN_ROLES, 'No verse was identified, so the Qur’an team did not open a text.');
   }
   const locators = verses.map(passage => passage.locator).join('; ');
+  const opened = input.coverage.some(note => note.provider === 'QuranEnc' && /was opened/i.test(note.detail));
+  const fetchFailed = input.coverage.some(
+    note => note.provider === 'QuranEnc' && (note.kind === 'source_unavailable' || note.kind === 'language_unavailable'),
+  );
   const text = arabic.length
     ? agent('quran', 'text', 'Qur’an text', 'ran', `Arabic was retrieved for ${locators}.`)
-    : agent('quran', 'text', 'Qur’an text', 'unavailable', 'A verse was requested and the Arabic text did not come back.');
+    : opened
+      ? agent('quran', 'text', 'Qur’an text', 'not_run', 'Verses were opened. Their wording was not kept, and the Arabic text was not missing.')
+      : agent(
+          'quran',
+          'text',
+          'Qur’an text',
+          fetchFailed ? 'unavailable' : 'not_run',
+          fetchFailed ? 'A verse was requested and the Arabic text did not come back.' : 'No verse was kept.',
+        );
   const translators = [...new Set(translated.flatMap(passage => passage.source.credits.map(credit => credit.name).filter(Boolean)))];
   const translation = translated.length
     ? agent('quran', 'translation', 'Translation', 'ran', `Translation retrieved${translators.length ? ` (${translators.join(', ')})` : ''} for ${locators}.`)
-    : agent('quran', 'translation', 'Translation', 'unavailable', 'The verse request did not include a translation.');
+    : opened
+      ? agent('quran', 'translation', 'Translation', 'not_run', 'Verses were opened. No translation was kept as a finding.')
+      : agent(
+          'quran',
+          'translation',
+          'Translation',
+          fetchFailed ? 'unavailable' : 'not_run',
+          fetchFailed ? 'The verse request did not include a translation.' : 'No translation was kept.',
+        );
   const tafsirFailed = input.tafsir.filter(item => !item.ok);
   const tafsir = commentary.length
     ? agent('quran', 'tafsir', 'Tafsir', 'ran', `Al-Mukhtasar was opened for the cited ayahs. ${commentary.map(passage => passage.locator).join('; ')}.`)
@@ -186,15 +209,18 @@ function quranAgents(input: {
   const context = input.contextCount
     ? agent('quran', 'context', 'Contextual research', 'ran', `${input.contextCount} neighbouring ayah(s) were opened so the cited verse is not read alone.`)
     : agent('quran', 'context', 'Contextual research', 'not_run', 'No neighbouring ayah was opened.');
-  const evidence = agent(
-    'quran',
-    'evidence',
-    'Evidence review',
-    'ran',
-    input.claims.length
-      ? input.claims.map(claim => `${claim.support}: ${claim.note}`).join(' ')
-      : 'The retrieved verses were checked against the question. A citation is not support by itself.',
-  );
+  const reviewed = verses.length > 0 || commentary.length > 0 || input.claims.some(claim => claim.passageIds.length > 0);
+  const evidence = reviewed
+    ? agent(
+        'quran',
+        'evidence',
+        'Evidence review',
+        'ran',
+        input.claims.length
+          ? input.claims.map(claim => `${claim.support}: ${claim.note}`).join(' ')
+          : 'The retrieved verses were checked against the question. A citation is not support by itself.',
+      )
+    : agent('quran', 'evidence', 'Evidence review', 'not_run', 'No passage was kept, so evidence review did not produce a finding.');
   return [text, translation, tafsir, context, evidence];
 }
 
