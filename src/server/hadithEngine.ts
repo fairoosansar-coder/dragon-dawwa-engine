@@ -1,4 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
+import { findCompletedResearch, storedAnalysisJson } from "../../knowledge-faith/src/server/researchIdempotency.ts";
 import type { DragonDawwaAnalysis } from "../types/hadith.ts";
 import { SAMPLE_HADITHS } from "../data/sampleHadiths.ts";
 import { getLocalizedAnalysis } from "../utils/localizedAnalysis.ts";
@@ -238,6 +239,12 @@ export async function executeDragonDawwaAnalysis(
   isnadInput?: string,
   preferredLanguage: 'en' | 'ta' | 'si' = 'en'
 ): Promise<DragonDawwaAnalysis> {
+  const saved = await findCompletedResearch({ hadithInput, language: preferredLanguage });
+  if (saved?.status === 'done') {
+    const analysis = storedAnalysisJson(saved);
+    if (analysis) return analysis as unknown as DragonDawwaAnalysis;
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
 
   // Language instructions for descriptions while preserving sacred Arabic script
