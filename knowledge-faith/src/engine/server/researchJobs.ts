@@ -50,6 +50,14 @@ export function getResearchJob(id: string): ResearchJob | undefined {
   return jobs.get(id);
 }
 
+/** Publish a finished dossier without starting Gemini or TTS. */
+export function rememberCompletedAnalysis(id: string, result: unknown): void {
+  prune();
+  const current = jobs.get(id);
+  if (current && current.status === 'running') return;
+  jobs.set(id, { id, status: 'done', result, createdAt: Date.now() });
+}
+
 /** Test-only reset. */
 export function clearResearchJobs() {
   jobs.clear();

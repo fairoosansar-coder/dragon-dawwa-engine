@@ -40,6 +40,26 @@ export function getSharedResearchJob(id: string): ResearchJobResponse | undefine
   return { contractVersion: '1.0.0', job: job.job, dossier: job.dossier };
 }
 
+/** Publish a finished shared dossier without calling the research providers. */
+export function rememberCompletedSharedJob(response: ResearchJobResponse, assignment: ResearchAssignmentView | null): void {
+  prune();
+  const current = jobs.get(response.job.id);
+  if (current && (current.job.status === 'running' || current.job.status === 'queued')) return;
+  const fingerprint = researchFingerprint(
+    response.job.question,
+    response.job.language,
+    assignment ?? { scope: 'knowledge', teams: [], bookId: null },
+  );
+  jobs.set(response.job.id, {
+    contractVersion: '1.0.0',
+    controller: new AbortController(),
+    createdAt: Date.now(),
+    fingerprint,
+    dossier: response.dossier,
+    job: { ...response.job, status: 'done' },
+  });
+}
+
 export function cancelSharedResearchJob(id: string): ResearchJobResponse | undefined {
   const job = jobs.get(id);
   if (!job) return undefined;
