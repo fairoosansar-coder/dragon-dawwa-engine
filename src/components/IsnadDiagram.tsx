@@ -11,7 +11,7 @@ export const IsnadDiagram: React.FC<IsnadDiagramProps> = ({ isnad }) => {
   return (
     <div className="space-y-6">
       {/* Overview Banner */}
-      <div className="bg-[#0b1219] border border-slate-800 rounded-2xl p-6 shadow-xl">
+      <div className="bg-[var(--surface-panel)] border border-slate-800 rounded-2xl p-6 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
           <div>
             <div className="flex items-center gap-2">
@@ -76,7 +76,7 @@ export const IsnadDiagram: React.FC<IsnadDiagramProps> = ({ isnad }) => {
             return (
               <div
                 key={idx}
-                className="bg-[#0b1219]/90 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-all shadow-md relative"
+                className="bg-[var(--surface-panel)]/90 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-all shadow-md relative"
               >
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   {/* Transmission Nodes */}

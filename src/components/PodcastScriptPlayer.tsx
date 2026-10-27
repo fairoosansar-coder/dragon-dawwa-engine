@@ -64,7 +64,8 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
   const [copied, setCopied] = useState(false);
   const [speechRate, setSpeechRate] = useState<number>(1.0);
   const [soundFxEnabled, setSoundFxEnabled] = useState<boolean>(true);
-  const [useGeminiVoice, setUseGeminiVoice] = useState<boolean>(true);
+  const useGeminiVoice = true;
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const [isSynthesizing, setIsSynthesizing] = useState<boolean>(false);
   const [testingPersonaVoice, setTestingPersonaVoice] = useState<PersonaId | null>(null);
   const [imranVoice, setImranVoice] = useState<string>('Orus');
@@ -74,7 +75,6 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const audioCacheRef = useRef<Map<number, string>>(new Map());
   const pendingFetchesRef = useRef<Map<number, Promise<string | null>>>(new Map());
@@ -328,17 +328,6 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
     return result;
   }, [script]);
 
-  // Initial eager warming of Host 1 and Host 2 speech buffers as soon as script is parsed
-  useEffect(() => {
-    if (!dialogueItems || dialogueItems.length === 0 || !useGeminiVoice) return;
-    // Pre-warm the first two speech lines right away
-    for (let i = 0; i < Math.min(3, dialogueItems.length); i++) {
-      if (dialogueItems[i].type === 'speech') {
-        prefetchNextGeminiVoice(i);
-      }
-    }
-  }, [dialogueItems, useGeminiVoice]);
-
   // Pre-fetch next Gemini TTS audio clip in the background for 0ms latency
   // Automatically pre-loads host 2 / next speaker as soon as host 1 starts speaking
   const prefetchNextGeminiVoice = async (nextIndex: number) => {
@@ -415,7 +404,8 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
       });
 
       if (!res.ok) {
-        throw new Error(`TTS server responded with ${res.status}`);
+        const problem = await res.json().catch(() => ({}));
+        throw new Error(problem.error || `Gemini voice request failed (${res.status}).`);
       }
 
       const data = await res.json();
@@ -425,38 +415,17 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
       }
       return null;
     } catch (err) {
-      console.warn('Gemini TTS fetch issue, falling back to browser synthesis:', err);
+      setVoiceError(err instanceof Error ? err.message : 'Gemini voice unavailable. Press Play to retry.');
       return null;
     } finally {
       setIsSynthesizing(false);
     }
   };
 
-  // Fallback to browser Web Speech API
-  const playBrowserSpeechFallback = (cleanSpeech: string, item: DialogueItem, onEnd: () => void) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      onEnd();
-      return;
-    }
-
-    const utterance = new SpeechSynthesisUtterance(cleanSpeech);
-    utteranceRef.current = utterance;
-
-    const pMeta = personasConfig[item.speaker];
-    utterance.pitch = pMeta.pitch;
-    utterance.rate = pMeta.rate * speechRate;
-
-    const availableVoices = window.speechSynthesis.getVoices();
-    if (availableVoices && availableVoices.length > 0 && pMeta.gender === 'F') {
-      const femaleVoice = availableVoices.find(v => 
-        v.lang.startsWith('en') && (v.name.includes('Female') || v.name.includes('Zira') || v.name.includes('Samantha') || v.name.includes('Google UK English Female'))
-      );
-      if (femaleVoice) utterance.voice = femaleVoice;
-    }
-
-    utterance.onend = onEnd;
-    utterance.onerror = () => onEnd();
-    window.speechSynthesis.speak(utterance);
+  const stopForVoiceError = () => {
+    isPlayingRef.current = false;
+    setIsPlaying(false);
+    setVoiceError(previous => previous || 'Gemini audio could not play. Press Play to retry.');
   };
 
   // Animated Audio Visualizer Canvas Loop
@@ -610,31 +579,32 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
         audio.playbackRate = speechRate;
         audio.onended = onStepEnded;
         audio.onerror = (e) => {
-          console.warn('Gemini Audio playback error, falling back:', e);
+          console.warn('Gemini audio playback failed:', e);
           if (isPlayingRef.current) {
-            playBrowserSpeechFallback(cleanSpeech, item, onStepEnded);
+            stopForVoiceError();
           }
         };
         try {
           await audio.play();
           return;
         } catch (playErr) {
-          console.warn('Audio autoplay failed, falling back:', playErr);
+          console.warn('Gemini playback blocked:', playErr);
           if (isPlayingRef.current) {
-            playBrowserSpeechFallback(cleanSpeech, item, onStepEnded);
+            stopForVoiceError();
           }
           return;
         }
       }
     }
 
-    // 2. Fallback to browser synthesis
+    // Stop visibly when Gemini is unavailable
     if (isPlayingRef.current) {
-      playBrowserSpeechFallback(cleanSpeech, item, onStepEnded);
+      stopForVoiceError();
     }
   };
 
   const handleTogglePlay = () => {
+    setVoiceError(null);
     if (isPlayingRef.current) {
       isPlayingRef.current = false;
       setIsPlaying(false);
@@ -686,6 +656,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
+    setVoiceError(null);
     setTestingPersonaVoice(personaId);
     try {
       const phrase = sampleVoicePhrases[personaId];
@@ -695,6 +666,10 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: phrase, speaker: personaId, voiceName: targetVoice })
       });
+      if (!res.ok) {
+        const problem = await res.json().catch(() => ({}));
+        throw new Error(problem.error || `Gemini voice failed (${res.status}).`);
+      }
       if (res.ok) {
         const data = await res.json();
         if (data.audioBase64) {
@@ -707,7 +682,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
         }
       }
     } catch (err) {
-      console.warn('Voice preview error:', err);
+      setVoiceError(err instanceof Error ? err.message : 'Gemini voice preview failed.');
     }
     setTestingPersonaVoice(null);
   };
@@ -797,8 +772,9 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
   return (
     <div className="space-y-6">
       
+      {voiceError && <div role="alert" className="rounded-xl border border-amber-500 p-4 text-amber-200">{voiceError}</div>}
       {/* Radio Studio Master Control Console */}
-      <div className="bg-[#0b1219] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden backdrop-blur-xl">
+      <div className="bg-[var(--surface-panel)] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden backdrop-blur-xl">
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-800/80 relative z-10">
@@ -973,12 +949,12 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
             </div>
 
             {/* Master Playback & Mixing Controls Bar */}
-            <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-[#0d141f] via-slate-900 to-[#0d141f] border border-slate-800/90 flex flex-wrap items-center justify-between gap-4 shadow-lg">
+            <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-[var(--surface-raised)] via-slate-900 to-[var(--surface-raised)] border border-slate-800/90 flex flex-wrap items-center justify-between gap-4 shadow-lg">
               <div className="flex flex-wrap items-center gap-2.5">
                 <button
                   type="button"
                   onClick={handleTogglePlay}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-extrabold text-xs flex items-center gap-2 shadow-xl shadow-amber-500/20 transition-all cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-[var(--on-gold)] font-extrabold text-xs flex items-center gap-2 shadow-xl shadow-amber-500/20 transition-all cursor-pointer"
                 >
                   {isPlaying ? (
                     <>
@@ -1026,16 +1002,16 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                 {/* Gemini Neural Voice Toggle */}
                 <button
                   type="button"
-                  onClick={() => setUseGeminiVoice(!useGeminiVoice)}
+                  disabled
                   className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold border flex items-center gap-1.5 transition-all cursor-pointer ${
                     useGeminiVoice
                       ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-300 shadow-md shadow-emerald-950/40 ring-1 ring-emerald-500/30'
                       : 'bg-slate-900 border-slate-800 text-slate-400'
                   }`}
-                  title="Toggle Gemini Multilingual Voice Model vs Fallback"
+                  title="Gemini voice only"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Voice: {useGeminiVoice ? 'Gemini Neural Audio' : 'Browser Audio'}</span>
+                  <span>Voice: Gemini</span>
                 </button>
 
                 {/* Sound FX Toggle */}
@@ -1178,7 +1154,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                   className={`my-3 p-3.5 rounded-2xl border text-center transition-all ${
                     isCurrent
                       ? 'bg-amber-950/70 border-amber-500/80 shadow-lg shadow-amber-950/60 scale-[1.01]'
-                      : 'bg-[#090e15]/70 border-dashed border-amber-500/25 hover:border-amber-500/40'
+                      : 'bg-[var(--surface-modal)]/70 border-dashed border-amber-500/25 hover:border-amber-500/40'
                   }`}
                 >
                   <div className="inline-flex items-center gap-2 text-xs font-mono font-bold text-amber-300 tracking-wider uppercase">
@@ -1189,7 +1165,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                       <button
                         type="button"
                         onClick={() => handlePlayFromLine(idx + 1)}
-                        className="ml-2.5 px-2.5 py-0.5 rounded-lg bg-amber-400 text-slate-950 font-bold text-[10px] hover:bg-amber-300 transition-all cursor-pointer shadow-md shadow-amber-400/20"
+                        className="ml-2.5 px-2.5 py-0.5 rounded-lg bg-amber-400 text-[var(--on-gold)] font-bold text-[10px] hover:bg-amber-300 transition-all cursor-pointer shadow-md shadow-amber-400/20"
                       >
                         Skip to Speech ⏭
                       </button>
@@ -1209,7 +1185,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                 className={`p-5 rounded-2xl border transition-all duration-300 ${
                   isCurrent
                     ? `${pMeta.bg} ${pMeta.border} shadow-2xl scale-[1.01] ring-2 ring-amber-400/50`
-                    : 'bg-[#0b1219]/90 border-slate-800/80 hover:border-slate-700'
+                    : 'bg-[var(--surface-panel)]/90 border-slate-800/80 hover:border-slate-700'
                 }`}
               >
                 <div className="flex items-start gap-4">
@@ -1268,7 +1244,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                           onClick={() => handlePlayFromLine(idx)}
                           className={`px-2 py-0.5 rounded-lg text-[10px] font-mono flex items-center gap-1 border transition-all cursor-pointer ${
                             isCurrent
-                              ? 'bg-amber-400 text-slate-950 border-amber-400 font-bold shadow-md shadow-amber-400/20'
+                              ? 'bg-amber-400 text-[var(--on-gold)] border-amber-400 font-bold shadow-md shadow-amber-400/20'
                               : 'bg-slate-900/90 text-slate-300 border-slate-700/80 hover:bg-amber-500/20 hover:text-amber-300 hover:border-amber-500/50'
                           }`}
                           title="Play speech from this line"
@@ -1290,7 +1266,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
         </div>
       ) : (
         /* Technical Dossier Render */
-        <div className="bg-[#0b1219] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
+        <div className="bg-[var(--surface-panel)] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
           <div className="border-b border-slate-800 pb-4 flex items-center justify-between">
             <h4 className="text-lg font-bold text-white flex items-center gap-2">
               <FileText className="w-5 h-5 text-emerald-400" />
