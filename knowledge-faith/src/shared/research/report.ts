@@ -101,9 +101,9 @@ function evidencedAnswer(passages: readonly EvidencePassage[]): { answer: string
   const grades = [...new Set(hadiths.map(passage => passage.publishedGrade).filter((grade): grade is string => Boolean(grade)))];
   return {
     answer: [
-      `Retrieved: ${refs}.`,
-      grades.length ? `Grade printed by the source: ${grades.join('; ')}.` : null,
-      `The source text says: “${lead.text.trim()}”`,
+      `${lead.locator} says: “${lead.text.trim()}”`,
+      grades.length ? `The source prints this grade: ${grades.join('; ')}.` : null,
+      lead.arabic ? 'The Arabic wording is kept with the citation.' : null,
     ]
       .filter(Boolean)
       .join(' '),

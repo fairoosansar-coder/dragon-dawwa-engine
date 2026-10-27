@@ -38,7 +38,7 @@ import { contentHash, createContentIndex, type ContentIndex } from './contentInd
 import { buildAgentContributions, type OpenedBook, type TafsirAttempt } from './contributions.ts';
 import { openHadeethEncForQuestion } from './hadeethOpen.ts';
 import { dedupePassages } from '../../shared/research/corroboration.ts';
-import { passageMatchesLanguage, reviewMaterialCoverage } from '../../shared/research/materialCoverage.ts';
+import { discussesApplication, passageMatchesLanguage, recordsPractice, retainRelevantPassages, reviewMaterialCoverage } from '../../shared/research/materialCoverage.ts';
 import { CONFIDENCE_NOTE, consultParallel, type ParallelConsult } from './parallelTask.ts';
 import type { ScienceWork } from './science.ts';
 import type { ResearchAssignmentView } from '../../shared/contracts/v1.ts';
@@ -505,6 +505,7 @@ export async function executeResearch(input: {
     const religious = plan.subquestions.filter(sub => sub.domain !== 'science' && !asksScience(sub.text));
     const host = religious[0];
     const suggestedAyahs: { surah: number; ayah: number }[] = [];
+    const suggestedPhrases: string[] = [];
     if (host && input.ports.suggestSearch) {
       try {
         const suggestion = await timed('Gemini', () => attempt(() => input.ports.suggestSearch!(input.question, input.language, signal), signal));
@@ -522,7 +523,7 @@ export async function executeResearch(input: {
           });
         } else {
           for (const phrase of suggestion.phrases) {
-            if (!host.queries.includes(phrase) && host.queries.length < 6) host.queries.push(phrase);
+            if (phrase && !host.queries.includes(phrase) && !suggestedPhrases.includes(phrase)) suggestedPhrases.push(phrase);
           }
           for (const ayah of suggestion.ayahs) suggestedAyahs.push(ayah);
         }
@@ -550,6 +551,12 @@ export async function executeResearch(input: {
       for (const phrase of sub.queries) {
         if (queries.length >= budget.queries) break;
         if (!queries.some(item => item.phrase === phrase)) queries.push({ sub, phrase });
+      }
+    }
+    if (host) {
+      for (const phrase of suggestedPhrases) {
+        if (queries.length >= budget.queries) break;
+        if (!queries.some(item => item.phrase === phrase)) queries.push({ sub: host, phrase });
       }
     }
     const unprocessed = consultHadith && religious.length > 0 && queries.length === 0;
@@ -589,6 +596,14 @@ export async function executeResearch(input: {
           });
         }
         for (const record of opened.records) {
+          if (!passageMatchesLanguage({ text: record.text, role: 'source_text' }, input.language)) {
+            pushCoverage({
+              kind: 'language_unavailable',
+              provider: 'HadeethEnc',
+              detail: `HadeethEnc ${record.id} was opened in another language. The ${input.language} translation is missing. That is not a finding that the subject is absent.`,
+            });
+            continue;
+          }
           const blob = `${record.text}\n${record.arabic ?? ''}`;
           const supported = supportsNarration(input.question, blob) || plan.subquestions.some(sub => supportsNarration(sub.text, blob));
           if (!supported) {
@@ -1208,25 +1223,47 @@ export async function executeResearch(input: {
       parallelConsult = { status: 'failed', liveCallMade: true, runId: null, findings: [], setup: err instanceof Error ? err.message : 'Parallel failed.', processor: null, durationMs: 0 };
     }
     const reviewedPassages = [...passages];
-    const answerPool = passages.filter(passage => passageMatchesLanguage(passage, input.language));
-    if (answerPool.length !== passages.length) {
+    const sameLanguage = reviewedPassages.filter(passage => passageMatchesLanguage(passage, input.language));
+    if (reviewedPassages.length && sameLanguage.length !== reviewedPassages.length) {
       pushCoverage({
         kind: 'language_unavailable',
         provider: 'dossier',
-        detail: `A retrieved passage is not in the selected language (${input.language}). It is not used as the answer.`,
+        detail: `A retrieved passage is not in the selected language (${input.language}). The translation is missing. That is not a finding that the subject is absent.`,
       });
-      passages.splice(0, passages.length, ...answerPool);
     }
-    if (corpusSplit) {
-      researchAnswer = {
-        paragraphs: formatCorpusCount(corpusSplit),
-        insufficientEvidence: false,
-        writer: 'retrieved',
-      };
-    } else if (passages.length) {
+    const selection = corpusSplit
+      ? { kept: sameLanguage, rejected: [] as EvidencePassage[] }
+      : retainRelevantPassages({
+          question: input.question,
+          subquestions: plan.subquestions.map(sub => sub.text),
+          passages: sameLanguage,
+          science: scienceQuestions.length > 0,
+        });
+    for (const dropped of selection.rejected) {
+      if (dropped.context?.startsWith('Neighbouring')) continue;
+      pushCoverage({
+        kind: 'no_relevant_evidence',
+        provider: dropped.source.provider,
+        detail: `${dropped.locator} was opened. It does not address the question, so it is not cited. The source was available.`,
+      });
+    }
+    passages.splice(0, passages.length, ...selection.kept);
+    const writeFrom = async (pool: EvidencePassage[]) => {
+      if (corpusSplit) {
+        researchAnswer = {
+          paragraphs: formatCorpusCount(corpusSplit),
+          insufficientEvidence: false,
+          writer: 'retrieved',
+        };
+        return;
+      }
+      if (!pool.length) {
+        researchAnswer = null;
+        return;
+      }
       const packet = [
-        ...answerPassages(passages),
-        ...passages.filter(passage => passage.source.provider === 'Parallel' && !answerPassages(passages).some(item => item.id === passage.id)),
+        ...answerPassages(pool),
+        ...pool.filter(passage => passage.source.provider === 'Parallel' && !answerPassages(pool).some(item => item.id === passage.id)),
       ];
       const evidence = packet.map(passageToEvidence);
       let written: ResearchAnswer | null = null;
@@ -1235,25 +1272,141 @@ export async function executeResearch(input: {
           const result = await timed('Gemini', () => attempt(() => input.ports.writeAnswer!(input.question, input.language, evidence, signal), signal));
           written = acceptWrittenAnswer(input.question, result, packet, interpretation);
         } catch (err) {
-          if (isAbort(err, signal)) return finish('cancelled');
+          if (isAbort(err, signal)) throw err;
           written = null;
         }
       }
       researchAnswer = ensureParallelCited(written ?? retrievedAnswer(input.question, packet, interpretation), packet, input.question, interpretation);
+    };
+    try {
+      await writeFrom(passages);
+    } catch (err) {
+      if (isAbort(err, signal)) return finish('cancelled');
     }
+    const blockedEmpty = (directSourceFailed || hadeethProviderFailed) && sameLanguage.length === 0;
     materialReview = reviewMaterialCoverage({
       question: input.question,
       language: input.language,
-      passages: reviewedPassages,
-      providerFailed: (directSourceFailed || hadeethProviderFailed) && answerPool.length === 0,
+      passages: reviewedPassages.length > 0 && sameLanguage.length === 0 ? reviewedPassages : passages,
+      providerFailed: blockedEmpty,
     });
     investigation = materialReview.investigation;
+    if (materialReview.investigation === 'partial' && !corpusSplit && !blockedEmpty && !signal.aborted) {
+      const beforeIds = new Set(passages.map(passage => passage.id));
+      let followCalls = 0;
+      const unresolvedKinds = new Set(materialReview.parts.filter(part => part.status === 'unresolved').map(part => part.kind));
+      const mayQuran = (!input.assignment || input.assignment.teams.includes('quran')) && Boolean(input.ports.loadCommentary);
+      const mayHadith = consultHadith && !hadeethProviderFailed && (!input.assignment || input.assignment.teams.includes('hadith'));
+      const needsMore = unresolvedKinds.has('meaning') || unresolvedKinds.has('application') || unresolvedKinds.has('explanation') || unresolvedKinds.has('practice') || unresolvedKinds.has('worship') || unresolvedKinds.has('hadith');
+      if (mayQuran && (unresolvedKinds.has('meaning') || unresolvedKinds.has('application')) && followCalls < 2) {
+        const verse = passages.find(passage =>
+          (passage.source.provider === 'QuranEnc' || passage.source.provider === 'AlQuran')
+          && !passage.context?.startsWith('Neighbouring')
+          && !passages.some(item => item.role === 'commentary' && item.text.trim().length > 20),
+        );
+        const [surah, ayah] = verse?.source.id.split(':').map(Number) ?? [];
+        if (verse && surah && ayah && allow('QuranEnc')) {
+          followCalls += 1;
+          try {
+            const commentary = await timed('QuranEnc', () => attempt(() => input.ports.loadCommentary!(input.language, surah, [ayah], signal), signal));
+            if (commentary.ok) {
+              for (const span of commentary.spans) {
+                if (passages.some(item => item.text.trim() === span.text.trim())) continue;
+                const hash = remember('QuranEnc', `follow-${surah}-${span.locator}`, contentHash(span.text), span.text);
+                passages.push({
+                  contractVersion: VERSION,
+                  id: `T${surah}-${hash.slice(0, 8)}`,
+                  source: source({
+                    id: `tafsir-${surah}`,
+                    provider: 'QuranEnc',
+                    language: input.language,
+                    edition: 'mukhtasar',
+                    version: null,
+                    title: 'Al-Mukhtasar',
+                    credits: [{ role: 'commentary', name: 'Al-Mukhtasar' }],
+                    canonicalUrl: span.url,
+                    contentType: 'quran',
+                    rights: QURAN_RIGHTS,
+                    retrievedAt: clock().toISOString(),
+                    contentHash: hash,
+                  }),
+                  text: span.text,
+                  originalLanguage: input.language,
+                  arabic: null,
+                  locator: span.locator,
+                  context: 'Attributed explanation for an unresolved part. It is not a modern ruling.',
+                  readerRoute: '#/quran/study',
+                  role: 'commentary',
+                  publishedGrade: null,
+                });
+              }
+            }
+          } catch (err) {
+            if (isAbort(err, signal)) return finish('cancelled');
+            pushCoverage({ kind: 'source_unavailable', provider: 'QuranEnc', detail: 'A bounded follow-up could not open commentary. That is a source failure, not a finding that the subject is absent.' });
+          }
+        }
+      }
+      const unused = plan.subquestions.flatMap(sub => sub.queries).find(phrase => phrase && !ranQueries.includes(phrase));
+      if (unused && mayHadith && followCalls === 0 && needsMore && allow('HadeethEnc')) {
+        followCalls += 1;
+        try {
+          ranQueries.push(unused);
+          const found = await timed('HadeethEnc', () => attempt(() => input.ports.searchHadeeth(input.language, unused, 1, signal), signal));
+          const candidate = found.find(item => !passages.some(passage => passage.source.id === item.id));
+          if (candidate && allow('HadeethEnc')) {
+            const record = await timed('HadeethEnc', () => attempt(() => input.ports.loadHadeeth(input.language, candidate.id, signal), signal));
+            const blob = `${record.text}\n${record.arabic ?? ''}`;
+            if (supportsNarration(input.question, blob) || plan.subquestions.some(sub => supportsNarration(sub.text, blob))) {
+              const hash = remember('HadeethEnc', record.id, contentHash(record.text), record.text);
+              const passage = hadithPassage(record, input.language, clock().toISOString(), hash, 'source_text');
+              passage.context = `${passage.context ?? ''} Follow-up retrieval for an unresolved part. A recorded practice is not a new ruling.`.trim();
+              passages.push(passage);
+            }
+          }
+        } catch (err) {
+          if (isAbort(err, signal)) return finish('cancelled');
+          pushCoverage({ kind: 'source_unavailable', provider: 'HadeethEnc', detail: 'A bounded follow-up could not open another narration. That is a source failure, not a finding that the subject is absent.' });
+        }
+      }
+      const added = passages.filter(passage => !beforeIds.has(passage.id));
+      if (added.length) {
+        const followed = dedupePassages(passages).passages.filter(passage => passageMatchesLanguage(passage, input.language));
+        passages.splice(0, passages.length, ...followed);
+        try {
+          await writeFrom(passages);
+        } catch (err) {
+          if (isAbort(err, signal)) return finish('cancelled');
+        }
+        materialReview = reviewMaterialCoverage({
+          question: input.question,
+          language: input.language,
+          passages,
+          providerFailed: false,
+        });
+        investigation = materialReview.investigation;
+        pushCoverage({ kind: 'evidence_found', provider: 'dossier', detail: `A bounded follow-up kept ${added.length} passage(s) for a part that was still open.` });
+      }
+    }
+    if (!passages.length && !corpusSplit && investigation !== 'blocked') {
+      const missingTranslation = coverage.some(note => note.kind === 'language_unavailable');
+      researchAnswer = {
+        paragraphs: [{
+          text: missingTranslation
+            ? `The opened text is not in the selected language (${input.language}). A missing translation is not a finding that the subject is absent. This is not a completed answer.`
+            : 'A passage that answers the question was not opened. This is not a completed answer.',
+          citations: [],
+        }],
+        insufficientEvidence: true,
+        writer: 'retrieved',
+      };
+    }
     const open = materialReview.parts.filter(part => part.status === 'unresolved');
     if (open.length) {
-      const sentence = open.map(part => part.note).join(' ');
+      const sentence = [...new Set(open.map(part => part.note))].join(' ');
       researchAnswer = {
         paragraphs: [...(researchAnswer?.paragraphs ?? []), { text: sentence, citations: [] }],
-        insufficientEvidence: researchAnswer?.insufficientEvidence ?? false,
+        insufficientEvidence: researchAnswer?.insufficientEvidence ?? true,
         writer: researchAnswer?.writer ?? 'retrieved',
       };
     }
@@ -1647,24 +1800,38 @@ function occurrenceSnippet(items: readonly WordingOccurrence[], lang: Lang, retr
   };
 }
 
+function integrateSupportedFindings(base: ResearchAnswer, passages: readonly EvidencePassage[]): ResearchAnswer {
+  const written = base.paragraphs.map(paragraph => paragraph.text).join('\n');
+  const extra = passages.filter(passage => {
+    if (passage.role === 'empirical' || passage.context?.startsWith('Neighbouring')) return false;
+    const head = passage.text.trim().slice(0, 80);
+    if (!head || written.includes(head)) return false;
+    return passage.source.provider === 'Parallel' || passage.role === 'commentary';
+  });
+  const practical = extra.filter(passage => recordsPractice(passage.text) && !discussesApplication(passage));
+  const explained = extra.filter(passage => !practical.includes(passage) && (passage.source.provider === 'Parallel' || passage.role === 'commentary'));
+  const paragraphs = [...base.paragraphs];
+  if (explained.length) {
+    paragraphs.push({
+      text: `Sourced interpretation. ${explained.map(passage => `“${passage.text.trim()}” (${passage.locator})`).join(' ')} This is the source’s explanation, not a ruling added by this research.`,
+      citations: explained.map(passage => passage.id),
+    });
+  }
+  if (practical.length) {
+    paragraphs.push({
+      text: `Practical suggestion recorded by a source, not a new ruling. ${practical.map(passage => `“${passage.text.trim()}” (${passage.locator})`).join(' ')}`,
+      citations: practical.map(passage => passage.id),
+    });
+  }
+  return { ...base, paragraphs };
+}
+
 function answerFromFinalPool(
   question: string,
   passages: readonly EvidencePassage[],
   interpretation: QuestionInterpretation,
 ): ResearchAnswer {
-  const base = retrievedAnswer(question, passages, interpretation);
-  const parallel = passages.filter(passage => passage.source.provider === 'Parallel');
-  if (!parallel.length) return base;
-  const quoted = parallel.map(passage => `${passage.locator}: “${passage.text.trim()}”`).join(' ');
-  const lead = base.paragraphs[0];
-  return {
-    paragraphs: [{
-      text: `${lead?.text ?? ''} Parallel findings: ${quoted}`.trim(),
-      citations: [...new Set([...(lead?.citations ?? []), ...parallel.map(passage => passage.id)])],
-    }],
-    insufficientEvidence: base.insufficientEvidence,
-    writer: 'retrieved',
-  };
+  return integrateSupportedFindings(retrievedAnswer(question, passages, interpretation), passages);
 }
 
 function ensureParallelCited(
@@ -1673,14 +1840,8 @@ function ensureParallelCited(
   question: string,
   interpretation: QuestionInterpretation,
 ): ResearchAnswer | null {
-  const parallel = passages.filter(passage => passage.source.provider === 'Parallel');
-  if (!parallel.length) return answer;
-  const written = (answer?.paragraphs ?? []).map(paragraph => paragraph.text).join('\n');
-  const missing = parallel.filter(passage => !written.includes(passage.text.trim().slice(0, 80)));
-  if (!missing.length) return answer;
-  const extra = answerFromFinalPool(question, missing, interpretation);
-  if (!answer) return extra;
-  return { ...answer, paragraphs: [...answer.paragraphs, ...extra.paragraphs] };
+  const base = answer ?? retrievedAnswer(question, passages, interpretation);
+  return integrateSupportedFindings(base, passages);
 }
 
 export function publishParallelRevision(run: ResearchRun, consult: ParallelConsult, now = new Date()): ResearchRun {
@@ -1713,13 +1874,16 @@ export function publishParallelRevision(run: ResearchRun, consult: ParallelConsu
     passages.push(passage);
   }
   const deduped = dedupePassages(passages);
-  const pool = deduped.passages.filter(passage => passageMatchesLanguage(passage, job.language));
+  const pool = retainRelevantPassages({
+    question: job.question,
+    passages: deduped.passages.filter(passage => passageMatchesLanguage(passage, job.language)),
+  }).kept;
   const interpretation = interpretQuestion(job.question);
   let answer = pool.length ? answerFromFinalPool(job.question, pool, interpretation) : dossier.answer ?? null;
   const review = reviewMaterialCoverage({
     question: job.question,
     language: job.language,
-    passages: deduped.passages,
+    passages: pool.length ? pool : deduped.passages,
     providerFailed: false,
   });
   const sentence = review.parts.filter(part => part.status === 'unresolved').map(part => part.note).join(' ');
@@ -1748,12 +1912,13 @@ function retrievedAnswer(
   const cited = passages.slice(0, 6);
   const asksCount = interpretation.kind === 'stated-total' || (interpretation.kind !== 'corpus-count' && COUNT_QUESTION.test(question));
   const statesCount = asksCount && passageStatesCount(cited);
-  const locators = cited.map(passage => passage.locator).join('; ');
   const lead = cited[0];
+  const englishPassage = Boolean(lead && /[A-Za-z]/.test(lead.text) && !/[\u0B80-\u0BFF\u0D80-\u0DFF]/.test(lead.text));
+  const grade = englishPassage && lead?.publishedGrade ? ` The source prints this grade: ${lead.publishedGrade}.` : '';
   const text =
     asksCount && !statesCount
-      ? `The retrieved passages do not state a total number. They are cited for what they do say: ${locators}.`
-      : `Retrieved: ${locators}. ${lead?.publishedGrade ? `Grade printed by the source: ${lead.publishedGrade}. ` : ''}The source text says: “${lead?.text.trim() ?? ''}”`;
+      ? `These passages do not state a total number. ${lead?.locator ?? 'The passage'} says: “${lead?.text.trim() ?? ''}”.`
+      : `${lead?.locator ?? 'The passage'} says: “${lead?.text.trim() ?? ''}”.${grade}`;
   return {
     paragraphs: [{ text, citations: cited.map(passage => passage.id) }],
     insufficientEvidence: asksCount && !statesCount,

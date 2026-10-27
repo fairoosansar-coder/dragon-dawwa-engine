@@ -22,6 +22,33 @@ const SPELLING: Record<string, readonly string[]> = {
   salat: ['salah', 'prayer'],
   intention: ['intention', 'intentions'],
   intentions: ['intention', 'intentions'],
+  tawhid: ['tawhid', 'tawheed'],
+  tawheed: ['tawhid', 'tawheed'],
+  wudu: ['wudu', 'wudhu'],
+  wudhu: ['wudu', 'wudhu'],
+  wuzu: ['wudu', 'wudhu'],
+};
+
+/** Search phrases only. They are not copied into the answer. */
+const SEARCH_EQUIVALENTS: Record<string, readonly string[]> = {
+  தொழுகை: ['prayer', 'salah', 'صلاة'],
+  தொழு: ['prayer', 'صلاة'],
+  நோன்பு: ['fasting', 'صوم'],
+  ஜகாத்: ['zakat', 'زكاة'],
+  தர்மம்: ['charity', 'zakat'],
+  ஹதீஸ்: ['hadith', 'حديث'],
+  குர்ஆன்: ['quran', 'قرآن'],
+  நோக்கம்: ['intention', 'نية'],
+  தவ்ஹீத்: ['tawhid', 'tawheed', 'توحيد'],
+  தவ்ஹீது: ['tawhid', 'توحيد'],
+  வுழு: ['wudu', 'وضوء'],
+  සලාත්: ['prayer', 'salah', 'صلاة'],
+  උපවාස: ['fasting', 'صوم'],
+  හදීස්: ['hadith', 'حديث'],
+  කුර්ආන: ['quran', 'قرآن'],
+  තව්හීද්: ['tawhid', 'tawheed', 'توحيد'],
+  අසල්වැසියා: ['neighbor', 'neighbour'],
+  அண்டை: ['neighbor', 'neighbour'],
 };
 
 export interface RetrievalPlan {
@@ -69,6 +96,12 @@ function queriesFor(text: string): string[] {
       if (variant === word) continue;
       push(words.map(item => (item === word ? variant : item)).join(' '));
       push(variant);
+    }
+  }
+  for (const word of words) {
+    for (const variant of SEARCH_EQUIVALENTS[word] ?? []) {
+      if (queries.length >= 5) break;
+      if (!queries.includes(variant)) queries.push(variant);
     }
   }
   return queries;

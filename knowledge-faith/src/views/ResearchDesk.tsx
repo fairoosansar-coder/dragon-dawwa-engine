@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { ResearchJobResponse, ResearchScope } from '../shared/contracts/v1.ts';
 import { buildReportModel, renderReportHtml } from '../shared/research/report.ts';
+import { materialPartLabel } from '../shared/research/materialCoverage.ts';
 import { researchOutcome } from '../shared/research/outcomes.ts';
 import { toLang, type Lang } from '../shared/sources.ts';
 import { useRemote } from '../lib/api.ts';
@@ -167,6 +168,8 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
         passageCount: dossier?.passages.length ?? 0,
         coverage: job.coverage,
         investigation: job.investigation,
+        parallelStatus: job.parallel?.status,
+        jobStatus: job.status,
       })
     : null;
   const heading = entry === 'knowledge' ? t.askIslam : entry === 'quran' ? t.researchQuran : entry === 'hadith' ? t.researchHadith : t.researchBooks;
@@ -292,15 +295,23 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
             {job?.materialParts?.some(part => part.status === 'unresolved') && (
               <ul className="mt-3 space-y-1 text-sm text-ink/80" data-material-coverage>
                 {job.materialParts.filter(part => part.status === 'unresolved').map(part => (
-                  <li key={part.id}><span className="font-semibold text-pine">{part.kind}. </span>{part.note}</li>
+                  <li key={part.id}><span className="font-semibold text-pine">{materialPartLabel(part.kind)}. </span>{part.note}</li>
                 ))}
               </ul>
             )}
-            {job?.parallel && (
+            {job?.parallel?.liveCallMade && job.parallel.status === 'running' && (
               <p className="mt-3 text-sm leading-relaxed text-ink/75" data-parallel-status>
-                Deep Research & Source Verification: {job.parallel.liveCallMade ? job.parallel.status : 'not called'}.
-                {' '}
-                {job.parallel.setup ?? 'Parallel confidence is provider metadata, not a hadith grade, a religious certainty score, or human approval.'}
+                Further sources are still being read. Findings already supported stay on this page. A later revision will not replace audio that is playing.
+              </p>
+            )}
+            {job?.parallel?.liveCallMade && job.parallel.status === 'failed' && (
+              <p className="mt-3 text-sm leading-relaxed text-ink/75" data-parallel-status>
+                One research source failed. That is a source failure, not a finding that the subject is absent.
+              </p>
+            )}
+            {job?.parallel && !job.parallel.liveCallMade && (
+              <p className="mt-3 text-sm leading-relaxed text-ink/75" data-parallel-status>
+                Further source research was not called.
               </p>
             )}
             {liveModel.answerArabic && (

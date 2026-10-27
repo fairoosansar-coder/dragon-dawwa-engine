@@ -545,7 +545,7 @@ describe('shared engine against the current desks', () => {
       setup: null,
       findings: [{
         claim: 'A later note on Badr.',
-        excerpt: 'A later Parallel note says the campaign is remembered for restraint after victory.',
+        excerpt: 'A later note says the Battle of Badr is remembered for restraint after victory.',
         url: 'https://example.test/badr-later',
         title: 'Later Badr note',
         providerConfidence: 'low',
