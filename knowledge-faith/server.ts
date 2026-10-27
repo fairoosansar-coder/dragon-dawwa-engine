@@ -431,6 +431,7 @@ app.post(
       forwarded: req.body?.forwarded === true,
       clarified: req.body?.clarified === true,
       priorQuestion: typeof req.body?.priorQuestion === 'string' ? req.body.priorQuestion.slice(0, 800) : null,
+      domainContext: typeof req.body?.domainContext === 'string' ? req.body.domainContext.slice(0, 80) : null,
     });
     if (decision.action === 'clarify') {
       res.json({ action: 'clarify', clarificationId: decision.clarificationId, contractVersion: '1.0.0' });

@@ -41,6 +41,10 @@ export interface ResearchAssignmentView {
   bookId: number | null;
   noticeId: ResearchNoticeId | null;
   forwardedFrom: ResearchScope | null;
+  /** One of the 14 category labels, or null when the question still needs classification. */
+  domainContext?: string | null;
+  /** selected: a category card. classified: read from the question. unclassified: Parallel is asked to classify. */
+  domainSource?: 'selected' | 'classified' | 'unclassified';
 }
 
 export type QuestionDomain = 'scripture' | 'explanation' | 'practice' | 'history' | 'science' | 'mixed';
