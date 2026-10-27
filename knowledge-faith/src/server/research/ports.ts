@@ -36,6 +36,7 @@ export function defaultResearchPorts(): ResearchPorts {
         attribution: hadith.attribution,
         explanation: hadith.explanation,
         url: hadith.sourceUrl,
+        version: hadith.sourceVersion ?? null,
       };
     },
     async searchStudyHadith(lang, question, phrases, collectionIds, signal) {
