@@ -37,6 +37,38 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;');
 }
 
+export interface ContentSegment {
+  text: string;
+  lang: 'en' | 'ta' | 'si' | 'ar';
+  dir?: 'rtl';
+}
+
+const SCRIPT_RUN = /([\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+(?:\s*[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+)*|[\u0B80-\u0BFF]+(?:\s*[\u0B80-\u0BFF]+)*|[\u0D80-\u0DFF]+(?:\s*[\u0D80-\u0DFF]+)*)/g;
+
+/** The report document is English. Tamil, Sinhala, and Arabic runs keep their own language. */
+export function contentSegments(text: string): ContentSegment[] {
+  if (!text) return [];
+  const segments: ContentSegment[] = [];
+  let last = 0;
+  for (const match of text.matchAll(SCRIPT_RUN)) {
+    const index = match.index ?? 0;
+    if (index > last) segments.push({ text: text.slice(last, index), lang: 'en' });
+    const chunk = match[0];
+    if (/[\u0B80-\u0BFF]/.test(chunk)) segments.push({ text: chunk, lang: 'ta' });
+    else if (/[\u0D80-\u0DFF]/.test(chunk)) segments.push({ text: chunk, lang: 'si' });
+    else segments.push({ text: chunk, lang: 'ar', dir: 'rtl' });
+    last = index + chunk.length;
+  }
+  if (last < text.length) segments.push({ text: text.slice(last), lang: 'en' });
+  return segments.length ? segments : [{ text, lang: 'en' }];
+}
+
+export function markupContent(text: string): string {
+  return contentSegments(text)
+    .map(segment => `<span lang="${segment.lang}"${segment.dir ? ' dir="rtl"' : ''}>${escapeHtml(segment.text)}</span>`)
+    .join('');
+}
+
 const ARABIC_MARKS = /[\u064B-\u065F\u0670\u0640\u06D6-\u06ED]/g;
 
 function namesInIsnad(arabic: string): string[] | null {
@@ -174,7 +206,7 @@ export function renderReportHtml(model: ReportModel): string {
   const passages = model.passages
     .map(passage => {
       const arabic = passage.arabic ? `<p class="arabic" dir="rtl" lang="ar">${escapeHtml(passage.arabic)}</p>` : '';
-      return `<article class="passage"><h3>${escapeHtml(passage.locator)}</h3><p class="meta">${escapeHtml(passage.source.provider)} · ${escapeHtml(passage.source.title)}</p>${arabic}<p>${escapeHtml(passage.text)}</p>${passage.context ? `<p class="context">${escapeHtml(passage.context)}</p>` : ''}<p class="meta">${escapeHtml(passage.source.canonicalUrl)}</p></article>`;
+      return `<article class="passage"><h3>${escapeHtml(passage.locator)}</h3><p class="meta">${escapeHtml(passage.source.provider)} · ${escapeHtml(passage.source.title)}</p>${arabic}<p>${markupContent(passage.text)}</p>${passage.context ? `<p class="context">${markupContent(passage.context)}</p>` : ''}<p class="meta">${escapeHtml(passage.source.canonicalUrl)}</p></article>`;
     })
     .join('');
   const chart = model.chart
@@ -185,20 +217,23 @@ export function renderReportHtml(model: ReportModel): string {
     .join('');
   const hadithOpened = model.passages.some(passage => passage.source.contentType === 'hadith');
   const chain = model.chain
-    ? `<ol class="chain">${model.chain.map(name => `<li>${escapeHtml(name)}</li>`).join('')}</ol>`
-    : hadithOpened
-      ? '<p class="muted">No narrator chain was printed on the opened records, so no chain map is drawn.</p>'
-      : '';
+    ? `<ol class="chain">${model.chain.map(name => `<li>${markupContent(name)}</li>`).join('')}</ol>`
+    : '';
+  const limitations = [
+    ...model.unresolved,
+    ...(!model.chain && hadithOpened ? ['No narrator chain was printed on the opened records, so no chain map is drawn.'] : []),
+  ];
   const claims = model.claims.map(claim => `${claim.support}: ${claim.claim} — ${claim.note}${claim.passageIds.length ? ` (${claim.passageIds.join(', ')})` : ''}`);
   const answer = model.answer
     ? section(
         'Answer',
         'gold',
-        `<p>${escapeHtml(model.answer)}</p>${model.answerArabic ? `<p class="arabic" dir="rtl" lang="ar">${escapeHtml(model.answerArabic)}</p>` : ''}`,
+        `<p>${markupContent(model.answer)}</p>${model.answerArabic ? `<p class="arabic" dir="rtl" lang="ar">${escapeHtml(model.answerArabic)}</p>` : ''}`,
       )
     : '';
+  const chartSection = section('Evidence chart', 'gold', chart || '<p class="muted">No passage was kept.</p>');
   return `<!DOCTYPE html>
-<html lang="${escapeHtml(model.language)}">
+<html lang="en">
 <head>
 <meta charset="utf-8" />
 <title>${escapeHtml(model.question)}</title>
@@ -226,18 +261,18 @@ export function renderReportHtml(model: ReportModel): string {
 <main>
   <header class="hero">
     <p>DRAGON DAWWA · full research report</p>
-    <h1>${escapeHtml(model.question)}</h1>
-    <p>Language: ${escapeHtml(model.language)}. Scope: ${escapeHtml(model.scope)}. Teams: ${escapeHtml(model.teams.join(', ') || '—')}.${model.investigation ? ` Investigation: ${escapeHtml(model.investigation)}.` : ''}</p>
+    <h1>${markupContent(model.question)}</h1>
+    <p>Content language: ${escapeHtml(model.language)}. Scope: ${escapeHtml(model.scope)}. Teams: ${escapeHtml(model.teams.join(', ') || '—')}.${model.investigation ? ` Investigation: ${escapeHtml(model.investigation)}.` : ''}</p>
   </header>
   ${answer}
   ${section('Supporting sources', 'lapis', passages || '<p class="muted">No passage was kept.</p>')}
-  ${section('Evidence chart', 'gold', chart || '<p class="muted">No passage was kept.</p>')}
-  ${section('Claims', 'parchment', paragraphs(claims))}
-  ${section('Disagreements', 'gold', paragraphs(model.disagreements))}
-  ${section('Unresolved', 'parchment', paragraphs(model.unresolved))}
+  ${section('Claims', 'parchment', claims.length ? claims.map(item => `<p>${markupContent(item)}</p>`).join('') : '<p class="muted">None recorded.</p>')}
+  ${section('Disagreements', 'gold', model.disagreements.length ? model.disagreements.map(item => `<p>${markupContent(item)}</p>`).join('') : '<p class="muted">None recorded.</p>')}
+  ${section('Limitations', 'parchment', limitations.length ? limitations.map(item => `<p>${markupContent(item)}</p>`).join('') : '<p class="muted">None recorded.</p>')}
   ${chain ? section('Transmission map', 'lapis', chain) : ''}
   <details class="block parchment" data-research-activity>
     <summary>Research activity</summary>
+    ${chartSection}
     ${gapSection('Sources that could not be reached', model.unavailable.map(note => note.detail))}
     ${gapSection('Incomplete research', model.incomplete.map(note => note.detail))}
     ${gapSection('Evidence that does not yet support an answer', model.insufficient.map(note => note.detail))}

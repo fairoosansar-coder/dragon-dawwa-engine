@@ -1,6 +1,6 @@
 import type { EvidencePassage } from '../contracts/v1.ts';
 import type { Lang } from '../sources.ts';
-import { ayahsMentioned, passageSupportsTopic } from '../research.ts';
+import { ayahsMentioned, contentTokens, passageSupportsTopic } from '../research.ts';
 import { themeWordingSupports } from './themes.ts';
 
 export type MaterialKind =
@@ -35,7 +35,7 @@ const APPLICATION = /today|modern|nowadays|appl(?:y|ication)|contemporary|இன
 const PRACTICE = /how should|how do i|how to|\bsteps\b|\bperform\b|எப்படி|කෙසේ/i;
 const WORSHIP = /pray|prayer|ṣalāh|salah|fast|fasting|charit|zakat|wudu|worship|தொழு|நோன்பு|தர்ம|සලාත|උපවාස|දාන|වන්දන/i;
 const HISTORY = /when did|history|seerah|sīrah|biography|battle|\byear\b|சரித்திர|வரலாறு|ඉතිහාස|සීරා/i;
-const SCIENCE = /scienti|physics|biology|chemistry|medicine|clinical|metabolic|empirical|\bscience\b|அறிவியல்|விஞ்ஞான|විද්‍යා/i;
+const SCIENCE = /scienti|physics|biology|chemistry|medicine|clinical|metabolic|empirical|\bscience\b|embryolog|anatom|astronom|cosmolog|geolog|genetic|neuroscien|physiolog|அறிவியல்|விஞ்ஞான|විද්‍යා/i;
 const HADITH = /hadith|hadeeth|\bhades\b|narration|bukhari|muslim|ஹதீஸ்|හදීස්|حديث/i;
 const QURAN = /qur['’]?an|\bverse\b|\bayah\b|\bsurah\b|குர்ஆன்|வசனம்|කුර්ආන|වැකි|قرآن/i;
 const BOOKS = /\bbooks?\b|\blibrary\b|\bvolume\b|புத்தக|நூல்|පොත්|පොත/i;
@@ -129,7 +129,8 @@ export function discussesApplication(passage: EvidencePassage): boolean {
   return APPLICATION_DISCUSSION.test(context);
 }
 
-const RECORDED_PRACTICE = /recite|when you go to your bed|before you sleep|give in charity|perform wud|wash(?:ing)? the hands|ஓது|படுக்க|நோன்பு|தொழு|කියව|නිද|උපවාස|සලාත|වුදූ/i;
+const RECORDED_PRACTICE = /recite|when you go to your bed|before you sleep|give in charity|\bperform wud|\bwash(?:ing)?\b the hands|ஓது|படுக்க|நோன்பு|தொழு|කියව|නිද|උපවාස|සලාත|වුදූ/i;
+const METHOD = /\bwash(?:ing)?\b the (?:hands|face|arms|feet|head)|\brinse\b|\bwipe\b|\bthree times\b|\bbegins with\b|\bthen (?:wash|wipe|rinse)\b/i;
 
 /** A narration can record a practice without settling a modern-application question. */
 export function recordsPractice(text: string): boolean {
@@ -157,6 +158,42 @@ function passageBlob(passage: EvidencePassage): string {
   return `${passage.text}\n${passage.arabic ?? ''}`;
 }
 
+function passageRecord(passage: EvidencePassage): string {
+  return `${passageBlob(passage)}\n${passage.context ?? ''}`;
+}
+
+const WHEN = /\bwhen\b|\bwhat year\b|\bwhich year\b|\btake place\b|\boccurred\b|\bhappened\b/i;
+const TIME = /\b\d{1,4}\s*(?:ah|ce|bh)\b|\b(?:1[0-9]{3}|20[0-9]{2})\b|\b(?:year|month)s?\b|\bhijrah\b|\bhijri\b/i;
+const WHEN_STOP = new Set(['when', 'did', 'does', 'take', 'place', 'battle', 'occur', 'occurred', 'happen', 'happened', 'year', 'history', 'library']);
+
+/** A “when” question. A date attached to a different event is not an answer. */
+export function asksWhen(question: string): boolean {
+  return WHEN.test(question);
+}
+
+/** The sentence that times the asked subject. A year beside another name is left out. */
+export function timingClause(question: string, blob: string): string | null {
+  if (!asksWhen(question)) return null;
+  const subjects = contentTokens(question).filter(token => !WHEN_STOP.has(token) && token.length >= 4);
+  if (!subjects.length) return null;
+  const sentences = blob.replace(/\s+/g, ' ').split(/(?<=[.!?؟])\s/);
+  for (const sentence of sentences) {
+    const text = sentence.split(/Language edition:/i)[0].trim();
+    const lower = text.toLocaleLowerCase('en');
+    if (!subjects.some(token => lower.includes(token))) continue;
+    const match = text.match(TIME);
+    if (!match || match.index == null) continue;
+    const start = Math.max(0, match.index - 90);
+    const end = Math.min(text.length, match.index + match[0].length + 90);
+    let window = text.slice(start, end).trim();
+    if (!subjects.some(token => window.toLocaleLowerCase('en').includes(token))) continue;
+    if (start > 0) window = `…${window}`;
+    if (end < text.length) window = `${window}…`;
+    return window;
+  }
+  return null;
+}
+
 function supportsQuestion(question: string, passage: EvidencePassage): boolean {
   return passageSupportsTopic(question, passageBlob(passage));
 }
@@ -166,20 +203,30 @@ function partAnswered(kind: MaterialKind, passages: readonly EvidencePassage[], 
   const named = passages.filter(passage => isNamedReference(question, passage));
   if (kind === 'meaning') return passages.some(explains);
   if (kind === 'application') return passages.some(discussesApplication);
-  if (kind === 'explanation' || kind === 'purpose') return topical.length > 0;
+  if (kind === 'explanation' || kind === 'purpose') {
+    return topical.some(passage => definesSubject(question, passage));
+  }
   if (kind === 'authentication') {
     return topical.some(passage => passage.publishedGrade || /isnad|chain of narration|fabricat|authentic|grade/i.test(`${passage.text}\n${passage.context ?? ''}`));
   }
   if (kind === 'comparison') {
     return topical.length >= 2 || topical.some(passage => /differ|unlike|whereas|comparison|வேறுபாடு|වෙනස/i.test(passage.text));
   }
-  if (kind === 'practice') return topical.some(passage => recordsPractice(passage.text) || WORSHIP.test(`${passage.text}\n${passage.locator}`));
+  if (kind === 'practice') {
+    return topical.some(passage => {
+      if (/\bhow should\b|\bhow do\b|\bhow to\b|எப்படி|කෙසේ/i.test(question)) return METHOD.test(passage.text);
+      return recordsPractice(passage.text) || WORSHIP.test(`${passage.text}\n${passage.locator}`);
+    });
+  }
   if (kind === 'science') {
     return passages.some(passage =>
       (passage.role === 'empirical' || passage.source.contentType === 'science') && supportsQuestion(question, passage),
     );
   }
-  if (kind === 'history') return topical.some(passage => HISTORY.test(`${passage.text}\n${passage.context ?? ''}\n${passage.locator}`));
+  if (kind === 'history') {
+    if (asksWhen(question)) return passages.some(passage => timingClause(question, passageRecord(passage)));
+    return topical.some(passage => HISTORY.test(`${passage.text}\n${passage.context ?? ''}\n${passage.locator}`));
+  }
   if (kind === 'worship') return topical.some(passage => WORSHIP.test(`${passage.text}\n${passage.locator}`));
   if (kind === 'hadith') return [...topical, ...named].some(passage => passage.source.contentType === 'hadith');
   if (kind === 'quran') return [...topical, ...named].some(passage => passage.source.contentType === 'quran');
@@ -246,6 +293,12 @@ export function reviewMaterialCoverage(input: {
     if (part.kind === 'comparison' && !partAnswered('comparison', sameLanguage, input.question)) {
       return { ...part, status: 'unresolved', note: 'The opened passages do not set the two sides of this comparison out.' };
     }
+    if (part.kind === 'practice' && !partAnswered('practice', sameLanguage, input.question) && sameLanguage.some(passage => supportsQuestion(input.question, passage))) {
+      return { ...part, status: 'unresolved', note: 'A passage names this act. It does not describe how it is performed, so that part stays open.' };
+    }
+    if (part.kind === 'history' && asksWhen(input.question) && !partAnswered('history', sameLanguage, input.question)) {
+      return { ...part, status: 'unresolved', note: 'The opened records do not state when this happened, so that part stays open.' };
+    }
     if (partAnswered(part.kind, sameLanguage, input.question)) {
       return { ...part, status: 'answered', note: 'A passage in the selected language addresses this part.' };
     }
@@ -259,10 +312,28 @@ export function reviewMaterialCoverage(input: {
   return { parts, investigation, unresolved, wrongLanguage };
 }
 
+const DEFINES = /\b(?:means|meaning of|is to|refers to|defined as|consists of|known as|that is|namely)\b|\bis (?:to|the|a|an)\b|என்பது|යනු/i;
+
+/** A “what is” question asks for a definition. Naming the subject in another claim does not answer it. */
+function definitionQuestion(question: string): boolean {
+  if (!/\bwhat is\b|\bwhat are\b|என்றால் என்ன|என்பது என்ன|යනු කුමක්/i.test(question)) return false;
+  const kinds = new Set(materialParts(question).map(part => part.kind));
+  return [...kinds].every(kind => kind === 'explanation' || kind === 'purpose');
+}
+
+function definesSubject(question: string, passage: EvidencePassage): boolean {
+  if (!definitionQuestion(question)) return true;
+  if (passage.role === 'commentary' || passage.source.provider === 'Parallel') return true;
+  return DEFINES.test(`${passage.text}\n${passage.context ?? ''}`);
+}
+
 function relevantTo(questions: readonly string[], passage: EvidencePassage): boolean {
   if (questions.some(question => isNamedReference(question, passage))) return true;
-  const blob = `${passageBlob(passage)}\n${passage.context ?? ''}`;
-  return questions.some(question => passageSupportsTopic(question, blob) || themeWordingSupports(question, blob));
+  const blob = passageRecord(passage);
+  const topical = questions.some(question => passageSupportsTopic(question, blob) || themeWordingSupports(question, blob));
+  if (!topical) return false;
+  if (questions.length && questions.every(asksWhen) && !questions.some(question => timingClause(question, blob))) return false;
+  return questions.every(question => definesSubject(question, passage));
 }
 
 function discussesKeptVerse(verse: EvidencePassage, commentary: EvidencePassage): boolean {

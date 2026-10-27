@@ -38,7 +38,7 @@ import { contentHash, createContentIndex, type ContentIndex } from './contentInd
 import { buildAgentContributions, type OpenedBook, type TafsirAttempt } from './contributions.ts';
 import { openHadeethEncForQuestion } from './hadeethOpen.ts';
 import { dedupePassages } from '../../shared/research/corroboration.ts';
-import { discussesApplication, passageMatchesLanguage, recordsPractice, retainRelevantPassages, reviewMaterialCoverage } from '../../shared/research/materialCoverage.ts';
+import { asksWhen, discussesApplication, materialParts, passageMatchesLanguage, recordsPractice, retainRelevantPassages, reviewMaterialCoverage, timingClause } from '../../shared/research/materialCoverage.ts';
 import { CONFIDENCE_NOTE, consultParallel, type ParallelConsult } from './parallelTask.ts';
 import type { ScienceWork } from './science.ts';
 import type { ResearchAssignmentView } from '../../shared/contracts/v1.ts';
@@ -793,6 +793,30 @@ export async function executeResearch(input: {
         if (ayahs.length >= ayahCap) break;
         if (!ayahs.some(item => item.surah === ayah.surah && item.ayah === ayah.ayah)) ayahs.push(ayah);
       }
+      if (!countingCorpus && input.ports.searchQuran) {
+        const phrases = queries
+          .map(item => item.phrase)
+          .filter(phrase => phrase.length >= 3 && phrase.length <= 32);
+        for (const phrase of phrases.slice(0, 3)) {
+          if (ayahs.length >= ayahCap || !allow('AlQuran')) break;
+          try {
+            const found = await timed('AlQuran', () => attempt(() => input.ports.searchQuran!(phrase, signal), signal));
+            for (const hit of (found.hits ?? []).slice(0, 2)) {
+              if (ayahs.length >= ayahCap) break;
+              if (!hit.surah || !hit.ayah) continue;
+              if (!ayahs.some(item => item.surah === hit.surah && item.ayah === hit.ayah)) ayahs.push({ surah: hit.surah, ayah: hit.ayah });
+            }
+          } catch (err) {
+            if (isAbort(err, signal)) return finish('cancelled');
+            const message = err instanceof Error ? err.message : 'The Qur’an search did not respond.';
+            pushCoverage({
+              kind: 'source_unavailable',
+              provider: 'AlQuran',
+              detail: `A source could not be reached. The Qur’an search failed: ${message} Passages already nominated are still opened. This is not a finding that the subject is absent.`,
+            });
+          }
+        }
+      }
     }
     const namedKeys = new Set(namedAyahs.map(ayah => `${ayah.surah}:${ayah.ayah}`));
     if (ayahs.length && allow('QuranEnc')) {
@@ -1020,8 +1044,18 @@ export async function executeResearch(input: {
       let bookIds = input.assignment.bookId ? [input.assignment.bookId] : [];
       if (!bookIds.length && input.ports.searchBooks) {
         try {
-          const found = await timed('IslamHouse', () => attempt(() => input.ports.searchBooks!(input.language, input.question, signal), signal));
-          bookIds = found.slice(0, 2).map(item => item.id);
+          const phrases = plan.subquestions.flatMap(sub => sub.queries);
+          const bookQuery = phrases.find(phrase => phrase.split(' ').length > 1) ?? phrases[0] ?? input.question;
+          const found = await timed('IslamHouse', () => attempt(() => input.ports.searchBooks!(input.language, bookQuery, signal), signal));
+          const titled = found.filter(item => passageSupportsTopic(input.question, item.title) || passageSupportsTopic(bookQuery, item.title));
+          bookIds = titled.slice(0, 2).map(item => item.id);
+          if (found.length && !titled.length) {
+            pushCoverage({
+              kind: 'no_relevant_evidence',
+              provider: 'IslamHouse',
+              detail: 'The book catalogue returned titles. They do not address the question, so they are not cited.',
+            });
+          }
           if (!found.length) {
             pushCoverage({
               kind: 'no_relevant_evidence',
@@ -1064,6 +1098,7 @@ export async function executeResearch(input: {
               provider: 'IslamHouse',
               detail: book.limitation ?? `Item ${book.id} has no full text in the item API. The catalogue description is not cited as the book.`,
             });
+            if (catalogueMayCite(input.question, book.title)) passages.push(cataloguePassage(book, input.language, clock().toISOString()));
             continue;
           }
           if (!matched.length) {
@@ -1262,8 +1297,8 @@ export async function executeResearch(input: {
         return;
       }
       const packet = [
-        ...answerPassages(pool),
-        ...pool.filter(passage => passage.source.provider === 'Parallel' && !answerPassages(pool).some(item => item.id === passage.id)),
+        ...answerPassages(input.question, pool),
+        ...pool.filter(passage => passage.source.provider === 'Parallel' && !answerPassages(input.question, pool).some(item => item.id === passage.id)),
       ];
       const evidence = packet.map(passageToEvidence);
       let written: ResearchAnswer | null = null;
@@ -1672,10 +1707,12 @@ function hadithPassage(
 
 const COUNT_QUESTION = /\bhow many\b|\bnumber of\b|\bhow much\b|எத்தனை|කීයක්|كم/i;
 
-function answerPassages(passages: readonly EvidencePassage[]): EvidencePassage[] {
+function answerPassages(question: string, passages: readonly EvidencePassage[]): EvidencePassage[] {
   const primary = passages.filter(passage => passage.role !== 'empirical' && !passage.context?.startsWith('Neighbouring'));
+  const empirical = passages.filter(passage => passage.role === 'empirical');
   const study = primary.filter(passage => passage.source.provider === 'hadith-api');
-  const ordered = study.length ? [...study, ...primary.filter(passage => passage.source.provider !== 'hadith-api')] : primary;
+  const religious = study.length ? [...study, ...primary.filter(passage => passage.source.provider !== 'hadith-api')] : primary;
+  const ordered = asksScience(question) && empirical.length ? [...empirical, ...religious] : religious;
   return ordered.slice(0, 8);
 }
 
@@ -1912,13 +1949,21 @@ function retrievedAnswer(
   const cited = passages.slice(0, 6);
   const asksCount = interpretation.kind === 'stated-total' || (interpretation.kind !== 'corpus-count' && COUNT_QUESTION.test(question));
   const statesCount = asksCount && passageStatesCount(cited);
-  const lead = cited[0];
+  const timed = asksWhen(question)
+    ? cited.find(passage => timingClause(question, `${passage.text}\n${passage.context ?? ''}`)) ?? null
+    : null;
+  const lead = timed ?? cited[0];
+  const clause = timed ? timingClause(question, `${timed.text}\n${timed.context ?? ''}`) : null;
   const englishPassage = Boolean(lead && /[A-Za-z]/.test(lead.text) && !/[\u0B80-\u0BFF\u0D80-\u0DFF]/.test(lead.text));
   const grade = englishPassage && lead?.publishedGrade ? ` The source prints this grade: ${lead.publishedGrade}.` : '';
   const text =
-    asksCount && !statesCount
-      ? `These passages do not state a total number. ${lead?.locator ?? 'The passage'} says: “${lead?.text.trim() ?? ''}”.`
-      : `${lead?.locator ?? 'The passage'} says: “${lead?.text.trim() ?? ''}”.${grade}`;
+    clause
+      ? `${lead?.locator ?? 'The passage'} records this timing: “${clause}”.${grade}`
+      : lead?.role === 'empirical'
+        ? `${lead.locator} is an empirical record, not scripture: “${lead.text.trim()}”.`
+        : asksCount && !statesCount
+          ? `These passages do not state a total number. ${lead?.locator ?? 'The passage'} says: “${lead?.text.trim() ?? ''}”.`
+          : `${lead?.locator ?? 'The passage'} says: “${lead?.text.trim() ?? ''}”.${grade}`;
   return {
     paragraphs: [{ text, citations: cited.map(passage => passage.id) }],
     insufficientEvidence: asksCount && !statesCount,
@@ -1951,6 +1996,42 @@ function versePassage(verse: VerseRecord, lang: Lang, retrievedAt: string, hash:
     context: null,
     readerRoute: `#/quran/${verse.surah}?ayah=${verse.ayah}`,
     role: 'translation',
+    publishedGrade: null,
+  };
+}
+
+function catalogueMayCite(question: string, title: string): boolean {
+  const kinds = new Set(materialParts(question).map(part => part.kind));
+  if (!kinds.has('recommendation') && !kinds.has('books')) return false;
+  return passageSupportsTopic(question, title);
+}
+
+function cataloguePassage(book: { id: number; title: string; url: string | null }, lang: Lang, retrievedAt: string): EvidencePassage {
+  const text = `${book.title}. The catalogue lists this title. The book text was not read.`;
+  return {
+    contractVersion: VERSION,
+    id: `B${book.id}-catalogue`,
+    source: source({
+      id: String(book.id),
+      provider: 'IslamHouse',
+      language: lang,
+      edition: null,
+      version: null,
+      title: book.title,
+      credits: [],
+      canonicalUrl: book.url ?? 'https://islamhouse.com',
+      contentType: 'book',
+      rights: ISLAMHOUSE_RIGHTS,
+      retrievedAt,
+      contentHash: contentHash(text),
+    }),
+    text,
+    originalLanguage: lang,
+    arabic: null,
+    locator: book.title || `IslamHouse ${book.id}`,
+    context: 'Catalogue record only. This is not a quotation from the book.',
+    readerRoute: `#/books/item/${book.id}`,
+    role: 'source_text',
     publishedGrade: null,
   };
 }

@@ -154,6 +154,7 @@ export function coordinateQuestion(input: CoordinationInput): CoordinationDecisi
   // The open section is context. It does not decide which specialists may run, and it does not move the reader.
   let teams = teamsNamed.length ? [...teamsNamed] : generalTeams(`${prior}\n${question}`, input.entry);
   if (isVerifyNarration(question) && !teams.includes('hadith')) teams = ['hadith', ...teams];
+  if (/\bwhen did\b|\bhistory of\b|\bseerah\b|\bs[iī]rah\b|\bbiograph/i.test(question) && !teams.includes('books')) teams.push('books');
   if (bookId && teamsNamed.length === 0 && !teams.includes('books')) teams.push('books');
   return finish({
     action: 'research',

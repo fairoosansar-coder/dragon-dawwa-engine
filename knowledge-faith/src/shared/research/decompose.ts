@@ -1,14 +1,14 @@
 import type { QuestionDomain, ResearchSubquestion } from '../contracts/v1.ts';
 import { contentTokens } from '../research.ts';
 
-const SCIENCE = /\b(scientific|science|physics|biology|chemistry|medicine|medical|clinical|metabolic|empirical|evolution|peer-reviewed|journal)\b/i;
+const SCIENCE = /\b(scientific|science|physics|biology|chemistry|medicine|medical|clinical|metabolic|empirical|evolution|peer-reviewed|journal|embryolog\w*|anatom\w*|astronom\w*|cosmolog\w*|geolog\w*|genetic\w*|neuroscien\w*|physiolog\w*|zoolog\w*|botan\w*|meteorolog\w*|paleontolog\w*|fossil|experiment)\b/i;
 const PRACTICE = /\b(how should|how do|how to|what should|steps|perform|pray|wudu|fast)\b/i;
 const HISTORY = /\b(when did|history|seerah|biography|battle|year)\b/i;
 const SCRIPTURE = /\b(qur'an|quran|verse|ayah|hadith|hadeeth|narration|surah)\b/i;
 
 const EXTRA_STOP = new Set([
   'someone', 'something', 'anything', 'people', 'person', 'thing', 'things', 'need', 'needs',
-  'number', 'said', 'being', 'taught', 'about',
+  'number', 'said', 'being', 'taught', 'about', 'place', 'take', 'read', 'does', 'say', 'described',
 ]);
 
 const SPELLING: Record<string, readonly string[]> = {
@@ -49,6 +49,14 @@ const SEARCH_EQUIVALENTS: Record<string, readonly string[]> = {
   තව්හීද්: ['tawhid', 'tawheed', 'توحيد'],
   අසල්වැසියා: ['neighbor', 'neighbour'],
   அண்டை: ['neighbor', 'neighbour'],
+  tawhid: ['توحيد', 'oneness'],
+  tawheed: ['توحيد', 'oneness'],
+  wudu: ['ablution', 'وضوء'],
+  wudhu: ['ablution', 'وضوء'],
+  wuzu: ['ablution', 'وضوء'],
+  seerah: ['sirah', 'biography'],
+  sirah: ['seerah', 'biography'],
+  biography: ['seerah', 'sirah'],
 };
 
 export interface RetrievalPlan {
@@ -102,6 +110,16 @@ function queriesFor(text: string): string[] {
     for (const variant of SEARCH_EQUIVALENTS[word] ?? []) {
       if (queries.length >= 5) break;
       if (!queries.includes(variant)) queries.push(variant);
+    }
+  }
+  if (words.length === 1 && /\bwhat is\b|\bwhat are\b|என்றால் என்ன|என்பது என்ன|යනු කුමක්/i.test(text) && queries.length < 5) {
+    const meaning = `${words[0]} meaning`;
+    if (!queries.includes(meaning)) queries.push(meaning);
+  }
+  if (words.includes('life') && (words.includes('prophet') || words.includes('messenger'))) {
+    for (const extra of ['seerah', 'biography']) {
+      if (queries.length >= 5) break;
+      if (!queries.includes(extra)) queries.push(extra);
     }
   }
   return queries;
