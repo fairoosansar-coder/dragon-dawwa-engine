@@ -20,6 +20,8 @@ import { loadHadeeth, loadHadeethCategories, loadHadeethList, searchHadeeth } fr
 import { pageByRelevance } from './src/shared/hadeethenc.ts';
 import { askPilot, loadPilotEpisode } from './src/server/pilot.ts';
 import { loadKnowledgeShelf, loadLibrary, loadLibraryItem } from './src/server/islamhouse.ts';
+import { loadBookDetail, loadBookMeta, loadBookShelf, loadBookStats } from './src/server/bookShelf.ts';
+import { readingPages } from './src/server/pdfPages.ts';
 import { readLibraryItem } from './src/server/libraryRead.ts';
 import { allowedMediaUrl, readMedia } from './src/server/media.ts';
 import { listNames, readName } from './src/server/names.ts';
@@ -280,9 +282,44 @@ app.get(
   route(async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) throw new UpstreamError('Unknown item', 404);
-    res.json(await readLibraryItem(id, toLang(req.query.lang)));
+    const document = await readLibraryItem(id, toLang(req.query.lang));
+    if (req.query.pages !== '1') {
+      res.json(document);
+      return;
+    }
+    const pages = await readingPages(document);
+    res.json({ ...document, pages });
   }),
 );
+
+function bookShelfQuery(req: Request) {
+  const category = Number(req.query.category);
+  const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 80) : '';
+  if (q && q.length < 3) throw new UpstreamError('Search needs at least 3 characters', 400);
+  return {
+    lang: toLang(req.query.lang),
+    page: pageNumber(req.query.page),
+    categoryId: Number.isInteger(category) && category > 0 ? category : null,
+    q,
+    essential: req.query.shelf === 'essential',
+    format: req.query.format === 'pdf' ? 'pdf' as const : 'any' as const,
+    sort: req.query.sort === 'title' ? 'title' as const : 'newest' as const,
+  };
+}
+
+app.get('/api/library/books/meta', route(async (req, res) => res.json(await loadBookMeta(toLang(req.query.lang)))));
+app.get('/api/library/books/stats', route(async (req, res) => res.json(await loadBookStats(toLang(req.query.lang)))));
+
+app.get(
+  '/api/library/books/:id',
+  route(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) throw new UpstreamError('Unknown book', 404);
+    res.json(await loadBookDetail(id, toLang(req.query.lang)));
+  }),
+);
+
+app.get('/api/library/books', route(async (req, res) => res.json(await loadBookShelf(bookShelfQuery(req)))));
 
 app.get('/api/library/media', async (req, res, next) => {
   try {

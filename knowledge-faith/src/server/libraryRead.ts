@@ -120,6 +120,7 @@ export async function readLibraryItem(id: number, lang: Lang, now = new Date()):
     media,
     credits,
     canonicalUrl: item.sourceUrl,
+    image: item.image,
     added: item.added,
     updated: item.updated,
     version,
