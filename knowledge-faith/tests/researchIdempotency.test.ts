@@ -133,16 +133,15 @@ describe('research idempotency', { concurrency: 1 }, () => {
     process.env.SUPABASE_URL = config.url;
     process.env.SUPABASE_SERVICE_ROLE_KEY = config.apiKey;
     let called = false;
+    const stored = { query_hadith: 'text', agent_6_synthesis: { final_status: 'hasan' } };
     globalThis.fetch = async () => {
       called = true;
-      return Response.json([
-        { id: 'saved-1', status: 'done', data: { query_hadith: 'text', agent_6_synthesis: { final_status: 'hasan' } } },
-      ]);
+      return Response.json([{ id: 'saved-1', status: 'done', data: stored }]);
     };
     try {
       const result = await executeDragonDawwaAnalysis('text', '', 'si');
       assert.equal(called, true);
-      assert.equal(result.agent_6_synthesis.final_status, 'hasan');
+      assert.deepEqual(result, stored);
     } finally {
       globalThis.fetch = previousFetch;
       if (previousUrl === undefined) delete process.env.SUPABASE_URL;

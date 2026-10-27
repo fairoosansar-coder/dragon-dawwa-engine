@@ -590,7 +590,7 @@ app.post(
     }
     requireAi();
     const id = startResearchJob(
-      () => executeDragonDawwaAnalysis(hadith, isnad, language, undefined, { idempotencyChecked: true }),
+      () => executeDragonDawwaAnalysis(hadith, isnad, language),
       err => engineFailure(err, 'The hadith research engine could not complete this request. Please retry.').message,
     );
     res.status(202).json({ id, status: 'running' });

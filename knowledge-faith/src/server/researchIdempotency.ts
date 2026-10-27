@@ -52,10 +52,26 @@ export function eqFilter(value: string): string {
   return `eq."${value.replaceAll('"', '""')}"`;
 }
 
-function payloadOf(record: CompletedResearch): unknown {
-  const data = record.data;
+function unwrapStored(data: unknown): unknown {
+  if (typeof data === 'string') {
+    try {
+      data = JSON.parse(data) as unknown;
+    } catch {
+      return data;
+    }
+  }
   if (isRecord(data) && isRecord(data.analysis) && !isRecord(data.agent_6_synthesis)) return data.analysis;
   return data;
+}
+
+function payloadOf(record: CompletedResearch): unknown {
+  return unwrapStored(record.data);
+}
+
+/** Analysis object stored on a completed row. Null when the row has no JSON object. */
+export function storedAnalysisJson(record: CompletedResearch): Record<string, unknown> | null {
+  const analysis = unwrapStored(record.data);
+  return isRecord(analysis) ? analysis : null;
 }
 
 export function analyzeReplayBody(record: CompletedResearch): Record<string, unknown> {

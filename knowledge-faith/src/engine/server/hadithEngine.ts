@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { findCompletedResearch } from "../../server/researchIdempotency.ts";
+import { findCompletedResearch, storedAnalysisJson } from "../../server/researchIdempotency.ts";
 import type { DragonDawwaAnalysis } from "../types/hadith.ts";
 import { getLocalizedAnalysis } from "../utils/localizedAnalysis.ts";
 
@@ -239,18 +239,11 @@ export async function executeDragonDawwaAnalysis(
   isnadInput?: string,
   preferredLanguage: 'en' | 'ta' | 'si' = 'en',
   apiKey: string | undefined = process.env.GEMINI_API_KEY,
-  options?: { idempotencyChecked?: boolean },
 ): Promise<DragonDawwaAnalysis> {
-  if (!options?.idempotencyChecked) {
-    const existing = await findCompletedResearch({ hadithInput, language: preferredLanguage });
-    if (existing && existing.data && typeof existing.data === 'object' && !Array.isArray(existing.data)) {
-      const data = existing.data as Record<string, unknown>;
-      const analysis =
-        data.analysis && typeof data.analysis === 'object' && !Array.isArray(data.analysis) && !data.agent_6_synthesis
-          ? data.analysis
-          : existing.data;
-      return analysis as DragonDawwaAnalysis;
-    }
+  const saved = await findCompletedResearch({ hadithInput, language: preferredLanguage });
+  if (saved?.status === 'done') {
+    const analysis = storedAnalysisJson(saved);
+    if (analysis) return analysis as unknown as DragonDawwaAnalysis;
   }
 
   if (!apiKey?.trim()) throw new Error("GEMINI_API_KEY is missing in this server. Add it to this Codespace and restart Vite.");
