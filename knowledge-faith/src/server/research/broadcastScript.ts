@@ -69,13 +69,13 @@ function inConversation(language: Lang, lesson: string): string {
   return lesson;
 }
 
-/** Warm welcome. The page header carries the generated-presenter note, so the voice does not. */
+/** Islamic greeting, then the question. Disclaimers stay in the page header. */
 export function generatedHostLine(question: string, language: Lang, hostName?: string | null): string {
   const host = sanitizePodcastHostName(hostName);
   const asked = everydayQuestion(question);
-  if (language === 'ta') return `${host}, வரவேற்கிறோம். இன்று நாம் உங்கள் கேள்வியுடன் அமர்கிறோம்: ${asked}`;
-  if (language === 'si') return `${host}, සාදරයෙන් පිළිගනිමු. අද අපි ඔබේ ප්‍රශ්නය සමඟ වාඩි වෙමු: ${asked}`;
-  return `Welcome, ${host}. Today we sit with your question: ${asked}`;
+  if (language === 'ta') return `அஸ்ஸலாமு அலைக்கும், ${host}. இன்று நாம் உங்கள் கேள்வியுடன் அமர்கிறோம்: ${asked}`;
+  if (language === 'si') return `අස්සලාමු අලයිකුම්, ${host}. අද අපි ඔබේ ප්‍රශ්නය සමඟ වාඩි වෙමු: ${asked}`;
+  return `Assalamu Alaikum, ${host}. Today we sit with your question: ${asked}`;
 }
 
 function contributorLine(agent: BroadcastAgent, language: Lang, hostName: string): string {

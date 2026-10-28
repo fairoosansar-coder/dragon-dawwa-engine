@@ -626,7 +626,7 @@ function EpisodeCard({
       )}
       <section className="mt-4">
         <h4 className="font-display text-lg font-bold text-pine">Sources</h4>
-        <p className="mt-1 text-sm text-ink/60">Research language: {language}. These citations are not read aloud.</p>
+        <p className="mt-1 text-sm text-ink/60">Research language: {language}.</p>
         {sources.length === 0 && <p className="mt-2 text-sm text-muted">The full report holds the citation list.</p>}
         <ul className="mt-2 space-y-1 text-sm">
           {sources.map(source => (

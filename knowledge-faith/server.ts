@@ -685,7 +685,7 @@ const podcastScriptRoute = route(async (req, res) => {
     if (!evidence.length) {
       throw new UpstreamError(dossier?.unanswered[0] ?? 'No sources could be retrieved for this topic.', 422);
     }
-    const script = geminiConfigured() ? await writePodcast(topic, lang, minutes, evidence, generateJson, hostName) : quoteFromEvidence(topic, lang, evidence);
+    const script = geminiConfigured() ? await writePodcast(topic, lang, minutes, evidence, generateJson, hostName) : quoteFromEvidence(topic, lang, evidence, hostName);
     res.json({ ...attachVerification(script, verifyScript(script.lines, evidence), dossier?.unanswered ?? []), hostName });
 });
 

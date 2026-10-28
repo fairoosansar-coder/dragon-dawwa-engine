@@ -156,19 +156,19 @@ function reconciliationFinding(language: Lang, roles: string, passages: readonly
   const commentary = passages.find(passage => passage.role === 'commentary' && passage.source.provider !== 'Parallel' && passage.text.trim());
   const lesson = lessonClip(commentary?.text || ayah?.text || '');
   if (ayah && language === 'en') {
-    return `Sit with the human moment rather than the page. The practical lesson is ${lesson || 'the comfort the opened moment teaches'}. ${roles} sat with that moment. What was not opened was not added. This is not a hadith grade.`;
+    return `The practical lesson is ${lesson || 'the comfort the opened moment teaches'}. ${roles} sat with that moment. What was not opened was not added. This is not a hadith grade.`;
   }
   if (ayah && language === 'ta') {
     const bridged = lesson && /[A-Za-z]/.test(lesson) && !/[\u0B80-\u0BFF]/.test(lesson)
       ? `ஆங்கில மூலத்தின் பொருளைத் தமிழுடன் வைக்கிறேன்: ${lesson}`
       : lesson;
-    return `மனிதத் தருணத்துடன் அமர்கிறோம். பக்கத்தை உரக்க வாசிக்கவில்லை. நடைமுறைப் பாடம்: ${bridged || 'திறந்த தருணத்தின் ஆறுதல்'}. ${roles} அந்தத் தருணத்துடன் அமர்ந்தனர். திறக்காததைச் சேர்க்கவில்லை.`;
+    return `நடைமுறைப் பாடம்: ${bridged || 'திறந்த தருணத்தின் ஆறுதல்'}. ${roles} அந்தத் தருணத்துடன் அமர்ந்தனர். திறக்காததைச் சேர்க்கவில்லை.`;
   }
   if (ayah && language === 'si') {
     const bridged = lesson && /[A-Za-z]/.test(lesson) && !/[\u0D80-\u0DFF]/.test(lesson)
       ? `ඉංග්‍රීසි මූලයේ අර්ථය සිංහල සමඟ තබමු: ${lesson}`
       : lesson;
-    return `මිනිස් මොහොත සමඟ වාඩි වෙමු. පිටුව ශබ්ද නඟා නොකියමු. ප්‍රායෝගික පාඩම: ${bridged || 'විවෘත මොහොතේ සැනසීම'}. ${roles} එම මොහොත සමඟ වාඩි වූහ. නොවිවෘත දේ එකතු නොකෙරේ.`;
+    return `ප්‍රායෝගික පාඩම: ${bridged || 'විවෘත මොහොතේ සැනසීම'}. ${roles} එම මොහොත සමඟ වාඩි වූහ. නොවිවෘත දේ එකතු නොකෙරේ.`;
   }
   if (language === 'ta') {
     return `${roles} அந்தத் தருணத்துடன் அமர்ந்தனர். நடைமுறைப் பாடம் அவர்கள் திறந்த மூலத்திலிருந்து. திறக்காததைச் சேர்க்கவில்லை.`;

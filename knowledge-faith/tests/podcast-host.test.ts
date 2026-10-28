@@ -43,11 +43,10 @@ test('the podcast script prompt uses the host name', () => {
   const prompt = podcastPrompt('Patience', 'en', [], 2, 'Sister Maryam');
   assert.match(prompt, /HOST NAME/);
   assert.match(prompt, /Sister Maryam/);
-  assert.match(prompt, /warm welcome/i);
+  assert.match(prompt, /Assalamu Alaikum/);
   assert.match(prompt, /practical lesson/i);
-  assert.match(prompt, /approval sentence stays in the interface/);
-  assert.match(prompt, /Do not say "I am a generated host"/);
-  assert.match(podcastPrompt('Patience', 'ta', [], 2), /Tamil/);
+  assert.doesNotMatch(prompt, /I am a generated host|These citations are not read aloud/);
+  assert.match(podcastPrompt('Patience', 'ta', [], 2), /அஸ்ஸலாமு அலைக்கும்/);
   assert.match(podcastPrompt('Patience', 'ta', [], 2), /Seeker/);
-  assert.match(podcastPrompt('Patience', 'si', [], 2), /Sinhala/);
+  assert.match(podcastPrompt('Patience', 'si', [], 2), /අස්සලාමු අලයිකුම්/);
 });

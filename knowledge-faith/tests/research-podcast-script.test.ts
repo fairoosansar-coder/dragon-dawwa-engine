@@ -68,7 +68,7 @@ describe('spoken research script', () => {
     assert.ok(script);
     const spoken = script.lines.map(line => line.text).join(' ');
     assert.equal(script.question.includes('prophets'), false);
-    assert.match(spoken, /Welcome, Seeker/);
+    assert.match(spoken, /Assalamu Alaikum, Seeker/);
     assert.match(spoken, /Badr/);
     assert.match(spoken, /gratitude/);
     assert.match(spoken, /Hunayn/);
@@ -109,7 +109,7 @@ describe('spoken research script', () => {
     });
     assert.ok(script);
     const spoken = script.lines.map(line => line.text).join(' ');
-    assert.match(spoken, /வரவேற்கிறோம்/);
+    assert.match(spoken, /அஸ்ஸலாமு அலைக்கும், Seeker/);
     assert.match(spoken, /நடுத் தொழுகையை ஏன் காக்க வேண்டும்/);
     assert.match(spoken, /ஆங்கில மூலத்தின் பொருளைத் தமிழுடன் வைக்கிறேன்/);
     assert.doesNotMatch(spoken, /Welcome,|I am a generated host|From this dossier alone|We are not scholars|The words sit in/);

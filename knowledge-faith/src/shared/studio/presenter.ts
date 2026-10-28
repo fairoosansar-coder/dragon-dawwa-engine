@@ -172,7 +172,7 @@ export function sanitizeListenerPreferences(raw: unknown): StudioListenerPrefere
   };
 }
 
-export function buildPresenterGreeting(lang: Lang, prefs?: StudioListenerPreferences): string {
+export function buildPresenterGreeting(lang: Lang, prefs?: StudioListenerPreferences, hostName?: string | null): string {
   const goalNote =
     prefs?.optIn && prefs.learningGoals.length > 0
       ? lang === 'ta'
@@ -181,14 +181,15 @@ export function buildPresenterGreeting(lang: Lang, prefs?: StudioListenerPrefere
           ? ` ඔබ තෝරාගත් ඉගෙනුම් ඉලක්කය: ${prefs.learningGoals[0]}.`
           : ` Your saved learning focus is ${prefs.learningGoals[0].toLowerCase()}.`
       : '';
+  const named = hostName?.trim() ? `, ${hostName.trim()}` : '';
 
   if (lang === 'ta') {
-    return `அஸ்ஸலாமு அலைக்கும். வரவேற்கிறோம். இன்று நாம் உங்கள் கேள்வியுடன் அமைதியாக அமர்கிறோம்.${goalNote}`;
+    return `அஸ்ஸலாமு அலைக்கும்${named}. இன்று நாம் உங்கள் கேள்வியுடன் அமைதியாக அமர்கிறோம்.${goalNote}`;
   }
   if (lang === 'si') {
-    return `අස්සලාමු අලයිකුම්. සාදරයෙන් පිළිගනිමු. අද අපි ඔබේ ප්‍රශ්නය සමඟ සන්සුන්ව වාඩි වෙමු.${goalNote}`;
+    return `අස්සලාමු අලයිකුම්${named}. අද අපි ඔබේ ප්‍රශ්නය සමඟ සන්සුන්ව වාඩි වෙමු.${goalNote}`;
   }
-  return `Assalamu Alaikum, and welcome. Today we sit with your question and talk it through as people.${goalNote}`;
+  return `Assalamu Alaikum${named}. Today we sit with your question and talk it through as people.${goalNote}`;
 }
 
 export interface BuildVoiceStatusInput {

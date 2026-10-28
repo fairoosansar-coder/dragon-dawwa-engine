@@ -59,12 +59,12 @@ const PERSONAS: readonly Persona[] = [
   { name: DEEP, id: 'amina-generated', team: 'deep-research' },
 ];
 
-/** Warm welcome. The page header says the presenters are generated, so the voice does not. */
+/** Islamic greeting, then the question. The page header carries any presenter note. */
 function generatedHost(question: string, language: Lang, hostName: string): string {
   const asked = everydayQuestion(question);
-  if (language === 'ta') return `${hostName}, வரவேற்கிறோம். இன்று நாம் உங்கள் கேள்வியுடன் அமர்கிறோம்: ${asked}`;
-  if (language === 'si') return `${hostName}, සාදරයෙන් පිළිගනිමු. අද අපි ඔබේ ප්‍රශ්නය සමඟ වාඩි වෙමු: ${asked}`;
-  return `Welcome, ${hostName}. Today we sit with your question: ${asked}`;
+  if (language === 'ta') return `அஸ்ஸலாமு அலைக்கும், ${hostName}. இன்று நாம் உங்கள் கேள்வியுடன் அமர்கிறோம்: ${asked}`;
+  if (language === 'si') return `අස්සලාමු අලයිකුම්, ${hostName}. අද අපි ඔබේ ප්‍රශ්නය සමඟ වාඩි වෙමු: ${asked}`;
+  return `Assalamu Alaikum, ${hostName}. Today we sit with your question: ${asked}`;
 }
 
 function shortName(name: string): string {
@@ -179,7 +179,7 @@ function corpusConversation(question: string, passages: readonly RoundtablePassa
   const told = campaigns.slice(0, 2).map(campaignMoment).join('. ');
   return [
     line(hostName, generatedHost(question, 'en', hostName)),
-    line(PASSAGE, `${hostName}, we will not read the page aloud. ${told}.`),
+    line(PASSAGE, `${hostName}, ${told}.`),
     line(
       DISTINCTION,
       `${hostName}, those are named campaigns, the historical moments themselves. A wording hit is a different human situation. What does the contrast teach?`,

@@ -4,6 +4,7 @@ import { islamHousePage, type LibraryItem } from '../shared/islamhouse.ts';
 import { TOPICS } from '../shared/topics.ts';
 import type { Lang } from '../shared/sources.ts';
 import type { Evidence, PodcastScript, Verse } from '../shared/types.ts';
+import { generatedHostLine } from './research/broadcastScript.ts';
 import { UpstreamError } from './http.ts';
 import { parseRefs } from '../shared/refs.ts';
 import {
@@ -566,25 +567,21 @@ function quotedLesson(lang: Lang, text: string): string {
     const bridged = /[A-Za-z]/.test(lesson) && !/[\u0B80-\u0BFF]/.test(lesson)
       ? `ஆங்கில மூலத்தின் பொருளைத் தமிழுடன் வைக்கிறேன்: ${lesson}`
       : lesson;
-    return `நடைமுறைப் பாடம் இது. மேற்கோள் எழுத்துப் பட்டியலில் இருக்கும். ${bridged}`;
+    return `நடைமுறைப் பாடம் இது. ${bridged}`;
   }
   if (lang === 'si') {
     const bridged = /[A-Za-z]/.test(lesson) && !/[\u0D80-\u0DFF]/.test(lesson)
       ? `ඉංග්‍රීසි මූලයේ අර්ථය සිංහල සමඟ තබමු: ${lesson}`
       : lesson;
-    return `ප්‍රායෝගික පාඩම මෙයයි. උපුටා දැක්වීම් ලිඛිත ලැයිස්තුවේ ඇත. ${bridged}`;
+    return `ප්‍රායෝගික පාඩම මෙයයි. ${bridged}`;
   }
-  return `The practical lesson, without reading the page aloud, is ${lesson}`;
+  return `The practical lesson is ${lesson}`;
 }
 
-/** Spoken draft used when no script model is configured. Citations stay on the line, not as a reading. */
-export function quoteFromEvidence(topic: string, lang: Lang, evidence: Evidence[]): PodcastScript {
+/** Spoken draft used when no script model is configured. Citation ids stay on the line data. */
+export function quoteFromEvidence(topic: string, lang: Lang, evidence: Evidence[], hostName?: string | null): PodcastScript {
   if (!evidence.length) throw new UpstreamError('No sources could be retrieved for this topic.', 422);
-  const welcome = lang === 'ta'
-    ? `வரவேற்கிறோம். இன்று நாம் இந்தக் கேள்வியுடன் அமர்கிறோம்: ${topic}`
-    : lang === 'si'
-      ? `සාදරයෙන් පිළිගනිමු. අද අපි මේ ප්‍රශ්නය සමඟ වාඩි වෙමු: ${topic}`
-      : `Welcome. Today we sit with this question: ${topic}`;
+  const welcome = generatedHostLine(topic, lang, hostName);
   return {
     id: randomUUID(),
     title: topic.slice(0, 140),

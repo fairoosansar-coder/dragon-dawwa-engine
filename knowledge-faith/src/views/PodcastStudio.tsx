@@ -21,6 +21,7 @@ import type { ViewProps } from '../App.tsx';
 import { ErrorNote, Loading } from '../components/ui.tsx';
 import { useRemote } from '../lib/api.ts';
 import { useShell } from '../lib/shell.tsx';
+import { getPodcastHostLabel, PODCAST_HOST_EVENT } from '../lib/podcastHost.ts';
 import { useApp } from '../lib/store.tsx';
 import { LANGS, LANGUAGE_NAMES, toLang, type Lang } from '../shared/sources.ts';
 import { PROGRAMME_FAMILIES, STUDIO_EPISODE_BLUEPRINTS } from '../shared/studio/catalogue.ts';
@@ -227,7 +228,13 @@ function DragonDawwaRadioStudio() {
     return base;
   }, [answer?.references, episode]);
 
-  const greeting = useMemo(() => buildPresenterGreeting(lang, prefs), [lang, prefs]);
+  const [hostLabel, setHostLabel] = useState(getPodcastHostLabel);
+  useEffect(() => {
+    const sync = () => setHostLabel(getPodcastHostLabel());
+    window.addEventListener(PODCAST_HOST_EVENT, sync);
+    return () => window.removeEventListener(PODCAST_HOST_EVENT, sync);
+  }, []);
+  const greeting = useMemo(() => buildPresenterGreeting(lang, prefs, hostLabel), [lang, prefs, hostLabel]);
   const isEpisodeSaved = episode ? savedEpisodes.includes(episode.id) : false;
 
   return (
