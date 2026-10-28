@@ -62,7 +62,7 @@ export function DomainResearchForm({
         </div>
       )}
       <div className="space-y-1.5">
-        <label className="block text-sm font-semibold text-[var(--text-body)]" htmlFor="research-question">
+        <label className="sr-only" htmlFor="research-question">
           {QUESTION_LABEL}
         </label>
         <ResearchCapture value={question} onChange={onQuestion} disabled={running} />

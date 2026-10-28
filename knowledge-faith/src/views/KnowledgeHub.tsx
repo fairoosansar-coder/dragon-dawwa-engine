@@ -297,9 +297,9 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
       <section className="space-y-3">
         <SectionTitle sub={t.pathNote}>{t.pathsTitle}</SectionTitle>
         <div className="grid gap-4 sm:grid-cols-3">
-          <FeatureCard href="#/hub/discover" title={t.discoverTitle} body={t.pathCatalogue} icon={<BookOpen className="h-5 w-5" aria-hidden />} />
-          <FeatureCard href="#/hub/deepen" title={t.deepenTitle} body={t.pathCatalogue} icon={<Library className="h-5 w-5" aria-hidden />} />
-          <FeatureCard href="#/hub/prophet" title={t.prophetTitle} body={t.pathCatalogue} icon={<MoonStar className="h-5 w-5" aria-hidden />} />
+          <FeatureCard href="#/hub/discover" title={t.discoverTitle} body={t.discoverBody} icon={<BookOpen className="h-5 w-5" aria-hidden />} />
+          <FeatureCard href="#/hub/deepen" title={t.deepenTitle} body={t.deepenBody} icon={<Library className="h-5 w-5" aria-hidden />} />
+          <FeatureCard href="#/hub/prophet" title={t.prophetTitle} body={t.prophetBody} icon={<MoonStar className="h-5 w-5" aria-hidden />} />
         </div>
       </section>
 
