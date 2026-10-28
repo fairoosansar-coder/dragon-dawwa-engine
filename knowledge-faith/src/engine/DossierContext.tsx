@@ -99,8 +99,22 @@ function setUrlParams(update: (params: URLSearchParams) => void) {
   window.history.replaceState(null, '', url.toString());
 }
 
+/** A hadith opened from the encyclopedia arrives on the research hash, not the page search. */
+export function hashResearchQuery(): string | null {
+  if (typeof window === 'undefined') return null;
+  const hash = window.location.hash;
+  if (!/#\/(?:hadith\/research|screen-15)(?:\?|$)/.test(hash)) return null;
+  const qAt = hash.indexOf('?');
+  if (qAt < 0) return null;
+  const params = new URLSearchParams(hash.slice(qAt + 1));
+  const q = (params.get('q') || params.get('hadith') || '').trim();
+  return q || null;
+}
+
 function initialPreset(): { preset: SampleHadithPreset; query: string | null } {
   const params = new URLSearchParams(window.location.search);
+  const seeded = hashResearchQuery();
+  if (seeded) return { preset: DEFAULT_PRESET, query: seeded };
   const byId = SAMPLE_HADITHS.find(p => p.id === params.get('preset'));
   if (byId) return { preset: byId, query: null };
   const q = params.get('q') || params.get('hadith');
@@ -148,6 +162,8 @@ export function DossierProvider({ children }: { children: ReactNode }) {
   const [start] = useState(initialPreset);
   const [preset, setPreset] = useState(start.preset);
   const [matn, setMatn] = useState(start.query ?? presetMatn(start.preset, lang));
+  const matnRef = useRef(matn);
+  matnRef.current = matn;
   const [isnad, setIsnad] = useState('');
   const [analysis, setAnalysis] = useState<DragonDawwaAnalysis>(start.preset.defaultData);
   const [step, setStep] = useState<AgentStep>('overview');
@@ -170,6 +186,20 @@ export function DossierProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setMatn(current => (isPresetMatn(preset, current) ? presetMatn(preset, lang) : current));
   }, [lang, preset]);
+
+  useEffect(() => {
+    const apply = () => {
+      const q = hashResearchQuery();
+      if (!q || matnRef.current.trim() === q) return;
+      setMatn(q);
+      setIsnad('');
+      setReportOrigin(current => (current === 'researching' ? current : 'idle'));
+      setError(null);
+    };
+    apply();
+    window.addEventListener('hashchange', apply);
+    return () => window.removeEventListener('hashchange', apply);
+  }, []);
 
   useEffect(() => {
     const previous = langRef.current;
