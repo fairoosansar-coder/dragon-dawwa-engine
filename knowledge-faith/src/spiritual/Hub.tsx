@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Calculator, Clock, Compass, Library, ListChecks, Moon, Settings, Sparkles, type LucideIcon } from 'lucide-react';
 import { useShell } from '../lib/shell.tsx';
 import { useRemote } from '../lib/api.ts';
 import { useStored } from '../lib/store.tsx';
@@ -19,15 +20,15 @@ const PILLARS = [
   { id: 'hajj', href: '#/spiritual/hajj', guides: ['hajj', 'umrah'] },
 ];
 
-const TOOLS = [
-  ['#/spiritual/salah/times', 'prayerTimes'],
-  ['#/spiritual/salah/qibla', 'qibla'],
-  ['#/spiritual/zakah/calculator', 'toolZakah'],
-  ['#/spiritual/fasting/calendar', 'toolFasting'],
-  ['#/spiritual/dua-dhikr', 'toolDua'],
-  ['#/spiritual/library', 'sourceLibrary'],
-  ['#/spiritual/hajj/checklist', 'toolChecklist'],
-] as const;
+const TOOLS: { href: string; key: 'prayerTimes' | 'qibla' | 'toolZakah' | 'toolFasting' | 'toolDua' | 'sourceLibrary' | 'toolChecklist'; icon: LucideIcon }[] = [
+  { href: '#/spiritual/salah/times', key: 'prayerTimes', icon: Clock },
+  { href: '#/spiritual/salah/qibla', key: 'qibla', icon: Compass },
+  { href: '#/spiritual/zakah/calculator', key: 'toolZakah', icon: Calculator },
+  { href: '#/spiritual/fasting/calendar', key: 'toolFasting', icon: Moon },
+  { href: '#/spiritual/dua-dhikr', key: 'toolDua', icon: Sparkles },
+  { href: '#/spiritual/library', key: 'sourceLibrary', icon: Library },
+  { href: '#/spiritual/hajj/checklist', key: 'toolChecklist', icon: ListChecks },
+];
 
 interface TodayPrefs {
   prayer: boolean;
@@ -88,12 +89,18 @@ export function Hub() {
       </section>
       <section aria-label={s.tools}>
         <h2 className="mb-3 font-display text-2xl font-bold text-dd-emerald">{s.tools}</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {TOOLS.map(([href, key]) => (
-            <a key={href} href={href} className="flex min-h-16 items-center rounded-2xl bg-dd-emerald px-4 py-3 leading-snug text-dd-ivory">
-              {s[key]}
-            </a>
-          ))}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {TOOLS.map(tool => {
+            const Icon = tool.icon;
+            return (
+              <a key={tool.href} href={tool.href} className="flex min-h-16 items-center gap-3 rounded-2xl border border-dd-emerald/10 bg-white px-4 py-3 leading-snug text-dd-ink shadow-sm transition-colors hover:border-dd-gold">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-dd-emerald/10 text-dd-emerald">
+                  <Icon className="h-5 w-5" aria-hidden />
+                </span>
+                <span className="font-semibold">{s[tool.key]}</span>
+              </a>
+            );
+          })}
         </div>
       </section>
       <Continue />
@@ -166,6 +173,7 @@ interface HijriMonthDay {
 
 function Today() {
   const { lang, s } = useSp();
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [prefs, setPrefs] = useStored<TodayPrefs>('kf-today-panels', { prayer: true, dhikr: true, occasion: true, goal: true });
   const [goal, setGoal] = useStored<string>('kf-spiritual-goal', '');
   const [draft, setDraft] = useState(goal);
@@ -200,14 +208,35 @@ function Today() {
   }, [remote.data]);
   return (
     <Panel>
-      <h2 className="font-display text-2xl font-bold text-dd-emerald">{s.today}</h2>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {(Object.keys(prefs) as (keyof TodayPrefs)[]).map(key => (
-          <button key={key} type="button" className="min-h-11 rounded-full bg-white px-3 text-sm" onClick={() => setPrefs({ ...prefs, [key]: !prefs[key] })}>
-            {prefs[key] ? s.hide : s.show} {panelLabel[key]}
-          </button>
-        ))}
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-display text-2xl font-bold text-dd-emerald">{s.today}</h2>
+        <button
+          type="button"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-dd-emerald/15 bg-white text-dd-emerald transition-colors hover:border-dd-gold"
+          aria-expanded={settingsOpen}
+          aria-controls="today-worship-settings"
+          aria-label={`${s.today} settings`}
+          onClick={() => setSettingsOpen(open => !open)}
+        >
+          <Settings className="h-5 w-5" aria-hidden />
+        </button>
       </div>
+      {settingsOpen && (
+        <fieldset id="today-worship-settings" className="mt-3 space-y-1 rounded-2xl border border-dd-emerald/10 bg-white p-3">
+          <legend className="sr-only">{s.today}</legend>
+          {(Object.keys(prefs) as (keyof TodayPrefs)[]).map(key => (
+            <label key={key} className="flex min-h-11 items-center gap-3 text-sm text-dd-ink">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-dd-emerald"
+                checked={prefs[key]}
+                onChange={() => setPrefs({ ...prefs, [key]: !prefs[key] })}
+              />
+              {panelLabel[key]}
+            </label>
+          ))}
+        </fieldset>
+      )}
       {prefs.prayer && (
         <div className="mt-4">
           <h3 className="font-semibold">{s.todayNext}</h3>
