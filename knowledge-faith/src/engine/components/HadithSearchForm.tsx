@@ -76,6 +76,8 @@ export function HadithSearchForm({
   const t = TRANSLATIONS[currentLanguage];
   const [hadithMatn, setHadithMatn] = useState<string>(initialMatn);
   const [isnad, setIsnad] = useState<string>(initialIsnad);
+  const [isnadOpen, setIsnadOpen] = useState(Boolean(initialIsnad.trim()));
+  const matnRef = useRef<HTMLTextAreaElement>(null);
   const [activeBenchmark, setActiveBenchmark] = useState<string | null>("saturday_fast");
   const [normalizationData, setNormalizationData] = useState<FuzzyNormalizationResult | null>(null);
 
@@ -218,6 +220,7 @@ export function HadithSearchForm({
     setHadithMatn(matn);
     if (extractedIsnad) {
       setIsnad(extractedIsnad);
+      setIsnadOpen(true);
     }
     const excerpt = [matn, extractedIsnad].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim().slice(0, 160);
     if (excerpt) setExtractPreview({ label: 'Extracted text', excerpt });
@@ -230,8 +233,18 @@ export function HadithSearchForm({
   // Sync state if props change from outside
   useEffect(() => {
     if (initialMatn !== undefined) setHadithMatn(initialMatn);
-    if (initialIsnad !== undefined) setIsnad(initialIsnad);
+    if (initialIsnad !== undefined) {
+      setIsnad(initialIsnad);
+      if (initialIsnad.trim()) setIsnadOpen(true);
+    }
   }, [initialMatn, initialIsnad]);
+
+  useEffect(() => {
+    const node = matnRef.current;
+    if (!node) return;
+    node.style.height = 'auto';
+    node.style.height = `${Math.max(node.scrollHeight, 88)}px`;
+  }, [hadithMatn]);
 
   // Reactive fuzzy intent normalization check
   useEffect(() => {
@@ -446,6 +459,7 @@ export function HadithSearchForm({
   const handleClearInputs = () => {
     setHadithMatn("");
     setIsnad("");
+    setIsnadOpen(false);
     setActiveBenchmark(null);
     setNormalizationData(null);
     setExtractPreview(null);
@@ -459,6 +473,7 @@ export function HadithSearchForm({
     const loc = getLocalizedBenchmark(item, currentLanguage);
     setHadithMatn(loc.matn);
     setIsnad(loc.isnad);
+    setIsnadOpen(Boolean(loc.isnad.trim()));
     setActiveBenchmark(item.id);
     saveSearchToLocalStorage(loc.matn, loc.isnad);
     if (onSelectBenchmark) {
@@ -472,6 +487,7 @@ export function HadithSearchForm({
     setHadithMatn(normalizationData.canonical_english);
     if (normalizationData.canonical_isnad) {
       setIsnad(normalizationData.canonical_isnad);
+      setIsnadOpen(true);
     }
     setActiveBenchmark(normalizationData.matched_hadith_id);
   };
@@ -530,244 +546,63 @@ export function HadithSearchForm({
       </div>
 
       {/* HADITH DEEP SEARCH & TRANSMISSION AUDIT FORM */}
-      <div className="bg-[var(--surface-raised)] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+      <div className="relative overflow-hidden rounded-3xl border border-slate-800 bg-[var(--surface-raised)] p-4 shadow-2xl sm:p-5">
         <div className="absolute top-0 right-1/4 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 relative z-10">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
-              <span className="text-amber-400">🔍</span> Enter a Hadith for 7-Agent Research
-            </h2>
-            <p className="text-xs text-slate-400 mt-1">
-              Retrieves HadeethEnc records (Agent 7) and feeds them into Takhrij, Isnad, Rijal, Shawahid, Scholars & Synthesis.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 self-start sm:self-auto">
-            {/* Action button to clear both inputs */}
-            <button
-              type="button"
-              onClick={handleClearInputs}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-rose-300 text-xs font-medium border border-slate-700/80 hover:border-rose-500/40 transition-all cursor-pointer shadow-sm group"
-              title="Clear Hadith Matn and Transmission Chain"
-            >
-              <Trash2 className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-400 transition-colors" />
-              <span>Clear Inputs</span>
-            </button>
-
-            <span className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-emerald-950/80 text-emerald-400 border border-emerald-600/30">
-              7-Agent Engine + HadeethEnc
-            </span>
-          </div>
+        <div className="relative z-10 mb-4">
+          <h2 className="text-xl font-bold text-white sm:text-2xl">Hadith 7-Agent Research</h2>
+          <p className="mt-1 text-xs leading-relaxed text-slate-400">
+            Retrieves HadeethEnc records (Agent 7) and feeds them into Takhrij, Isnad, Rijal, Shawahid, Scholars & Synthesis.
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
-          {/* OPTICAL MEDIA & MULTIMODAL CAPTURE RIBBON */}
-          <div className="p-3 rounded-2xl bg-[var(--surface-modal)] border border-slate-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                Optical Input & OCR:
-              </span>
-              <span className="text-[11px] text-slate-400 hidden sm:inline">
-                Upload book photos, capture live manuscripts, or scan files
-              </span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => handleOpenMediaModal('camera')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-xs font-semibold border border-amber-500/40 hover:border-amber-400 transition-all cursor-pointer shadow-sm group"
-                title="Take photo of Hadith page or manuscript with live camera"
-              >
-                <Camera className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
-                <span>Take Photo</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleOpenMediaModal('upload_photo')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 hover:border-slate-600 transition-all cursor-pointer shadow-sm group"
-                title="Upload Hadith image or screenshot"
-              >
-                <ImageIcon className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-300 transition-colors" />
-                <span>Upload Photo</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleOpenMediaModal('upload_file')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 hover:border-slate-600 transition-all cursor-pointer shadow-sm group"
-                title="Upload Hadith document or PDF"
-              >
-                <FileText className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-300 transition-colors" />
-                <span>Upload File / PDF</span>
-              </button>
-            </div>
-          </div>
-
-          {/* HADITH MATN / NARRATION TEXT */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between items-center text-xs font-semibold uppercase tracking-wider text-slate-300">
-              <label htmlFor="hadith-matn" className="flex items-center gap-1.5">
-                <span>HADITH MATN / NARRATION TEXT</span>
-                {isRecording && (
-                  <span className="flex items-center gap-1 text-[10px] text-rose-400 font-mono lowercase bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/30 animate-pulse">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
-                    recording mic...
-                  </span>
-                )}
-                {isTranscribing && (
-                  <span className="flex items-center gap-1 text-[10px] text-amber-400 font-mono lowercase bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
-                    <Loader2 className="w-2.5 h-2.5 animate-spin text-amber-400" />
-                    ai transcribing...
-                  </span>
-                )}
-              </label>
-
-              <div className="flex items-center gap-2">
-                <span
-                  data-testid="content-language-chip"
-                  className="rounded-lg border border-[#c4a46a] bg-[#f6efe2] px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#0c3d2e]"
-                  title="Content language used for research, the transcript, and narration"
-                >
-                  {languageChip(currentLanguage)} · {languageLabel(currentLanguage)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setDictationLang(current => current === 'ar-SA' ? dictationCode(currentLanguage) : 'ar-SA')}
-                  className="rounded-lg border border-slate-700 px-1.5 py-0.5 text-[10px] font-mono text-slate-300"
-                  title="Dictation language follows the content language. Switch only when speaking Arabic."
-                >
-                  {dictationLang === 'ar-SA' ? 'Dictation: Arabic' : `Dictation: ${languageLabel(currentLanguage)}`}
-                </button>
-
-                {/* Voice Input Engine Switch */}
-                <div className="hidden sm:flex items-center gap-1 text-[10px] font-mono text-slate-400 bg-slate-900/90 px-2 py-0.5 rounded-lg border border-slate-800">
-                  <span>Engine:</span>
-                  <button
-                    type="button"
-                    onClick={() => setVoiceSpeechMode(voiceSpeechMode === 'webspeech' ? 'ai_gemini' : 'webspeech')}
-                    className="text-amber-400 font-bold hover:underline cursor-pointer"
-                    title={voiceSpeechMode === 'webspeech' ? 'Web Speech API active (Click for Gemini Multimodal Audio)' : 'Gemini AI Voice active (Click for Web Speech API)'}
-                  >
-                    {voiceSpeechMode === 'webspeech' ? 'Web Speech' : 'Gemini AI'}
-                  </button>
-                </div>
-
-                <span className="text-[11px] font-normal text-slate-500 lowercase">
-                  Question in {languageLabel(currentLanguage)}
-                </span>
-              </div>
-            </div>
-
-            <div 
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                handleOpenMediaModal('upload_photo');
-              }}
-              className="relative group"
-            >
-              <textarea
-                id="hadith-matn"
-                rows={3}
-                value={hadithMatn}
-                onChange={(e) => setHadithMatn(e.target.value)}
-                placeholder={dictationLang === 'ar-SA' ? "اكتب أو اضغط على الميكروفون للتحدث بالمتن أو ألصق نص الحديث..." : "Type, click the mic to speak hands-free, or paste Hadith narration..."}
-                className={`w-full bg-[var(--surface-inset)] border ${
-                  isRecording 
-                    ? 'border-rose-500 ring-2 ring-rose-500/30 bg-rose-950/10' 
-                    : isTranscribing
+        <form onSubmit={handleSubmit} className="relative z-10 space-y-3">
+          <label htmlFor="hadith-matn" className="sr-only">Hadith matn</label>
+          <div
+            onDragOver={event => event.preventDefault()}
+            onDrop={event => {
+              event.preventDefault();
+              handleOpenMediaModal('upload_photo');
+            }}
+          >
+            <textarea
+              id="hadith-matn"
+              ref={matnRef}
+              rows={3}
+              value={hadithMatn}
+              onChange={event => setHadithMatn(event.target.value)}
+              placeholder={dictationLang === 'ar-SA' ? 'اكتب أو اضغط على الميكروفون للتحدث بالمتن أو ألصق نص الحديث...' : 'Type, speak, or paste the hadith matn...'}
+              className={`max-h-72 min-h-[5.5rem] w-full resize-none overflow-y-auto rounded-2xl border bg-[var(--surface-inset)] p-4 text-sm leading-relaxed text-slate-100 placeholder-slate-500 focus:outline-none ${
+                isRecording
+                  ? 'border-rose-500 bg-rose-950/10 ring-2 ring-rose-500/30'
+                  : isTranscribing
                     ? 'border-amber-500 ring-2 ring-amber-500/30'
                     : 'border-slate-700/80 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50'
-                } rounded-2xl p-4 pr-24 text-sm text-slate-100 placeholder-slate-500 focus:outline-none transition-all font-sans leading-relaxed`}
-                required
-              />
-
-              {/* Floating Hands-Free Microphone Action Button & Live Visualizer */}
-              <div className="absolute right-3 bottom-3 flex items-center gap-2">
-                {isRecording && (
-                  <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-950/60 border border-rose-800/60">
-                    <span className="w-1 h-2.5 bg-rose-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-1 h-4 bg-rose-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-1 h-2 bg-rose-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isRecording) {
-                      handleToggleVoiceInput();
-                      return;
-                    }
-                    if (isTranscribing) return;
-                    // The permission prompt is tied to this tap. Do not await before this call.
-                    const microphone = requestMicrophoneFromTap();
-                    handleToggleVoiceInput(microphone);
-                  }}
-                  disabled={isTranscribing}
-                  className={`p-2.5 rounded-xl flex items-center justify-center transition-all cursor-pointer shadow-lg ${
-                    isRecording
-                      ? 'bg-rose-600 text-white hover:bg-rose-700 ring-4 ring-rose-500/40 animate-pulse'
-                      : isTranscribing
-                      ? 'bg-amber-600/50 text-amber-200 cursor-wait'
-                      : 'bg-slate-800/90 hover:bg-amber-500/20 text-slate-300 hover:text-amber-400 border border-slate-700 hover:border-amber-500/50'
-                  }`}
-                  title={
-                    isRecording
-                      ? 'Click to stop listening'
-                      : isTranscribing
-                      ? 'Transcribing audio...'
-                      : `Hands-free speech dictation via ${voiceSpeechMode === 'webspeech' ? 'Web Speech API' : 'Gemini AI Voice'} (${dictationLang === 'ar-SA' ? 'Arabic' : languageLabel(currentLanguage)})`
-                  }
-                  aria-label="Toggle voice Hadith search"
-                >
-                  {isTranscribing ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
-                  ) : isRecording ? (
-                    <MicOff className="w-4 h-4 text-white animate-bounce" />
-                  ) : (
-                    <Mic className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Voice Feedback Banner */}
-            {extractPreview && (
-              <p data-testid="hadith-extract-preview" className="inline-flex max-w-full items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs text-amber-200">
-                <span className="shrink-0 font-semibold">{extractPreview.label}</span>
-                <span className="truncate">{extractPreview.excerpt}</span>
-              </p>
-            )}
-
-            {speechFeedback && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 animate-fadeIn">
-                <span className={`w-2 h-2 rounded-full ${isRecording ? 'bg-rose-500 animate-ping' : isTranscribing ? 'bg-amber-400 animate-spin' : 'bg-emerald-400'}`} />
-                <span className="font-mono">{speechFeedback}</span>
-              </div>
-            )}
+              }`}
+              required
+            />
           </div>
 
-          {/* TRANSMISSION CHAIN (ISNAD / SANAD) */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between items-center text-xs font-semibold uppercase tracking-wider text-slate-300">
-              <label htmlFor="hadith-isnad">TRANSMISSION CHAIN (ISNAD / SANAD) - OPTIONAL</label>
-              <span className="text-[11px] font-normal text-slate-500 lowercase">
-                Leave blank to auto-infer from Kutub al-Sittah
-              </span>
-            </div>
-            <input
-              id="hadith-isnad"
-              type="text"
-              value={isnad}
-              onChange={(e) => setIsnad(e.target.value)}
-              placeholder="e.g. Qutaybah -> Yahya ibn Hamza -> Thawran ibn Yazid -> Khalid ibn Ma'dan -> 'Abdullah ibn Busr..."
-              className="w-full bg-[var(--surface-inset)] border border-slate-700/80 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition-all font-mono"
-            />
+          <div>
+            <button
+              type="button"
+              aria-expanded={isnadOpen}
+              aria-controls="hadith-isnad"
+              onClick={() => setIsnadOpen(open => !open)}
+              className="min-h-11 text-left text-xs font-semibold text-amber-300 hover:text-amber-200"
+            >
+              {isnadOpen ? '− Hide Isnad / Sanad' : '+ Add specific Isnad / Sanad (Optional)'}
+            </button>
+            {isnadOpen && (
+              <input
+                id="hadith-isnad"
+                type="text"
+                value={isnad}
+                onChange={event => setIsnad(event.target.value)}
+                placeholder="e.g. Qutaybah → Yahya ibn Hamza → Thawran ibn Yazid"
+                className="mt-2 w-full rounded-xl border border-slate-700/80 bg-[var(--surface-inset)] px-3 py-2 font-mono text-xs text-slate-200 placeholder-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/50 sm:text-sm"
+              />
+            )}
           </div>
 
           {/* FUZZY INTENT-NORMALIZATION BANNER (IF MATCH FOUND) */}
@@ -836,55 +671,153 @@ export function HadithSearchForm({
             </div>
           )}
 
-          {/* ACTION BUTTON ROW — One clear journey: Enter a hadith -> Research -> Open Full Report */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <Sparkles className="w-4 h-4 text-emerald-400" />
-              <span>Full 7-agent audit: Takhrij, Isnad, Rijal, Shawahid, Scholars, Synthesis & HadeethEnc Source Research.</span>
+          <div className="flex flex-col gap-3 border-t border-slate-800 pt-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                aria-label="Take Photo"
+                title="Take photo of a hadith page"
+                onClick={() => handleOpenMediaModal('camera')}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/15 px-2.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/25"
+              >
+                <Camera className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline">Take Photo</span>
+              </button>
+              <button
+                type="button"
+                aria-label="Upload Photo"
+                title="Upload a hadith image"
+                onClick={() => handleOpenMediaModal('upload_photo')}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900/90 px-2.5 text-xs font-semibold text-slate-300 hover:text-white"
+              >
+                <ImageIcon className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline">Upload Photo</span>
+              </button>
+              <button
+                type="button"
+                aria-label="Upload File / PDF"
+                title="Upload a hadith document or PDF"
+                onClick={() => handleOpenMediaModal('upload_file')}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900/90 px-2.5 text-xs font-semibold text-slate-300 hover:text-white"
+              >
+                <FileText className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline">Upload File / PDF</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (isRecording) {
+                    handleToggleVoiceInput();
+                    return;
+                  }
+                  if (isTranscribing) return;
+                  const microphone = requestMicrophoneFromTap();
+                  handleToggleVoiceInput(microphone);
+                }}
+                disabled={isTranscribing}
+                aria-label="Toggle voice Hadith search"
+                title={
+                  isRecording
+                    ? 'Click to stop listening'
+                    : isTranscribing
+                      ? 'Transcribing audio...'
+                      : `Hands-free speech dictation via ${voiceSpeechMode === 'webspeech' ? 'Web Speech API' : 'Gemini AI Voice'} (${dictationLang === 'ar-SA' ? 'Arabic' : languageLabel(currentLanguage)})`
+                }
+                className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border ${
+                  isRecording
+                    ? 'border-rose-500 bg-rose-600 text-white'
+                    : isTranscribing
+                      ? 'cursor-wait border-amber-500/50 bg-amber-600/40 text-amber-200'
+                      : 'border-slate-700 bg-slate-800/90 text-slate-300 hover:border-amber-500/50 hover:text-amber-300'
+                }`}
+              >
+                {isTranscribing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : isRecording ? (
+                  <MicOff className="h-4 w-4" />
+                ) : (
+                  <Mic className="h-4 w-4" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDictationLang(current => current === 'ar-SA' ? dictationCode(currentLanguage) : 'ar-SA')}
+                className="min-h-11 rounded-lg border border-slate-700 px-2 text-[10px] font-mono text-slate-300"
+                title="Dictation language follows the content language. Switch only when speaking Arabic."
+              >
+                {dictationLang === 'ar-SA' ? 'Arabic' : languageLabel(currentLanguage)}
+              </button>
+              <button
+                type="button"
+                onClick={() => setVoiceSpeechMode(voiceSpeechMode === 'webspeech' ? 'ai_gemini' : 'webspeech')}
+                className="min-h-11 rounded-lg border border-slate-800 bg-slate-900/90 px-2 text-[10px] font-mono font-bold text-amber-400"
+                title={voiceSpeechMode === 'webspeech' ? 'Web Speech API active (Click for Gemini Multimodal Audio)' : 'Gemini AI Voice active (Click for Web Speech API)'}
+              >
+                {voiceSpeechMode === 'webspeech' ? 'Web Speech' : 'Gemini AI'}
+              </button>
+              {(speechFeedback || isRecording || isTranscribing) && (
+                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 text-[11px] text-slate-300">
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${isRecording ? 'animate-ping bg-rose-500' : isTranscribing ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+                  <span className="truncate font-mono">
+                    {speechFeedback || (isRecording ? 'Listening…' : 'Transcribing…')}
+                  </span>
+                </span>
+              )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <span
+                data-testid="content-language-chip"
+                className="rounded-lg border border-[#c4a46a] bg-[#f6efe2] px-2 py-1 text-[10px] font-bold tracking-wide text-[#0c3d2e]"
+                title="Content language used for research, the transcript, and narration"
+              >
+                {languageChip(currentLanguage)} · {languageLabel(currentLanguage)}
+              </span>
               <button
                 type="button"
                 onClick={handleClearInputs}
-                className="px-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white font-medium text-xs border border-slate-700/80 transition-colors cursor-pointer"
+                className="min-h-11 rounded-xl border border-slate-700/80 bg-slate-900 px-3 text-xs font-medium text-slate-300 hover:text-white"
               >
-                Clear Inputs
+                Clear
               </button>
-
               <button
                 type="submit"
                 data-testid="run-research-btn"
                 disabled={isAnalyzing || !hadithMatn.trim()}
-                className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-[var(--on-gold)] font-bold text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-amber-500/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-emerald-500 px-4 text-sm font-bold text-[var(--on-gold)] shadow-xl shadow-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isAnalyzing ? (
                   <>
-                    <RefreshCw className="w-4 h-4 animate-spin text-[var(--on-gold)]" />
+                    <RefreshCw className="h-4 w-4 animate-spin" />
                     <span>Researching…</span>
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4 fill-slate-950" />
-                    <span>Research</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <Sparkles className="h-4 w-4 fill-slate-950" />
+                    <span>Run Research</span>
                   </>
                 )}
               </button>
-
               {onOpenFullReport && (
                 <button
                   type="button"
                   data-testid="form-open-full-report-btn"
                   onClick={onOpenFullReport}
-                  className="px-5 py-3.5 rounded-xl border border-amber-500/70 bg-slate-900 hover:bg-amber-500/20 text-amber-300 font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-amber-500/70 bg-slate-900 px-3 text-sm font-bold text-amber-300 hover:bg-amber-500/20"
                 >
-                  <BookOpen className="w-4 h-4 text-amber-400" />
-                  <span>Open Full Report</span>
+                  <BookOpen className="h-4 w-4" />
+                  <span className="hidden sm:inline">Open Full Report</span>
                 </button>
               )}
             </div>
           </div>
+
+          {extractPreview && (
+            <p data-testid="hadith-extract-preview" className="inline-flex max-w-full items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs text-amber-200">
+              <span className="shrink-0 font-semibold">{extractPreview.label}</span>
+              <span className="truncate">{extractPreview.excerpt}</span>
+            </p>
+          )}
         </form>
       </div>
 
