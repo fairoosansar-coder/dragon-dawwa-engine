@@ -108,7 +108,7 @@ function Shell() {
   return (
     <AppFrame path={location.path} section={sectionTitle} segments={location.segments} showSearch={showSectionSearch(location.path, location.segments)}>
       <Suspense fallback={<Loading />}>
-        {opened ? (
+        {opened && location.path !== 'hadith' ? (
           <ResearchDesk entry={opened.entry} desk={opened.desk} params={location.params} />
         ) : (
           <View sub={location.segments[0]} segments={location.segments} params={location.params} />

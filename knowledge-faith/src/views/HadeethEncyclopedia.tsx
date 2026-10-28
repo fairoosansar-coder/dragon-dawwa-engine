@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { ViewProps } from '../App.tsx';
 import { RecordShare } from '../components/RecordShare.tsx';
+import { researchStudioHref } from './hadithEncyclopediaCopy.ts';
 import { EmptyState } from '../components/shell/widgets.tsx';
 import { Card, ErrorNote, Loading, SectionTitle } from '../components/ui.tsx';
 import { useRemote } from '../lib/api.ts';
@@ -60,6 +61,14 @@ function HadithReading({ id }: { id: string }) {
       {remote.error && <ErrorNote message={remote.error} onRetry={remote.error === t.hadeethUnavailable ? undefined : remote.reload} />}
       {hadith && (
         <article className="space-y-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <a href={researchStudioHref(hadith.text)} className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0E382B] px-4 text-sm font-semibold text-white">
+              Explore Isnad
+            </a>
+            <a href={researchStudioHref(hadith.text)} className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#0E382B]/20 px-4 text-sm font-semibold text-[#0E382B]">
+              Generate Podcast Episode
+            </a>
+          </div>
           <h2 className="font-display text-2xl font-bold text-pine" lang={hadith.lang}>
             {hadith.title}
           </h2>
@@ -161,7 +170,7 @@ function CategoryList({ categoryId }: { categoryId: string }) {
       <ul className="space-y-2">
         {data?.items.map(item => (
           <li key={item.id}>
-            <a href={`#/hadith/${item.id}?lang=${lang}`} className="block min-h-11 rounded-2xl border border-pine/10 bg-white px-4 py-3 text-sm hover:border-pine/40" lang={lang}>
+            <a href={`#/hadith/${item.id}?lang=${lang}`} className="block min-h-11 rounded-2xl border border-[#0E382B]/10 bg-[#FBF9F5] px-4 py-3 text-sm hover:border-emerald-700" lang={lang}>
               {item.title}
             </a>
           </li>
@@ -199,7 +208,7 @@ function SearchResults({ phrase }: { phrase: string }) {
       <ul className="space-y-2">
         {data?.items.map(item => (
           <li key={item.id}>
-            <a href={`#/hadith/${item.id}?lang=${lang}`} className="block rounded-2xl border border-pine/10 bg-white px-4 py-3 text-sm hover:border-pine/40" lang={lang}>
+            <a href={`#/hadith/${item.id}?lang=${lang}`} className="block rounded-2xl border border-[#0E382B]/10 bg-[#FBF9F5] px-4 py-3 text-sm hover:border-emerald-700" lang={lang}>
               {item.title}
             </a>
           </li>
@@ -259,7 +268,7 @@ function ChildCategories({ categoryId }: { categoryId: string }) {
       <ul className="grid gap-2 sm:grid-cols-2">
         {data.categories.map(category => (
           <li key={category.id}>
-            <a href={`#/hadith/category/${category.id}?lang=${lang}`} className="block min-h-11 rounded-2xl border border-pine/10 bg-white px-4 py-3 hover:border-pine/40">
+            <a href={`#/hadith/category/${category.id}?lang=${lang}`} className="block min-h-11 rounded-2xl border border-[#0E382B]/10 bg-[#FBF9F5] px-4 py-3 hover:border-emerald-700">
               <span className="block font-medium text-pine" lang={lang}>
                 {category.title}
               </span>
@@ -283,7 +292,7 @@ function Categories() {
       <ul className="grid gap-2 sm:grid-cols-2">
         {data?.categories.map(category => (
           <li key={category.id}>
-            <a href={`#/hadith/category/${category.id}?lang=${lang}`} className="block rounded-2xl border border-pine/10 bg-white px-4 py-3 hover:border-pine/40">
+            <a href={`#/hadith/category/${category.id}?lang=${lang}`} className="block rounded-2xl border border-[#0E382B]/10 bg-[#FBF9F5] px-4 py-3 hover:border-emerald-700">
               <span className="block font-medium text-pine" lang={lang}>
                 {category.title}
               </span>
