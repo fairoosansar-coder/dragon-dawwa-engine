@@ -104,7 +104,7 @@ export default function DossierWorkbench() {
       title="Explore a hadith, understand its sources"
       arabic="طلب العلم فريضة"
       subtitle="Enter a hadith → Research across all 7 agents (including HadeethEnc Source Research) → Open Full Report."
-      actions={<DossierActions />}
+      actions={showReport ? <DossierActions /> : null}
       after={
         <>
       {d.reportOrigin === 'example' && <p className="rounded-2xl bg-amber-100 px-4 py-3 text-sm text-amber-950">{t.dossierExample}</p>}
