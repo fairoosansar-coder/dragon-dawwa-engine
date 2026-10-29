@@ -15,30 +15,6 @@ import { KUTUB_AL_SITTAH } from './hadithEncyclopediaCopy.ts';
 import { ResearchDesk } from './ResearchDesk.tsx';
 
 const PAGE = 15;
-const TAB_ACTIVE = 'bg-[#0E382B] text-white';
-const TAB_IDLE = 'bg-[#fffdf8] text-[#0E382B] hover:border-emerald-700';
-
-function HadithTabs({ active }: { active: 'encyclopedia' | 'collections' | 'research' }) {
-  const tabs = [
-    { id: 'encyclopedia' as const, href: '#/hadith', en: 'Encyclopedia', ta: 'களஞ்சியம்' },
-    { id: 'collections' as const, href: '#/hadith/collections', en: 'Canonical Collections', ta: 'நூல்கள்' },
-    { id: 'research' as const, href: '#/hadith/research', en: 'Research a Hadith', ta: 'ஆய்வுக்கூடம்' },
-  ];
-  return (
-    <nav aria-label="Hadith" data-testid="hadith-tabs" className="mb-5 flex flex-wrap gap-2">
-      {tabs.map(tab => (
-        <a
-          key={tab.id}
-          href={tab.href}
-          aria-current={tab.id === active ? 'page' : undefined}
-          className={`min-h-11 rounded-full border border-[#0E382B]/10 px-4 py-2 text-sm font-semibold ${tab.id === active ? TAB_ACTIVE : TAB_IDLE}`}
-        >
-          {tab.en} <span lang="ta" className={tab.id === active ? 'text-white/80' : 'text-[#0E382B]/70'}>({tab.ta})</span>
-        </a>
-      ))}
-    </nav>
-  );
-}
 
 function SectionReader({ collection, section, onBack }: { collection: string; section: HadithSection; onBack: () => void }) {
   const { t, lang } = useApp();
@@ -230,8 +206,7 @@ export default function HadithView({ sub, segments, params }: ViewProps) {
   const collections = sub === 'collections';
   const detail = Boolean(sub && !research && !collections);
   return (
-    <div className="mx-auto w-full max-w-6xl rounded-3xl bg-[#FBF9F5] px-3 py-4 sm:px-5 sm:py-6">
-      <HadithTabs active={research ? 'research' : collections ? 'collections' : 'encyclopedia'} />
+    <div className="mx-auto w-full max-w-6xl rounded-3xl bg-[#FBF9F5] px-3 pb-4 sm:px-5 sm:pb-6">
       {research ? (
         <ResearchDesk entry="hadith" desk="hadith" params={params ?? new URLSearchParams()} />
       ) : collections ? (

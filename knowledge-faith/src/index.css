@@ -34,6 +34,15 @@ html {
   overflow-x: clip;
 }
 
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 body {
   margin: 0;
   min-height: 100dvh;

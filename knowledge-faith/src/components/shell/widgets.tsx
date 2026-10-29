@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import { createPortal } from 'react-dom';
 import { Bookmark, BookmarkCheck, Search } from 'lucide-react';
 import { RubElHizb } from '../../engine/ds/ornaments.tsx';
+import type { RouteRoot } from '../../lib/route.ts';
 import { useRemote } from '../../lib/api.ts';
 import { prayerQueryDate } from '../../lib/prayerClock.ts';
 import { pauseAudio, resumeAudio, useAudioState, type AudioStatus } from '../../lib/audio.ts';
@@ -37,46 +38,88 @@ export function quranSectionId(segment?: string): QuranSectionId {
   return 'home';
 }
 
-/** Home, Read, Search, Ayah Study, and My Quran. English labels, above the scrolling page. */
-export function QuranSections({ current }: { current: QuranSectionId }) {
-  const { t } = useApp();
-  const tabs: { id: QuranSectionId; href: string; label: string }[] = [
-    { id: 'home', href: '#/quran', label: t.quranHome },
-    { id: 'read', href: '#/quran/book', label: t.quranRead },
-    { id: 'search', href: '#/quran/search', label: t.quranSearch },
-    { id: 'study', href: '#/quran/study', label: t.quranAyahStudy },
-    { id: 'mine', href: '#/quran/bookmarks', label: t.quranMine },
-  ];
-  return (
-    <nav aria-label={t.quranTitle} className="shrink-0 border-b border-pine/10 bg-sand px-4 py-3 sm:px-6">
-      <div className="mx-auto grid w-full max-w-6xl gap-1 rounded-2xl border border-gold/50 bg-parchment p-1" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}>
-        {tabs.map(tab => (
-          <a
-            key={tab.id}
-            href={tab.href}
-            aria-current={current === tab.id ? 'page' : undefined}
-            className={`flex min-h-11 min-w-0 items-center justify-center rounded-xl px-0.5 py-1.5 text-center text-[11px] font-semibold leading-tight break-words sm:px-2 sm:text-sm ${current === tab.id ? 'bg-pine text-sand' : 'text-pine hover:bg-mint'}`}
-          >
-            {tab.label}
-          </a>
-        ))}
-      </div>
-    </nav>
-  );
+const HADITH_TAB_ACTIVE = 'bg-[#0E382B] text-white';
+const HADITH_TAB_IDLE = 'bg-[#fffdf8] text-[#0E382B] hover:border-emerald-700';
+
+function hadithTabId(segment?: string): 'encyclopedia' | 'collections' | 'research' {
+  if (segment === 'research') return 'research';
+  if (segment === 'collections') return 'collections';
+  return 'encyclopedia';
 }
 
-export function SearchField({ className = '' }: { className?: string }) {
+/** Sub-view tabs that belong in the desk header, beside the title. */
+export function DeskHeaderTabs({ path, segments, className = '' }: { path: RouteRoot; segments: string[]; className?: string }) {
+  const { t } = useApp();
+  const shell = 'flex min-w-0 items-center gap-2 sm:gap-3 ' + className;
+  const scroller = 'flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto no-scrollbar whitespace-nowrap py-1';
+  if (path === 'hadith') {
+    const active = hadithTabId(segments[0]);
+    const tabs = [
+      { id: 'encyclopedia' as const, href: '#/hadith', en: 'Encyclopedia', ta: 'களஞ்சியம்' },
+      { id: 'collections' as const, href: '#/hadith/collections', en: 'Canonical Collections', ta: 'நூல்கள்' },
+      { id: 'research' as const, href: '#/hadith/research', en: 'Research a Hadith', ta: 'ஆய்வுக்கூடம்' },
+    ];
+    return (
+      <div className={shell}>
+        <div className="hidden h-5 w-px shrink-0 bg-gold/70 sm:block sm:h-6" aria-hidden />
+        <nav aria-label="Hadith" data-testid="hadith-tabs" className={scroller}>
+          {tabs.map(tab => (
+            <a
+              key={tab.id}
+              href={tab.href}
+              aria-current={tab.id === active ? 'page' : undefined}
+              className={`inline-flex shrink-0 items-center rounded-full border border-[#0E382B]/10 px-3 py-1.5 text-sm font-semibold sm:px-4 ${tab.id === active ? HADITH_TAB_ACTIVE : HADITH_TAB_IDLE}`}
+            >
+              {tab.en} <span lang="ta" className={tab.id === active ? 'text-white/80' : 'text-[#0E382B]/70'}>({tab.ta})</span>
+            </a>
+          ))}
+        </nav>
+      </div>
+    );
+  }
+  if (path === 'quran') {
+    const current = quranSectionId(segments[0]);
+    const tabs: { id: QuranSectionId; href: string; label: string }[] = [
+      { id: 'home', href: '#/quran', label: t.quranHome },
+      { id: 'read', href: '#/quran/book', label: t.quranRead },
+      { id: 'search', href: '#/quran/search', label: t.quranSearch },
+      { id: 'study', href: '#/quran/study', label: t.quranAyahStudy },
+      { id: 'mine', href: '#/quran/bookmarks', label: t.quranMine },
+    ];
+    return (
+      <div className={shell}>
+        <div className="hidden h-5 w-px shrink-0 bg-gold/70 sm:block sm:h-6" aria-hidden />
+        <nav aria-label={t.quranTitle} data-testid="quran-tabs" className={scroller}>
+          {tabs.map(tab => (
+            <a
+              key={tab.id}
+              href={tab.href}
+              aria-current={current === tab.id ? 'page' : undefined}
+              className={`inline-flex shrink-0 items-center rounded-xl px-3 py-1.5 text-sm font-semibold ${current === tab.id ? 'bg-pine text-sand' : 'text-pine hover:bg-mint'}`}
+            >
+              {tab.label}
+            </a>
+          ))}
+        </nav>
+      </div>
+    );
+  }
+  return null;
+}
+
+export function SearchField({ className = '', placeholder }: { className?: string; placeholder?: string }) {
   const { t } = useApp();
   const { query, setQuery } = useShell();
+  const label = placeholder ?? t.searchSection;
   return (
     <label className={`relative block min-w-0 ${className}`}>
-      <span className="sr-only">{t.searchSection}</span>
+      <span className="sr-only">{label}</span>
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
       <input
         type="search"
         value={query}
         onChange={event => setQuery(event.target.value)}
-        placeholder={t.searchSection}
+        placeholder={label}
         className="w-full rounded-full border border-pine/20 bg-parchment py-2 pl-10 pr-4 text-sm text-ink placeholder:text-muted"
       />
     </label>

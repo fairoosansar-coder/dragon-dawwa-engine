@@ -28,7 +28,7 @@ import { AyahStudyPanel } from '../components/quran/AyahStudyPanel.tsx';
 import { QuranMcpSearch } from '../components/quran/QuranMcpSearch.tsx';
 import { ReadingBar } from '../components/quran/ReadingBar.tsx';
 import { pagePlace, ReadingSheet } from '../components/quran/ReadingSheet.tsx';
-import { audioStatusLabel, EmptyState, HeaderSettingsMenu, PronunciationStatus, quranSectionId, type QuranSectionId } from '../components/shell/widgets.tsx';
+import { audioStatusLabel, EmptyState, HeaderSettingsMenu, PronunciationStatus, quranSectionId, SearchField, type QuranSectionId } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, Loading } from '../components/ui.tsx';
 
 interface ArabicPayload {
@@ -268,8 +268,7 @@ function Library({
         }}
       />
       <header>
-        <h1 className="font-display text-4xl font-bold text-pine">{heading}</h1>
-        {section === 'home' && <p className="mt-2 text-lg text-muted">{t.quranSubtitle}</p>}
+        {section === 'home' ? <p className="text-lg text-muted">{t.quranSubtitle}</p> : <h1 className="font-display text-4xl font-bold text-pine">{heading}</h1>}
       </header>
       {section === 'home' && <Card>
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">{t.continueReading}</p>
@@ -283,6 +282,7 @@ function Library({
           {t.continueReading}
         </Button>
       </Card>}
+      {section === 'search' && <SearchField className="max-w-xl" placeholder={t.quranSearch} />}
       {section === 'search' && <QuranMcpSearch query={raw} lang={lang} onOpen={(number, verse) => onOpen(number, verse, 'book')} />}
       {section === 'home' && (
         <div className="flex flex-wrap gap-2" role="tablist" aria-label={t.quranTitle}>
