@@ -43,6 +43,7 @@ export function AppFrame({ path, section, segments = [], showSearch, children }:
   const audio = useAudioState();
   const player = Boolean(audio.id) && audio.status !== 'idle';
   const quranSettings = path === 'quran';
+  const quranBook = path === 'quran' && segments[0] === 'book';
 
   return (
     <div className="flex h-dvh overflow-hidden bg-sand text-ink">
@@ -142,8 +143,15 @@ export function AppFrame({ path, section, segments = [], showSearch, children }:
           </div>
         )}
         {path === 'quran' && !focus && <QuranSections current={quranSectionId(segments[0])} />}
-        <main id="main" className="min-h-0 flex-1 overflow-x-clip overflow-y-auto scroll-pb-28 px-4 py-5 sm:px-6 sm:py-6">
-          <div className="mx-auto max-w-6xl pb-10">{children}</div>
+        <main
+          id="main"
+          className={
+            quranBook
+              ? 'flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-4 sm:px-6'
+              : 'min-h-0 flex-1 overflow-x-clip overflow-y-auto scroll-pb-28 px-4 py-5 sm:px-6 sm:py-6'
+          }
+        >
+          <div className={quranBook ? 'mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col' : 'mx-auto max-w-6xl pb-10'}>{children}</div>
         </main>
         {player && !(path === 'quran' && (segments[0] === 'book' || segments[0] === 'study')) && <AudioMiniPlayer safe={focus} />}
         {!focus && !(path === 'quran' && segments[0] === 'book') && (

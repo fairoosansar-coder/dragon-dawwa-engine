@@ -85,7 +85,13 @@ body {
 
 .quran-page {
   background: #eef3f8;
-  border-radius: 16px;
+  border-radius: 16px 16px 0 0;
+}
+
+.quran-page .quran-prose,
+.quran-page .quran-prose[lang='ta'],
+.quran-page .quran-prose[lang='si'] {
+  max-width: none;
 }
 
 /* The reading bar owns the top of the pane. Its cover hides anything scrolling into the shell padding above it. */

@@ -601,8 +601,34 @@ function Edition({
       }
     : null;
 
+  const bookLayout = mode === 'book';
+  const readingTrail = loaded ? (
+    <>
+      <div className="flex items-center justify-between gap-3 text-sm text-pine">
+        <button type="button" className="font-medium disabled:opacity-40" disabled={surah <= 1} onClick={() => goSurah(surah - 1, 1)}>
+          {t.sheetPrevious}
+        </button>
+        <span className="text-muted">
+          {displaySurah(surah)} / 114
+        </span>
+        <button type="button" className="font-medium disabled:opacity-40" disabled={surah >= 114} onClick={() => goSurah(surah + 1, 1)}>
+          {t.sheetNext}
+        </button>
+      </div>
+      <div className="mt-4 space-y-3">
+        <PronunciationStatus pronunciation={pronunciation} />
+        {pronunciation === 'en' && verses.some(verse => verse.transliteration) && <p className="text-sm text-muted">{t.pronunciationSource}</p>}
+        {pronunciation === 'en' && verses.length > 0 && !verses.some(verse => verse.transliteration) && (
+          <p className="text-sm text-muted">{t.pronunciationMissing}</p>
+        )}
+        {shareVerse && <VerseShare lang={lang} mode={mode} verse={shareVerse} />}
+        <Mukhtasar surah={surah} ayah={ayah >= 1 ? ayah : 1} lang={lang} />
+      </div>
+    </>
+  ) : null;
+
   return (
-    <div data-reader className="min-w-0">
+    <div data-reader className={bookLayout ? 'flex min-h-0 min-w-0 flex-1 flex-col' : 'min-w-0'}>
       {mode !== 'book' && (
         <HeaderSettingsMenu
           open={settingsOpen}
@@ -628,7 +654,7 @@ function Edition({
           }}
         />
       )}
-      <div className="mx-auto min-w-0 max-w-[46rem] space-y-4">
+      <div className={bookLayout ? 'flex min-h-0 min-w-0 flex-1 flex-col' : 'mx-auto min-w-0 max-w-[46rem] space-y-4'}>
         {playbackStatus && (
           <p className="text-sm text-muted" role="status">
             {playbackStatus}
@@ -648,6 +674,7 @@ function Edition({
         )}
         {loaded && mode === 'book' && (
           <div
+            className="flex min-h-0 min-w-0 flex-1 flex-col"
             onTouchStart={event => {
               touch.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
             }}
@@ -705,33 +732,12 @@ function Edition({
               onChooseEdition={onChooseEdition}
               openTranslations={translationTick}
               reciters={reciters}
-            />
+            >
+              {readingTrail}
+            </ReadingSheet>
           </div>
         )}
-        {loaded && (
-          <div className="flex items-center justify-between gap-3 text-sm text-pine">
-            <button type="button" className="font-medium disabled:opacity-40" disabled={surah <= 1} onClick={() => goSurah(surah - 1, 1)}>
-              {t.sheetPrevious}
-            </button>
-            <span className="text-muted">
-              {displaySurah(surah)} / 114
-            </span>
-            <button type="button" className="font-medium disabled:opacity-40" disabled={surah >= 114} onClick={() => goSurah(surah + 1, 1)}>
-              {t.sheetNext}
-            </button>
-          </div>
-        )}
-        {loaded && (
-          <div className="space-y-3">
-            <PronunciationStatus pronunciation={pronunciation} />
-            {pronunciation === 'en' && verses.some(verse => verse.transliteration) && <p className="text-sm text-muted">{t.pronunciationSource}</p>}
-            {pronunciation === 'en' && verses.length > 0 && !verses.some(verse => verse.transliteration) && (
-              <p className="text-sm text-muted">{t.pronunciationMissing}</p>
-            )}
-            {shareVerse && <VerseShare lang={lang} mode={mode} verse={shareVerse} />}
-            <Mukhtasar surah={surah} ayah={ayah >= 1 ? ayah : 1} lang={lang} />
-          </div>
-        )}
+        {loaded && mode !== 'book' && readingTrail}
       </div>
     </div>
   );
