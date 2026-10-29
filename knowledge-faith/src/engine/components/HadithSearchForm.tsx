@@ -10,8 +10,8 @@ import {
   ArrowRight, 
   RefreshCw,
   Wand2,
-  BookOpen,
   Camera,
+  Paperclip,
   FileText,
   Image as ImageIcon,
   UploadCloud,
@@ -91,7 +91,9 @@ export function HadithSearchForm({
   // Microphone Voice-to-Text Speech Recognition State
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
-  const [voiceSpeechMode, setVoiceSpeechMode] = useState<'webspeech' | 'ai_gemini'>('webspeech');
+  const [voiceSpeechMode] = useState<'webspeech' | 'ai_gemini'>('webspeech');
+  const [attachOpen, setAttachOpen] = useState(false);
+  const attachRef = useRef<HTMLDivElement>(null);
   const [dictationLang, setDictationLang] = useState<'en-US' | 'ta-IN' | 'si-LK' | 'ar-SA'>(dictationCode(currentLanguage));
   const [speechFeedback, setSpeechFeedback] = useState<string | null>(null);
   const [extractPreview, setExtractPreview] = useState<{ label: string; excerpt: string } | null>(null);
@@ -166,6 +168,22 @@ export function HadithSearchForm({
   useEffect(() => {
     setDictationLang(dictationCode(currentLanguage));
   }, [currentLanguage]);
+
+  useEffect(() => {
+    if (!attachOpen) return;
+    const close = (event: MouseEvent) => {
+      if (!attachRef.current?.contains(event.target as Node)) setAttachOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setAttachOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [attachOpen]);
 
   // Load saved research from this device. Do not invent starter dossiers.
   useEffect(() => {
@@ -546,8 +564,10 @@ export function HadithSearchForm({
       </div>
 
       {/* HADITH DEEP SEARCH & TRANSMISSION AUDIT FORM */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-800 bg-[var(--surface-raised)] p-4 shadow-2xl sm:p-5">
-        <div className="absolute top-0 right-1/4 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="relative rounded-3xl border border-slate-800 bg-[var(--surface-raised)] p-4 shadow-2xl sm:p-5">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
+          <div className="absolute top-0 right-1/4 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl" />
+        </div>
 
         <div className="relative z-10 mb-4">
           <h2 className="text-xl font-bold text-white sm:text-2xl">Hadith 7-Agent Research</h2>
@@ -673,36 +693,63 @@ export function HadithSearchForm({
 
           <div className="flex flex-col gap-3 border-t border-slate-800 pt-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-              <button
-                type="button"
-                aria-label="Take Photo"
-                title="Take photo of a hadith page"
-                onClick={() => handleOpenMediaModal('camera')}
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/15 px-2.5 text-xs font-semibold text-amber-300 hover:bg-amber-500/25"
-              >
-                <Camera className="h-4 w-4 shrink-0" />
-                <span className="hidden sm:inline">Take Photo</span>
-              </button>
-              <button
-                type="button"
-                aria-label="Upload Photo"
-                title="Upload a hadith image"
-                onClick={() => handleOpenMediaModal('upload_photo')}
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900/90 px-2.5 text-xs font-semibold text-slate-300 hover:text-white"
-              >
-                <ImageIcon className="h-4 w-4 shrink-0" />
-                <span className="hidden sm:inline">Upload Photo</span>
-              </button>
-              <button
-                type="button"
-                aria-label="Upload File / PDF"
-                title="Upload a hadith document or PDF"
-                onClick={() => handleOpenMediaModal('upload_file')}
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900/90 px-2.5 text-xs font-semibold text-slate-300 hover:text-white"
-              >
-                <FileText className="h-4 w-4 shrink-0" />
-                <span className="hidden sm:inline">Upload File / PDF</span>
-              </button>
+              <div ref={attachRef} className="relative">
+                <button
+                  type="button"
+                  aria-label="Attach"
+                  aria-haspopup="menu"
+                  aria-expanded={attachOpen}
+                  title="Attach a photo or PDF"
+                  onClick={() => setAttachOpen(open => !open)}
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/15 px-3 text-xs font-semibold text-amber-300 hover:bg-amber-500/25"
+                >
+                  <Paperclip className="h-4 w-4 shrink-0" />
+                  <span>Attach</span>
+                </button>
+                {attachOpen && (
+                  <div role="menu" className="absolute bottom-full left-0 z-20 mb-2 w-52 overflow-hidden rounded-xl border border-slate-700 bg-[var(--surface-modal)] shadow-xl">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      aria-label="Take Photo"
+                      className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-xs font-semibold text-slate-200 hover:bg-slate-800"
+                      onClick={() => {
+                        setAttachOpen(false);
+                        handleOpenMediaModal('camera');
+                      }}
+                    >
+                      <Camera className="h-4 w-4 text-amber-400" />
+                      Take Photo
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      aria-label="Upload Photo"
+                      className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-xs font-semibold text-slate-200 hover:bg-slate-800"
+                      onClick={() => {
+                        setAttachOpen(false);
+                        handleOpenMediaModal('upload_photo');
+                      }}
+                    >
+                      <ImageIcon className="h-4 w-4 text-slate-300" />
+                      Upload Photo
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      aria-label="Upload File / PDF"
+                      className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-xs font-semibold text-slate-200 hover:bg-slate-800"
+                      onClick={() => {
+                        setAttachOpen(false);
+                        handleOpenMediaModal('upload_file');
+                      }}
+                    >
+                      <FileText className="h-4 w-4 text-emerald-300" />
+                      Upload File / PDF
+                    </button>
+                  </div>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={() => {
@@ -716,14 +763,8 @@ export function HadithSearchForm({
                 }}
                 disabled={isTranscribing}
                 aria-label="Toggle voice Hadith search"
-                title={
-                  isRecording
-                    ? 'Click to stop listening'
-                    : isTranscribing
-                      ? 'Transcribing audio...'
-                      : `Hands-free speech dictation via ${voiceSpeechMode === 'webspeech' ? 'Web Speech API' : 'Gemini AI Voice'} (${dictationLang === 'ar-SA' ? 'Arabic' : languageLabel(currentLanguage)})`
-                }
-                className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border ${
+                title={isRecording ? 'Click to stop listening' : isTranscribing ? 'Transcribing audio...' : 'Speak the hadith matn'}
+                className={`inline-flex min-h-11 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold ${
                   isRecording
                     ? 'border-rose-500 bg-rose-600 text-white'
                     : isTranscribing
@@ -738,31 +779,8 @@ export function HadithSearchForm({
                 ) : (
                   <Mic className="h-4 w-4" />
                 )}
+                <span>Voice</span>
               </button>
-              <button
-                type="button"
-                onClick={() => setDictationLang(current => current === 'ar-SA' ? dictationCode(currentLanguage) : 'ar-SA')}
-                className="min-h-11 rounded-lg border border-slate-700 px-2 text-[10px] font-mono text-slate-300"
-                title="Dictation language follows the content language. Switch only when speaking Arabic."
-              >
-                {dictationLang === 'ar-SA' ? 'Arabic' : languageLabel(currentLanguage)}
-              </button>
-              <button
-                type="button"
-                onClick={() => setVoiceSpeechMode(voiceSpeechMode === 'webspeech' ? 'ai_gemini' : 'webspeech')}
-                className="min-h-11 rounded-lg border border-slate-800 bg-slate-900/90 px-2 text-[10px] font-mono font-bold text-amber-400"
-                title={voiceSpeechMode === 'webspeech' ? 'Web Speech API active (Click for Gemini Multimodal Audio)' : 'Gemini AI Voice active (Click for Web Speech API)'}
-              >
-                {voiceSpeechMode === 'webspeech' ? 'Web Speech' : 'Gemini AI'}
-              </button>
-              {(speechFeedback || isRecording || isTranscribing) && (
-                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 text-[11px] text-slate-300">
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${isRecording ? 'animate-ping bg-rose-500' : isTranscribing ? 'bg-amber-400' : 'bg-emerald-400'}`} />
-                  <span className="truncate font-mono">
-                    {speechFeedback || (isRecording ? 'Listening…' : 'Transcribing…')}
-                  </span>
-                </span>
-              )}
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2">
@@ -795,22 +813,19 @@ export function HadithSearchForm({
                   <>
                     <Sparkles className="h-4 w-4 fill-slate-950" />
                     <span>Run Research</span>
+                    <ArrowRight className="h-4 w-4" />
                   </>
                 )}
               </button>
-              {onOpenFullReport && (
-                <button
-                  type="button"
-                  data-testid="form-open-full-report-btn"
-                  onClick={onOpenFullReport}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-amber-500/70 bg-slate-900 px-3 text-sm font-bold text-amber-300 hover:bg-amber-500/20"
-                >
-                  <BookOpen className="h-4 w-4" />
-                  <span className="hidden sm:inline">Open Full Report</span>
-                </button>
-              )}
             </div>
           </div>
+
+          {(speechFeedback || isRecording || isTranscribing) && (
+            <p className="flex min-w-0 items-center gap-1.5 text-[11px] text-slate-300">
+              <span className={`h-2 w-2 shrink-0 rounded-full ${isRecording ? 'animate-ping bg-rose-500' : isTranscribing ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+              <span className="truncate font-mono">{speechFeedback || (isRecording ? 'Listening…' : 'Transcribing…')}</span>
+            </p>
+          )}
 
           {extractPreview && (
             <p data-testid="hadith-extract-preview" className="inline-flex max-w-full items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs text-amber-200">
