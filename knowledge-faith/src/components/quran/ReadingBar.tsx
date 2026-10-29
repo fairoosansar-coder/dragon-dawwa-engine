@@ -125,7 +125,7 @@ export function ReadingBar({
   );
 
   return (
-    <div ref={barRef} data-reading-bar className="reading-bar sticky top-0 z-30 -mx-1 border-b border-[#d5deea] bg-sand px-1 py-2">
+    <div ref={barRef} data-reading-bar className="reading-bar sticky top-0 z-30 -mx-1 shrink-0 border-b border-[#d5deea] bg-sand px-1 py-2">
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"

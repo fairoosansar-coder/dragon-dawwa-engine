@@ -78,6 +78,7 @@ export function ReadingSheet({
   onChooseEdition,
   openTranslations = 0,
   reciters,
+  children,
 }: {
   info: SurahInfo;
   verses: Verse[];
@@ -99,6 +100,7 @@ export function ReadingSheet({
   onChooseEdition: (lang: Lang, key: string) => void;
   openTranslations?: number;
   reciters: { id: string; name: string; style?: string }[];
+  children?: ReactNode;
 }) {
   const { t, notes, setVerseNote, toggleVerse, isVerseSaved } = useApp();
   const audio = useAudioState();
@@ -206,7 +208,8 @@ export function ReadingSheet({
     ) : null;
 
   return (
-    <article data-reading-sheet className="quran-page mx-auto w-full max-w-[46rem] px-3 py-4 pb-28 sm:px-6">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <article data-reading-sheet data-reader-scroll className="quran-page min-h-0 w-full flex-1 overflow-y-auto px-3 py-4 sm:px-6">
       <header id="kf-surah-title" data-surah-header className="quran-header-card scroll-mt-4 px-4 py-5 sm:px-6">
         <div className="flex items-center gap-4">
           <p lang="ar" dir="rtl" data-surah-arabic className="quran-face text-4xl text-[#1a2744] sm:text-5xl">
@@ -331,7 +334,7 @@ export function ReadingSheet({
       )}
 
       {showTranslation && footnotes.length > 0 && (
-        <div className="mx-auto mt-8 max-w-[38rem] border-t border-[#d5deea] pt-4">
+        <div className="mt-8 w-full border-t border-[#d5deea] pt-4">
           <h3 className="text-xs font-medium uppercase tracking-[0.14em] text-[#6d7885]">{t.footnotes}</h3>
           <ul className="mt-3 space-y-3">
             {footnotes.map(verse => (
@@ -344,6 +347,7 @@ export function ReadingSheet({
         </div>
       )}
       {copied && <p className="mt-3 text-sm text-[#1c3d66]">{copied}</p>}
+      {children ? <div className="mt-8">{children}</div> : null}
 
       {choice && (
         <div data-word-menu role="menu" className="fixed left-1/2 top-1/3 z-40 w-56 -translate-x-1/2 rounded-xl border border-[#d5deea] bg-white p-2 text-sm text-[#1a2744] shadow-xl">
@@ -373,8 +377,9 @@ export function ReadingSheet({
 
       {picker && <TranslationPicker current={editionKey} onClose={() => setPicker(false)} onChoose={onChooseEdition} />}
 
-      <div data-reading-player className="fixed inset-x-0 bottom-0 z-40 border-t border-[#d5deea] bg-white px-4 py-3 lg:left-64">
-        <div className="mx-auto flex max-w-3xl items-center gap-3">
+    </article>
+      <div data-reading-player className="shrink-0 rounded-b-2xl border-t border-[#d5deea] bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="flex w-full items-center gap-3">
           <button type="button" aria-label={t.playerPrevious} className="rounded-full p-2 text-[#1c3d66]" onClick={onPrevious}>
             <SkipBack className="h-5 w-5" />
           </button>
@@ -398,7 +403,7 @@ export function ReadingSheet({
           </p>
         </div>
       </div>
-    </article>
+    </div>
   );
 }
 

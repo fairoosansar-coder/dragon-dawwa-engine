@@ -114,7 +114,7 @@ function Shell() {
           <View sub={location.segments[0]} segments={location.segments} params={location.params} />
         )}
       </Suspense>
-      {!focus && (
+      {!focus && !(location.path === 'quran' && location.segments[0] === 'book') && (
         <footer className="mt-10 space-y-1 text-center text-xs text-muted">
           <p>{t.sourcesNote}</p>
           {lang !== 'en' && <p>{t.uiNote}</p>}
