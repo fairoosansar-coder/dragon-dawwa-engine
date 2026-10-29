@@ -8,7 +8,7 @@ import type { Strings } from '../../lib/i18n.ts';
 import { useAudioState } from '../../lib/audio.ts';
 import { buildStamp } from '../../buildStamp.ts';
 import { BrandLockup } from './Brand.tsx';
-import { AudioMiniPlayer, QuranSections, SearchField, quranSectionId } from './widgets.tsx';
+import { AudioMiniPlayer, DeskHeaderTabs } from './widgets.tsx';
 
 interface NavItem {
   path: RouteRoot;
@@ -37,7 +37,7 @@ const NAV: NavItem[] = [
   { path: 'podcast', href: '#/podcast', short: 'navPodcast', icon: Mic },
 ];
 
-export function AppFrame({ path, section, segments = [], showSearch, children }: { path: RouteRoot; section: string; segments?: string[]; showSearch: boolean; children: ReactNode }) {
+export function AppFrame({ path, section, segments = [], children }: { path: RouteRoot; section: string; segments?: string[]; children: ReactNode }) {
   const { t, lang, setLang } = useApp();
   const { focus, setFocus } = useShell();
   const audio = useAudioState();
@@ -93,14 +93,15 @@ export function AppFrame({ path, section, segments = [], showSearch, children }:
           </div>
         )}
         {!focus && (
-          <header className="shrink-0 border-b border-pine/10 bg-sand lg:hidden">
-            <div className="flex items-center justify-between gap-3 px-4 py-3">
-              <BrandLockup />
-              <div className="flex shrink-0 items-center gap-2">
-                {quranSettings && <div id="kf-library-settings-mobile" />}
-                <label className="shrink-0 text-xs text-muted">
-                  <span className="sr-only">{t.language}</span>
-                  <select value={lang} onChange={event => setLang(toLang(event.target.value))} className="rounded-full border border-pine/20 bg-parchment px-3 py-1.5 text-sm text-ink">
+          <header className="shrink-0 overflow-x-clip border-b border-pine/10 bg-sand">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-4 py-2 sm:flex-nowrap sm:gap-3 sm:px-6">
+              <p className={`min-w-0 truncate font-display text-base font-bold text-pine sm:shrink-0 sm:text-lg ${path === 'quran' ? 'max-w-[calc(100%-13.5rem)] sm:max-w-[14rem] lg:max-w-none' : path === 'hadith' ? 'max-w-[calc(100%-7.75rem)] sm:max-w-[14rem] lg:max-w-none' : ''}`}>{section}</p>
+              <div className="ml-auto flex shrink-0 items-center gap-2 sm:order-3">
+                {quranSettings && <div id="kf-library-settings" className="hidden lg:block" />}
+                {quranSettings && <div id="kf-library-settings-mobile" className="lg:hidden" />}
+                <label className="flex shrink-0 items-center gap-2 text-xs text-muted">
+                  <span className="hidden sm:inline">{t.language}</span>
+                  <select aria-label={t.language} value={lang} onChange={event => setLang(toLang(event.target.value))} className="max-w-[7.5rem] truncate rounded-full border border-pine/20 bg-parchment px-3 py-1.5 text-sm text-ink sm:max-w-none">
                     {LANGS.map(code => (
                       <option key={code} value={code}>
                         {LANGUAGE_NAMES[code].english}
@@ -109,46 +110,16 @@ export function AppFrame({ path, section, segments = [], showSearch, children }:
                   </select>
                 </label>
               </div>
+              <DeskHeaderTabs path={path} segments={segments} className="order-last basis-full sm:order-none sm:min-w-0 sm:flex-1 sm:basis-auto" />
             </div>
-            <ReleaseMark className="px-4 pb-2 text-[10px] text-muted" />
-            {showSearch && (
-              <div className="px-4 pb-3">
-                <SearchField />
-              </div>
-            )}
           </header>
         )}
-        {!focus && (
-          <div className="hidden shrink-0 items-center gap-4 border-b border-pine/10 bg-sand px-6 py-3 lg:flex">
-            <p className="shrink-0 font-display text-lg font-bold text-pine">{section}</p>
-            {showSearch && (
-              <>
-                <div className="h-6 w-px bg-gold/70" aria-hidden />
-                <SearchField className="max-w-md flex-1" />
-              </>
-            )}
-            <div className="ml-auto flex items-center gap-2">
-              {quranSettings && <div id="kf-library-settings" />}
-              <label className="flex items-center gap-2 text-xs text-muted">
-                <span>{t.language}</span>
-                <select value={lang} onChange={event => setLang(toLang(event.target.value))} className="rounded-full border border-pine/20 bg-parchment px-3 py-1.5 text-sm text-ink">
-                  {LANGS.map(code => (
-                    <option key={code} value={code}>
-                      {LANGUAGE_NAMES[code].english}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          </div>
-        )}
-        {path === 'quran' && !focus && <QuranSections current={quranSectionId(segments[0])} />}
         <main
           id="main"
           className={
             quranBook
               ? 'flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-4 sm:px-6'
-              : 'min-h-0 flex-1 overflow-x-clip overflow-y-auto scroll-pb-28 px-4 py-5 sm:px-6 sm:py-6'
+              : 'min-h-0 flex-1 overflow-x-clip overflow-y-auto scroll-pb-28 px-4 pt-4 pb-5 sm:px-6 sm:pt-6 sm:pb-6'
           }
         >
           <div className={quranBook ? 'mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col' : 'mx-auto max-w-6xl pb-10'}>{children}</div>

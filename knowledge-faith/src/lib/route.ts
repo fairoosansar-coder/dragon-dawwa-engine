@@ -58,7 +58,7 @@ export function quranListQuery(sectionQuery: string, locationSearch = ''): strin
   return sectionQuery.trim();
 }
 
-/** Shell search is shown only where the open section reads the query. */
+/** Where a section used to read the sticky-header search. The header no longer shows that field. */
 export function showSectionSearch(path: RouteRoot, segments: string[]): boolean {
   if (path === 'hub') return segments[0] === 'discover' || segments[0] === 'deepen' || segments[0] === 'prophet';
   if (path === 'quran') return segments[0] == null || segments[0] === 'search';

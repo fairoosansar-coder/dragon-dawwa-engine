@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type ComponentType } from 'react';
-import { openedResearchDesk, parseHash, showSectionSearch, type RouteRoot } from './lib/route.ts';
+import { openedResearchDesk, parseHash, type RouteRoot } from './lib/route.ts';
 import { ShellProvider, useShell } from './lib/shell.tsx';
 import { AppProvider, useApp } from './lib/store.tsx';
 import type { Strings } from './lib/i18n.ts';
@@ -91,7 +91,7 @@ function Shell() {
   const route = ROUTES.find(item => item.path === location.path) ?? ROUTES[0];
   const View = route.view;
   const opened = openedResearchDesk(location.path, location.segments);
-  const sectionTitle = opened?.desk === 'fiqh' ? 'Fiqh' : opened?.desk === 'seerah' ? 'Seerah' : t[route.label];
+  const sectionTitle = opened?.desk === 'fiqh' ? 'Fiqh' : opened?.desk === 'seerah' ? 'Seerah' : location.path === 'quran' ? t.quranTitle : t[route.label];
   const routeKey = `${location.path}/${location.segments.join('/')}?${location.params.toString()}`;
 
   useEffect(() => {
@@ -106,7 +106,7 @@ function Shell() {
   }, [sectionTitle, location.path]);
 
   return (
-    <AppFrame path={location.path} section={sectionTitle} segments={location.segments} showSearch={showSectionSearch(location.path, location.segments)}>
+    <AppFrame path={location.path} section={sectionTitle} segments={location.segments}>
       <Suspense fallback={<Loading />}>
         {opened && location.path !== 'hadith' ? (
           <ResearchDesk entry={opened.entry} desk={opened.desk} params={location.params} />
