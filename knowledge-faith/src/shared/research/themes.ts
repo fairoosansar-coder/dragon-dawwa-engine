@@ -1,0 +1,95 @@
+/** Usual passages to open for a topic. The text is still fetched. These numbers are not an answer. */
+
+export interface ThemeAyah {
+  surah: number;
+  ayah: number;
+}
+
+export interface ResearchTheme {
+  id: string;
+  worshipTopic: string | null;
+  test: RegExp;
+  /** Words that show the fetched translation is about this theme. */
+  synonyms: readonly string[];
+  ayahs: readonly ThemeAyah[];
+}
+
+export const RESEARCH_THEMES: readonly ResearchTheme[] = [
+  {
+    id: 'fasting',
+    worshipTopic: 'fasting',
+    test: /fast|sawm|siyam|siyam|roza|நோன்பு|நோன்ப|உபவாச|උපවාස|صوم|صيام/i,
+    synonyms: ['fast', 'fasting', 'sawm', 'நோன்பு', 'நோன்ப', 'உபவாச', 'උපවාස', 'صوم', 'صيام'],
+    ayahs: [
+      { surah: 2, ayah: 183 },
+      { surah: 2, ayah: 184 },
+      { surah: 2, ayah: 185 },
+      { surah: 2, ayah: 187 },
+    ],
+  },
+  {
+    id: 'prayer',
+    worshipTopic: 'prayer',
+    test: /prayer|salah|salat|தொழுகை|සලාත|صلاة/i,
+    synonyms: ['prayer', 'salah', 'தொழுகை', 'සලාත', 'صلاة'],
+    ayahs: [
+      { surah: 2, ayah: 43 },
+      { surah: 2, ayah: 238 },
+      { surah: 29, ayah: 45 },
+    ],
+  },
+  {
+    id: 'zakah',
+    worshipTopic: 'zakah',
+    test: /zakah|zakat|zakāt|ஜகாத்|සකාත්|زكاة/i,
+    synonyms: ['zakah', 'zakat', 'ஜகாத்', 'සකාත්', 'زكاة'],
+    ayahs: [
+      { surah: 2, ayah: 43 },
+      { surah: 9, ayah: 60 },
+    ],
+  },
+  {
+    id: 'hajj',
+    worshipTopic: 'hajj',
+    test: /hajj|umrah|ஹஜ்|හජ්|حج|عمرة/i,
+    synonyms: ['hajj', 'umrah', 'ஹஜ்', 'හජ්', 'حج'],
+    ayahs: [
+      { surah: 2, ayah: 196 },
+      { surah: 3, ayah: 97 },
+    ],
+  },
+  {
+    id: 'charity',
+    worshipTopic: null,
+    test: /charity|sadaqah|தர்மம்|දානය|صدقة/i,
+    synonyms: ['charity', 'sadaqah', 'தர்மம்', 'දානය', 'صدقة'],
+    ayahs: [
+      { surah: 2, ayah: 261 },
+      { surah: 2, ayah: 267 },
+    ],
+  },
+];
+
+export function matchingThemes(text: string): ResearchTheme[] {
+  return RESEARCH_THEMES.filter(theme => theme.test.test(text));
+}
+
+export function themeAyahs(text: string): ThemeAyah[] {
+  const found: ThemeAyah[] = [];
+  for (const theme of matchingThemes(text)) {
+    for (const ayah of theme.ayahs) {
+      if (!found.some(item => item.surah === ayah.surah && item.ayah === ayah.ayah)) found.push({ ...ayah });
+    }
+  }
+  return found;
+}
+
+export function worshipTopicForQuestion(text: string): string | null {
+  return matchingThemes(text).find(theme => theme.worshipTopic)?.worshipTopic ?? null;
+}
+
+/** A theme verse may be cited when its fetched wording contains the theme, even if the question used another synonym. */
+export function themeWordingSupports(question: string, passage: string): boolean {
+  const haystack = passage.toLocaleLowerCase('en');
+  return matchingThemes(question).some(theme => theme.synonyms.some(word => haystack.includes(word.toLocaleLowerCase('en'))));
+}

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { ResearchJobResponse } from '../../shared/contracts/v1.ts';
+import type { ResearchAssignmentView, ResearchJobResponse } from '../../shared/contracts/v1.ts';
+import { researchFingerprint } from '../../shared/research/coordinator.ts';
 import type { Lang } from '../../shared/sources.ts';
 import { UpstreamError } from '../http.ts';
 import { executeResearch, type ResearchPorts } from './engine.ts';
@@ -8,6 +9,7 @@ import { defaultResearchPorts } from './ports.ts';
 interface StoredJob extends ResearchJobResponse {
   controller: AbortController;
   createdAt: number;
+  fingerprint: string;
 }
 
 const jobs = new Map<string, StoredJob>();
@@ -38,6 +40,26 @@ export function getSharedResearchJob(id: string): ResearchJobResponse | undefine
   return { contractVersion: '1.0.0', job: job.job, dossier: job.dossier };
 }
 
+/** Publish a finished shared dossier without calling the research providers. */
+export function rememberCompletedSharedJob(response: ResearchJobResponse, assignment: ResearchAssignmentView | null): void {
+  prune();
+  const current = jobs.get(response.job.id);
+  if (current && (current.job.status === 'running' || current.job.status === 'queued')) return;
+  const fingerprint = researchFingerprint(
+    response.job.question,
+    response.job.language,
+    assignment ?? { scope: 'knowledge', teams: [], bookId: null },
+  );
+  jobs.set(response.job.id, {
+    contractVersion: '1.0.0',
+    controller: new AbortController(),
+    createdAt: Date.now(),
+    fingerprint,
+    dossier: response.dossier,
+    job: { ...response.job, status: 'done' },
+  });
+}
+
 export function cancelSharedResearchJob(id: string): ResearchJobResponse | undefined {
   const job = jobs.get(id);
   if (!job) return undefined;
@@ -47,8 +69,20 @@ export function cancelSharedResearchJob(id: string): ResearchJobResponse | undef
   return getSharedResearchJob(id);
 }
 
-export function startSharedResearchJob(question: string, language: Lang, ports: ResearchPorts = defaultResearchPorts()): string {
+export function startSharedResearchJob(
+  question: string,
+  language: Lang,
+  ports: ResearchPorts = defaultResearchPorts(),
+  options?: { assignment?: ResearchAssignmentView | null; force?: boolean },
+): string {
   prune();
+  const assignment = options?.assignment ?? null;
+  const fingerprint = researchFingerprint(question, language, assignment ?? { scope: 'knowledge', teams: [], bookId: null });
+  if (!options?.force) {
+    for (const existing of jobs.values()) {
+      if (existing.fingerprint === fingerprint && existing.job.status !== 'cancelled' && existing.job.status !== 'error') return existing.job.id;
+    }
+  }
   let running = 0;
   for (const job of jobs.values()) {
     if (job.job.status === 'running' || job.job.status === 'queued') running += 1;
@@ -60,6 +94,7 @@ export function startSharedResearchJob(question: string, language: Lang, ports: 
     contractVersion: '1.0.0',
     controller,
     createdAt: Date.now(),
+    fingerprint,
     dossier: null,
     job: {
       contractVersion: '1.0.0',
@@ -74,6 +109,8 @@ export function startSharedResearchJob(question: string, language: Lang, ports: 
       startedAt: new Date().toISOString(),
       finishedAt: null,
       timingsMs: { totalMs: 0, sources: {} },
+      assignment,
+      agents: [],
     },
   };
   jobs.set(id, stored);
@@ -83,6 +120,7 @@ export function startSharedResearchJob(question: string, language: Lang, ports: 
     language,
     signal: controller.signal,
     ports,
+    assignment,
     onProgress: snapshot => {
       const current = jobs.get(id);
       if (!current || current.job.status === 'cancelled') return;

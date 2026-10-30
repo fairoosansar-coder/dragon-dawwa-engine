@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { BookOpen, Bookmark, Library, Lightbulb, Mic, MoonStar, type LucideIcon } from 'lucide-react';
+import { BookOpen, Bookmark, Library, Lightbulb, Mic, MoonStar, LibraryBig, type LucideIcon } from 'lucide-react';
 import { LANGS, LANGUAGE_NAMES, toLang } from '../../shared/sources.ts';
 import type { RouteRoot } from '../../lib/route.ts';
 import { useShell } from '../../lib/shell.tsx';
@@ -32,8 +32,9 @@ const NAV: NavItem[] = [
   { path: 'hub', href: '#/hub', short: 'navKnowledge', icon: Lightbulb },
   { path: 'quran', href: '#/quran', short: 'navQuranShort', icon: BookOpen },
   { path: 'hadith', href: '#/hadith', short: 'navHadithShort', icon: Library },
+  { path: 'books', href: '#/books', short: 'navBooks', icon: LibraryBig },
   { path: 'spiritual', href: '#/spiritual', short: 'navWorship', side: 'navWorship', icon: MoonStar },
-  { path: 'studio', href: '#/studio', short: 'navListen', icon: Mic },
+  { path: 'podcast', href: '#/podcast', short: 'navPodcast', icon: Mic },
 ];
 
 export function AppFrame({ path, section, segments = [], showSearch, children }: { path: RouteRoot; section: string; segments?: string[]; showSearch: boolean; children: ReactNode }) {
@@ -147,7 +148,7 @@ export function AppFrame({ path, section, segments = [], showSearch, children }:
         {player && !(path === 'quran' && (segments[0] === 'book' || segments[0] === 'study')) && <AudioMiniPlayer safe={focus} />}
         {!focus && (
           <nav aria-label="Sections" className="shrink-0 border-t border-gold/40 bg-pine pb-[env(safe-area-inset-bottom)] lg:hidden">
-          <ul className="grid grid-cols-5">
+          <ul className="grid grid-cols-3">
             {NAV.map(item => {
               const active = item.path === path;
               return (
@@ -155,7 +156,7 @@ export function AppFrame({ path, section, segments = [], showSearch, children }:
                   <a
                     href={item.href}
                     aria-current={active ? 'page' : undefined}
-                    className={`flex flex-col items-center gap-1 border-t-2 px-1 py-2 text-center text-[11px] leading-tight ${active ? 'border-gold text-sand' : 'border-transparent text-sand/70'}`}
+                    className={`flex min-h-14 flex-col items-center justify-center gap-1 border-t-2 px-2 py-2 text-center text-sm leading-tight ${active ? 'border-gold text-sand' : 'border-transparent text-sand/80'}`}
                   >
                     <item.icon className="h-5 w-5" aria-hidden />
                     <span>{t[item.short]}</span>

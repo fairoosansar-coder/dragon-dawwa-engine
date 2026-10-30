@@ -37,6 +37,8 @@ export interface LibraryDocument {
   media: LibraryMedia[];
   credits: LibraryCredit[];
   canonicalUrl: string | null;
+  /** Cover from the catalogue, when one was published. */
+  image?: string | null;
   added: string | null;
   updated: string | null;
   version: string | null;

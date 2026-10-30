@@ -68,7 +68,7 @@ test('kf-last-surah migrates a stored surah number without dropping a saved ayah
 });
 
 test('section search is hidden where the query is not read', () => {
-  assert.equal(showSectionSearch('hub', []), true);
+  assert.equal(showSectionSearch('hub', []), false);
   assert.equal(showSectionSearch('quran', []), true);
   assert.equal(showSectionSearch('quran', ['search']), true);
   assert.equal(showSectionSearch('quran', ['study']), false);
@@ -77,6 +77,11 @@ test('section search is hidden where the query is not read', () => {
   assert.equal(quranListQuery('', '?q=notasurah'), '');
   assert.equal(quranListQuery('', '?hadith=fast'), '');
   assert.equal(quranListQuery('Yunus', '?q=notasurah'), 'Yunus');
+  assert.equal(showSectionSearch('hub', ['discover']), true);
+  assert.equal(showSectionSearch('quran', ['research']), false);
+  assert.equal(showSectionSearch('books', []), true);
+  assert.equal(showSectionSearch('books', ['research']), false);
+  assert.equal(showSectionSearch('podcast', []), false);
   assert.equal(showSectionSearch('hadith', []), true);
   assert.equal(showSectionSearch('hadith', ['research']), false);
   assert.equal(showSectionSearch('studio', []), true);
@@ -158,9 +163,13 @@ test('prayer date follows the saved place, including midnight and another zone',
   assert.equal(nextPrayer(timings, 12 * 60).name, 'Asr');
 });
 
-test('content language changes readings while the interface stays English', () => {
+test('content language selects readings and the matching interface strings', () => {
   assert.equal(STRINGS.en.language, 'Content language');
   assert.equal(STRINGS.en.navWorship, 'Worship');
+  assert.equal(STRINGS.ta.askIslam, 'இஸ்லாம் பற்றிக் கேளுங்கள்');
+  assert.equal(STRINGS.si.askIslam, 'ඉස්ලාමය ගැන අසන්න');
+  assert.notEqual(STRINGS.ta.navPodcast, STRINGS.en.navPodcast);
+  assert.notEqual(STRINGS.si.navBooks, STRINGS.en.navBooks);
   assert.equal(slotLabel('en', 'overview'), 'Overview');
   assert.equal(SP.en.contents, 'Contents');
   const shahadah = GUIDES.find(guide => guide.id === 'shahadah');

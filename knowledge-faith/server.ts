@@ -20,10 +20,15 @@ import { loadHadeeth, loadHadeethCategories, loadHadeethList, searchHadeeth } fr
 import { pageByRelevance } from './src/shared/hadeethenc.ts';
 import { askPilot, loadPilotEpisode } from './src/server/pilot.ts';
 import { loadKnowledgeShelf, loadLibrary, loadLibraryItem } from './src/server/islamhouse.ts';
+import { loadBookDetail, loadBookMeta, loadBookShelf, loadBookStats } from './src/server/bookShelf.ts';
+import { readingPages } from './src/server/pdfPages.ts';
 import { readLibraryItem } from './src/server/libraryRead.ts';
 import { mediaConcurrencyLimiter, allowedMediaUrl, readMedia } from './src/server/media.ts';
 import { listNames, readName } from './src/server/names.ts';
 import { cancelSharedResearchJob, getSharedResearchJob, startSharedResearchJob } from './src/server/research/jobs.ts';
+import { listCommunityPodcasts, publishCommunityPodcast } from './src/server/research/communityPodcasts.ts';
+import { coordinateQuestion } from './src/shared/research/coordinator.ts';
+import type { ResearchJobResponse, ResearchScope } from './src/shared/contracts/v1.ts';
 import { dossierEvidence, quoteFromEvidence, researchTopic } from './src/server/research.ts';
 import { attachVerification, verifyScript } from './src/shared/research.ts';
 import type { EncyclopediaHadith } from './src/shared/hadeethenc.ts';
@@ -39,6 +44,8 @@ import {
 } from './src/server/gemini.ts';
 import { executeDragonDawwaAnalysis } from './src/engine/server/hadithEngine.ts';
 import { getResearchJob, startResearchJob } from './src/engine/server/researchJobs.ts';
+import { streamEpisodeAudio } from './src/server/r2Audio.ts';
+import { replayHadithAnalysis, replaySharedResearch } from './src/server/researchIdempotency.ts';
 import { synthesizeRoundtableVoice } from './src/engine/server/geminiTtsService.ts';
 import { extractHadithFromMedia } from './src/engine/server/hadithOcrService.ts';
 import { transcribeAudioWithGemini } from './src/engine/server/geminiAudioTranscribe.ts';
@@ -275,9 +282,44 @@ app.get(
   route(async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) throw new UpstreamError('Unknown item', 404);
-    res.json(await readLibraryItem(id, toLang(req.query.lang)));
+    const document = await readLibraryItem(id, toLang(req.query.lang));
+    if (req.query.pages !== '1') {
+      res.json(document);
+      return;
+    }
+    const pages = await readingPages(document);
+    res.json({ ...document, pages });
   }),
 );
+
+function bookShelfQuery(req: Request) {
+  const category = Number(req.query.category);
+  const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 80) : '';
+  if (q && q.length < 3) throw new UpstreamError('Search needs at least 3 characters', 400);
+  return {
+    lang: toLang(req.query.lang),
+    page: pageNumber(req.query.page),
+    categoryId: Number.isInteger(category) && category > 0 ? category : null,
+    q,
+    essential: req.query.shelf === 'essential',
+    format: req.query.format === 'pdf' ? 'pdf' as const : 'any' as const,
+    sort: req.query.sort === 'title' ? 'title' as const : 'newest' as const,
+  };
+}
+
+app.get('/api/library/books/meta', route(async (req, res) => res.json(await loadBookMeta(toLang(req.query.lang)))));
+app.get('/api/library/books/stats', route(async (req, res) => res.json(await loadBookStats(toLang(req.query.lang)))));
+
+app.get(
+  '/api/library/books/:id',
+  route(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) throw new UpstreamError('Unknown book', 404);
+    res.json(await loadBookDetail(id, toLang(req.query.lang)));
+  }),
+);
+
+app.get('/api/library/books', route(async (req, res) => res.json(await loadBookShelf(bookShelfQuery(req)))));
 
 app.get('/api/library/media', rateLimiter(60, 'Too many media requests. Please try again later.'), mediaConcurrencyLimiter(4), async (req, res, next) => {
   try {
@@ -294,6 +336,13 @@ app.get('/api/library/media', rateLimiter(60, 'Too many media requests. Please t
   }
 });
 
+app.get(
+  '/api/episodes/:id/stream',
+  route(async (req, res) => {
+    await streamEpisodeAudio(res, String(req.params.id), req.headers.range);
+  }),
+);
+
 app.get('/api/names', route(async (_req, res) => res.json(await listNames())));
 app.get('/api/names/:id', route(async (req, res) => res.json(await readName(String(req.params.id)))));
 
@@ -302,8 +351,92 @@ app.post(
   rateLimiter(20, 'Too many research jobs. Please wait a few minutes.'),
   route(async (req, res) => {
     const question = text(req.body?.question, 800, 'question');
-    const id = startSharedResearchJob(question, toLang(req.body?.lang));
-    res.status(202).json({ id, contractVersion: '1.0.0' });
+    const lang = toLang(req.body?.lang);
+    const entryRaw = typeof req.body?.entry === 'string' ? req.body.entry : '';
+    const force = req.body?.force === true;
+    if (!entryRaw) {
+      if (!force) {
+        const replay = await replaySharedResearch(question, lang, 'knowledge', null);
+        if (replay) {
+          sendCompletedResearch(res, replay, {});
+          return;
+        }
+      }
+      const id = startSharedResearchJob(question, lang);
+      res.status(202).json({ id, contractVersion: '1.0.0' });
+      return;
+    }
+    const entries: ResearchScope[] = ['knowledge', 'quran', 'hadith', 'books'];
+    if (!entries.includes(entryRaw as ResearchScope)) throw new UpstreamError('Unknown research entry', 400);
+    const bookId = Number(req.body?.bookId);
+    const decision = coordinateQuestion({
+      question,
+      entry: entryRaw as ResearchScope,
+      language: lang,
+      bookId: Number.isInteger(bookId) && bookId > 0 ? bookId : null,
+      forwarded: req.body?.forwarded === true,
+      clarified: req.body?.clarified === true,
+      priorQuestion: typeof req.body?.priorQuestion === 'string' ? req.body.priorQuestion.slice(0, 800) : null,
+    });
+    if (decision.action === 'clarify') {
+      res.json({ action: 'clarify', clarificationId: decision.clarificationId, contractVersion: '1.0.0' });
+      return;
+    }
+    const researched = decision.assignment.forwardedFrom ? `${question}` : question;
+    if (!force) {
+      const replay = await replaySharedResearch(researched, lang, entryRaw, decision.assignment);
+      if (replay) {
+        sendCompletedResearch(res, replay, {
+          action: decision.action,
+          scope: decision.assignment.scope,
+          noticeId: decision.assignment.noticeId,
+        });
+        return;
+      }
+    }
+    const id = startSharedResearchJob(researched, lang, undefined, {
+      assignment: decision.assignment,
+      force,
+    });
+    res.status(202).json({
+      action: decision.action,
+      id,
+      scope: decision.assignment.scope,
+      noticeId: decision.assignment.noticeId,
+      contractVersion: '1.0.0',
+    });
+  }),
+);
+
+app.get('/api/research/podcasts', route(async (_req, res) => res.json({ episodes: listCommunityPodcasts() })));
+
+app.post(
+  '/api/research/podcasts',
+  route(async (req, res) => {
+    if (req.body?.shared !== true) throw new UpstreamError('A podcast is published only when it is explicitly shared.', 400);
+    const question = text(req.body?.question, 800, 'question');
+    const lines = Array.isArray(req.body?.lines) ? req.body.lines.slice(0, 24) : [];
+    const participants = Array.isArray(req.body?.participants) ? req.body.participants.slice(0, 12) : [];
+    const reportHtml = typeof req.body?.reportHtml === 'string' ? req.body.reportHtml.slice(0, 400_000) : '';
+    if (!lines.length || !reportHtml) throw new UpstreamError('A shared episode needs its script and full report.', 400);
+    const episode = publishCommunityPodcast({
+      id: text(req.body?.id, 80, 'id'),
+      question,
+      language: toLang(req.body?.language ?? req.body?.lang),
+      participants: participants.map((item: { id?: string; role?: string; team?: string }) => ({
+        id: String(item?.id ?? '').slice(0, 80),
+        role: String(item?.role ?? '').slice(0, 120),
+        team: String(item?.team ?? '').slice(0, 40),
+      })),
+      lines: lines.map((line: { speaker?: string; role?: string; text?: string }) => ({
+        speaker: String(line?.speaker ?? '').slice(0, 120),
+        role: String(line?.role ?? '').slice(0, 120),
+        text: String(line?.text ?? '').slice(0, 4000),
+      })),
+      reportHtml,
+      createdAt: new Date().toISOString(),
+    });
+    res.status(201).json(episode);
   }),
 );
 
@@ -457,6 +590,17 @@ app.post(
   }),
 );
 
+function sendCompletedResearch(res: Response, replay: ResearchJobResponse, extra: Record<string, unknown>) {
+  res.status(200).json({
+    ...extra,
+    id: replay.job.id,
+    status: 'done',
+    contractVersion: '1.0.0',
+    job: replay.job,
+    dossier: replay.dossier,
+  });
+}
+
 function requireAi() {
   if (!geminiConfigured()) throw new UpstreamError('AI features are not configured on this server (GEMINI_API_KEY missing).', 503);
 }
@@ -475,9 +619,15 @@ app.post(
   route(async (req, res) => {
     const hadith = text(req.body?.hadith_input, 4000, 'hadith_input');
     const isnad = typeof req.body?.isnad_input === 'string' ? req.body.isnad_input.slice(0, 2000) : '';
+    const language = toLang(req.body?.preferred_language);
+    const replay = await replayHadithAnalysis(hadith, language);
+    if (replay) {
+      res.status(200).json(replay);
+      return;
+    }
     requireAi();
     const id = startResearchJob(
-      () => executeDragonDawwaAnalysis(hadith, isnad, toLang(req.body?.preferred_language)),
+      () => executeDragonDawwaAnalysis(hadith, isnad, language),
       err => engineFailure(err, 'The hadith research engine could not complete this request. Please retry.').message,
     );
     res.status(202).json({ id, status: 'running' });

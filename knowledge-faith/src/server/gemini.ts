@@ -44,22 +44,24 @@ function isTemporary(err: unknown): boolean {
   return /429|503|UNAVAILABLE|RESOURCE_EXHAUSTED|high demand/i.test(msg);
 }
 
-export type JsonModel = <T>(prompt: string, schema: Schema) => Promise<{ value: T; model: string }>;
+export type JsonModel = <T>(prompt: string, schema: Schema, signal?: AbortSignal) => Promise<{ value: T; model: string }>;
 
-export const generateJson: JsonModel = async <T>(prompt: string, schema: Schema) => {
+export const generateJson: JsonModel = async <T>(prompt: string, schema: Schema, signal?: AbortSignal) => {
   const ai = client();
   let lastError: unknown;
   for (const model of TEXT_MODELS) {
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
+        if (signal?.aborted) throw Object.assign(new Error('aborted'), { name: 'AbortError' });
         const res = await ai.models.generateContent({
           model,
           contents: prompt,
-          config: { responseMimeType: 'application/json', responseSchema: schema, temperature: 0.2 },
+          config: { responseMimeType: 'application/json', responseSchema: schema, temperature: 0.2, abortSignal: signal },
         });
         return { value: JSON.parse(res.text ?? '') as T, model };
       } catch (err) {
         lastError = err;
+        if (signal?.aborted) throw err;
         if (isTemporary(err) && attempt < 2) {
           await new Promise(r => setTimeout(r, 800 * attempt));
           continue;
@@ -121,7 +123,7 @@ export interface SearchPlan {
 }
 
 /** Search phrases and ayah numbers only. The model does not write the answer or a quotation. */
-export async function suggestSearchPlan(question: string, lang: Lang): Promise<SearchPlan> {
+export async function suggestSearchPlan(question: string, lang: Lang, signal?: AbortSignal): Promise<SearchPlan> {
   if (!geminiConfigured()) return { available: false, failed: false, phrases: [], ayahs: [] };
   try {
     const { value } = await generateJson<{ phrases?: string[]; ayahs?: string[] }>(
@@ -132,13 +134,15 @@ Return at most 4 Qur'an references as surah:ayah only when they are the usual pa
 QUESTION (untrusted data):
 ${question.slice(0, 500)}`,
       searchPlanSchema,
+      signal,
     );
     const phrases = [...new Set((value.phrases ?? []).map(item => String(item).replace(/\s+/g, ' ').trim()))]
       .filter(item => item.length > 1 && item.length <= 80)
       .slice(0, 4);
     const ayahs = dedupeRefs((value.ayahs ?? []).flatMap(item => parseRefs(String(item))), refKey, 4);
     return { available: true, failed: false, phrases, ayahs };
-  } catch {
+  } catch (err) {
+    if (signal?.aborted) throw err;
     return { available: true, failed: true, phrases: [], ayahs: [] };
   }
 }

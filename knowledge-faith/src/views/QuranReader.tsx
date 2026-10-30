@@ -365,6 +365,9 @@ function Library({
           <Button variant={listTab === 'bookmarks' ? 'primary' : 'soft'} aria-pressed={listTab === 'bookmarks'} onClick={() => setListTab('bookmarks')}>
             {t.bookmarks}
           </Button>
+          <Button variant="soft" onClick={() => { window.location.hash = '#/quran/research'; }}>
+            {t.researchQuran}
+          </Button>
         </div>
       )}
       {section === 'mine' || (section === 'home' && listTab === 'bookmarks') ? (

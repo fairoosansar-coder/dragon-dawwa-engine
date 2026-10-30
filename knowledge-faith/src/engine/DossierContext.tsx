@@ -116,6 +116,7 @@ interface DossierState {
   run: (matn: string, isnad: string) => Promise<void>;
   selectBenchmark: (id: string) => void;
   clear: () => void;
+  reportOrigin: 'idle' | 'example' | 'live';
   share: () => Promise<void>;
   copyReport: () => Promise<void>;
   copied: boolean;
@@ -138,6 +139,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
   const [shareOpen, setShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [reportOrigin, setReportOrigin] = useState<'idle' | 'example' | 'live'>('idle');
   const inFlight = useRef<AbortController | null>(null);
 
   const displayed = useMemo(() => getLocalizedAnalysis(analysis, lang), [analysis, lang]);
@@ -157,6 +159,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
       setMatn(presetMatn(found, lang));
       setIsnad(found.isnad_text ?? '');
       setAnalysis(found.defaultData);
+      setReportOrigin('example');
       setStep('overview');
       setError(null);
       setUrlParams(p => {
@@ -199,6 +202,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
           ? (body as DragonDawwaAnalysis)
           : await waitForResearch(String(body.id ?? ''), controller.signal);
         setAnalysis(analysis);
+        setReportOrigin('live');
         setStep('overview');
         setUrlParams(p => {
           p.delete('preset');
@@ -222,6 +226,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
     setMatn('');
     setIsnad('');
     setError(null);
+    setReportOrigin('idle');
   }, []);
 
   const share = useCallback(async () => {
@@ -313,6 +318,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
     copied,
     exportJson,
     print,
+    reportOrigin,
   };
 
   return (

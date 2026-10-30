@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState, type ComponentType } from 'react';
 import { parseHash, showSectionSearch, type RouteRoot } from './lib/route.ts';
+import type { ResearchScope } from './shared/contracts/v1.ts';
 import { ShellProvider, useShell } from './lib/shell.tsx';
 import { AppProvider, useApp } from './lib/store.tsx';
 import type { Strings } from './lib/i18n.ts';
@@ -13,10 +14,14 @@ const QuranReader = lazy(() => import('./views/QuranReader.tsx'));
 const HadithLibrary = lazy(() => import('./views/HadithLibrary.tsx'));
 const SpiritualSection = lazy(() => import('./spiritual/SpiritualSection.tsx'));
 const PodcastStudio = lazy(() => import('./views/PodcastStudio.tsx'));
+const BooksLibrary = lazy(() => import('./views/BooksLibrary.tsx'));
+const ResearchPodcasts = lazy(() => import('./views/ResearchPodcasts.tsx'));
+const ResearchDesk = lazy(() => import('./views/ResearchDesk.tsx').then(module => ({ default: module.ResearchDesk })));
 
 export interface ViewProps {
   sub?: string;
   segments?: string[];
+  params?: URLSearchParams;
 }
 
 interface Route {
@@ -29,13 +34,23 @@ const ROUTES: Route[] = [
   { path: 'hub', label: 'navHub', view: KnowledgeHub },
   { path: 'quran', label: 'navQuran', view: QuranReader },
   { path: 'hadith', label: 'navHadith', view: HadithLibrary },
+  { path: 'books', label: 'navBooks', view: BooksLibrary },
   { path: 'spiritual', label: 'navSpiritual', view: SpiritualSection },
   { path: 'studio', label: 'navStudio', view: PodcastStudio },
+  { path: 'podcast', label: 'navPodcast', view: ResearchPodcasts },
 ];
 
 interface Location {
   path: RouteRoot;
   segments: string[];
+  params: URLSearchParams;
+}
+
+function researchEntry(location: Location): ResearchScope | null {
+  if (location.segments[0] !== 'research') return null;
+  if (location.path === 'hub') return 'knowledge';
+  if (location.path === 'quran' || location.path === 'hadith' || location.path === 'books') return location.path;
+  return null;
 }
 
 function currentLocation(): Location {
@@ -48,7 +63,7 @@ function useHashRoute(): Location {
     const onChange = () => {
       const next = currentLocation();
       setLocation(prev => {
-        if (prev.path !== next.path || prev.segments.join('/') !== next.segments.join('/')) {
+        if (prev.path !== next.path || prev.segments.join('/') !== next.segments.join('/') || prev.params.toString() !== next.params.toString()) {
           document.getElementById('main')?.scrollTo({ top: 0 });
         }
         return next;
@@ -66,12 +81,14 @@ function Shell() {
   const location = useHashRoute();
   const route = ROUTES.find(item => item.path === location.path) ?? ROUTES[0];
   const View = route.view;
-  const routeKey = `${location.path}/${location.segments.join('/')}`;
+  const entry = researchEntry(location);
+  const routeKey = `${location.path}/${location.segments.join('/')}?${location.params.toString()}`;
 
   useEffect(() => {
-    setQuery('');
+    const booksLibrary = location.path === 'books' && location.segments.length === 0;
+    if (!booksLibrary) setQuery('');
     if (location.path !== 'quran') setFocus(false);
-  }, [routeKey, location.path, setQuery, setFocus]);
+  }, [routeKey, location.path, location.segments.length, setQuery, setFocus]);
 
   useEffect(() => {
     if (location.path === 'spiritual') return;
@@ -81,7 +98,11 @@ function Shell() {
   return (
     <AppFrame path={location.path} section={t[route.label]} segments={location.segments} showSearch={showSectionSearch(location.path, location.segments)}>
       <Suspense fallback={<Loading />}>
-        <View sub={location.segments[0]} segments={location.segments} />
+        {entry ? (
+          <ResearchDesk entry={entry} params={location.params} />
+        ) : (
+          <View sub={location.segments[0]} segments={location.segments} params={location.params} />
+        )}
       </Suspense>
       {!focus && (
         <footer className="mt-10 space-y-1 text-center text-xs text-muted">

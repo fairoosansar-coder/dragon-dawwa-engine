@@ -60,6 +60,10 @@ export interface LibraryItem {
   credits: LibraryCredit[];
   files: LibraryFile[];
   sourceUrl: string | null;
+  /** Public cover on the IslamHouse file host, when the catalogue published one. */
+  image: string | null;
+  /** Source importance label, such as critical. Absent when the list did not send one. */
+  importance: string | null;
 }
 
 export interface LibraryCategory {
@@ -109,6 +113,19 @@ function mediaUrl(value: unknown): string | null {
     if (url.protocol !== 'https:') return null;
     if (url.hostname !== 'd1.islamhouse.com') return null;
     return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+/** Cover images use the same file host as attachments. Other addresses are dropped. */
+export function coverUrl(value: unknown): string | null {
+  const url = mediaUrl(value);
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    if (!parsed.pathname.startsWith('/data/')) return null;
+    return parsed.toString();
   } catch {
     return null;
   }
@@ -166,6 +183,8 @@ export function parseLibraryItem(value: unknown, lang: Lang): LibraryItem | null
     credits,
     files,
     sourceUrl: islamHousePage(lang, type, id),
+    image: coverUrl(row.image),
+    importance: exactString(row.importance_level),
   };
 }
 
