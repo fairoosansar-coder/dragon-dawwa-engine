@@ -16,6 +16,7 @@ export function DomainResearchForm({
   onQuestion,
   onSubmit,
   onStarter,
+  variant = 'studio',
 }: {
   desk: Exclude<ResearchDeskName, 'hadith'>;
   question: string;
@@ -25,9 +26,10 @@ export function DomainResearchForm({
   onQuestion: (value: string) => void;
   onSubmit: (event: FormEvent, asked: string) => void;
   onStarter?: (question: string) => void;
+  variant?: 'studio' | 'omni';
 }) {
   const asked = readerQuestion(question);
-  const starters = RESEARCH_STARTERS[desk] ?? [];
+  const starters = variant === 'omni' ? [] : (RESEARCH_STARTERS[desk] ?? []);
 
   return (
     <form
@@ -65,15 +67,17 @@ export function DomainResearchForm({
         <label className="sr-only" htmlFor="research-question">
           {QUESTION_LABEL}
         </label>
-        <ResearchCapture value={question} onChange={onQuestion} disabled={running} />
+        <ResearchCapture value={question} onChange={onQuestion} disabled={running} variant={variant} />
       </div>
-      {clarify && <p className="text-sm font-medium text-[var(--text-body)]">{clarifyText}</p>}
+      {clarify && <p className={`text-sm font-medium ${variant === 'omni' ? 'text-stone-600' : 'text-[var(--text-body)]'}`}>{clarifyText}</p>}
       {desk === 'fiqh' && (
         <p className="text-sm leading-relaxed text-[var(--text-body)]/80">This asks the sources about a practice. It does not issue a ruling.</p>
       )}
-      <Button type="submit" disabled={running || asked.length < 3} className="w-full py-3 sm:w-auto">
-        Research
-      </Button>
+      {variant !== 'omni' && (
+        <Button type="submit" disabled={running || asked.length < 3} className="w-full py-3 sm:w-auto">
+          Research
+        </Button>
+      )}
     </form>
   );
 }

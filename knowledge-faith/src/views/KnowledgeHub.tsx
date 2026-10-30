@@ -16,7 +16,6 @@ import { KnowledgeShelf } from './KnowledgePaths.tsx';
 import { LibraryReader } from './LibraryReader.tsx';
 import { EmptyState, FeatureCard, PrayerStrip } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, Loading, Notice, SectionTitle } from '../components/ui.tsx';
-import { EngineFrame } from '../engine/EngineFrame.tsx';
 import { DomainResearchForm } from './DomainResearchForm.tsx';
 import { readerQuestion } from './domainQuestion.ts';
 
@@ -240,60 +239,61 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
     <div className="space-y-6">
       <section
         data-knowledge-banner
-        className="relative h-[125px] overflow-hidden rounded-2xl border border-[#D4AF37]/30 bg-gradient-to-r from-[#2A0845] via-[#1A0B2E] to-[#0D0518]"
+        className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/35 bg-gradient-to-r from-[#041B14] via-[#0A2E23] to-[#041B14] shadow-[0_0_25px_rgba(212,175,55,0.08)]"
       >
-        <img
-          src="/assets/banner-art.jpg"
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover opacity-60 mix-blend-overlay"
-        />
-        <div className="relative flex h-full items-center justify-between gap-3 px-4 sm:px-6">
+        <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-10 mix-blend-overlay" aria-hidden="true">
+          <defs>
+            <pattern id="knowledge-lattice" width="72" height="72" patternUnits="userSpaceOnUse">
+              <path d="M36 6 L46 26 L66 36 L46 46 L36 66 L26 46 L6 36 L26 26 Z" fill="none" stroke="#F9E7B9" strokeWidth="0.8" />
+              <circle cx="36" cy="36" r="7" fill="none" stroke="#F9E7B9" strokeWidth="0.6" />
+              <path d="M0 36 H72 M36 0 V72" stroke="#F9E7B9" strokeWidth="0.4" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#knowledge-lattice)" />
+        </svg>
+        <div className="relative flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6 sm:py-5">
           <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase leading-tight tracking-[0.14em] text-[#D4AF37] sm:tracking-[0.16em]">
-              <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              <span className="min-w-0">Institutional Research Studio</span>
-            </p>
-            <h1 className="mt-1 text-[13px] font-semibold leading-tight text-white sm:text-xl">
-              Explore a Question, Understand Its Sources
+            <p className="text-xs font-semibold tracking-widest text-[#E6C665]">✦ INSTITUTIONAL RESEARCH STUDIO</p>
+            <h1 className="mt-1 font-serif text-xl font-bold leading-tight text-white sm:text-2xl">
+              Explore Deep Foundations, Sources & Evidence
             </h1>
-            <p className="mt-0.5 text-[10px] leading-snug text-stone-300 sm:text-xs">
-              Multidisciplinary synthesis across classical Tafsir, Kutub al-Sittah, Fiqh foundations, and verified chains.
+            <p className="mt-1 text-xs leading-snug text-stone-300 sm:text-sm">
+              Multidisciplinary AI synthesis across classical Tafsir, Kutub al-Sittah, Fiqh, and verified chains.
             </p>
           </div>
-          <div className="max-w-[46%] shrink text-right sm:max-w-[16rem]">
-            <p className="font-serif text-xl leading-tight text-white" dir="rtl" lang="ar">
+          <div className="shrink-0 text-right sm:max-w-[18rem]">
+            <p className="font-serif text-2xl font-medium leading-relaxed text-[#F9E7B9] drop-shadow-sm sm:text-3xl" dir="rtl" lang="ar">
               طَلَبُ الْعِلْمِ فَرِيضَةٌ
             </p>
-            <p className="mt-0.5 text-[11px] leading-tight text-stone-400">Seeking knowledge is an obligation</p>
+            <p className="text-[11px] leading-tight text-stone-400">Seeking knowledge is an obligation</p>
           </div>
         </div>
       </section>
       <div data-research-frame>
-        <EngineFrame className="space-y-6 rounded-3xl border border-[var(--gold-leaf)]">
-          <div data-research-inputs>
-            <DomainResearchForm
-              desk="knowledge"
-              question={asked}
-              running={busy}
-              clarify={clarify}
-              clarifyText={t.clarifyMeaning}
-              onQuestion={setAsked}
-              onSubmit={event => void research(event, clarify)}
-            />
-            {askError && <div className="mt-3"><ErrorNote message={askError} /></div>}
-            <p className="mt-4 text-sm text-pine">
-              <a className="font-medium underline" href="#/quran/research">Qur’an</a>
-              {' · '}
-              <a className="font-medium underline" href="#/hub/fiqh">Fiqh</a>
-              {' · '}
-              <a className="font-medium underline" href="#/hub/seerah">Seerah</a>
-              {' · '}
-              <a className="font-medium underline" href="#/hadith/research">Hadith</a>
-              {' · '}
-              <a className="font-medium underline" href="#/books/research">Books</a>
-            </p>
-          </div>
-        </EngineFrame>
+        <div data-research-inputs>
+          <DomainResearchForm
+            desk="knowledge"
+            variant="omni"
+            question={asked}
+            running={busy}
+            clarify={clarify}
+            clarifyText={t.clarifyMeaning}
+            onQuestion={setAsked}
+            onSubmit={event => void research(event, clarify)}
+          />
+          {askError && <div className="mt-3"><ErrorNote message={askError} /></div>}
+          <p className="mt-4 text-sm text-pine">
+            <a className="font-medium underline" href="#/quran/research">Qur’an</a>
+            {' · '}
+            <a className="font-medium underline" href="#/hub/fiqh">Fiqh</a>
+            {' · '}
+            <a className="font-medium underline" href="#/hub/seerah">Seerah</a>
+            {' · '}
+            <a className="font-medium underline" href="#/hadith/research">Hadith</a>
+            {' · '}
+            <a className="font-medium underline" href="#/books/research">Books</a>
+          </p>
+        </div>
       </div>
       <header>
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">{t.hubEyebrow}</p>

@@ -299,6 +299,7 @@ export function HadithMediaUploadModal({
           </div>
 
           <button
+            type="button"
             onClick={onClose}
             className="p-2 rounded-xl bg-slate-800/60 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
             title="Close modal"
@@ -310,6 +311,7 @@ export function HadithMediaUploadModal({
         {/* Modal Tabs: Camera vs Photo Upload vs Document Upload */}
         <div className="relative z-10 flex border-b border-slate-800 bg-[var(--surface-raised)] px-4 pt-2">
           <button
+            type="button"
             onClick={() => {
               setActiveTab('camera');
               setCapturedImageBase64(null);
@@ -325,6 +327,7 @@ export function HadithMediaUploadModal({
           </button>
 
           <button
+            type="button"
             onClick={() => {
               setActiveTab('upload_photo');
               stopCamera();
@@ -340,6 +343,7 @@ export function HadithMediaUploadModal({
           </button>
 
           <button
+            type="button"
             onClick={() => {
               setActiveTab('upload_file');
               stopCamera();
