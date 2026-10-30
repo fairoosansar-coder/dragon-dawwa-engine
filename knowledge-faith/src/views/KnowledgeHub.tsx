@@ -241,16 +241,11 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
         data-knowledge-banner
         className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/35 bg-gradient-to-r from-[#041B14] via-[#0A2E23] to-[#041B14] shadow-[0_0_25px_rgba(212,175,55,0.08)]"
       >
-        <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-10 mix-blend-overlay" aria-hidden="true">
-          <defs>
-            <pattern id="knowledge-lattice" width="72" height="72" patternUnits="userSpaceOnUse">
-              <path d="M36 6 L46 26 L66 36 L46 46 L36 66 L26 46 L6 36 L26 26 Z" fill="none" stroke="#F9E7B9" strokeWidth="0.8" />
-              <circle cx="36" cy="36" r="7" fill="none" stroke="#F9E7B9" strokeWidth="0.6" />
-              <path d="M0 36 H72 M36 0 V72" stroke="#F9E7B9" strokeWidth="0.4" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#knowledge-lattice)" />
-        </svg>
+        <img
+          src="/assets/geometric-emerald.jpg"
+          alt=""
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25 mix-blend-overlay"
+        />
         <div className="relative flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6 sm:py-5">
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold tracking-widest text-[#E6C665]">✦ INSTITUTIONAL RESEARCH STUDIO</p>
