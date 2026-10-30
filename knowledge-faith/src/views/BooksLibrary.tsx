@@ -157,8 +157,8 @@ function BooksShelf({ params }: { params: URLSearchParams }) {
                 </button>
               </div>
             </div>
-            <div className="mx-auto w-36">
-              <BookCover title={view.featured.title} image={view.featured.image} essential={view.featured.essential} />
+            <div className="featured-cover-stage mx-auto w-36">
+              <BookCover title={view.featured.title} image={null} essential={view.featured.essential} mark="dawwa" />
             </div>
           </div>
         </section>

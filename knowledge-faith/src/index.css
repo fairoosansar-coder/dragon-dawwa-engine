@@ -145,11 +145,71 @@ body {
   outline-offset: 2px;
 }
 
+/* Featured book portrait: a slow tilt and one soft sheen. The shelf covers stay still. */
+.featured-cover-stage {
+  perspective: 800px;
+}
+
+.featured-cover {
+  transform-style: preserve-3d;
+  animation: featured-cover-tilt 12s ease-in-out infinite;
+}
+
+.featured-cover-sheen {
+  position: absolute;
+  z-index: 10;
+  top: -20%;
+  bottom: -20%;
+  left: 0;
+  width: 36%;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(250, 246, 236, 0.04) 30%,
+    rgba(250, 246, 236, 0.22) 50%,
+    rgba(201, 161, 78, 0.14) 64%,
+    transparent 100%
+  );
+  animation: featured-cover-sheen 9s ease-in-out infinite;
+}
+
+@keyframes featured-cover-tilt {
+  0%,
+  100% {
+    transform: rotateY(-3deg);
+  }
+  50% {
+    transform: rotateY(3deg);
+  }
+}
+
+@keyframes featured-cover-sheen {
+  0%,
+  42% {
+    transform: translateX(-150%) skewX(-14deg);
+    opacity: 0;
+  }
+  58% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(340%) skewX(-14deg);
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .featured-cover,
+  .featured-cover-sheen {
+    animation: none !important;
+    transform: none;
   }
 }
