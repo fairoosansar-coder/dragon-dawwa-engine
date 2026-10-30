@@ -63,7 +63,7 @@ export function EditorialProductionDesk({
         learningObjective: learningObjective.trim(),
         durationMinutes,
         lang,
-      });
+      }, { Authorization: `Bearer ${editorialToken.trim()}` });
       setDossierNotes(res.dossierSummary);
       onEpisodeUpdated(res.episode);
       setActionNotice(
@@ -87,7 +87,7 @@ export function EditorialProductionDesk({
       );
       const res = await fetch(`/api/studio/productions/${encodeURIComponent(episode.id)}/script`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${editorialToken.trim()}` },
         body: JSON.stringify({
           lang: episode.lang,
           segments: nextSegments,
@@ -245,7 +245,7 @@ export function EditorialProductionDesk({
               type="password"
               value={editorialToken}
               onChange={e => setEditorialToken(e.target.value)}
-              placeholder="Optional publisher Bearer token (for authorized publication)"
+              placeholder="Editorial access token (required for production and editing)"
               className="mt-1 block w-full rounded-xl border border-pine/20 bg-white px-3 py-1.5 text-xs text-ink"
             />
           </div>

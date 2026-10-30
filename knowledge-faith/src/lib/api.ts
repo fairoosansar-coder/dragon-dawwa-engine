@@ -8,8 +8,8 @@ async function parse<T>(res: Response): Promise<T> {
 
 export const getJson = <T,>(url: string) => fetch(url).then(r => parse<T>(r));
 
-export const postJson = <T,>(url: string, body: unknown) =>
-  fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r =>
+export const postJson = <T,>(url: string, body: unknown, headers: Record<string, string> = {}) =>
+  fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) }).then(r =>
     parse<T>(r),
   );
 
