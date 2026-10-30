@@ -23,7 +23,7 @@ import { loadKnowledgeShelf, loadLibrary, loadLibraryItem } from './src/server/i
 import { loadBookDetail, loadBookMeta, loadBookShelf, loadBookStats } from './src/server/bookShelf.ts';
 import { readingPages } from './src/server/pdfPages.ts';
 import { readLibraryItem } from './src/server/libraryRead.ts';
-import { allowedMediaUrl, readMedia } from './src/server/media.ts';
+import { mediaConcurrencyLimiter, allowedMediaUrl, readMedia } from './src/server/media.ts';
 import { listNames, readName } from './src/server/names.ts';
 import { cancelSharedResearchJob, getSharedResearchJob, startSharedResearchJob } from './src/server/research/jobs.ts';
 import { listCommunityPodcasts, publishCommunityPodcast } from './src/server/research/communityPodcasts.ts';
@@ -321,7 +321,7 @@ app.get(
 
 app.get('/api/library/books', route(async (req, res) => res.json(await loadBookShelf(bookShelfQuery(req)))));
 
-app.get('/api/library/media', async (req, res, next) => {
+app.get('/api/library/media', rateLimiter(60, 'Too many media requests. Please try again later.'), mediaConcurrencyLimiter(4), async (req, res, next) => {
   try {
     const url = allowedMediaUrl(typeof req.query.url === 'string' ? req.query.url : '');
     if (!url) throw new UpstreamError('That file address is not an IslamHouse media file.', 400);

@@ -96,7 +96,7 @@ function Shell() {
   }, [route, t, location.path]);
 
   return (
-    <AppFrame path={location.path} section={t[route.label]} showSearch={showSectionSearch(location.path, location.segments)}>
+    <AppFrame path={location.path} section={t[route.label]} segments={location.segments} showSearch={showSectionSearch(location.path, location.segments)}>
       <Suspense fallback={<Loading />}>
         {entry ? (
           <ResearchDesk entry={entry} params={location.params} />

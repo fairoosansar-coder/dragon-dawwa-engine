@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 /** Existing key. Older builds stored a surah number; it now stores `{ surah, ayah }`. */
 export const READING_PLACE_KEY = 'kf-last-surah';
 export const TEXT_SIZE_KEY = 'kf-text-size';
+export const TRANSLATION_SIZE_KEY = 'kf-translation-size';
 
 export interface ReadingPlace {
   surah: number;
@@ -141,6 +142,11 @@ export function ayahForLoadedSurah(
 
 export function readTextSize(raw: unknown): TextSize {
   return raw === 'sm' || raw === 'md' || raw === 'lg' ? raw : 'md';
+}
+
+/** An unset translation size follows the saved Arabic size. An explicit sm, md, or lg is kept. */
+export function readTranslationSize(raw: unknown, arabicFallback: TextSize): TextSize {
+  return raw === 'sm' || raw === 'md' || raw === 'lg' ? raw : arabicFallback;
 }
 
 export function useReadingPlace(): [ReadingPlace, (value: ReadingPlace | ((prev: ReadingPlace) => ReadingPlace)) => void] {
