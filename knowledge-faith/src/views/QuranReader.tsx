@@ -285,18 +285,27 @@ function Library({
           <h1 className="font-display text-4xl font-bold text-pine">{heading}</h1>
         </header>
       )}
-      {section === 'home' && <Card>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">{t.continueReading}</p>
-        <h3 className="mt-2 font-display text-2xl font-bold text-pine">{current ? current.englishName : `${t.surahs} ${displaySurah(surah)}`}</h3>
-        {current && (
-          <p className="mt-1 text-sm text-muted">
-            {readingPlaceLabel(surah, ayah)} · {current.englishNameTranslation} · {current.numberOfAyahs}
-          </p>
-        )}
-        <Button className="mt-4" onClick={() => onOpen(surah, ayah, prefer)}>
-          {t.continueReading}
-        </Button>
-      </Card>}
+      {section === 'home' && (
+        <section data-continue-reading className="relative overflow-hidden rounded-3xl border border-[#D4AF37]/40 bg-[#064936] shadow-sm">
+          <img
+            src="/assets/geometric-studio.jpg"
+            alt=""
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-right"
+          />
+          <div className="relative max-w-[78%] px-5 py-5 sm:max-w-xl sm:px-6 sm:py-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#E6C665]">{t.continueReading}</p>
+            <h3 className="mt-2 font-display text-2xl font-bold text-[#F9E7B9]">{current ? current.englishName : `${t.surahs} ${displaySurah(surah)}`}</h3>
+            {current && (
+              <p className="mt-1 text-sm text-stone-300">
+                {readingPlaceLabel(surah, ayah)} · {current.englishNameTranslation} · {current.numberOfAyahs}
+              </p>
+            )}
+            <Button className="mt-4 border border-[#E6C665]/50 bg-[#F6F1E4] text-[#0E382B] hover:bg-[#F9E7B9]" onClick={() => onOpen(surah, ayah, prefer)}>
+              {t.continueReading}
+            </Button>
+          </div>
+        </section>
+      )}
       {section === 'search' && <SearchField className="max-w-xl" placeholder={t.quranSearch} />}
       {section === 'search' && <QuranMcpSearch query={raw} lang={lang} onOpen={(number, verse) => onOpen(number, verse, 'book')} />}
       {section === 'home' && (

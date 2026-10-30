@@ -397,23 +397,23 @@ export function HadithEncyclopedia() {
 
   return (
     <div data-testid="hadith-encyclopedia" className="space-y-8">
-      <header data-hadith-hero className="relative overflow-hidden rounded-3xl border border-[#0E382B]/10">
+      <header data-hadith-hero className="relative overflow-hidden rounded-3xl border border-[#D4AF37]/40 bg-[#06281C]">
         <img
           src="/assets/geometric-carved-arch.jpg"
           alt=""
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-[0.22]"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[78%_center] sm:object-[60%_center]"
         />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#FBF9F5] via-[#FBF9F5]/94 to-[#FBF9F5]/72" />
-        <div className="relative max-w-lg space-y-2 px-5 py-6 sm:px-7">
-          <p lang="ta" className="text-sm font-semibold text-[#0E382B]">ஹதீஸ் களஞ்சியம்</p>
-          <h1 className="font-display text-3xl font-bold text-[#0E382B] sm:text-4xl">Hadith Encyclopedia</h1>
-          <p lang="ta" className="max-w-xl text-sm leading-relaxed text-[#3d4f47]">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#041B14]/92 via-[#041B14]/58 to-[#041B14]/8" />
+        <div className="relative max-w-[15rem] space-y-2 px-5 py-6 sm:max-w-md sm:px-7 sm:py-7">
+          <p lang="ta" className="text-sm font-semibold text-[#E6C665]">ஹதீஸ் களஞ்சியம்</p>
+          <h1 className="font-display text-3xl font-bold text-[#F9E7B9] sm:text-4xl">Hadith Encyclopedia</h1>
+          <p lang="ta" className="text-sm leading-relaxed text-stone-200">
             அரபு மூலம், தமிழ் மொழிபெயர்ப்பு, மற்றும் HadeethEnc வெளியிட்ட தரம். விளக்கம் அந்தப் பதிவில் இருந்தால் மட்டும்.
           </p>
         </div>
       </header>
       <EncyclopediaSearch value={draft} onChange={setDraft} onSearch={setSubmitted} />
-      <div className="flex flex-wrap gap-2" aria-label="Quick topics">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5" aria-label="Quick topics">
         {TOPIC_CHIPS.map(chip => {
           const active = chip.sahih ? sahihOnly : false;
           return (
@@ -434,9 +434,11 @@ export function HadithEncyclopedia() {
                 setDraft(next);
                 setSubmitted(next);
               }}
-              className={`min-h-11 rounded-full border px-3 py-2 text-sm font-medium ${active ? 'border-[#0E382B] bg-[#0E382B] text-white' : 'border-[#0E382B]/15 bg-[#fffdf8] text-[#0E382B] hover:border-emerald-700'}`}
+              className={`relative flex min-h-[4.25rem] min-w-0 flex-col justify-end overflow-hidden rounded-xl border px-3 py-2.5 text-left text-sm font-semibold leading-snug ${active ? 'border-[#E6C665] bg-[#0A3D2E] text-[#F9E7B9] shadow-[inset_0_0_0_1px_rgba(230,198,101,0.45)]' : 'border-[#D4AF37]/70 bg-[#fffdf8] text-[#0E382B] shadow-[inset_0_0_0_1px_rgba(212,175,55,0.18)] hover:bg-[#FBF6E8]'}`}
             >
-              {chip.label}
+              <span className={`pointer-events-none absolute right-0 top-0 h-5 w-5 border-b border-l ${active ? 'border-[#E6C665]' : 'border-[#D4AF37]'}`} aria-hidden />
+              <span className={`mb-1.5 block font-serif text-[10px] tracking-[0.22em] ${active ? 'text-[#E6C665]' : 'text-[#C4A15A]'}`} aria-hidden>✦</span>
+              <span className="break-words">{chip.label}</span>
             </button>
           );
         })}
