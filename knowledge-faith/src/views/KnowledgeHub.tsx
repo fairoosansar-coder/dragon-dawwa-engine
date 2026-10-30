@@ -16,7 +16,7 @@ import { KnowledgeShelf } from './KnowledgePaths.tsx';
 import { LibraryReader } from './LibraryReader.tsx';
 import { EmptyState, FeatureCard, PrayerStrip } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, Loading, Notice, SectionTitle } from '../components/ui.tsx';
-import { ResearchActionRow, ResearchFrame } from '../engine/ResearchFrame.tsx';
+import { EngineFrame } from '../engine/EngineFrame.tsx';
 import { DomainResearchForm } from './DomainResearchForm.tsx';
 import { readerQuestion } from './domainQuestion.ts';
 
@@ -238,39 +238,63 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
 
   return (
     <div className="space-y-6">
-      <ResearchFrame
-        title="Explore a question, understand its sources"
-        arabic="طلب العلم فريضة"
-        subtitle={t.askIslamBody}
-        actions={
-          <ResearchActionRow
-            onFullReport={() => document.getElementById('research-full-report')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-            onRoundtable={() => document.getElementById('research-full-report')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-          />
-        }
+      <section
+        data-knowledge-banner
+        className="relative h-[125px] overflow-hidden rounded-2xl border border-[#D4AF37]/30 bg-gradient-to-r from-[#2A0845] via-[#1A0B2E] to-[#0D0518]"
       >
-        <DomainResearchForm
-          desk="knowledge"
-          question={asked}
-          running={busy}
-          clarify={clarify}
-          clarifyText={t.clarifyMeaning}
-          onQuestion={setAsked}
-          onSubmit={event => void research(event, clarify)}
+        <img
+          src="/assets/banner-art.jpg"
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover opacity-60 mix-blend-overlay"
         />
-        {askError && <div className="mt-3"><ErrorNote message={askError} /></div>}
-        <p className="mt-4 text-sm text-pine">
-          <a className="font-medium underline" href="#/quran/research">Qur’an</a>
-          {' · '}
-          <a className="font-medium underline" href="#/hub/fiqh">Fiqh</a>
-          {' · '}
-          <a className="font-medium underline" href="#/hub/seerah">Seerah</a>
-          {' · '}
-          <a className="font-medium underline" href="#/hadith/research">Hadith</a>
-          {' · '}
-          <a className="font-medium underline" href="#/books/research">Books</a>
-        </p>
-      </ResearchFrame>
+        <div className="relative flex h-full items-center justify-between gap-3 px-4 sm:px-6">
+          <div className="min-w-0 flex-1">
+            <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase leading-tight tracking-[0.14em] text-[#D4AF37] sm:tracking-[0.16em]">
+              <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span className="min-w-0">Institutional Research Studio</span>
+            </p>
+            <h1 className="mt-1 text-[13px] font-semibold leading-tight text-white sm:text-xl">
+              Explore a Question, Understand Its Sources
+            </h1>
+            <p className="mt-0.5 text-[10px] leading-snug text-stone-300 sm:text-xs">
+              Multidisciplinary synthesis across classical Tafsir, Kutub al-Sittah, Fiqh foundations, and verified chains.
+            </p>
+          </div>
+          <div className="max-w-[46%] shrink text-right sm:max-w-[16rem]">
+            <p className="font-serif text-xl leading-tight text-white" dir="rtl" lang="ar">
+              طَلَبُ الْعِلْمِ فَرِيضَةٌ
+            </p>
+            <p className="mt-0.5 text-[11px] leading-tight text-stone-400">Seeking knowledge is an obligation</p>
+          </div>
+        </div>
+      </section>
+      <div data-research-frame>
+        <EngineFrame className="space-y-6 rounded-3xl border border-[var(--gold-leaf)]">
+          <div data-research-inputs>
+            <DomainResearchForm
+              desk="knowledge"
+              question={asked}
+              running={busy}
+              clarify={clarify}
+              clarifyText={t.clarifyMeaning}
+              onQuestion={setAsked}
+              onSubmit={event => void research(event, clarify)}
+            />
+            {askError && <div className="mt-3"><ErrorNote message={askError} /></div>}
+            <p className="mt-4 text-sm text-pine">
+              <a className="font-medium underline" href="#/quran/research">Qur’an</a>
+              {' · '}
+              <a className="font-medium underline" href="#/hub/fiqh">Fiqh</a>
+              {' · '}
+              <a className="font-medium underline" href="#/hub/seerah">Seerah</a>
+              {' · '}
+              <a className="font-medium underline" href="#/hadith/research">Hadith</a>
+              {' · '}
+              <a className="font-medium underline" href="#/books/research">Books</a>
+            </p>
+          </div>
+        </EngineFrame>
+      </div>
       <header>
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">{t.hubEyebrow}</p>
         <h1 className="mt-3 max-w-3xl font-display text-4xl font-bold leading-tight text-pine sm:text-5xl">{t.hubHeading}</h1>
