@@ -244,7 +244,7 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
         <img
           src="/assets/geometric-emerald.jpg"
           alt=""
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-left sm:object-center"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[40%_center] sm:object-center"
         />
         <div className="relative flex w-[76%] flex-col items-center px-3 py-7 text-center sm:w-[58%] sm:px-8 sm:py-9">
           <p className="max-w-full text-[10px] font-semibold tracking-[0.18em] text-[#E6C665] sm:text-[11px] sm:tracking-[0.38em]">
