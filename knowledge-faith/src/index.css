@@ -140,6 +140,21 @@ body {
   border-radius: 0.4em;
 }
 
+.book-leaf {
+  animation: book-leaf-in 280ms ease;
+}
+
+@keyframes book-leaf-in {
+  from {
+    opacity: 0.45;
+    transform: translateX(var(--book-shift, 16px));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 :focus-visible {
   outline: 3px solid var(--color-gold);
   outline-offset: 2px;

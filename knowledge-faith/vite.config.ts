@@ -27,5 +27,7 @@ export default defineConfig({
     __DD_BUILD_TIME__: JSON.stringify(buildInfo.builtAt),
   },
   plugins: [react(), tailwindcss()],
+  // pdf.js ships its own worker. Pre-bundling it breaks the worker URL.
+  optimizeDeps: { exclude: ['pdfjs-dist'] },
   server: viteDevServerOptions(),
 });

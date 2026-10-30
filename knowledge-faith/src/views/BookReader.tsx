@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Settings } from 'lucide-react';
 import { useRemote } from '../lib/api.ts';
 import { useApp, useStored } from '../lib/store.tsx';
 import { savedFromCard, useSavedBooks } from '../lib/savedBooks.ts';
-import { mostlyArabic, type BookCard, type ReaderBlock } from '../shared/bookShelf.ts';
+import { islamHousePdfUrl } from '../shared/bookSpread.ts';
+import { mostlyArabic, pagesFromBlocks, type BookCard, type ReaderBlock } from '../shared/bookShelf.ts';
 import type { LibraryDocument } from '../shared/libraryDocument.ts';
 import { ErrorNote, Loading, Notice } from '../components/ui.tsx';
+
+const PdfBook = lazy(() => import('./PdfBook.tsx').then(module => ({ default: module.PdfBook })));
 
 const PLACE_KEY = 'kf-book-page';
 const RETURN_KEY = 'kf-books-return';
@@ -44,12 +47,18 @@ function rememberPage(id: number, page: number) {
 
 export function BookReader({ itemId, backHref = libraryReturn() }: { itemId: number; backHref?: string }) {
   const { lang } = useApp();
-  const remote = useRemote<ReadBook>(Number.isInteger(itemId) && itemId > 0 ? `/api/library/read/${itemId}?lang=${lang}&pages=1` : null);
+  const remote = useRemote<ReadBook>(Number.isInteger(itemId) && itemId > 0 ? `/api/library/read/${itemId}?lang=${lang}` : null);
   const data = remote.data && remote.data.id === itemId && remote.data.requestedLanguage === lang ? remote.data : null;
-  const pages = data?.pages ?? [];
+  const prose = Boolean(data?.blocks.some(block => block.kind === 'paragraph'));
+  const pdfUrl = !prose ? islamHousePdfUrl(data?.media.find(file => file.kind === 'pdf')?.sourceUrl) : null;
+  const pages = useMemo(() => (prose && data ? pagesFromBlocks(data.blocks) : []), [prose, data]);
   const [page, setPage] = useState(() => storedPage(itemId));
   const [settings, setSettings] = useState(false);
   const [size, setSize] = useStored<'sm' | 'md' | 'lg'>('kf-library-text', 'md');
+  const [layoutRaw, setLayout] = useStored<'single' | 'spread'>('kf-book-spread', 'spread');
+  const [fitRaw, setFit] = useStored<'page' | 'width'>('kf-book-fit', 'page');
+  const layout = layoutRaw === 'single' ? 'single' : 'spread';
+  const fit = fitRaw === 'width' ? 'width' : 'page';
   const saved = useSavedBooks();
   const current = pages.length ? Math.min(Math.max(page, 1), pages.length) : 1;
   const body = pages[current - 1];
@@ -60,16 +69,17 @@ export function BookReader({ itemId, backHref = libraryReturn() }: { itemId: num
   }, [itemId, lang]);
 
   useEffect(() => {
-    if (!data || pages.length === 0) return;
+    if (!prose || pages.length === 0) return;
     setPage(Math.min(Math.max(storedPage(itemId), 1), pages.length));
-  }, [data, itemId, pages.length]);
+  }, [prose, itemId, pages.length]);
 
   useEffect(() => {
-    if (!data || pages.length === 0) return;
-    rememberPage(data.id, current);
-  }, [data, current, pages.length]);
+    if (!prose || pages.length === 0) return;
+    rememberPage(itemId, current);
+  }, [prose, itemId, current, pages.length]);
 
   useEffect(() => {
+    if (!prose) return;
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) return;
@@ -78,7 +88,7 @@ export function BookReader({ itemId, backHref = libraryReturn() }: { itemId: num
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [pages.length]);
+  }, [prose, pages.length]);
 
   const textClass = size === 'sm' ? 'text-base' : size === 'lg' ? 'text-xl' : 'text-lg';
   const card = data ? cardFromDocument(data) : null;
@@ -86,7 +96,7 @@ export function BookReader({ itemId, backHref = libraryReturn() }: { itemId: num
   const author = data?.credits.find(credit => credit.role === 'author' && credit.name)?.name ?? null;
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className={pdfUrl ? 'mx-auto w-full' : 'mx-auto max-w-3xl'}>
       <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
         <a href={backHref} className="inline-flex min-h-10 items-center text-sm font-medium text-pine">Library</a>
         <span className="min-w-2 flex-1" />
@@ -104,7 +114,30 @@ export function BookReader({ itemId, backHref = libraryReturn() }: { itemId: num
           </button>
         )}
       </div>
-      {settings && (
+      {settings && pdfUrl && (
+        <div className="mb-4 rounded-2xl border border-gold/50 bg-parchment p-4">
+          <p className="text-sm font-medium text-pine">Pages</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button type="button" aria-pressed={layout === 'spread'} onClick={() => setLayout('spread')} className={`min-h-10 rounded-full px-3 text-sm ${layout === 'spread' ? 'bg-moss text-white' : 'bg-white text-pine'}`}>
+              Facing pages
+            </button>
+            <button type="button" aria-pressed={layout === 'single'} onClick={() => setLayout('single')} className={`min-h-10 rounded-full px-3 text-sm ${layout === 'single' ? 'bg-moss text-white' : 'bg-white text-pine'}`}>
+              Single page
+            </button>
+          </div>
+          <p className="mt-4 text-sm font-medium text-pine">Size</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button type="button" aria-pressed={fit === 'page'} onClick={() => setFit('page')} className={`min-h-10 rounded-full px-3 text-sm ${fit === 'page' ? 'bg-moss text-white' : 'bg-white text-pine'}`}>
+              Fit page
+            </button>
+            <button type="button" aria-pressed={fit === 'width'} onClick={() => setFit('width')} className={`min-h-10 rounded-full px-3 text-sm ${fit === 'width' ? 'bg-moss text-white' : 'bg-white text-pine'}`}>
+              Larger
+            </button>
+          </div>
+          <p className="mt-3 text-xs leading-relaxed text-muted">Facing pages open when the screen is wide enough for both leaves.</p>
+        </div>
+      )}
+      {settings && !pdfUrl && (
         <div className="mb-4 rounded-2xl border border-gold/50 bg-parchment p-4">
           <p className="text-sm font-medium text-pine">Text size</p>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -121,14 +154,16 @@ export function BookReader({ itemId, backHref = libraryReturn() }: { itemId: num
       {data && (
         <>
           <header className="mb-4 text-center">
-            <h1 className="font-display text-2xl font-bold text-pine sm:text-3xl" lang={data.language ?? undefined}>{data.title || 'Untitled book'}</h1>
-            {author && <p className="mt-1 text-sm text-ink/70">{author}</p>}
+            <h1 className="font-display text-2xl font-bold text-balance text-pine sm:text-3xl" lang={data.language ?? undefined}>{data.title || 'Untitled book'}</h1>
+            {author && <p className="mt-1 text-sm text-ink/70" lang={data.language ?? undefined}>{author}</p>}
           </header>
-          {data.limitation && pages.length === 0 && <div className="mb-4"><Notice>{data.limitation}</Notice></div>}
-          {pages.length > 0 && data.limitation && (
-            <p className="mb-4 text-center text-xs leading-relaxed text-muted">Text extracted from the publication file. The original file stays available in Book details.</p>
+          {pdfUrl && (
+            <Suspense fallback={<Loading label="Opening the publication" />}>
+              <PdfBook itemId={data.id} url={pdfUrl} layout={layout} fit={fit} />
+            </Suspense>
           )}
-          {pages.length > 0 && body && (
+          {!pdfUrl && data.limitation && pages.length === 0 && <div className="mb-4"><Notice>{data.limitation}</Notice></div>}
+          {!pdfUrl && pages.length > 0 && body && (
             <article className={`min-h-[62vh] bg-white px-5 py-8 shadow-[0_18px_50px_rgba(6,73,54,0.08)] sm:px-12 sm:py-12 ${textClass}`} lang={data.language ?? undefined}>
               <p className="mb-6 text-center text-xs text-muted">{current}</p>
               <div className="space-y-4">
@@ -144,7 +179,7 @@ export function BookReader({ itemId, backHref = libraryReturn() }: { itemId: num
               </div>
             </article>
           )}
-          {pages.length > 1 && (
+          {!pdfUrl && pages.length > 1 && (
             <div className="sticky bottom-0 z-10 mt-4 flex items-center gap-3 border-t border-pine/10 bg-sand/95 px-1 py-3 backdrop-blur">
               <button type="button" disabled={current <= 1} onClick={() => setPage(current - 1)} className="min-h-10 shrink-0 rounded-full border border-pine/20 px-3 text-sm font-medium text-pine disabled:opacity-40">
                 Previous
@@ -167,17 +202,6 @@ export function BookReader({ itemId, backHref = libraryReturn() }: { itemId: num
                 Next
               </button>
             </div>
-          )}
-          {pages.length === 0 && !remote.loading && data.media.length > 0 && (
-            <ul className="space-y-2">
-              {data.media.map(file => (
-                <li key={file.sourceUrl}>
-                  <a href={file.sourceUrl} target="_blank" rel="noreferrer" className="text-sm font-medium text-pine underline">
-                    Open {file.extension} file
-                  </a>
-                </li>
-              ))}
-            </ul>
           )}
         </>
       )}
