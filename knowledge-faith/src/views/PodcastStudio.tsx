@@ -246,8 +246,13 @@ function DragonDawwaRadioStudio() {
       data-active-segment={session.segmentIndex}
     >
       {/* 1. Studio Masthead — Calm Classic Radio & Library Identity */}
-      <header className="rounded-3xl border border-gold/60 bg-gradient-to-br from-[#064936] via-[#07533f] to-[#172720] p-5 text-sand shadow-sm sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+      <header data-podcast-hero className="relative overflow-hidden rounded-3xl border border-gold/60 bg-gradient-to-br from-[#064936] via-[#07533f] to-[#172720] p-5 text-sand shadow-sm sm:p-6">
+        <img
+          src="/assets/geometric-studio.jpg"
+          alt=""
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-right opacity-80"
+        />
+        <div className="relative flex flex-wrap items-center justify-between gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/60 bg-black/20 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-gold">

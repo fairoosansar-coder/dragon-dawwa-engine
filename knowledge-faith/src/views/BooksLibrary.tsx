@@ -129,12 +129,17 @@ function BooksShelf({ params }: { params: URLSearchParams }) {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
+      <header data-books-hero className="relative min-h-32 overflow-hidden rounded-3xl">
+        <img
+          src="/assets/geometric-mandala.jpg"
+          alt=""
+          className="pointer-events-none absolute -right-2 top-1/2 h-32 w-32 -translate-y-1/2 object-cover [mask-image:radial-gradient(circle,black_66%,transparent_74%)] sm:right-1 sm:h-40 sm:w-40"
+        />
+        <div className="relative max-w-[15rem] py-2 pr-2 sm:max-w-xl">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-pine">The Dawwa Library</p>
           <h1 className="mt-1 font-display text-4xl font-bold text-pine">Islamic Books</h1>
+          <p className="mt-2 max-w-xs text-sm text-ink/70">Trusted knowledge, in the language of your heart.</p>
         </div>
-        <p className="max-w-xs text-sm text-ink/70">Trusted knowledge, in the language of your heart.</p>
       </header>
 
       {showFeatured && view?.featured && (

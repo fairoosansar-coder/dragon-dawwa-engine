@@ -397,12 +397,20 @@ export function HadithEncyclopedia() {
 
   return (
     <div data-testid="hadith-encyclopedia" className="space-y-8">
-      <header className="space-y-2">
-        <p lang="ta" className="text-sm font-semibold text-[#0E382B]">ஹதீஸ் களஞ்சியம்</p>
-        <h1 className="font-display text-3xl font-bold text-[#0E382B] sm:text-4xl">Hadith Encyclopedia</h1>
-        <p lang="ta" className="max-w-2xl text-sm leading-relaxed text-[#3d4f47]">
-          அரபு மூலம், தமிழ் மொழிபெயர்ப்பு, மற்றும் HadeethEnc வெளியிட்ட தரம். விளக்கம் அந்தப் பதிவில் இருந்தால் மட்டும்.
-        </p>
+      <header data-hadith-hero className="relative overflow-hidden rounded-3xl border border-[#0E382B]/10">
+        <img
+          src="/assets/geometric-carved-arch.jpg"
+          alt=""
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-[0.22]"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#FBF9F5] via-[#FBF9F5]/94 to-[#FBF9F5]/72" />
+        <div className="relative max-w-lg space-y-2 px-5 py-6 sm:px-7">
+          <p lang="ta" className="text-sm font-semibold text-[#0E382B]">ஹதீஸ் களஞ்சியம்</p>
+          <h1 className="font-display text-3xl font-bold text-[#0E382B] sm:text-4xl">Hadith Encyclopedia</h1>
+          <p lang="ta" className="max-w-xl text-sm leading-relaxed text-[#3d4f47]">
+            அரபு மூலம், தமிழ் மொழிபெயர்ப்பு, மற்றும் HadeethEnc வெளியிட்ட தரம். விளக்கம் அந்தப் பதிவில் இருந்தால் மட்டும்.
+          </p>
+        </div>
       </header>
       <EncyclopediaSearch value={draft} onChange={setDraft} onSearch={setSubmitted} />
       <div className="flex flex-wrap gap-2" aria-label="Quick topics">

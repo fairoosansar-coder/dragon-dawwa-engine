@@ -450,12 +450,19 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
 
   return (
     <div className="space-y-8">
-      <header>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="font-display text-4xl font-bold text-pine">Podcast</h1>
-          <PodcastHostChip />
+      <header data-podcast-hero className="relative overflow-hidden rounded-3xl border border-[#D4AF37]/35 bg-[#064936]">
+        <img
+          src="/assets/geometric-studio.jpg"
+          alt=""
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-right"
+        />
+        <div className="relative max-w-[82%] px-5 py-6 sm:max-w-2xl sm:px-7 sm:py-7">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="font-display text-4xl font-bold text-[#F9E7B9]">Podcast</h1>
+            <PodcastHostChip />
+          </div>
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-stone-200">Your questions stay on this device until you share an episode. The presenters are generated. {hostLabel} did not speak these words or approve them. They are not scholars.</p>
         </div>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink/75">Your questions stay on this device until you share an episode. The presenters are generated. {hostLabel} did not speak these words or approve them. They are not scholars.</p>
       </header>
       {error && <ErrorNote message={error} />}
       {jobId && remote.data?.job.status === 'done' && !active && (

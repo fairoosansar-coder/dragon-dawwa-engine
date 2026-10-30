@@ -267,9 +267,24 @@ function Library({
           setFocus(true);
         }}
       />
-      <header>
-        {section === 'home' ? <p className="text-lg text-muted">{t.quranSubtitle}</p> : <h1 className="font-display text-4xl font-bold text-pine">{heading}</h1>}
-      </header>
+      {section === 'home' ? (
+        <header data-quran-hero className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/35 bg-[#0A3D2E]">
+          <img
+            src="/assets/geometric-edge.jpg"
+            alt=""
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[100%_72%]"
+          />
+          <div className="relative max-w-[70%] px-5 py-7 sm:max-w-xl sm:px-8 sm:py-8">
+            <p className="text-[10px] font-semibold tracking-[0.28em] text-[#E6C665]">QUR’AN</p>
+            <h1 className="mt-2 font-display text-3xl font-bold leading-tight text-[#F9E7B9] sm:text-4xl">{t.quranTitle}</h1>
+            <p className="mt-2 text-sm text-stone-300">{t.quranSubtitle}</p>
+          </div>
+        </header>
+      ) : (
+        <header>
+          <h1 className="font-display text-4xl font-bold text-pine">{heading}</h1>
+        </header>
+      )}
       {section === 'home' && <Card>
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">{t.continueReading}</p>
         <h3 className="mt-2 font-display text-2xl font-bold text-pine">{current ? current.englishName : `${t.surahs} ${displaySurah(surah)}`}</h3>

@@ -44,11 +44,18 @@ export function Hub() {
   const hits = searchSpiritual(query, lang);
   return (
     <div className="dd-spiritual space-y-6">
-      <header className="overflow-hidden rounded-[2rem] bg-dd-emerald px-6 py-8 text-dd-ivory sm:px-10">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-dd-gold-soft">{s.brand}</p>
-        <p className="mt-1 text-sm text-dd-gold-soft">{s.byline}</p>
-        <h1 className="mt-4 max-w-3xl font-display text-4xl font-bold leading-tight sm:text-5xl">{s.title}</h1>
-        <p className="mt-4 max-w-2xl text-lg text-dd-ivory">{s.tagline}</p>
+      <header data-worship-hero className="relative overflow-hidden rounded-[2rem] border border-[#D4AF37]/30 bg-[#12725A] px-6 pt-8 pb-16 text-dd-ivory sm:py-10 sm:pr-16 sm:pl-40">
+        <img
+          src="/assets/geometric-worship.jpg"
+          alt=""
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[center_30%]"
+        />
+        <div className="relative max-w-[16.5rem] sm:max-w-xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-dd-gold-soft">{s.brand}</p>
+          <p className="mt-1 text-sm text-dd-gold-soft">{s.byline}</p>
+          <h1 className="mt-4 font-display text-4xl font-bold leading-tight sm:text-5xl">{s.title}</h1>
+          <p className="mt-4 text-lg text-dd-ivory">{s.tagline}</p>
+        </div>
       </header>
       {query.trim().length >= 2 && (
         <ul className="space-y-2">
