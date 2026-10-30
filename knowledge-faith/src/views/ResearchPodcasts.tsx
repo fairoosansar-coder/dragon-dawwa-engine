@@ -449,19 +449,27 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
   const stage = mine.find(item => item.id === pickedId) ?? active ?? mine[0] ?? null;
 
   return (
-    <div className="space-y-8">
-      <header data-podcast-hero className="relative overflow-hidden rounded-3xl border border-[#D4AF37]/35 bg-[#064936]">
-        <img
-          src="/assets/geometric-studio.jpg"
-          alt=""
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-right"
-        />
-        <div className="relative max-w-[82%] px-5 py-6 sm:max-w-2xl sm:px-7 sm:py-7">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="font-display text-4xl font-bold text-[#F9E7B9]">Podcast</h1>
-            <PodcastHostChip />
+    <div data-podcast-desk className="min-w-0 space-y-8">
+      <header data-podcast-hero className="relative min-w-0">
+        <div className="podcast-plate pointer-events-none absolute inset-0 overflow-hidden rounded-[1.75rem] border border-[#D4AF37]/45 bg-[#064936] shadow-[0_18px_40px_-28px_rgba(4,27,20,0.9)]">
+          <img
+            src="/assets/geometric-studio.jpg"
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover object-right"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#041B14]/88 via-[#041B14]/42 to-transparent" />
+          <div className="absolute inset-2.5 rounded-[1.3rem] border border-[#E6C665]/25 sm:inset-3.5" />
+        </div>
+        <div className="relative max-w-[70%] px-5 py-6 sm:max-w-xl sm:px-8 sm:py-8">
+          <p className="flex items-center gap-2 text-[10px] font-semibold tracking-[0.18em] text-[#E6C665] sm:text-[11px] sm:tracking-[0.28em]">
+            <span className="h-px w-5 shrink-0 bg-[#E6C665] sm:w-7" aria-hidden />
+            LISTENING DESK
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <h1 className="font-display text-[2.35rem] font-bold leading-none text-[#F9E7B9] sm:text-5xl">Podcast</h1>
+            <PodcastHostChip tone="plate" />
           </div>
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-stone-200">Your questions stay on this device until you share an episode. The presenters are generated. {hostLabel} did not speak these words or approve them. They are not scholars.</p>
+          <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-stone-200 sm:text-sm">Your questions stay on this device until you share an episode. The presenters are generated. {hostLabel} did not speak these words or approve them. They are not scholars.</p>
         </div>
       </header>
       {error && <ErrorNote message={error} />}
@@ -470,21 +478,27 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
       )}
       {remote.error && !mine.some(item => item.jobId === jobId) && <ErrorNote message={remote.error} onRetry={remote.reload} />}
 
-      <section>
-        <h2 className="font-display text-2xl font-bold text-pine">My Research Podcasts</h2>
-        {mine.length === 0 && <p className="mt-2 text-sm text-muted">No episode is saved on this device yet.</p>}
+      <section className="min-w-0">
+        <p className="text-[10px] font-semibold tracking-[0.2em] text-[#8A7340]">ON THIS DEVICE</p>
+        <h2 className="mt-1 font-display text-2xl font-bold text-pine sm:text-3xl">My Research Podcasts</h2>
+        <div className="mt-2 h-px w-14 bg-[#C9A14E]" aria-hidden />
+        {mine.length === 0 && <p className="mt-3 text-sm leading-relaxed text-muted">No episode is saved on this device yet.</p>}
         {mine.length > 1 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {mine.map(episode => (
-              <button
-                key={episode.id}
-                type="button"
-                className={`max-w-full truncate rounded-full border px-3 py-1 text-xs ${stage?.id === episode.id ? 'border-pine bg-pine text-sand' : 'border-pine/15 bg-parchment text-pine'}`}
-                onClick={() => setPickedId(episode.id)}
-              >
-                {episode.question}
-              </button>
-            ))}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {mine.map(episode => {
+              const selected = stage?.id === episode.id;
+              return (
+                <button
+                  key={episode.id}
+                  type="button"
+                  title={episode.question}
+                  className={`max-w-full break-words rounded-full border px-3.5 py-1.5 text-left text-xs leading-snug sm:max-w-xs ${selected ? 'border-[#C9A14E] bg-[#064936] text-[#F9E7B9] shadow-[0_0_0_1px_rgba(201,161,78,0.4)]' : 'border-[#C9A14E]/70 bg-[#F4ECD8] text-[#064936]'}`}
+                  onClick={() => setPickedId(episode.id)}
+                >
+                  <span className="line-clamp-2">{episode.question}</span>
+                </button>
+              );
+            })}
           </div>
         )}
         <div className="mt-4 space-y-4">
@@ -529,8 +543,10 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
         </div>
       </section>
 
-      <section>
-        <h2 className="font-display text-2xl font-bold text-pine">Community Podcasts</h2>
+      <section className="min-w-0">
+        <p className="text-[10px] font-semibold tracking-[0.2em] text-[#8A7340]">SHARED</p>
+        <h2 className="mt-1 font-display text-2xl font-bold text-pine sm:text-3xl">Community Podcasts</h2>
+        <div className="mt-2 h-px w-14 bg-[#C9A14E]" aria-hidden />
         {community.error && <ErrorNote message={community.error} onRetry={community.reload} />}
         {(community.data?.episodes.length ?? 0) === 0 && <p className="mt-2 text-sm text-muted">No episode has been shared for publication.</p>}
         <div className="mt-4 space-y-4">
@@ -592,24 +608,35 @@ function EpisodeCard({
 }) {
   const [showReport, setShowReport] = useState(false);
   return (
-    <article className="rounded-3xl border border-pine/10 bg-parchment p-5">
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">{label}</p>
-      <h3 className="mt-2 font-display text-2xl font-bold text-pine"><ContentText text={question} /></h3>
-      <p className="mt-1 text-sm text-ink/70">Generated presenters. {hostLabel} is the studio partner beside the scholars. {hostLabel} did not speak or approve these words. They are not scholars.</p>
-      <ul className="mt-3 space-y-1 text-sm">
+    <article className="relative min-w-0 overflow-hidden rounded-[1.75rem] border border-[#C9A14E]/50 bg-[#F7F1E4] shadow-[0_16px_36px_-28px_rgba(6,73,54,0.75)]">
+      <img
+        src="/assets/geometric-cream.jpg"
+        alt=""
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[88%_12%] opacity-80"
+      />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#F7F1E4] via-[#F7F1E4]/94 to-[#F7F1E4]/72" />
+      <div className="pointer-events-none absolute inset-2 rounded-[1.35rem] border border-[#C9A14E]/28 sm:inset-2.5" />
+      <div className="relative min-w-0 p-4 sm:p-6">
+      <p className="inline-flex max-w-full items-center rounded-full border border-[#C9A14E]/75 bg-[#F9E7B9]/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#064936]">{label}</p>
+      <h3 className="mt-3 break-words font-display text-xl font-bold leading-snug text-pine sm:text-2xl"><ContentText text={question} /></h3>
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink/75">Generated presenters. {hostLabel} is the studio partner beside the scholars. {hostLabel} did not speak or approve these words. They are not scholars.</p>
+      <ul className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {participants.map(agent => (
-          <li key={agent.id}>
-            <span className="font-medium text-pine">{agent.role}</span>
-            <span className="text-muted"> · {agent.team}</span>
+          <li key={agent.id} className="min-w-0 rounded-2xl border border-[#C9A14E]/55 bg-[#FAF6EC]/90 px-3 py-2.5">
+            <span className="mb-2 flex h-7 w-7 items-center justify-center rounded-full border border-[#E6C665]/80 bg-[#064936]" aria-hidden>
+              <span className="h-1.5 w-1.5 rotate-45 bg-[#E6C665]" />
+            </span>
+            <span className="block text-sm font-semibold leading-snug text-[#064936]">{presenterName(agent.role)}</span>
+            <span className="mt-0.5 block text-[11px] leading-snug text-[#8A7340]">{presenterNote(agent.role, agent.team)}</span>
           </li>
         ))}
       </ul>
       {state === 'audio-generating' && <p className="mt-3 text-sm text-pine">{label}</p>}
       {state === 'failed' && error && <div className="mt-3"><Notice>{error}</Notice></div>}
       {readOnly ? (
-        <div className="mt-4 space-y-2 text-sm leading-relaxed">
+        <div className="mt-4 min-w-0 space-y-2 text-sm leading-relaxed">
           {lines.map((line, index) => (
-            <p key={`${line.speaker}-${index}`}>
+            <p key={`${line.speaker}-${index}`} className="break-words">
               <span className="font-semibold text-pine">{line.speaker}. </span>
               <ContentText text={line.text} />
             </p>
@@ -631,21 +658,31 @@ function EpisodeCard({
           </div>
         </div>
       )}
-      <section className="mt-4">
+      <section className="mt-4 min-w-0">
         <h4 className="font-display text-lg font-bold text-pine">Sources</h4>
-        <p className="mt-1 text-sm text-ink/60">Research language: {language}.</p>
+        <div className="mt-1 h-px w-10 bg-[#C9A14E]" aria-hidden />
+        <p className="mt-2 text-sm text-ink/60">Research language: {language}.</p>
         {sources.length === 0 && <p className="mt-2 text-sm text-muted">The full report holds the citation list.</p>}
         <ul className="mt-2 space-y-1 text-sm">
           {sources.map(source => (
-            <li key={source}>{source}</li>
+            <li key={source} className="break-words">{source}</li>
           ))}
         </ul>
       </section>
       {actions && <div className="mt-4">{actions}</div>}
-      <button type="button" className="mt-4 text-sm font-medium text-pine" onClick={() => setShowReport(open => !open)}>
+      <button type="button" className="mt-4 text-sm font-medium text-[#064936] underline decoration-[#C9A14E] decoration-2 underline-offset-4" onClick={() => setShowReport(open => !open)}>
         {showReport ? 'Hide full report' : 'Full report'}
       </button>
-      {showReport && <iframe title={question} className="mt-3 h-[32rem] w-full rounded-2xl border border-pine/10 bg-white" srcDoc={reportHtml} />}
+      {showReport && <iframe title={question} className="mt-3 h-[32rem] w-full max-w-full rounded-2xl border border-[#C9A14E]/35 bg-white" srcDoc={reportHtml} />}
+      </div>
     </article>
   );
+}
+
+function presenterName(role: string): string {
+  return role.replace(/\s*\([^)]*\)\s*$/, '').trim() || role;
+}
+
+function presenterNote(role: string, team: string): string {
+  return role.match(/\(([^)]+)\)\s*$/)?.[1]?.trim() || team;
 }

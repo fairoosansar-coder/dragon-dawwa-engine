@@ -3,7 +3,7 @@ import { getPodcastHostLabel, PODCAST_HOST_EVENT, readPodcastHost, writePodcastH
 import type { PodcastHonorific } from '../shared/podcastHost.ts';
 
 /** "Host: Brother Feroz (Edit)" opens a small editor. The name stays on this device. */
-export function PodcastHostChip({ className = '' }: { className?: string }) {
+export function PodcastHostChip({ className = '', tone = 'parchment' }: { className?: string; tone?: 'parchment' | 'plate' }) {
   const fieldId = useId();
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState(getPodcastHostLabel);
@@ -33,20 +33,30 @@ export function PodcastHostChip({ className = '' }: { className?: string }) {
     setOpen(false);
   }
 
+  const plate = tone === 'plate';
+
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative max-w-full ${className}`}>
       <button
         type="button"
-        className="inline-flex max-w-full items-center gap-1 rounded-full border border-pine/15 bg-parchment px-3 py-1 text-xs font-medium text-pine"
+        className={
+          plate
+            ? 'inline-flex max-w-full items-center gap-1 rounded-full border border-[#E6C665]/80 bg-[#041B14]/55 px-3 py-1 text-xs font-medium text-[#F9E7B9] shadow-[inset_0_0_0_1px_rgba(249,231,185,0.08)] backdrop-blur-[2px]'
+            : 'inline-flex max-w-full items-center gap-1 rounded-full border border-pine/15 bg-parchment px-3 py-1 text-xs font-medium text-pine'
+        }
         aria-expanded={open}
         aria-haspopup="dialog"
         onClick={() => (open ? setOpen(false) : openEditor())}
       >
         <span className="truncate">Host: {label}</span>
-        <span className="text-ink/60"> (Edit)</span>
+        <span className={plate ? 'shrink-0 text-[#E6C665]' : 'shrink-0 text-ink/60'}> (Edit)</span>
       </button>
       {open && (
-        <div role="dialog" aria-label="Edit podcast host" className="absolute left-0 z-30 mt-2 w-64 rounded-2xl border border-pine/15 bg-parchment p-3 text-left shadow-lg">
+        <div
+          role="dialog"
+          aria-label="Edit podcast host"
+          className={`absolute left-0 z-30 mt-2 w-[min(16rem,calc(100vw-2.5rem))] rounded-2xl bg-parchment p-3 text-left text-ink shadow-lg ${plate ? 'border border-[#C9A14E]/50' : 'border border-pine/15'}`}
+        >
           <label className="block text-xs font-medium text-pine" htmlFor={`${fieldId}-name`}>
             Name
           </label>

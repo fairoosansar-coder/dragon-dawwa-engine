@@ -153,3 +153,87 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Podcast desk. The plate sheen is ambient; the pulse only runs while audio plays. */
+.podcast-plate {
+  isolation: isolate;
+}
+
+.podcast-plate::after {
+  content: '';
+  position: absolute;
+  top: -15%;
+  bottom: -15%;
+  left: 0;
+  z-index: 1;
+  width: 26%;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(249, 231, 185, 0.04) 36%,
+    rgba(249, 231, 185, 0.2) 50%,
+    rgba(249, 231, 185, 0.04) 64%,
+    transparent 100%
+  );
+  transform: translateX(-150%);
+  animation: podcast-sheen 10.5s ease-in-out infinite;
+}
+
+@keyframes podcast-sheen {
+  0%,
+  14% {
+    transform: translateX(-150%);
+  }
+  46%,
+  100% {
+    transform: translateX(460%);
+  }
+}
+
+.podcast-play[data-playing='true'] {
+  animation: podcast-pulse 2.6s ease-in-out infinite;
+}
+
+@keyframes podcast-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(201, 161, 78, 0.48);
+  }
+  55% {
+    box-shadow: 0 0 0 8px rgba(201, 161, 78, 0);
+  }
+}
+
+.podcast-line-live {
+  animation: podcast-line 2.8s ease-in-out infinite;
+}
+
+@keyframes podcast-line {
+  0%,
+  100% {
+    box-shadow: inset 3px 0 0 rgba(201, 161, 78, 0.35);
+  }
+  50% {
+    box-shadow: inset 3px 0 0 rgba(201, 161, 78, 0.95);
+  }
+}
+
+[data-podcast-desk] :lang(ta),
+[data-podcast-desk] :lang(si) {
+  font-family: 'Noto Sans Tamil', 'Noto Sans Sinhala', Inter, sans-serif;
+  line-height: 1.75;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .podcast-plate::after,
+  .podcast-play[data-playing='true'],
+  .podcast-line-live {
+    animation: none !important;
+    animation-duration: 0s !important;
+  }
+
+  .podcast-plate::after {
+    opacity: 0;
+  }
+}
