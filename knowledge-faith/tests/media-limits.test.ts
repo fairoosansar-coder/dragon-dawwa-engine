@@ -50,3 +50,21 @@ test('media preserves valid file bytes and content type', async () => {
     assert.equal(result.type, 'application/pdf');
   } finally { globalThis.fetch = original; }
 });
+
+test('upstream reads remain capped independently of client connections and release on failure', async () => {
+  const original = globalThis.fetch;
+  const pending: Array<() => void> = [];
+  globalThis.fetch = () => new Promise((_resolve, reject) => { pending.push(() => reject(new Error('upstream failed'))); });
+  const url = new URL('https://d1.islamhouse.com/data/test.pdf');
+  try {
+    const reads = Array.from({ length: 4 }, () => readMedia(url).catch(error => error));
+    await assert.rejects(readMedia(url), (error: any) => error.status === 429);
+    assert.equal(pending.length, 4);
+    pending.splice(0).forEach(reject => reject());
+    await Promise.all(reads);
+    const next = readMedia(url).catch(error => error);
+    assert.equal(pending.length, 1);
+    pending[0]();
+    await next;
+  } finally { globalThis.fetch = original; }
+});

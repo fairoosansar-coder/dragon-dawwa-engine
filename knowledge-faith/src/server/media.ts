@@ -1,4 +1,5 @@
 import type { RequestHandler } from 'express';
+import { UpstreamError } from './http.ts';
 
 /** Keep buffered downloads bounded until the response finishes sending. */
 export function mediaConcurrencyLimiter(limit: number): RequestHandler {
@@ -44,8 +45,20 @@ export function mediaViewUrl(sourceUrl: string, kind: 'pdf' | 'audio' | 'video' 
 }
 
 const MAX_BYTES = 20 * 1024 * 1024;
+let activeReads = 0;
 
 export async function readMedia(url: URL): Promise<{ type: string; body: Buffer }> {
+  // A disconnected client must not free capacity while its upstream read still runs.
+  if (activeReads >= 4) throw new UpstreamError('The media reader is busy. Please retry shortly.', 429);
+  activeReads += 1;
+  try {
+    return await readMediaBody(url);
+  } finally {
+    activeReads -= 1;
+  }
+}
+
+async function readMediaBody(url: URL): Promise<{ type: string; body: Buffer }> {
   const response = await fetch(url, {
     redirect: 'follow',
     signal: AbortSignal.timeout(20_000),
