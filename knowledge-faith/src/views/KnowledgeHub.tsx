@@ -244,10 +244,10 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
         <img
           src="/assets/geometric-emerald.jpg"
           alt=""
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25 mix-blend-overlay"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-left sm:object-center"
         />
-        <div className="relative flex flex-col items-center px-4 py-7 text-center sm:px-8 sm:py-9">
-          <p className="text-[10px] font-semibold tracking-[0.32em] text-[#E6C665] sm:text-[11px] sm:tracking-[0.38em]">
+        <div className="relative flex w-[76%] flex-col items-center px-3 py-7 text-center sm:w-[58%] sm:px-8 sm:py-9">
+          <p className="max-w-full text-[10px] font-semibold tracking-[0.18em] text-[#E6C665] sm:text-[11px] sm:tracking-[0.38em]">
             ✦ INSTITUTIONAL RESEARCH STUDIO
           </p>
           <p
@@ -258,10 +258,10 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
             طَلَبُ الْعِلْمِ فَرِيضَةٌ
           </p>
           <p className="mt-1 text-[11px] tracking-[0.14em] text-stone-400">Seeking knowledge is an obligation</p>
-          <h1 className="mt-4 max-w-md font-serif text-sm font-medium leading-snug text-stone-200 sm:text-base">
+          <h1 className="mt-4 max-w-[14rem] font-serif text-sm font-medium leading-snug text-stone-200 sm:max-w-md sm:text-base">
             Explore Deep Foundations, Sources & Evidence
           </h1>
-          <p className="mt-1 max-w-lg text-[11px] leading-snug text-stone-400 sm:text-xs">
+          <p className="mt-1 max-w-[15rem] text-[11px] leading-snug text-stone-400 sm:max-w-sm sm:text-xs">
             Multidisciplinary AI synthesis across classical Tafsir, Kutub al-Sittah, Fiqh, and verified chains.
           </p>
         </div>
