@@ -246,22 +246,24 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
           alt=""
           className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25 mix-blend-overlay"
         />
-        <div className="relative flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6 sm:py-5">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold tracking-widest text-[#E6C665]">✦ INSTITUTIONAL RESEARCH STUDIO</p>
-            <h1 className="mt-1 font-serif text-xl font-bold leading-tight text-white sm:text-2xl">
-              Explore Deep Foundations, Sources & Evidence
-            </h1>
-            <p className="mt-1 text-xs leading-snug text-stone-300 sm:text-sm">
-              Multidisciplinary AI synthesis across classical Tafsir, Kutub al-Sittah, Fiqh, and verified chains.
-            </p>
-          </div>
-          <div className="shrink-0 text-right sm:max-w-[18rem]">
-            <p className="font-serif text-2xl font-medium leading-relaxed text-[#F9E7B9] drop-shadow-sm sm:text-3xl" dir="rtl" lang="ar">
-              طَلَبُ الْعِلْمِ فَرِيضَةٌ
-            </p>
-            <p className="text-[11px] leading-tight text-stone-400">Seeking knowledge is an obligation</p>
-          </div>
+        <div className="relative flex flex-col items-center px-4 py-7 text-center sm:px-8 sm:py-9">
+          <p className="text-[10px] font-semibold tracking-[0.32em] text-[#E6C665] sm:text-[11px] sm:tracking-[0.38em]">
+            ✦ INSTITUTIONAL RESEARCH STUDIO
+          </p>
+          <p
+            dir="rtl"
+            lang="ar"
+            className="mt-4 max-w-full font-[family-name:'Amiri_Quran','Scheherazade_New','Amiri','Noto_Naskh_Arabic',serif] text-[1.85rem] font-medium leading-[2.15] tracking-[0.08em] text-[#F9E7B9] drop-shadow-sm sm:mt-5 sm:text-5xl sm:leading-[1.9] sm:tracking-[0.16em]"
+          >
+            طَلَبُ الْعِلْمِ فَرِيضَةٌ
+          </p>
+          <p className="mt-1 text-[11px] tracking-[0.14em] text-stone-400">Seeking knowledge is an obligation</p>
+          <h1 className="mt-4 max-w-md font-serif text-sm font-medium leading-snug text-stone-200 sm:text-base">
+            Explore Deep Foundations, Sources & Evidence
+          </h1>
+          <p className="mt-1 max-w-lg text-[11px] leading-snug text-stone-400 sm:text-xs">
+            Multidisciplinary AI synthesis across classical Tafsir, Kutub al-Sittah, Fiqh, and verified chains.
+          </p>
         </div>
       </section>
       <div data-research-frame>
