@@ -37,6 +37,12 @@ const NAV: NavItem[] = [
   { path: 'podcast', href: '#/podcast', short: 'navPodcast', icon: Mic },
 ];
 
+function navLinkClass(place: 'side' | 'dock') {
+  return place === 'side'
+    ? 'kf-nav-side flex items-center gap-3 rounded-xl border-l-2 px-3 py-2.5 text-sm font-medium'
+    : 'kf-nav-dock flex min-h-12 w-full flex-col items-center justify-center gap-0.5 border-t-2 px-px py-1.5 text-center text-[10px] leading-none tracking-tight';
+}
+
 export function AppFrame({ path, section, segments = [], children }: { path: RouteRoot; section: string; segments?: string[]; children: ReactNode }) {
   const { t, lang, setLang } = useApp();
   const { focus, setFocus } = useShell();
@@ -53,8 +59,14 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
       {!focus && (
         <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-gold/50 bg-pine text-sand lg:flex">
           <div className="px-4 pt-5">
-            <BrandLockup tone="emerald" />
-            <div className="mt-5 h-px bg-gold/70" />
+            <div className="relative overflow-hidden rounded-2xl border border-[#E6C665]/65 bg-[#041910] shadow-[inset_0_1px_0_rgba(249,231,185,0.32),inset_0_-10px_16px_rgba(0,0,0,0.42)]">
+              <img src="/assets/geometric-emerald.jpg" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover object-left opacity-45" />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#041910]/92 via-[#05241c]/78 to-[#041910]/64" />
+              <div className="relative px-2.5 py-3">
+                <BrandLockup tone="emerald" />
+              </div>
+            </div>
+            <div className="mt-4 h-px bg-gradient-to-r from-transparent via-gold/80 to-transparent" />
           </div>
           <nav aria-label="Main" className="mt-4 flex-1 space-y-1 px-3">
             {NAV.map(item => {
@@ -64,9 +76,9 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
                   key={item.path}
                   href={item.href}
                   aria-current={active ? 'page' : undefined}
-                  className={`flex items-center gap-3 rounded-xl border-l-2 px-3 py-2.5 text-sm font-medium ${active ? 'border-gold bg-moss text-sand' : 'border-transparent text-sand/80 hover:bg-white/5'}`}
+                  className={navLinkClass('side')}
                 >
-                  <item.icon className="h-4 w-4" aria-hidden />
+                  <item.icon className="h-4 w-4 shrink-0" aria-hidden />
                   {t[item.side ?? item.short]}
                 </a>
               );
@@ -135,7 +147,7 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
                   <a
                     href={item.href}
                     aria-current={active ? 'page' : undefined}
-                    className={`flex min-h-12 w-full flex-col items-center justify-center gap-0.5 border-t-2 px-px py-1.5 text-center text-[10px] leading-none tracking-tight ${active ? 'border-gold text-sand' : 'border-transparent text-sand/80'}`}
+                    className={navLinkClass('dock')}
                   >
                     <item.icon className="h-4 w-4 shrink-0" aria-hidden />
                     <span className="max-w-full truncate">{t[item.short]}</span>
