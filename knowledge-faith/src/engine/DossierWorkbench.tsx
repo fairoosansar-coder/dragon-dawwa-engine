@@ -35,7 +35,7 @@ export function DossierActions() {
         className={primaryBtn}
         onClick={openFullReport}
       >
-        <Award className="h-4 w-4 text-amber-400" aria-hidden /> Open Full Report
+        <Award className="h-4 w-4" aria-hidden /> Open Full Report
       </button>
       <button
         type="button"
@@ -48,7 +48,7 @@ export function DossierActions() {
           }, 40);
         }}
       >
-        <Radio className="h-4 w-4 text-emerald-400" aria-hidden /> Open Roundtable
+        <Radio className="h-4 w-4" aria-hidden /> Open Roundtable
       </button>
       <button
         type="button"
@@ -56,7 +56,7 @@ export function DossierActions() {
         className={btn}
         onClick={d.downloadFullReport}
       >
-        <FileText className="h-4 w-4 text-emerald-400" aria-hidden /> Download Full Report
+        <FileText className="h-4 w-4" aria-hidden /> Download Full Report
       </button>
       <button
         type="button"
@@ -64,7 +64,7 @@ export function DossierActions() {
         className={btn}
         onClick={d.exportJson}
       >
-        <FileDown className="h-4 w-4 text-amber-400" aria-hidden /> Export JSON
+        <FileDown className="h-4 w-4" aria-hidden /> Export JSON
       </button>
       <button
         type="button"
@@ -72,14 +72,14 @@ export function DossierActions() {
         className={btn}
         onClick={d.print}
       >
-        <Printer className="h-4 w-4 text-amber-400" aria-hidden /> Print Full Report
+        <Printer className="h-4 w-4" aria-hidden /> Print Full Report
       </button>
       <button type="button" className={btn} onClick={() => void d.copyReport()}>
-        {d.copied ? <Check className="h-4 w-4 text-emerald-400" aria-hidden /> : <Copy className="h-4 w-4 text-amber-400" aria-hidden />}
+        {d.copied ? <Check className="h-4 w-4" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
         {d.copied ? 'Copied' : 'Copy Full Report'}
       </button>
       <button type="button" className={btn} onClick={() => void d.share()}>
-        <Share2 className="h-4 w-4 text-amber-400" aria-hidden /> Share
+        <Share2 className="h-4 w-4" aria-hidden /> Share
       </button>
     </div>
   );

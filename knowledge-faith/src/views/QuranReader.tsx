@@ -241,6 +241,7 @@ function Library({
   const bookmarks = saved.verses.filter(key => !q || key.toLowerCase().includes(q));
 
   const heading = section === 'search' ? t.quranSearch : section === 'mine' ? t.quranMine : t.quranTitle;
+  const mineWelcome = section === 'mine' && bookmarks.length === 0 && !q;
 
   const reciters = config?.reciters ?? [{ id: 'ar.alafasy', name: 'Mishary Rashid Alafasy' }];
 
@@ -280,18 +281,33 @@ function Library({
             <p className="mt-2 text-sm text-stone-300">{t.quranSubtitle}</p>
           </div>
         </header>
-      ) : (
+      ) : mineWelcome ? null : (
         <header>
           <h1 className="font-display text-4xl font-bold text-pine">{heading}</h1>
         </header>
       )}
-      {section === 'home' && (
-        <section data-continue-reading className="relative overflow-hidden rounded-3xl border border-[#D4AF37]/40 bg-[#064936] shadow-sm">
+      {mineWelcome && (
+        <section data-my-quran-empty className="relative overflow-hidden rounded-3xl border border-[#C9A14E]/55 bg-[#F6F1E4]">
           <img
-            src="/assets/geometric-studio.jpg"
+            src="/assets/geometric-cream.jpg"
             alt=""
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-right"
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
           />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(246,241,228,0.78)_0%,rgba(246,241,228,0.22)_46%,rgba(246,241,228,0)_74%)]" />
+          <div className="relative px-6 py-10 text-center sm:px-10 sm:py-12">
+            <h1 className="font-display text-3xl font-bold text-[#123A2E] sm:text-4xl">{t.quranMine}</h1>
+            <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-[#1a2744]">{t.bookmarksEmpty}</p>
+          </div>
+        </section>
+      )}
+      {section === 'home' && (
+        <section data-continue-reading className="relative overflow-hidden rounded-3xl border border-[#D4AF37]/55 bg-[#064936] shadow-sm">
+          <img
+            src="/assets/geometric-carved-arch.jpg"
+            alt=""
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[68%_center]"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#041910]/90 via-[#05241c]/72 to-[#041910]/15" />
           <div className="relative max-w-[78%] px-5 py-5 sm:max-w-xl sm:px-6 sm:py-6">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#E6C665]">{t.continueReading}</p>
             <h3 className="mt-2 font-display text-2xl font-bold text-[#F9E7B9]">{current ? current.englishName : `${t.surahs} ${displaySurah(surah)}`}</h3>
@@ -322,7 +338,7 @@ function Library({
         </div>
       )}
       {section === 'mine' || (section === 'home' && listTab === 'bookmarks') ? (
-        bookmarks.length === 0 ? (
+        mineWelcome ? null : bookmarks.length === 0 ? (
           <EmptyState>{q ? t.noResults : t.bookmarksEmpty}</EmptyState>
         ) : (
           <ul className="space-y-2">

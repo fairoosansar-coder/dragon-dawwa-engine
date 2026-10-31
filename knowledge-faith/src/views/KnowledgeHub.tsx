@@ -298,19 +298,27 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
         <h1 className="mt-3 max-w-3xl font-display text-4xl font-bold leading-tight text-pine sm:text-5xl">{t.hubHeading}</h1>
       </header>
 
-      <section className="rounded-3xl bg-pine px-6 py-8 text-sand sm:px-8">
-        <h3 className="max-w-xl font-display text-3xl font-bold leading-tight">{t.hubHero}</h3>
-        <p className="mt-3 max-w-xl text-sm leading-relaxed text-sand/85">{t.hubHeroBody}</p>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <a href="#/quran" className="inline-flex items-center rounded-full bg-moss px-4 py-2 text-sm font-medium text-white">
-            {t.openQuran}
-          </a>
-          <a href="#/hub/saved" className="inline-flex items-center rounded-full border border-gold px-4 py-2 text-sm font-medium text-sand lg:hidden">
-            {t.sidebarSaved}
-          </a>
-          <a href="#/podcast" className="inline-flex items-center rounded-full border border-gold px-4 py-2 text-sm font-medium text-sand">
-            {t.navPodcast}
-          </a>
+      <section className="relative overflow-hidden rounded-3xl border border-[#D4AF37]/50 bg-[#064936] px-6 py-8 text-sand sm:px-8">
+        <img
+          src="/assets/geometric-emerald.jpg"
+          alt=""
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[72%_center]"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#041910]/92 via-[#05241c]/78 to-[#041910]/20" />
+        <div className="relative">
+          <h3 className="max-w-xl font-display text-3xl font-bold leading-tight text-[#F6F1E4]">{t.hubHero}</h3>
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-[#F4E6C4]">{t.hubHeroBody}</p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <a href="#/quran" className="inline-flex items-center rounded-full bg-[#F6F1E4] px-4 py-2 text-sm font-medium text-[#0E382B]">
+              {t.openQuran}
+            </a>
+            <a href="#/hub/saved" className="inline-flex items-center rounded-full border border-[#E6C665] px-4 py-2 text-sm font-medium text-[#F6F1E4] lg:hidden">
+              {t.sidebarSaved}
+            </a>
+            <a href="#/podcast" className="inline-flex items-center rounded-full border border-[#E6C665] bg-[#041B14]/45 px-4 py-2 text-sm font-medium text-[#F6F1E4]">
+              {t.navPodcast}
+            </a>
+          </div>
         </div>
       </section>
 

@@ -69,15 +69,6 @@ body {
   line-height: 2.45;
 }
 
-.quran-bismillah {
-  font-family: 'Amiri Quran', 'Scheherazade New', 'Amiri', serif;
-  font-size: clamp(1.85rem, 4.2vw, 2.65rem);
-  line-height: 2.45;
-  padding-top: 0.35em;
-  text-align: center;
-  color: #1a1a1a;
-}
-
 .quran-prose {
   font-family: Fraunces, 'Noto Sans Tamil', 'Noto Sans Sinhala', Georgia, serif;
   color: #1c3d66;
@@ -296,6 +287,18 @@ body {
   .podcast-plate::after {
     opacity: 0;
   }
+}
+
+/* Cream tile under each carved mark, so the green plate separates from the pine rail. */
+.kf-nav-mark {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.45rem;
+  background: #f6f1e4;
+  padding: 2px;
+  box-shadow: 0 0 0 1px #c9a14e, inset 0 1px 0 rgb(255 255 255 / 0.7);
 }
 
 /* Desk links: a soft fill and a gold edge. The nudge only runs when motion is allowed. */
