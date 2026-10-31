@@ -84,12 +84,16 @@ export function PodcastPlayer({
   }
 
   return (
-    <div data-testid="podcast-master-player">
-      <div className="rounded-2xl border border-pine/10 bg-white p-4">
-        <div className="flex flex-wrap items-center gap-3">
+    <div data-testid="podcast-master-player" className="min-w-0">
+      <div
+        data-playing={playing ? 'true' : 'false'}
+        className="min-w-0 rounded-2xl border border-[#C9A14E]/55 bg-[#FAF6EC] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] sm:p-4"
+      >
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <button
             type="button"
-            className="rounded-full bg-pine px-4 py-2 text-sm font-medium text-sand disabled:opacity-50"
+            data-playing={playing ? 'true' : 'false'}
+            className="podcast-play rounded-full border border-[#E6C665] bg-[#064936] px-4 py-2 text-sm font-semibold text-[#F9E7B9] disabled:opacity-50"
             disabled={!src}
             onClick={() => {
               const node = audioRef.current;
@@ -100,15 +104,15 @@ export function PodcastPlayer({
           >
             {playing ? 'Pause' : 'Play'}
           </button>
-          <span className="text-xs tabular-nums text-pine">
+          <span className="text-xs tabular-nums text-[#064936]">
             {clock(current)} / {clock(duration || planned)}
           </span>
-          <div className="flex gap-1" role="group" aria-label="Playback speed">
+          <div className="flex flex-wrap gap-1" role="group" aria-label="Playback speed">
             {[1, 1.25, 1.5].map(speed => (
               <button
                 key={speed}
                 type="button"
-                className={`rounded-full px-2.5 py-1 text-xs ${rate === speed ? 'bg-pine text-sand' : 'bg-pine/10 text-pine'}`}
+                className={`rounded-full border px-2.5 py-1 text-xs tabular-nums ${rate === speed ? 'border-[#C9A14E] bg-[#064936] text-[#F9E7B9]' : 'border-[#C9A14E]/45 bg-transparent text-[#064936]'}`}
                 onClick={() => setRate(speed)}
               >
                 {speed}x
@@ -117,7 +121,7 @@ export function PodcastPlayer({
           </div>
         </div>
         <input
-          className="mt-3 w-full accent-pine"
+          className="mt-3 w-full max-w-full accent-[#064936]"
           type="range"
           min={0}
           max={duration || planned}
@@ -149,7 +153,7 @@ export function PodcastPlayer({
           <button
             key={`${chip.title}-${chip.index}`}
             type="button"
-            className="rounded-full border border-pine/15 bg-parchment px-3 py-1 text-xs text-pine"
+            className="max-w-full break-words rounded-full border border-[#C9A14E]/55 bg-[#F4ECD8] px-3 py-1 text-left text-xs leading-snug text-[#064936]"
             onClick={() => seekToLine(chip.index)}
           >
             {chip.title}
@@ -162,7 +166,7 @@ export function PodcastPlayer({
           <p
             id={`pod-line-${episodeId}-${index}`}
             key={`${line.speaker}-${index}`}
-            className={src && index === active ? 'rounded-xl bg-mint/80 px-2 py-1' : 'px-2 py-1'}
+            className={src && index === active ? `break-words rounded-xl bg-[#E7F2EC] px-3 py-1.5 ${playing ? 'podcast-line-live' : ''}` : 'break-words rounded-xl px-3 py-1.5'}
           >
             <span className="font-semibold text-pine">{line.speaker}. </span>
             <ContentText text={line.text} />
