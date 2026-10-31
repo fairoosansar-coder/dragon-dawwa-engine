@@ -692,3 +692,55 @@ body {
   0% { transform: translateX(-130%) rotate(8deg); }
   100% { transform: translateX(130%) rotate(8deg); }
 }
+
+/* Reflection banner. The carved panel sits on the open side and fades before the words. */
+.kf-reflect {
+  box-shadow: inset 0 0 0 1px rgb(198 161 90 / 0.55);
+}
+
+.kf-reflect-art {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(58%, 640px);
+  pointer-events: none;
+}
+
+.kf-reflect-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.kf-reflect-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #073c30 0%, rgb(7 60 48 / 0.72) 18%, rgb(7 60 48 / 0.15) 42%, transparent 68%);
+}
+
+@media (max-width: 639px) {
+  .kf-reflect-art {
+    position: relative;
+    width: calc(100% + 3rem);
+    height: 8.5rem;
+    margin: 1.5rem -1.5rem -2rem;
+  }
+
+  .kf-reflect-art::after {
+    background: linear-gradient(180deg, #073c30 0%, rgb(7 60 48 / 0.15) 42%, transparent 70%);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .kf-reflect-art img {
+    animation: kf-reflect-drift 18s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes kf-reflect-drift {
+  from { transform: scale(1.04); }
+  to { transform: scale(1.12) translate3d(-1.5%, -1%, 0); }
+}
