@@ -7,10 +7,10 @@ import type { TextSize } from '../../lib/readingPlace.ts';
 import { chapterSentence, hizbFromQuarter } from '../../shared/readingNav.ts';
 import { revelationPlace, surahArabicTitle, type McpMorphology } from '../../shared/quranMcp.ts';
 import { LANGUAGE_NAMES, type Lang } from '../../shared/sources.ts';
+import { BismillahArtwork } from './BismillahArtwork.tsx';
 import type { QuranEncEdition } from '../../shared/quranenc.ts';
 import type { SurahInfo, Verse } from '../../shared/types.ts';
 
-const BISMILLAH = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ';
 const ARABIC_SIZE: Record<TextSize, string> = {
   sm: 'text-[1.65rem]',
   md: 'text-[1.9rem] sm:text-[2.15rem]',
@@ -210,33 +210,36 @@ export function ReadingSheet({
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
     <article data-reading-sheet data-reader-scroll className="quran-page min-h-0 w-full flex-1 overflow-y-auto px-3 py-4 sm:px-6">
-      <header id="kf-surah-title" data-surah-header className="quran-header-card scroll-mt-4 px-4 py-5 sm:px-6">
-        <div className="flex items-center gap-4">
-          <p lang="ar" dir="rtl" data-surah-arabic className="quran-face text-4xl text-[#1a2744] sm:text-5xl">
+      <header id="kf-surah-title" data-surah-header className="quran-header-card scroll-mt-4 px-3 py-3 sm:px-5">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <p lang="ar" dir="rtl" data-surah-arabic className="quran-face text-[1.65rem] leading-none text-[#1a2744] sm:text-[2rem]">
             {surahArabicTitle(info.name)}
           </p>
-          <div>
-            <h2 className="font-[family-name:Fraunces,Georgia,serif] text-2xl font-semibold text-[#1a2744] sm:text-3xl">
+          <div className="min-w-0">
+            <h2 className="font-[family-name:Fraunces,Georgia,serif] text-lg font-semibold leading-tight text-[#1a2744] sm:text-xl">
               {info.number}. Surah {info.englishName}
             </h2>
-            <p className="text-lg text-[#314865]">{info.englishNameTranslation}</p>
+            <p className="text-sm leading-tight text-[#314865]">{info.englishNameTranslation}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+            <button id="kf-listen" type="button" className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm font-medium text-[#1a2744] shadow-sm" onClick={onListen} disabled={pageVerses.length === 0}>
+              {listening ? <Pause className="h-3.5 w-3.5" aria-hidden /> : <Play className="h-3.5 w-3.5" aria-hidden />}
+              {listening ? t.sheetPause : t.sheetListen}
+            </button>
+            <button type="button" className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm font-medium text-[#1a2744] shadow-sm" aria-expanded={infoOpen} onClick={() => setInfoOpen(open => !open)}>
+              <Info className="h-3.5 w-3.5" aria-hidden />
+              {t.sheetInfo}
+            </button>
+            <button type="button" data-arabic-pill aria-pressed={showArabic} onClick={() => onArabic(!showArabic)} className={pill(showArabic)}>
+              {t.sheetArabic}
+            </button>
           </div>
         </div>
-        <p data-surah-sentence className="mt-3 max-w-3xl text-sm leading-relaxed text-[#314865]">
+        <p data-surah-sentence className="mt-2 max-w-3xl text-xs leading-snug text-[#314865] sm:text-sm">
           {sentence}
         </p>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <button id="kf-listen" type="button" className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm font-medium text-[#1a2744] shadow-sm" onClick={onListen} disabled={pageVerses.length === 0}>
-            {listening ? <Pause className="h-3.5 w-3.5" aria-hidden /> : <Play className="h-3.5 w-3.5" aria-hidden />}
-            {listening ? t.sheetPause : t.sheetListen}
-          </button>
-          <button type="button" className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm font-medium text-[#1a2744] shadow-sm" aria-expanded={infoOpen} onClick={() => setInfoOpen(open => !open)}>
-            <Info className="h-3.5 w-3.5" aria-hidden />
-            {t.sheetInfo}
-          </button>
-        </div>
         {infoOpen && (
-          <div data-surah-info className="mt-3 max-w-3xl space-y-1 text-sm leading-relaxed text-[#314865]">
+          <div data-surah-info className="mt-2 max-w-3xl space-y-1 text-sm leading-relaxed text-[#314865]">
             {translator ? <p>{translator}</p> : null}
             {reciters.length > 0 && (
               <p>
@@ -245,23 +248,7 @@ export function ReadingSheet({
             )}
           </div>
         )}
-        <div className="mt-4">
-          <button type="button" data-arabic-pill aria-pressed={showArabic} onClick={() => onArabic(!showArabic)} className={pill(showArabic)}>
-            {t.sheetArabic}
-          </button>
-        </div>
-        {showBismillah && (
-          <div data-bismillah-block className="mt-6 scroll-mt-28 pt-3">
-            <p data-bismillah lang="ar" dir="rtl" className="quran-bismillah">
-              {BISMILLAH}
-            </p>
-            {bismillahLine ? (
-              <p data-bismillah-meaning lang={lang} className="mt-2 text-center text-sm text-[#314865]">
-                {bismillahLine}
-              </p>
-            ) : null}
-          </div>
-        )}
+        {showBismillah && <BismillahArtwork meaning={bismillahLine} lang={lang} />}
       </header>
 
       {showArabic && verseByVerse && (
@@ -478,7 +465,7 @@ function TranslationPicker({ current, onClose, onChoose }: { current: string; on
 }
 
 function pill(on: boolean): string {
-  return `rounded-full px-4 py-3 text-sm font-medium ${on ? 'bg-[#10233f] text-white' : 'bg-white text-[#1a2744]'}`;
+  return `rounded-full px-3 py-1.5 text-sm font-medium shadow-sm ${on ? 'bg-[#10233f] text-white' : 'bg-white text-[#1a2744]'}`;
 }
 
 function MenuButton({ children, onClick, pressed }: { children: ReactNode; onClick: () => void; pressed?: boolean }) {

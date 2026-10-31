@@ -43,6 +43,15 @@ function navLinkClass(place: 'side' | 'dock') {
     : 'kf-nav-dock flex min-h-12 w-full flex-col items-center justify-center gap-0.5 border-t-2 px-px py-1.5 text-center text-[10px] leading-none tracking-tight';
 }
 
+/** Cream ground so the carved green tile reads against the pine rail. */
+function NavMark({ name, place }: { name: StudioMarkName; place: 'side' | 'dock' }) {
+  return (
+    <span className="kf-nav-mark">
+      <StudioMark name={name} className={place === 'side' ? 'h-6 w-6 rounded-[5px]' : 'h-5 w-5 rounded-[4px]'} />
+    </span>
+  );
+}
+
 export function AppFrame({ path, section, segments = [], children }: { path: RouteRoot; section: string; segments?: string[]; children: ReactNode }) {
   const { t, lang, setLang } = useApp();
   const { focus, setFocus } = useShell();
@@ -78,7 +87,7 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
                   aria-current={active ? 'page' : undefined}
                   className={navLinkClass('side')}
                 >
-                  <StudioMark name={item.mark} className="h-6 w-6 shrink-0 rounded-md" />
+                  <NavMark name={item.mark} place="side" />
                   {t[item.side ?? item.short]}
                 </a>
               );
@@ -86,7 +95,7 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
           </nav>
           <div className="mt-auto border-t border-gold/40 px-3 py-4">
             <a href="#/hub/saved" className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-sand/80 hover:bg-white/5">
-              <StudioMark name="saved" className="h-6 w-6 shrink-0 rounded-md" /> {t.sidebarSaved}
+              <NavMark name="saved" place="side" /> {t.sidebarSaved}
             </a>
             <a href="#/hub/scholar" className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-sand/80 hover:bg-white/5">
               {t.sidebarQuestion}
@@ -149,7 +158,7 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
                     aria-current={active ? 'page' : undefined}
                     className={navLinkClass('dock')}
                   >
-                    <StudioMark name={item.mark} className="h-5 w-5 shrink-0 rounded-md" />
+                    <NavMark name={item.mark} place="dock" />
                     <span className="max-w-full truncate">{t[item.short]}</span>
                   </a>
                 </li>

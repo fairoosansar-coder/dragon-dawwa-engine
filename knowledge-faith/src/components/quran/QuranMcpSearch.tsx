@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRemote } from '../../lib/api.ts';
 import { useApp, useStored } from '../../lib/store.tsx';
 import type { Lang } from '../../shared/sources.ts';
-import type { McpEdition, McpSearchResult } from '../../shared/quranMcp.ts';
+import { searchEditionLabels, type McpEdition, type McpSearchResult } from '../../shared/quranMcp.ts';
 import { ErrorNote, Loading } from '../ui.tsx';
 
 function storedEdition(value: unknown, editions: McpEdition[]): string {
@@ -23,6 +23,7 @@ export function QuranMcpSearch({
   const [stored, setStored] = useStored<unknown>('kf-mcp-search-edition', '');
   const editions = useRemote<McpEdition[]>('/api/quran/mcp/editions?type=translation');
   const catalogue = (editions.data ?? []).slice().sort((a, b) => a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name));
+  const labels = searchEditionLabels(catalogue);
   const editionId = storedEdition(stored, catalogue);
   const [debounced, setDebounced] = useState(query.trim());
   useEffect(() => {
@@ -52,8 +53,8 @@ export function QuranMcpSearch({
           >
             <option value="">{t.searchArabicChoice}</option>
             {catalogue.map(item => (
-              <option key={item.editionId} value={item.editionId}>
-                {item.author ? `${item.name} — ${item.author}` : item.name}
+              <option key={item.editionId} value={item.editionId} title={item.author ? `${item.name} — ${item.author}` : item.name}>
+                {labels.get(item.editionId) ?? item.name}
               </option>
             ))}
           </select>

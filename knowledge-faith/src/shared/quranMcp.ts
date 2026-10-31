@@ -10,6 +10,63 @@ export interface McpEdition {
   author: string | null;
 }
 
+function displayLanguage(code: string): string {
+  const lang = code.trim().toLowerCase().split('-')[0] ?? '';
+  if (!/^[a-z]{2,3}$/.test(lang)) return '';
+  try {
+    const name = new Intl.DisplayNames(['en'], { type: 'language' }).of(lang);
+    if (name && name.toLowerCase() !== lang) return name;
+  } catch {
+    return '';
+  }
+  return '';
+}
+
+function shortClause(name: string): string {
+  const clause = name.split(/\s[:—–|]\s|:/)[0]?.trim() || name.trim();
+  if (clause.length <= 32) return clause;
+  const cut = clause.slice(0, 32);
+  const space = cut.lastIndexOf(' ');
+  return `${(space > 16 ? cut.slice(0, space) : cut).trim()}…`;
+}
+
+function shortAuthor(author: string | null): string {
+  if (!author) return '';
+  const first = author.split(/[&,]|\band\b/i)[0]?.trim() ?? '';
+  const words = first.split(/\s+/).filter(Boolean);
+  const last = words[words.length - 1] ?? '';
+  return last.length > 0 && last.length <= 22 ? last : '';
+}
+
+function baseEditionLabel(edition: McpEdition): string {
+  const title = shortClause(edition.name);
+  if (title.length <= 32 && !title.endsWith('…')) return title;
+  const language = displayLanguage(edition.lang);
+  const author = shortAuthor(edition.author);
+  if (language && author) return `${language} · ${author}`;
+  return language || title;
+}
+
+/** Short list labels. The option value stays the edition id. */
+export function searchEditionLabels(catalogue: readonly McpEdition[]): Map<string, string> {
+  const bases = catalogue.map(edition => ({ edition, label: baseEditionLabel(edition) }));
+  const counts = new Map<string, number>();
+  for (const item of bases) counts.set(item.label, (counts.get(item.label) ?? 0) + 1);
+  const labels = new Map<string, string>();
+  for (const item of bases) {
+    let label = item.label;
+    if ((counts.get(item.label) ?? 0) > 1) {
+      const author = shortAuthor(item.edition.author);
+      const language = displayLanguage(item.edition.lang);
+      if (author && !label.includes(author)) label = `${label} · ${author}`;
+      else if (language && !label.startsWith(language)) label = `${language} · ${label}`;
+      else label = `${label} · ${item.edition.editionId}`;
+    }
+    labels.set(item.edition.editionId, label);
+  }
+  return labels;
+}
+
 export interface McpTafsirEntry {
   range: string;
   text: string;

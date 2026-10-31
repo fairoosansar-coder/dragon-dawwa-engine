@@ -10,9 +10,46 @@ import {
   publicFailure,
   readTafsirQuery,
   searchArguments,
+  searchEditionLabels,
   tafsirArguments,
   toolFailureDetail,
+  type McpEdition,
 } from '../src/shared/quranMcp.ts';
+
+function edition(over: Partial<McpEdition> & Pick<McpEdition, 'editionId' | 'name'>): McpEdition {
+  return { editionType: 'translation', lang: 'en', author: null, ...over };
+}
+
+test('search translation labels stay short and keep each edition id', () => {
+  const catalogue = [
+    edition({
+      editionId: 'es-noor',
+      lang: 'es',
+      name: 'El Noble Corán: Traducción de los significados',
+      author: 'Centro Noor International',
+    }),
+    edition({
+      editionId: 'de-bubenheim',
+      lang: 'de',
+      name: 'Die Bedeutung des Korans',
+      author: 'Frank Bubenheim & Nadeem Elyas',
+    }),
+    edition({ editionId: 'en-sahih', lang: 'en', name: 'Saheeh International', author: 'Saheeh International' }),
+    edition({ editionId: 'en-clear', lang: 'en', name: 'The Clear Quran', author: 'Dr. Mustafa Khattab' }),
+  ];
+  const labels = searchEditionLabels(catalogue);
+  assert.equal(labels.size, catalogue.length);
+  assert.equal(labels.get('es-noor'), 'El Noble Corán');
+  assert.equal(labels.get('de-bubenheim'), 'Die Bedeutung des Korans');
+  assert.equal(labels.get('en-sahih'), 'Saheeh International');
+  assert.equal(labels.get('en-clear'), 'The Clear Quran');
+  for (const item of catalogue) {
+    const label = labels.get(item.editionId) ?? '';
+    assert.ok(label.length > 0 && label.length <= 36, label);
+    assert.equal(label.includes('Traducción de los significados'), false);
+    assert.equal(label.includes('Frank Bubenheim'), false);
+  }
+});
 
 test('tafsir requires an explicit edition and does not substitute one', () => {
   assert.deepEqual(readTafsirQuery('114:1', ''), { error: MCP_EDITION_REQUIRED });

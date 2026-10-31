@@ -73,9 +73,7 @@ export const IlluminatedFrame: React.FC<IlluminatedFrameProps> = ({ title, arabi
   </div>
 );
 
-const ARCH_MASK = 'url("data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 300" preserveAspectRatio="none"><path d="M8 300V132C8 80 220 52 400 6C580 52 792 80 792 132V300Z"/></svg>') + '")';
-
-/* ---------- ArchBanner — a mihrab-arch hero with the Basmala ---------- */
+/* ---------- ArchBanner — carved emerald-and-gold plate with the Basmala ---------- */
 export interface ArchBannerProps {
   bismillah?: boolean;
   title: string;
@@ -85,27 +83,22 @@ export interface ArchBannerProps {
   compact?: boolean;
 }
 export const ArchBanner: React.FC<ArchBannerProps> = ({ bismillah = true, title, subtitle, arabic, children, compact }) => (
-  <div className="relative w-full" style={{ minHeight: compact ? 220 : 300 }}>
-    <div className="absolute inset-0" style={{
-      backgroundColor: 'var(--surface-panel)',
-      backgroundImage: 'radial-gradient(ellipse at 50% 10%, var(--gold-glow), transparent 65%), var(--pattern-star-strong)',
-      WebkitMaskImage: ARCH_MASK, maskImage: ARCH_MASK,
-      WebkitMaskSize: '100% 100%', maskSize: '100% 100%', WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
-    } as React.CSSProperties} />
-    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 800 300" preserveAspectRatio="none" aria-hidden="true">
-      <path d="M8 300V132C8 80 220 52 400 6C580 52 792 80 792 132V300" fill="none" style={{ stroke: 'var(--gold-leaf)' }} strokeOpacity="0.75" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-      <path d="M22 300V138C22 92 228 66 400 22C572 66 778 92 778 138V300" fill="none" style={{ stroke: 'var(--gold-leaf)' }} strokeOpacity="0.35" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-    </svg>
-    <div className={`relative flex flex-col items-center text-center px-6 md:px-10 ${compact ? 'pt-10 md:pt-12 pb-6 md:pb-7 gap-2' : 'pt-12 md:pt-16 pb-8 md:pb-10 gap-2 md:gap-3'}`}>
-      <RubElHizb size={26} filled />
+  <div data-research-arch className="relative w-full overflow-hidden rounded-[1.35rem] border border-[#E6C665]/60">
+    <img
+      src="/assets/geometric-carved-arch.jpg"
+      alt=""
+      className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
+    />
+    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(4,25,16,0.62)_0%,rgba(4,25,16,0.38)_58%,rgba(4,25,16,0.22)_100%)]" />
+    <div className={`relative flex flex-col items-center text-center px-5 md:px-10 ${compact ? 'py-6 md:py-7 gap-2' : 'py-7 md:py-9 gap-2 md:gap-3'}`}>
       {bismillah && (
-        <div className="font-arabic text-[26px] leading-[44px] md:text-[34px] md:leading-[56px] text-amber-300" dir="rtl" lang="ar">
+        <div className="font-arabic text-[1.45rem] leading-snug text-[#F9E7B9] [text-shadow:0_1px_2px_rgba(4,25,16,0.9)] md:text-[1.85rem]" dir="rtl" lang="ar">
           بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ
         </div>
       )}
-      <h2 className={`font-display font-semibold text-white ${compact ? 'text-[26px] leading-[32px] md:text-[30px] md:leading-[36px]' : 'text-[30px] leading-[36px] md:text-[40px] md:leading-[44px]'}`}>{title}</h2>
-      {arabic && <div className="font-kufi text-xl text-amber-200" dir="rtl" lang="ar">{arabic}</div>}
-      {subtitle && <p className="max-w-xl text-sm leading-6 text-slate-400">{subtitle}</p>}
+      <h2 className={`font-display font-semibold text-[#F6F1E4] [text-shadow:0_1px_2px_rgba(4,25,16,0.85)] ${compact ? 'text-[1.45rem] leading-tight md:text-[1.75rem]' : 'text-[1.65rem] leading-tight md:text-[2.15rem]'}`}>{title}</h2>
+      {arabic && <div className="font-kufi text-xl text-[#F6E4B4] [text-shadow:0_1px_2px_rgba(4,25,16,0.85)]" dir="rtl" lang="ar">{arabic}</div>}
+      {subtitle && <p className="max-w-xl text-sm leading-6 text-[#F4E6C4] [text-shadow:0_1px_2px_rgba(4,25,16,0.8)]">{subtitle}</p>}
       {children && <div className="pt-2 flex flex-wrap justify-center gap-3">{children}</div>}
     </div>
   </div>
