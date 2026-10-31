@@ -117,7 +117,9 @@ export function ReadingSheet({
   const page = selected && typeof selected.page === 'number' ? selected.page : null;
   const pageVerses = page == null ? verses : verses.filter(verse => verse.page === page);
   const listening = Boolean(audio.id?.startsWith('ayah-')) && (audio.status === 'playing' || audio.status === 'loading');
+  // Al-Fatiha’s first ayah is the basmala. At-Tawbah is not opened with one.
   const showBismillah = showArabic && info.number !== 1 && info.number !== 9 && pageVerses.some(verse => verse.ayah === 1);
+  const bismillahPlate = info.number % 2 === 0 ? 'blue' : 'cream';
   const editionKey = selected?.translationKey ?? '';
   const bismillah = useRemote<MeaningPayload>(showBismillah && editionKey ? `/api/quran/surah/1/meaning?lang=${lang}&edition=${encodeURIComponent(editionKey)}` : null);
   const bismillahLine = bismillah.data?.verses?.find(verse => verse.ayah === 1)?.translation?.trim() ?? '';
@@ -210,7 +212,7 @@ export function ReadingSheet({
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
     <article data-reading-sheet data-reader-scroll className="quran-page min-h-0 w-full flex-1 overflow-y-auto px-3 py-4 sm:px-6">
-      <header id="kf-surah-title" data-surah-header className="quran-header-card scroll-mt-4 px-4 py-5 sm:px-6">
+      <header id="kf-surah-title" data-surah-header className="quran-header-card scroll-mt-4 px-4 pb-3 pt-4 sm:px-6 sm:pt-5">
         <div className="flex items-center gap-4">
           <p lang="ar" dir="rtl" data-surah-arabic className="quran-face text-4xl text-[#1a2744] sm:text-5xl">
             {surahArabicTitle(info.name)}
@@ -251,12 +253,20 @@ export function ReadingSheet({
           </button>
         </div>
         {showBismillah && (
-          <div data-bismillah-block className="mt-6 scroll-mt-28 pt-3">
-            <p data-bismillah lang="ar" dir="rtl" className="quran-bismillah">
-              {BISMILLAH}
-            </p>
+          <div data-bismillah-block data-bismillah-plate={bismillahPlate} className="quran-bismillah-block scroll-mt-28">
+            <img
+              data-bismillah
+              src={`/assets/bismillah-${bismillahPlate}.jpg`}
+              alt={BISMILLAH}
+              lang="ar"
+              width={1600}
+              height={488}
+              decoding="async"
+              draggable={false}
+              className="quran-bismillah-plate"
+            />
             {bismillahLine ? (
-              <p data-bismillah-meaning lang={lang} className="mt-2 text-center text-sm text-[#314865]">
+              <p data-bismillah-meaning lang={lang} className="quran-bismillah-meaning">
                 {bismillahLine}
               </p>
             ) : null}

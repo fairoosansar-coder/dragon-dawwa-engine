@@ -69,13 +69,33 @@ body {
   line-height: 2.45;
 }
 
-.quran-bismillah {
-  font-family: 'Amiri Quran', 'Scheherazade New', 'Amiri', serif;
-  font-size: clamp(1.85rem, 4.2vw, 2.65rem);
-  line-height: 2.45;
-  padding-top: 0.35em;
+.quran-bismillah-block {
+  margin-top: 0.65rem;
+  margin-inline: -1rem;
+}
+
+.quran-bismillah-plate {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+}
+
+.quran-bismillah-meaning {
+  margin: 0.45rem 1.15rem 0;
   text-align: center;
-  color: #1a1a1a;
+  font-family: Fraunces, 'Noto Sans Tamil', 'Noto Sans Sinhala', Georgia, serif;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: #1c3d66;
+  overflow-wrap: break-word;
+}
+
+.quran-bismillah-meaning[lang='ta'],
+.quran-bismillah-meaning[lang='si'] {
+  font-family: 'Noto Sans Tamil', 'Noto Sans Sinhala', Fraunces, Georgia, sans-serif;
+  font-size: 1.2rem;
+  line-height: 1.9;
 }
 
 .quran-prose {
@@ -118,6 +138,17 @@ body {
   background: #e7eef6;
   border: 1px solid #c5d4e8;
   border-radius: 16px;
+  overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .quran-bismillah-block {
+    margin-inline: -1.5rem;
+  }
+
+  .quran-bismillah-meaning {
+    margin-inline: 1.5rem;
+  }
 }
 
 .quran-ayah-mark {
