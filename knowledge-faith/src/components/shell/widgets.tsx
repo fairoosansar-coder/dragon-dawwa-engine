@@ -95,7 +95,7 @@ export function DeskHeaderTabs({ path, segments, className = '' }: { path: Route
               key={tab.id}
               href={tab.href}
               aria-current={current === tab.id ? 'page' : undefined}
-              className={`inline-flex shrink-0 items-center rounded-xl px-3 py-1.5 text-sm font-semibold ${current === tab.id ? 'bg-pine text-sand' : 'text-pine hover:bg-mint'}`}
+              className={`inline-flex shrink-0 items-center rounded-full px-2 py-1.5 text-[13px] font-semibold sm:px-3 sm:text-sm ${current === tab.id ? 'bg-[#0B4B3A] text-[#F5EEDC]' : 'text-[#0B4B3A] hover:bg-[#F5EEDC]'}`}
             >
               {tab.label}
             </a>

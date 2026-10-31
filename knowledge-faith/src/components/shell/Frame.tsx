@@ -7,7 +7,7 @@ import type { Strings } from '../../lib/i18n.ts';
 import { useAudioState } from '../../lib/audio.ts';
 import { buildStamp } from '../../buildStamp.ts';
 import { BrandLockup } from './Brand.tsx';
-import { StudioMark, type StudioMarkName } from './studioMarks.tsx';
+import { NavGlyph, type NavIconName } from './navIcons.tsx';
 import { AudioMiniPlayer, DeskHeaderTabs } from './widgets.tsx';
 
 interface NavItem {
@@ -15,7 +15,7 @@ interface NavItem {
   href: string;
   short: keyof Strings;
   side?: keyof Strings;
-  mark: StudioMarkName;
+  mark: NavIconName;
 }
 
 function ReleaseMark({ className }: { className: string }) {
@@ -39,7 +39,7 @@ const NAV: NavItem[] = [
 
 function navLinkClass(place: 'side' | 'dock') {
   return place === 'side'
-    ? 'kf-nav-side flex items-center gap-3 rounded-xl border-l-2 px-3 py-2.5 text-sm font-medium'
+    ? 'kf-nav-side flex items-center gap-3 rounded-xl border-l-2 px-2.5 py-1.5 text-sm font-medium'
     : 'kf-nav-dock flex min-h-12 w-full flex-col items-center justify-center gap-0.5 border-t-2 px-px py-1.5 text-center text-[10px] leading-none tracking-tight';
 }
 
@@ -57,16 +57,9 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
         Skip to content
       </a>
       {!focus && (
-        <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-gold/50 bg-pine text-sand lg:flex">
-          <div className="px-4 pt-5">
-            <div className="relative overflow-hidden rounded-2xl border border-[#E6C665]/65 bg-[#041910] shadow-[inset_0_1px_0_rgba(249,231,185,0.32),inset_0_-10px_16px_rgba(0,0,0,0.42)]">
-              <img src="/assets/geometric-emerald.jpg" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover object-left opacity-45" />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#041910]/92 via-[#05241c]/78 to-[#041910]/64" />
-              <div className="relative px-2.5 py-3">
-                <BrandLockup tone="emerald" />
-              </div>
-            </div>
-            <div className="mt-4 h-px bg-gradient-to-r from-transparent via-gold/80 to-transparent" />
+        <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-[#073C30] text-[#F5EEDC] lg:flex">
+          <div className="px-4 pb-1 pt-6">
+            <BrandLockup tone="emerald" />
           </div>
           <nav aria-label="Main" className="mt-4 flex-1 space-y-1 px-3">
             {NAV.map(item => {
@@ -78,17 +71,19 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
                   aria-current={active ? 'page' : undefined}
                   className={navLinkClass('side')}
                 >
-                  <StudioMark name={item.mark} className="h-6 w-6 shrink-0 rounded-md" />
+                  <NavGlyph name={item.mark} />
                   {t[item.side ?? item.short]}
                 </a>
               );
             })}
           </nav>
-          <div className="mt-auto border-t border-gold/40 px-3 py-4">
-            <a href="#/hub/saved" className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-sand/80 hover:bg-white/5">
-              <StudioMark name="saved" className="h-6 w-6 shrink-0 rounded-md" /> {t.sidebarSaved}
+          <div className="mt-auto border-t border-[#C6A15A]/35 px-3 py-4">
+            <a href="#/hub/saved" className={`${navLinkClass('side')} text-[#F5EEDC]`}>
+              <NavGlyph name="saved" />
+              {t.sidebarSaved}
             </a>
-            <a href="#/hub/scholar" className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-sand/80 hover:bg-white/5">
+            <a href="#/hub/scholar" className={`${navLinkClass('side')} mt-1 text-[#F5EEDC]`}>
+              <NavGlyph name="question" />
               {t.sidebarQuestion}
             </a>
             <ReleaseMark className="px-3 pt-3 text-[10px] leading-snug text-sand/60" />
@@ -107,13 +102,13 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
         {!focus && (
           <header className="shrink-0 overflow-x-clip border-b border-pine/10 bg-sand">
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-4 py-2 sm:flex-nowrap sm:gap-3 sm:px-6">
-              <p className={`min-w-0 truncate font-display text-base font-bold text-pine sm:shrink-0 sm:text-lg ${path === 'quran' ? 'max-w-[calc(100%-13.5rem)] sm:max-w-[14rem] lg:max-w-none' : path === 'hadith' ? 'max-w-[calc(100%-7.75rem)] sm:max-w-[14rem] lg:max-w-none' : ''}`}>{section}</p>
+              <p className={`min-w-0 truncate font-display text-base font-bold text-[#0B4B3A] sm:shrink-0 sm:text-lg ${path === 'quran' ? 'max-w-[calc(100%-13.5rem)] sm:max-w-[14rem] lg:max-w-none' : path === 'hadith' ? 'max-w-[calc(100%-7.75rem)] sm:max-w-[14rem] lg:max-w-none' : ''}`}>{section}</p>
               <div className="ml-auto flex shrink-0 items-center gap-2 sm:order-3">
                 {quranSettings && <div id="kf-library-settings" className="hidden lg:block" />}
                 {quranSettings && <div id="kf-library-settings-mobile" className="lg:hidden" />}
                 <label className="flex shrink-0 items-center gap-2 text-xs text-muted">
                   <span className="hidden sm:inline">{t.language}</span>
-                  <select aria-label={t.language} value={lang} onChange={event => setLang(toLang(event.target.value))} className="max-w-[7.5rem] truncate rounded-full border border-pine/20 bg-parchment px-3 py-1.5 text-sm text-ink sm:max-w-none">
+                  <select aria-label={t.language} value={lang} onChange={event => setLang(toLang(event.target.value))} className="max-w-[7.5rem] truncate rounded-full border border-[#073C30]/15 bg-white px-3 py-1.5 text-sm text-[#16233B] sm:max-w-none">
                     {LANGS.map(code => (
                       <option key={code} value={code}>
                         {LANGUAGE_NAMES[code].english}
@@ -149,7 +144,7 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
                     aria-current={active ? 'page' : undefined}
                     className={navLinkClass('dock')}
                   >
-                    <StudioMark name={item.mark} className="h-5 w-5 shrink-0 rounded-md" />
+                    <NavGlyph name={item.mark} />
                     <span className="max-w-full truncate">{t[item.short]}</span>
                   </a>
                 </li>
