@@ -8,24 +8,24 @@
   --font-arabic: 'Amiri Quran', 'Amiri', 'Scheherazade New', serif;
   --color-ink: #172720;
   --color-muted: #637069;
-  --color-pine: #064936;
-  --color-moss: #07533f;
+  --color-pine: #073C30;
+  --color-moss: #0B4B3A;
   --color-mint: #e7f2ec;
-  --color-sand: #faf6ec;
-  --color-parchment: #f4ecd8;
-  --color-gold: #c9a14e;
+  --color-sand: #F8F5EC;
+  --color-parchment: #F5EEDC;
+  --color-gold: #C6A15A;
   --color-lapis: #244875;
-  --color-dd-emerald: #064936;
-  --color-dd-ivory: #faf6ec;
-  --color-dd-gold: #c9a14e;
+  --color-dd-emerald: #073C30;
+  --color-dd-ivory: #F8F5EC;
+  --color-dd-gold: #C6A15A;
   --color-dd-gold-soft: #f3e6c2;
   --color-dd-lapis: #244875;
   --color-dd-ink: #172720;
 }
 
 :root {
-  --gold-leaf: #c9a14e;
-  --gold-border: #c9a14e;
+  --gold-leaf: #C6A15A;
+  --gold-border: #C6A15A;
 }
 
 html {
@@ -69,25 +69,178 @@ body {
   line-height: 2.45;
 }
 
-.quran-bismillah-block {
-  margin-top: 0.65rem;
-  margin-inline: -1rem;
+.quran-header-card[data-bismillah-plate] {
+  position: relative;
+  border-color: transparent;
 }
 
-.quran-bismillah-plate {
+.quran-header-card[data-bismillah-plate='blue'] {
+  background: #E2EBF4;
+}
+
+.quran-header-card[data-bismillah-plate='cream'] {
+  background: #f8efde;
+}
+
+.quran-plate-ornament {
+  position: absolute;
+  inset: 0;
+}
+
+.quran-plate-ornament,
+.quran-plate-line,
+.quran-plate-corner,
+.quran-plate-mark {
+  pointer-events: none;
+}
+
+.quran-plate-line {
+  position: absolute;
+  z-index: 2;
+  inset: 0.65rem;
+  border: 1px solid #C6A15A;
+}
+
+.quran-plate-corner,
+.quran-plate-mark {
+  position: absolute;
+  z-index: 2;
+  height: auto;
+}
+
+.quran-plate-tl { top: 0; left: 0; width: 4.75rem; }
+.quran-plate-tr { top: 0; right: 0; width: 6.25rem; }
+.quran-plate-bl { bottom: 0; left: 0; width: 6.5rem; }
+.quran-plate-br { right: 0; bottom: 0; width: 4.5rem; }
+
+.quran-plate-mark { width: 2.35rem; }
+.quran-plate-mark-top { top: 0.28rem; left: 50%; transform: translateX(-50%); }
+.quran-plate-mark-bottom { bottom: 0.28rem; left: 50%; transform: translateX(-50%); }
+.quran-plate-mark-left { top: 50%; left: 0.05rem; width: 2.1rem; transform: translateY(-50%) rotate(90deg); }
+.quran-plate-mark-right { top: 50%; right: 0.05rem; width: 2.1rem; transform: translateY(-50%) rotate(90deg); }
+
+.quran-plate-copy {
+  position: relative;
+  z-index: 3;
+  padding: 1.15rem 0.85rem 0.85rem 1rem;
+}
+
+.quran-plate-lead {
+  max-width: calc(100% - 2.6rem);
+}
+
+.quran-surah-id {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.quran-surah-arabic {
+  flex: none;
+  margin: 0;
+  color: #16233B;
+  font-size: 1.85rem;
+  line-height: 1;
+}
+
+.quran-surah-name {
+  margin: 0;
+  color: #16233B;
+  font-family: Fraunces, Georgia, serif;
+  font-size: 1.12rem;
+  font-weight: 600;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.quran-surah-sub {
+  margin: 0.1rem 0 0;
+  color: #24344d;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+
+.quran-surah-sentence {
+  margin: 0.7rem 0 0;
+  max-width: 40rem;
+  color: #24344d;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.quran-plate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.6rem;
+  margin-top: 0.8rem;
+}
+
+.quran-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.quran-btn-listen {
+  background: #16233B;
+  color: #fff;
+}
+
+.quran-btn-listen:disabled {
+  opacity: 0.5;
+}
+
+.quran-btn-info {
+  background: #fff;
+  color: #16233B;
+  box-shadow: 0 1px 2px rgb(22 35 59 / 0.08);
+}
+
+.quran-btn-rule {
+  width: 1px;
+  height: 1.1rem;
+  background: rgb(22 35 59 / 0.22);
+}
+
+.quran-btn-arabic {
+  padding: 0.3rem 0.1rem;
+  background: transparent;
+  color: #16233B;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.quran-btn-arabic[aria-pressed='false'] {
+  color: rgb(22 35 59 / 0.5);
+}
+
+.quran-bismillah-block {
+  margin-top: 0.85rem;
+}
+
+.quran-bismillah-script {
   display: block;
   width: 100%;
   max-width: 100%;
   height: auto;
+  margin-inline: auto;
 }
 
 .quran-bismillah-meaning {
-  margin: 0.45rem 1.15rem 0;
+  max-width: 16rem;
+  margin: 0.7rem auto 0.2rem;
   text-align: center;
   font-family: Fraunces, 'Noto Sans Tamil', 'Noto Sans Sinhala', Georgia, serif;
   font-size: 1.0625rem;
-  line-height: 1.65;
-  color: #1c3d66;
+  line-height: 1.55;
+  color: #16233B;
   overflow-wrap: break-word;
 }
 
@@ -100,7 +253,7 @@ body {
 
 .quran-prose {
   font-family: Fraunces, 'Noto Sans Tamil', 'Noto Sans Sinhala', Georgia, serif;
-  color: #1c3d66;
+  color: #16233B;
   line-height: 2.05;
   max-width: 38rem;
 }
@@ -113,7 +266,7 @@ body {
 }
 
 .quran-page {
-  background: #eef3f8;
+  background: transparent;
   border-radius: 16px 16px 0 0;
 }
 
@@ -131,24 +284,111 @@ body {
   bottom: 100%;
   left: -2rem;
   height: 4rem;
-  background: #faf6ec;
+  background: #F8F5EC;
 }
 
 .quran-header-card {
-  background: #e7eef6;
-  border: 1px solid #c5d4e8;
+  background: #F8F5EC;
+  border: 1px solid #e4dcc6;
   border-radius: 16px;
   overflow: hidden;
 }
 
+.quran-player-time {
+  margin-left: auto;
+}
+
+.quran-player-track {
+  display: none;
+}
+
 @media (min-width: 640px) {
-  .quran-bismillah-block {
-    margin-inline: -1.5rem;
+  .quran-player-time {
+    margin-left: 0;
   }
 
-  .quran-bismillah-meaning {
-    margin-inline: 1.5rem;
+  .quran-player-track {
+    position: relative;
+    display: flex;
+    height: 1rem;
+    min-width: 0;
+    flex: 1 1 auto;
+    align-items: center;
   }
+
+  .quran-player-track::before {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 4px;
+    border-radius: 999px;
+    background: #c5ced8;
+  }
+
+  .quran-player-fill {
+    position: absolute;
+    left: 0;
+    width: 0;
+    height: 4px;
+    border-radius: 999px;
+    background: #8ea0b5;
+  }
+
+  .quran-player-knob {
+    position: absolute;
+    top: 50%;
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: #7f93a8;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@media (max-width: 639px) {
+  .quran-header-plate .quran-plate-copy {
+    display: flex;
+    min-height: 26.25rem;
+    flex-direction: column;
+  }
+
+  .quran-header-plate .quran-bismillah-block {
+    margin-top: auto;
+    padding-top: 0.85rem;
+  }
+}
+
+@media (min-width: 640px) {
+  .quran-header-plate .quran-plate-copy {
+    display: flex;
+    min-height: 34rem;
+    flex-direction: column;
+  }
+
+  .quran-header-plate .quran-bismillah-block {
+    margin-top: auto;
+    padding-top: 1.25rem;
+  }
+
+  .quran-plate-line { inset: 0.85rem; }
+  .quran-plate-tl { width: 9.25rem; }
+  .quran-plate-tr { width: 16rem; }
+  .quran-plate-bl { width: 18rem; }
+  .quran-plate-br { width: 8.75rem; }
+  .quran-plate-mark { width: 3rem; }
+  .quran-plate-mark-top { top: 0.4rem; }
+  .quran-plate-mark-bottom { bottom: 0.4rem; }
+  .quran-plate-copy { padding: 2.1rem 2rem 1.35rem 2.15rem; }
+  .quran-plate-lead { max-width: calc(100% - 10rem); }
+  .quran-surah-arabic { font-size: 3rem; }
+  .quran-surah-name { font-size: 1.875rem; }
+  .quran-surah-sub { font-size: 1.125rem; }
+  .quran-bismillah-script { width: min(100%, 40rem); }
+  .quran-bismillah-meaning { max-width: 40rem; margin-top: 0.85rem; }
+}
+
+@media (max-width: 639px) {
+  .quran-bismillah-script { width: 100%; }
 }
 
 .quran-ayah-mark {
@@ -329,53 +569,71 @@ body {
   }
 }
 
-/* Desk links: a soft fill and a gold edge. The nudge only runs when motion is allowed. */
+/* Desk links: ivory tiles, emerald strokes, and a cream row with a gold edge when selected. */
 .kf-nav-side,
 .kf-nav-dock {
   border-color: transparent;
-  color: rgb(250 246 236 / 0.8);
+  color: #F5EEDC;
 }
 
-.kf-nav-side svg,
-.kf-nav-dock svg {
-  color: rgb(250 246 236 / 0.7);
+.kf-nav-tile {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #F5EEDC;
+  color: #0B4B3A;
+  box-shadow: inset 0 0 0 1px rgb(198 161 90 / 0.35);
 }
 
-.kf-nav-side:hover,
-.kf-nav-dock:hover {
-  border-color: #c9a14e;
-  background-color: rgb(255 255 255 / 0.1);
-  color: #faf6ec;
+.kf-nav-tile svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.kf-nav-side[aria-current='page'],
+.kf-nav-dock .kf-nav-tile {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+
+.kf-nav-dock .kf-nav-tile svg {
+  width: 16px;
+  height: 16px;
+}
+
+.kf-nav-side:hover {
+  background: rgb(245 238 220 / 0.12);
+  color: #F5EEDC;
+}
+
+.kf-nav-side[aria-current='page'] {
+  border-color: #C6A15A;
+  background: #F5EEDC;
+  color: #0B4B3A;
+  box-shadow: none;
+}
+
+.kf-nav-side[aria-current='page'] .kf-nav-tile {
+  box-shadow: inset 0 0 0 1.5px #C6A15A;
+}
+
 .kf-nav-dock[aria-current='page'] {
-  border-color: #c9a14e;
-  background-color: rgb(230 198 101 / 0.16);
-  box-shadow: inset 0 0 0 1px rgb(230 198 101 / 0.22);
-  color: #faf6ec;
-}
-
-.kf-nav-side:hover svg,
-.kf-nav-dock:hover svg,
-.kf-nav-side[aria-current='page'] svg,
-.kf-nav-dock[aria-current='page'] svg {
-  color: #f6e4b4;
+  border-color: #C6A15A;
+  color: #F6E7C1;
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .kf-nav-side,
   .kf-nav-dock {
-    transition: transform 200ms ease, background-color 200ms ease, border-color 200ms ease, color 200ms ease;
-  }
-
-  .kf-nav-side:hover,
-  .kf-nav-side[aria-current='page'] {
-    transform: translateX(3px);
-  }
-
-  .kf-nav-dock:hover,
-  .kf-nav-dock[aria-current='page'] {
-    transform: translateY(-2px);
+    transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
   }
 }
