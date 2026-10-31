@@ -356,7 +356,10 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
       <AskPanel />
       <ScholarDraft focus={sub === 'scholar'} />
 
-      <Card>
+      <section data-study-themes className="relative overflow-hidden rounded-3xl border border-[#C9A14E]/50 bg-[#F6F1E4] p-5 shadow-sm sm:p-6">
+        <img src="/assets/geometric-cream.jpg" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
+        <div className="pointer-events-none absolute inset-0 bg-[#F6F1E4]/80" />
+        <div className="relative">
         {topic ? (
           <>
             <Button variant="ghost" onClick={() => setTopicId(null)} className="-ml-3 mb-2">
@@ -376,18 +379,23 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
                   <button
                     key={item.id}
                     type="button"
+                    data-theme-card
                     onClick={() => setTopicId(item.id)}
-                    className="rounded-2xl border border-pine/15 bg-sand p-4 text-left transition hover:border-gold"
+                    className="kf-theme-card relative overflow-hidden rounded-2xl border border-[#C9A14E]/50 bg-[#F6F1E4] p-4 text-left"
                   >
-                    <span className="block font-semibold text-pine">{item.title[lang]}</span>
-                    <span className="mt-1 block text-xs text-muted">{item.refs.join(' · ')}</span>
+                    <img src="/assets/geometric-cream.jpg" alt="" className="kf-theme-plate pointer-events-none absolute inset-0 h-full w-full object-cover" />
+                    <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(165deg,rgba(246,241,228,0.94)_0%,rgba(246,241,228,0.84)_62%,rgba(246,241,228,0.58)_100%)]" />
+                    <span className="kf-theme-sheen" aria-hidden="true" />
+                    <span lang={lang} className="relative block font-semibold leading-snug text-[#123A2E]">{item.title[lang]}</span>
+                    <span className="relative mt-1 block text-xs leading-relaxed text-[#1f3a32]">{item.refs.join(' · ')}</span>
                   </button>
                 ))}
               </div>
             )}
           </>
         )}
-      </Card>
+        </div>
+      </section>
 
       <section ref={savedRef} id="saved" className="scroll-mt-28">
         <Card>

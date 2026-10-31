@@ -286,13 +286,14 @@ function Library({
         </header>
       )}
       {section === 'home' && (
-        <section data-continue-reading className="relative overflow-hidden rounded-3xl border border-[#D4AF37]/40 bg-[#064936] shadow-sm">
+        <section data-continue-reading className="relative overflow-hidden rounded-3xl border border-[#D4AF37]/55 bg-[#064936] shadow-sm">
           <img
-            src="/assets/geometric-studio.jpg"
+            src="/assets/geometric-worship.jpg"
             alt=""
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-right"
+            className="pointer-events-none absolute inset-y-0 left-0 h-full w-[170%] max-w-none object-cover object-[0%_100%]"
           />
-          <div className="relative max-w-[78%] px-5 py-5 sm:max-w-xl sm:px-6 sm:py-6">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-l from-[#041910]/92 via-[#05241c]/72 to-[#041910]/8" />
+          <div className="relative ml-auto max-w-[74%] px-5 py-5 sm:max-w-xl sm:px-6 sm:py-6">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#E6C665]">{t.continueReading}</p>
             <h3 className="mt-2 font-display text-2xl font-bold text-[#F9E7B9]">{current ? current.englishName : `${t.surahs} ${displaySurah(surah)}`}</h3>
             {current && (
