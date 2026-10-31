@@ -371,16 +371,25 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
             {topics.length === 0 ? (
               <EmptyState>{t.noResults}</EmptyState>
             ) : (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" data-theme-plates>
                 {topics.map(item => (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => setTopicId(item.id)}
-                    className="rounded-2xl border border-pine/15 bg-sand p-4 text-left transition hover:border-gold"
+                    className="theme-plate relative min-h-[6.5rem] overflow-hidden rounded-2xl border border-[#1F6B52]/30 bg-[#F7F1E4] p-3.5 text-left sm:p-4"
                   >
-                    <span className="block font-semibold text-pine">{item.title[lang]}</span>
-                    <span className="mt-1 block text-xs text-muted">{item.refs.join(' · ')}</span>
+                    <img
+                      src="/assets/geometric-cream.jpg"
+                      alt=""
+                      className="pointer-events-none absolute inset-0 h-full w-full -scale-x-100 object-cover object-[8%_100%]"
+                    />
+                    <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(105deg,rgba(247,241,228,0.96)_0%,rgba(247,241,228,0.9)_46%,rgba(247,241,228,0.55)_78%,rgba(247,241,228,0.28)_100%)]" />
+                    <span className="theme-plate-sheen" aria-hidden="true" />
+                    <span lang={lang} className="relative z-10 block pr-6 font-semibold leading-snug text-pine">
+                      {item.title[lang]}
+                    </span>
+                    <span className="relative z-10 mt-1 block pr-8 text-xs leading-relaxed text-muted">{item.refs.join(' · ')}</span>
                   </button>
                 ))}
               </div>

@@ -145,6 +145,77 @@ body {
   outline-offset: 2px;
 }
 
+/* Study-by-theme cards: a quiet emerald-and-gold plate, one slow sheen, and a soft lift. */
+.theme-plate {
+  isolation: isolate;
+}
+
+.theme-plate-sheen {
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  left: 0;
+  z-index: 1;
+  width: 42%;
+  pointer-events: none;
+  background: linear-gradient(
+    102deg,
+    transparent 0%,
+    rgba(6, 73, 54, 0.03) 34%,
+    rgba(249, 231, 185, 0.42) 50%,
+    rgba(6, 73, 54, 0.05) 66%,
+    transparent 100%
+  );
+  transform: translateX(-170%);
+  animation: theme-plate-sheen 12s ease-in-out infinite;
+}
+
+.theme-plate:nth-child(2n) .theme-plate-sheen {
+  animation-delay: -4s;
+}
+
+.theme-plate:nth-child(3n) .theme-plate-sheen {
+  animation-delay: -8s;
+}
+
+@keyframes theme-plate-sheen {
+  0%,
+  38% {
+    transform: translateX(-170%);
+    opacity: 0;
+  }
+  52% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(320%);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .theme-plate {
+    transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+  }
+
+  .theme-plate:hover {
+    transform: translateY(-2px);
+    border-color: #c9a14e;
+    box-shadow: 0 10px 22px rgba(6, 73, 54, 0.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-plate-sheen {
+    animation: none !important;
+    opacity: 0;
+  }
+
+  .theme-plate:hover {
+    transform: none;
+  }
+}
+
 /* Featured book portrait: a slow tilt and one soft sheen. The shelf covers stay still. */
 .featured-cover-stage {
   perspective: 800px;
