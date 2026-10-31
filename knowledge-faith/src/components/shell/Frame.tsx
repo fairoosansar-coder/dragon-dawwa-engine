@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { BookOpen, Bookmark, Library, Lightbulb, Mic, MoonStar, LibraryBig, type LucideIcon } from 'lucide-react';
 import { LANGS, LANGUAGE_NAMES, toLang } from '../../shared/sources.ts';
 import type { RouteRoot } from '../../lib/route.ts';
 import { useShell } from '../../lib/shell.tsx';
@@ -8,6 +7,7 @@ import type { Strings } from '../../lib/i18n.ts';
 import { useAudioState } from '../../lib/audio.ts';
 import { buildStamp } from '../../buildStamp.ts';
 import { BrandLockup } from './Brand.tsx';
+import { StudioMark, type StudioMarkName } from './studioMarks.tsx';
 import { AudioMiniPlayer, DeskHeaderTabs } from './widgets.tsx';
 
 interface NavItem {
@@ -15,7 +15,7 @@ interface NavItem {
   href: string;
   short: keyof Strings;
   side?: keyof Strings;
-  icon: LucideIcon;
+  mark: StudioMarkName;
 }
 
 function ReleaseMark({ className }: { className: string }) {
@@ -29,12 +29,12 @@ function ReleaseMark({ className }: { className: string }) {
 }
 
 const NAV: NavItem[] = [
-  { path: 'hub', href: '#/hub', short: 'navKnowledge', icon: Lightbulb },
-  { path: 'quran', href: '#/quran', short: 'navQuranShort', icon: BookOpen },
-  { path: 'hadith', href: '#/hadith', short: 'navHadithShort', icon: Library },
-  { path: 'books', href: '#/books', short: 'navBooks', icon: LibraryBig },
-  { path: 'spiritual', href: '#/spiritual', short: 'navWorship', side: 'navWorship', icon: MoonStar },
-  { path: 'podcast', href: '#/podcast', short: 'navPodcast', icon: Mic },
+  { path: 'hub', href: '#/hub', short: 'navKnowledge', mark: 'knowledge' },
+  { path: 'quran', href: '#/quran', short: 'navQuranShort', mark: 'quran' },
+  { path: 'hadith', href: '#/hadith', short: 'navHadithShort', mark: 'hadith' },
+  { path: 'books', href: '#/books', short: 'navBooks', mark: 'books' },
+  { path: 'spiritual', href: '#/spiritual', short: 'navWorship', side: 'navWorship', mark: 'worship' },
+  { path: 'podcast', href: '#/podcast', short: 'navPodcast', mark: 'podcast' },
 ];
 
 function navLinkClass(place: 'side' | 'dock') {
@@ -78,7 +78,7 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
                   aria-current={active ? 'page' : undefined}
                   className={navLinkClass('side')}
                 >
-                  <item.icon className="h-4 w-4 shrink-0" aria-hidden />
+                  <StudioMark name={item.mark} className="h-6 w-6 shrink-0 rounded-md" />
                   {t[item.side ?? item.short]}
                 </a>
               );
@@ -86,7 +86,7 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
           </nav>
           <div className="mt-auto border-t border-gold/40 px-3 py-4">
             <a href="#/hub/saved" className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-sand/80 hover:bg-white/5">
-              <Bookmark className="h-4 w-4" aria-hidden /> {t.sidebarSaved}
+              <StudioMark name="saved" className="h-6 w-6 shrink-0 rounded-md" /> {t.sidebarSaved}
             </a>
             <a href="#/hub/scholar" className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-sand/80 hover:bg-white/5">
               {t.sidebarQuestion}
@@ -149,7 +149,7 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
                     aria-current={active ? 'page' : undefined}
                     className={navLinkClass('dock')}
                   >
-                    <item.icon className="h-4 w-4 shrink-0" aria-hidden />
+                    <StudioMark name={item.mark} className="h-5 w-5 shrink-0 rounded-md" />
                     <span className="max-w-full truncate">{t[item.short]}</span>
                   </a>
                 </li>

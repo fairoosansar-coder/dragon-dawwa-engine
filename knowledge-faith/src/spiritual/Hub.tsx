@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Calculator, Clock, Compass, Library, ListChecks, Moon, Settings, Sparkles, type LucideIcon } from 'lucide-react';
+import { Settings } from 'lucide-react';
+import { StudioMark, type StudioMarkName } from '../components/shell/studioMarks.tsx';
 import { useShell } from '../lib/shell.tsx';
 import { useRemote } from '../lib/api.ts';
 import { useStored } from '../lib/store.tsx';
@@ -12,22 +13,22 @@ import { Geometry, Panel, useSp } from './chrome.tsx';
 import { useCalendarPrefs } from './FastingView.tsx';
 import { usePlace } from './place.ts';
 import { useBookmarks, useGuideProgress } from './GuideView.tsx';
-const PILLARS = [
-  { id: 'shahadah', href: '#/spiritual/shahadah', guides: ['shahadah'] },
-  { id: 'salah', href: '#/spiritual/salah', guides: ['salah', 'salah-learn', 'salah-purification'] },
-  { id: 'zakah', href: '#/spiritual/zakah', guides: ['zakah', 'zakah-recipients'] },
-  { id: 'fasting', href: '#/spiritual/fasting', guides: ['fasting'] },
-  { id: 'hajj', href: '#/spiritual/hajj', guides: ['hajj', 'umrah'] },
+const PILLARS: { id: string; href: string; guides: string[]; plate: string }[] = [
+  { id: 'shahadah', href: '#/spiritual/shahadah', guides: ['shahadah'], plate: '/assets/pillar-shahadah.jpg' },
+  { id: 'salah', href: '#/spiritual/salah', guides: ['salah', 'salah-learn', 'salah-purification'], plate: '/assets/pillar-salah.jpg' },
+  { id: 'zakah', href: '#/spiritual/zakah', guides: ['zakah', 'zakah-recipients'], plate: '/assets/pillar-zakah.jpg' },
+  { id: 'fasting', href: '#/spiritual/fasting', guides: ['fasting'], plate: '/assets/pillar-sawm.jpg' },
+  { id: 'hajj', href: '#/spiritual/hajj', guides: ['hajj', 'umrah'], plate: '/assets/pillar-hajj.jpg' },
 ];
 
-const TOOLS: { href: string; key: 'prayerTimes' | 'qibla' | 'toolZakah' | 'toolFasting' | 'toolDua' | 'sourceLibrary' | 'toolChecklist'; icon: LucideIcon }[] = [
-  { href: '#/spiritual/salah/times', key: 'prayerTimes', icon: Clock },
-  { href: '#/spiritual/salah/qibla', key: 'qibla', icon: Compass },
-  { href: '#/spiritual/zakah/calculator', key: 'toolZakah', icon: Calculator },
-  { href: '#/spiritual/fasting/calendar', key: 'toolFasting', icon: Moon },
-  { href: '#/spiritual/dua-dhikr', key: 'toolDua', icon: Sparkles },
-  { href: '#/spiritual/library', key: 'sourceLibrary', icon: Library },
-  { href: '#/spiritual/hajj/checklist', key: 'toolChecklist', icon: ListChecks },
+const TOOLS: { href: string; key: 'prayerTimes' | 'qibla' | 'toolZakah' | 'toolFasting' | 'toolDua' | 'sourceLibrary' | 'toolChecklist'; mark: StudioMarkName }[] = [
+  { href: '#/spiritual/salah/times', key: 'prayerTimes', mark: 'prayerTimes' },
+  { href: '#/spiritual/salah/qibla', key: 'qibla', mark: 'qibla' },
+  { href: '#/spiritual/zakah/calculator', key: 'toolZakah', mark: 'zakahCalc' },
+  { href: '#/spiritual/fasting/calendar', key: 'toolFasting', mark: 'fastingCalendar' },
+  { href: '#/spiritual/dua-dhikr', key: 'toolDua', mark: 'dua' },
+  { href: '#/spiritual/library', key: 'sourceLibrary', mark: 'library' },
+  { href: '#/spiritual/hajj/checklist', key: 'toolChecklist', mark: 'checklist' },
 ];
 
 interface TodayPrefs {
@@ -78,16 +79,20 @@ export function Hub() {
             const title = guide ? text(guide.title, lang) : pillar.id;
             const summary = guide ? text(guide.summary, lang) : '';
             return (
-              <a key={pillar.id} href={pillar.href} className="flex min-h-44 flex-col gap-3 rounded-3xl border border-dd-emerald/10 bg-white p-4 shadow-sm hover:border-dd-gold">
-                <Geometry name={pillar.id} />
-                <span className="font-display text-xl font-bold text-dd-emerald">{title}</span>
-                <span className="text-sm leading-snug text-dd-ink/80">{summary}</span>
-                <span className="mt-auto text-sm font-semibold text-dd-emerald">{s.open}</span>
-                {opened > 0 && (
-                  <span className="text-xs text-dd-ink/60">
-                    {s.progressOpened}: {opened}
-                  </span>
-                )}
+              <a key={pillar.id} href={pillar.href} className="relative flex min-h-44 flex-col overflow-hidden rounded-3xl border border-dd-emerald/10 bg-[#F7F1E4] p-4 shadow-sm hover:border-dd-gold">
+                <img src={pillar.plate} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover object-right-top" />
+                <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(251,246,234,0.18)_0%,rgba(251,246,234,0.9)_36%,rgba(251,246,234,0.96)_100%)]" />
+                <span className="relative z-10 flex min-h-0 flex-1 flex-col gap-3">
+                  <Geometry name={pillar.id} />
+                  <span className="pr-10 font-display text-xl font-bold text-dd-emerald">{title}</span>
+                  <span className="pr-6 text-sm leading-snug text-dd-ink/80">{summary}</span>
+                  <span className="mt-auto text-sm font-semibold text-dd-emerald">{s.open}</span>
+                  {opened > 0 && (
+                    <span className="text-xs text-dd-ink/60">
+                      {s.progressOpened}: {opened}
+                    </span>
+                  )}
+                </span>
               </a>
             );
           })}
@@ -97,17 +102,12 @@ export function Hub() {
       <section aria-label={s.tools}>
         <h2 className="mb-3 font-display text-2xl font-bold text-dd-emerald">{s.tools}</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {TOOLS.map(tool => {
-            const Icon = tool.icon;
-            return (
-              <a key={tool.href} href={tool.href} className="flex min-h-16 items-center gap-3 rounded-2xl border border-dd-emerald/10 bg-white px-4 py-3 leading-snug text-dd-ink shadow-sm transition-colors hover:border-dd-gold">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-dd-emerald/10 text-dd-emerald">
-                  <Icon className="h-5 w-5" aria-hidden />
-                </span>
-                <span className="font-semibold">{s[tool.key]}</span>
-              </a>
-            );
-          })}
+          {TOOLS.map(tool => (
+            <a key={tool.href} href={tool.href} className="flex min-h-16 items-center gap-3 rounded-2xl border border-dd-emerald/10 bg-white px-4 py-3 leading-snug text-dd-ink shadow-sm transition-colors hover:border-dd-gold">
+              <StudioMark name={tool.mark} className="h-11 w-11 shrink-0 rounded-xl" />
+              <span className="font-semibold">{s[tool.key]}</span>
+            </a>
+          ))}
         </div>
       </section>
       <Continue />

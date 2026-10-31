@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { ArrowLeft, BookOpen, Check, Copy, Library, MoonStar, Search, Sparkles } from 'lucide-react';
+import { ArrowLeft, Check, Copy, Search, Sparkles } from 'lucide-react';
+import { StudioMark } from '../components/shell/studioMarks.tsx';
 import type { ViewProps } from '../App.tsx';
 import { TOPICS, verseOfTheDay } from '../shared/topics.ts';
 import type { AskResult, Hadith, SurahInfo, Verse } from '../shared/types.ts';
@@ -204,10 +205,10 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
   }, [sub]);
 
   const cards = [
-    { href: '#/quran', title: t.cardQuran, body: t.cardQuranBody, icon: <BookOpen className="h-5 w-5" aria-hidden /> },
-    { href: '#/hadith', title: t.cardHadith, body: t.cardHadithBody, icon: <Library className="h-5 w-5" aria-hidden /> },
-    { href: '#/spiritual', title: t.cardPillars, body: t.cardPillarsBody, icon: <MoonStar className="h-5 w-5" aria-hidden /> },
-    { href: '#/podcast', title: t.cardPodcast, body: t.cardPodcastBody, icon: <Sparkles className="h-5 w-5" aria-hidden /> },
+    { href: '#/quran', title: t.cardQuran, body: t.cardQuranBody, icon: <StudioMark name="quran" className="h-11 w-11 rounded-xl" /> },
+    { href: '#/hadith', title: t.cardHadith, body: t.cardHadithBody, icon: <StudioMark name="hadith" className="h-11 w-11 rounded-xl" /> },
+    { href: '#/spiritual', title: t.cardPillars, body: t.cardPillarsBody, icon: <StudioMark name="worship" className="h-11 w-11 rounded-xl" /> },
+    { href: '#/podcast', title: t.cardPodcast, body: t.cardPodcastBody, icon: <StudioMark name="podcast" className="h-11 w-11 rounded-xl" /> },
   ].filter(card => !q || card.title.toLowerCase().includes(q) || card.body.toLowerCase().includes(q));
 
   async function research(event: FormEvent, clarified = false) {
@@ -318,9 +319,9 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
       <section className="space-y-3">
         <SectionTitle sub={t.pathNote}>{t.pathsTitle}</SectionTitle>
         <div className="grid gap-4 sm:grid-cols-3">
-          <FeatureCard href="#/hub/discover" title={t.discoverTitle} body={t.discoverBody} icon={<BookOpen className="h-5 w-5" aria-hidden />} />
-          <FeatureCard href="#/hub/deepen" title={t.deepenTitle} body={t.deepenBody} icon={<Library className="h-5 w-5" aria-hidden />} />
-          <FeatureCard href="#/hub/prophet" title={t.prophetTitle} body={t.prophetBody} icon={<MoonStar className="h-5 w-5" aria-hidden />} />
+          <FeatureCard href="#/hub/discover" title={t.discoverTitle} body={t.discoverBody} icon={<StudioMark name="discover" className="h-11 w-11 rounded-xl" />} />
+          <FeatureCard href="#/hub/deepen" title={t.deepenTitle} body={t.deepenBody} icon={<StudioMark name="deepen" className="h-11 w-11 rounded-xl" />} />
+          <FeatureCard href="#/hub/prophet" title={t.prophetTitle} body={t.prophetBody} icon={<StudioMark name="prophet" className="h-11 w-11 rounded-xl" />} />
         </div>
       </section>
 

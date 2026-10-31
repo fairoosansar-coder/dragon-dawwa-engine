@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { StudioMark, type StudioMarkName } from '../components/shell/studioMarks.tsx';
 import { useApp } from '../lib/store.tsx';
 import { SP, type SpStrings } from './i18n.ts';
 import { text, type Copy } from './content.ts';
@@ -42,23 +43,16 @@ export function Prose({ copy }: { copy: Copy }) {
   );
 }
 
-const MARKS: Record<string, string> = {
-  shahadah: 'M60 18 L68 46 L96 46 L74 64 L82 94 L60 76 L38 94 L46 64 L24 46 L52 46 Z',
-  salah: 'M78 36 A28 28 0 1 0 78 84 A22 22 0 1 1 78 36',
-  zakah: 'M60 22 L96 60 L60 98 L24 60 Z',
-  fasting: 'M74 28 A30 30 0 1 0 74 92 A22 22 0 1 1 74 28',
-  hajj: 'M34 78 V46 H86 V78 M48 78 V58 H72 V78 M60 34 V46',
+const PILLAR_MARK: Record<string, StudioMarkName> = {
+  shahadah: 'shahadah',
+  salah: 'salah',
+  zakah: 'zakah',
+  fasting: 'sawm',
+  hajj: 'hajj',
 };
 
 export function Geometry({ name }: { name: string }) {
-  const path = MARKS[name] ?? MARKS.shahadah;
-  return (
-    <svg viewBox="0 0 120 120" className="h-16 w-16 shrink-0" aria-hidden>
-      <rect width="120" height="120" rx="28" fill="#064936" />
-      <circle cx="60" cy="60" r="40" fill="none" stroke="#C9A14E" strokeWidth="2" />
-      <path d={path} fill="none" stroke="#F3E6C2" strokeWidth="2.5" strokeLinejoin="round" />
-    </svg>
-  );
+  return <StudioMark name={PILLAR_MARK[name] ?? 'shahadah'} className="h-16 w-16 shrink-0 rounded-2xl shadow-sm" />;
 }
 
 export function Panel({ children, className = '' }: { children: ReactNode; className?: string }) {
