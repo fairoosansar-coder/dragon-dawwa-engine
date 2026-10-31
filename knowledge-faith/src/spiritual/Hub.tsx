@@ -79,19 +79,23 @@ export function Hub() {
             const title = guide ? text(guide.title, lang) : pillar.id;
             const summary = guide ? text(guide.summary, lang) : '';
             return (
-              <a key={pillar.id} href={pillar.href} className="relative flex min-h-44 flex-col overflow-hidden rounded-3xl border border-dd-emerald/10 bg-[#F7F1E4] p-4 shadow-sm hover:border-dd-gold">
+              <a key={pillar.id} href={pillar.href} className="relative flex min-h-48 flex-col overflow-hidden rounded-3xl border border-dd-emerald/10 bg-[#F7F1E4] p-4 shadow-sm hover:border-dd-gold">
                 <img src={pillar.plate} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover object-right-top" />
                 <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(251,246,234,0.18)_0%,rgba(251,246,234,0.9)_36%,rgba(251,246,234,0.96)_100%)]" />
-                <span className="relative z-10 flex min-h-0 flex-1 flex-col gap-3">
-                  <Geometry name={pillar.id} />
-                  <span className="pr-10 font-display text-xl font-bold text-dd-emerald">{title}</span>
-                  <span className="pr-6 text-sm leading-snug text-dd-ink/80">{summary}</span>
-                  <span className="mt-auto text-sm font-semibold text-dd-emerald">{s.open}</span>
-                  {opened > 0 && (
-                    <span className="text-xs text-dd-ink/60">
-                      {s.progressOpened}: {opened}
+                <span className="relative z-10 flex min-h-0 flex-1 flex-col gap-2">
+                  <span lang={lang} className="pr-8 font-display text-xl font-bold leading-snug text-dd-emerald xl:text-lg">{title}</span>
+                  <span lang={lang} className="text-sm leading-snug text-dd-ink/80">{summary}</span>
+                  <span className="mt-auto flex items-end justify-between gap-3 pt-3">
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold leading-snug text-dd-emerald">{s.open}</span>
+                      {opened > 0 && (
+                        <span className="mt-1 block text-xs text-dd-ink/60">
+                          {s.progressOpened}: {opened}
+                        </span>
+                      )}
                     </span>
-                  )}
+                    <Geometry name={pillar.id} className="h-14 w-14 shrink-0 rounded-2xl shadow-sm" />
+                  </span>
                 </span>
               </a>
             );
