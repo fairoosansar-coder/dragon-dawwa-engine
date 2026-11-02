@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" role="img" aria-labelledby="books-title">
+  <title id="books-title">Books — staggered volumes</title>
+  <rect class="dd-primary-fill" x="3.5" y="8" width="5.5" height="19.5" rx="1" fill="#F5F1E7"/>
+  <rect class="dd-primary-fill" x="11" y="4.5" width="6" height="23" rx="1" fill="#F5F1E7"/>
+  <path class="dd-primary-fill" fill="#F5F1E7" d="M20.4 7.8L24.6 6.7C25.1 6.6 25.6 6.9 25.8 7.4L30 24.5C30.1 25 29.8 25.5 29.3 25.7L25.1 26.8C24.6 26.9 24.1 26.6 24 26.1L19.7 9C19.6 8.5 19.9 8 20.4 7.8Z"/>
+  <path class="dd-accent-stroke" d="M13.9 8V23.5" stroke="#C9A660"/>
+</svg>

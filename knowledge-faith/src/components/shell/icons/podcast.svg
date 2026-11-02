@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" role="img" aria-labelledby="podcast-title">
+  <title id="podcast-title">Podcast — opposing voices</title>
+  <path class="dd-primary-stroke" d="M8 5C2 10 2 22 8 27M11 9C7 12 7 20 11 23M24 5C30 10 30 22 24 27M21 9C25 12 25 20 21 23" stroke="#F5F1E7"/>
+  <path class="dd-accent-fill" fill="#C9A660" d="M16 12L20 16L16 20L12 16Z"/>
+</svg>
