@@ -39,7 +39,7 @@ const NAV: NavItem[] = [
 
 function navLinkClass(place: 'side' | 'dock') {
   return place === 'side'
-    ? 'kf-nav-side flex items-center gap-3 rounded-xl border-l-2 px-2.5 py-1.5 text-sm font-medium'
+    ? 'kf-nav-side flex min-h-12 items-center gap-3 rounded-xl border-l-2 px-2.5 py-1.5 text-sm font-medium'
     : 'kf-nav-dock flex min-h-12 w-full flex-col items-center justify-center gap-0.5 border-t-2 px-px py-1.5 text-center text-[10px] leading-none tracking-tight';
 }
 

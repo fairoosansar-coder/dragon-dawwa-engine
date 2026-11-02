@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" role="img" aria-labelledby="hadith-title">
+  <title id="hadith-title">Hadith — parchment with quotations</title>
+  <path class="dd-primary-fill" fill="#F5F1E7" fill-rule="evenodd" d="M9 5H24V25H8.5C2.5 25 2.5 17 8.5 17H9ZM8.5 19.2C6.1 19.2 6.1 22.8 8.5 22.8H21.5V21.1H8.5C7.8 21.1 7.8 20.9 8.5 20.9H22V19.2Z"/>
+  <path class="dd-primary-stroke" d="M9 5H25C26.7 5 27.5 6.1 27.5 7.5V10H24" stroke="#F5F1E7"/>
+  <path class="dd-accent-fill" fill="#C9A660" d="M11.6 9H15.2V12.4C15.2 14.1 14.2 15.3 12.5 15.9L11.7 14.4C12.7 14 13.2 13.5 13.2 12.7H11.6ZM17.5 9H21.1V12.4C21.1 14.1 20.1 15.3 18.4 15.9L17.6 14.4C18.6 14 19.1 13.5 19.1 12.7H17.5Z"/>
+</svg>
