@@ -3,7 +3,7 @@ import type { ViewProps } from '../App.tsx';
 import { RecordShare } from '../components/RecordShare.tsx';
 import { researchStudioHref } from './hadithEncyclopediaCopy.ts';
 import { EmptyState } from '../components/shell/widgets.tsx';
-import { Card, ErrorNote, Loading, SectionTitle } from '../components/ui.tsx';
+import { Card, ErrorNote, Loading, SectionTitle, SelectionWash } from '../components/ui.tsx';
 import { useRemote } from '../lib/api.ts';
 import { useShell } from '../lib/shell.tsx';
 import { useApp } from '../lib/store.tsx';
@@ -268,11 +268,12 @@ function ChildCategories({ categoryId }: { categoryId: string }) {
       <ul className="grid gap-2 sm:grid-cols-2">
         {data.categories.map(category => (
           <li key={category.id}>
-            <a href={`#/hadith/category/${category.id}?lang=${lang}`} className="block min-h-11 rounded-2xl border border-[#0E382B]/10 bg-[#FBF9F5] px-4 py-3 hover:border-emerald-700">
-              <span className="block font-medium text-pine" lang={lang}>
+            <a href={`#/hadith/category/${category.id}?lang=${lang}`} className="relative block min-h-11 overflow-hidden rounded-2xl border border-[#0E382B]/10 bg-[#FBF9F5] px-4 py-3 pr-14 hover:border-emerald-700">
+              <SelectionWash />
+              <span className="relative block font-medium text-pine" lang={lang}>
                 {category.title}
               </span>
-              <span className="text-xs text-muted">{category.count}</span>
+              <span className="relative text-xs text-muted">{category.count}</span>
             </a>
           </li>
         ))}
@@ -292,11 +293,12 @@ function Categories() {
       <ul className="grid gap-2 sm:grid-cols-2">
         {data?.categories.map(category => (
           <li key={category.id}>
-            <a href={`#/hadith/category/${category.id}?lang=${lang}`} className="block rounded-2xl border border-[#0E382B]/10 bg-[#FBF9F5] px-4 py-3 hover:border-emerald-700">
-              <span className="block font-medium text-pine" lang={lang}>
+            <a href={`#/hadith/category/${category.id}?lang=${lang}`} className="relative block overflow-hidden rounded-2xl border border-[#0E382B]/10 bg-[#FBF9F5] px-4 py-3 pr-14 hover:border-emerald-700">
+              <SelectionWash />
+              <span className="relative block font-medium text-pine" lang={lang}>
                 {category.title}
               </span>
-              <span className="text-xs text-muted">{category.count}</span>
+              <span className="relative text-xs text-muted">{category.count}</span>
             </a>
           </li>
         ))}
