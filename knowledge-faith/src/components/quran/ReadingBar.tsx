@@ -155,7 +155,7 @@ export function ReadingBar({
             type="button"
             data-reading-mode="verse"
             aria-pressed={verseByVerse}
-            className={`rounded-full px-3 py-1 text-sm ${verseByVerse ? 'bg-[#10233f] text-white' : 'text-[#1c3d66]'}`}
+            className={`rounded-full px-3 py-1 text-sm ${verseByVerse ? 'bg-[#16233B] text-white' : 'text-[#1c3d66]'}`}
             onClick={() => onVerseByVerse(true)}
           >
             {t.sheetVerseByVerse}
@@ -164,13 +164,13 @@ export function ReadingBar({
             type="button"
             data-reading-mode="reading"
             aria-pressed={!verseByVerse}
-            className={`rounded-full px-3 py-1 text-sm ${!verseByVerse ? 'bg-[#10233f] text-white' : 'text-[#1c3d66]'}`}
+            className={`rounded-full px-3 py-1 text-sm ${!verseByVerse ? 'bg-[#16233B] text-white' : 'text-[#1c3d66]'}`}
             onClick={() => onVerseByVerse(false)}
           >
             {t.sheetReading}
           </button>
         </div>
-        <div className={`inline-flex max-w-full items-center gap-1 rounded-full px-3 py-1 text-sm ${showTranslation ? 'bg-[#10233f] text-white' : 'border border-[#c5d0de] bg-white text-[#1c3d66]'}`}>
+        <div className={`inline-flex max-w-full items-center gap-1 rounded-full px-3 py-1 text-sm ${showTranslation ? 'bg-[#16233B] text-white' : 'border border-[#c5d0de] bg-white text-[#1c3d66]'}`}>
           <button type="button" data-translation-pill aria-pressed={showTranslation} onClick={() => onTranslation(!showTranslation)} className="min-w-0 text-left leading-tight">
             {translator || t.sheetTranslation}
           </button>

@@ -117,7 +117,9 @@ export function ReadingSheet({
   const page = selected && typeof selected.page === 'number' ? selected.page : null;
   const pageVerses = page == null ? verses : verses.filter(verse => verse.page === page);
   const listening = Boolean(audio.id?.startsWith('ayah-')) && (audio.status === 'playing' || audio.status === 'loading');
+  // Al-Fatiha’s first ayah is the basmala. At-Tawbah is not opened with one.
   const showBismillah = showArabic && info.number !== 1 && info.number !== 9 && pageVerses.some(verse => verse.ayah === 1);
+  const bismillahPlate = info.number % 2 === 0 ? 'blue' : 'cream';
   const editionKey = selected?.translationKey ?? '';
   const bismillah = useRemote<MeaningPayload>(showBismillah && editionKey ? `/api/quran/surah/1/meaning?lang=${lang}&edition=${encodeURIComponent(editionKey)}` : null);
   const bismillahLine = bismillah.data?.verses?.find(verse => verse.ayah === 1)?.translation?.trim() ?? '';
@@ -210,58 +212,85 @@ export function ReadingSheet({
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
     <article data-reading-sheet data-reader-scroll className="quran-page min-h-0 w-full flex-1 overflow-y-auto px-3 py-4 sm:px-6">
-      <header id="kf-surah-title" data-surah-header className="quran-header-card scroll-mt-4 px-4 py-5 sm:px-6">
-        <div className="flex items-center gap-4">
-          <p lang="ar" dir="rtl" data-surah-arabic className="quran-face text-4xl text-[#1a2744] sm:text-5xl">
-            {surahArabicTitle(info.name)}
-          </p>
-          <div>
-            <h2 className="font-[family-name:Fraunces,Georgia,serif] text-2xl font-semibold text-[#1a2744] sm:text-3xl">
-              {info.number}. Surah {info.englishName}
-            </h2>
-            <p className="text-lg text-[#314865]">{info.englishNameTranslation}</p>
+      <header
+        id="kf-surah-title"
+        data-surah-header
+        data-bismillah-plate={showBismillah ? bismillahPlate : undefined}
+        className={`quran-header-card scroll-mt-4 ${showBismillah ? 'quran-header-plate' : 'px-4 pb-3 pt-4 sm:px-6 sm:pt-5'}`}
+      >
+        {showBismillah && (
+          <div className="quran-plate-ornament" aria-hidden>
+            <span className="quran-plate-line" />
+            {(['tl', 'tr', 'bl', 'br'] as const).map(corner => (
+              <img key={corner} src={`/assets/bismillah-${bismillahPlate}-${corner}.png`} alt="" draggable={false} className={`quran-plate-corner quran-plate-${corner}`} />
+            ))}
+            {(['top', 'bottom', 'left', 'right'] as const).map(side => (
+              <img key={side} src={`/assets/bismillah-${bismillahPlate}-mark.png`} alt="" draggable={false} className={`quran-plate-mark quran-plate-mark-${side}`} />
+            ))}
           </div>
-        </div>
-        <p data-surah-sentence className="mt-3 max-w-3xl text-sm leading-relaxed text-[#314865]">
-          {sentence}
-        </p>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <button id="kf-listen" type="button" className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm font-medium text-[#1a2744] shadow-sm" onClick={onListen} disabled={pageVerses.length === 0}>
-            {listening ? <Pause className="h-3.5 w-3.5" aria-hidden /> : <Play className="h-3.5 w-3.5" aria-hidden />}
-            {listening ? t.sheetPause : t.sheetListen}
-          </button>
-          <button type="button" className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm font-medium text-[#1a2744] shadow-sm" aria-expanded={infoOpen} onClick={() => setInfoOpen(open => !open)}>
-            <Info className="h-3.5 w-3.5" aria-hidden />
-            {t.sheetInfo}
-          </button>
-        </div>
-        {infoOpen && (
-          <div data-surah-info className="mt-3 max-w-3xl space-y-1 text-sm leading-relaxed text-[#314865]">
-            {translator ? <p>{translator}</p> : null}
-            {reciters.length > 0 && (
-              <p>
-                {t.sheetReciters}: {reciters.map(item => item.name).join(', ')}
+        )}
+        <div className={showBismillah ? 'quran-plate-copy' : undefined}>
+          <div className={showBismillah ? 'quran-plate-lead' : undefined}>
+            <div className="quran-surah-id">
+              <p lang="ar" dir="rtl" data-surah-arabic className="quran-face quran-surah-arabic">
+                {surahArabicTitle(info.name)}
               </p>
+              <div className="min-w-0">
+                <h2 className="quran-surah-name">
+                  {info.number}. Surah {info.englishName}
+                </h2>
+                <p className="quran-surah-sub">{info.englishNameTranslation}</p>
+              </div>
+            </div>
+            <p data-surah-sentence className="quran-surah-sentence">
+              {sentence}
+            </p>
+            <div className="quran-plate-actions">
+              <button id="kf-listen" type="button" className="quran-btn quran-btn-listen" onClick={onListen} disabled={pageVerses.length === 0}>
+                {listening ? <Pause className="h-3.5 w-3.5" aria-hidden /> : <Play className="h-3.5 w-3.5" aria-hidden />}
+                {listening ? t.sheetPause : t.sheetListen}
+              </button>
+              <button type="button" className="quran-btn quran-btn-info" aria-expanded={infoOpen} onClick={() => setInfoOpen(open => !open)}>
+                <Info className="h-3.5 w-3.5" aria-hidden />
+                {t.sheetInfo}
+              </button>
+              <span className="quran-btn-rule" aria-hidden />
+              <button type="button" data-arabic-pill aria-pressed={showArabic} onClick={() => onArabic(!showArabic)} className="quran-btn-arabic">
+                {t.sheetArabic}
+              </button>
+            </div>
+            {infoOpen && (
+              <div data-surah-info className="mt-3 max-w-3xl space-y-1 text-sm leading-relaxed text-[#24344d]">
+                {translator ? <p>{translator}</p> : null}
+                {reciters.length > 0 && (
+                  <p>
+                    {t.sheetReciters}: {reciters.map(item => item.name).join(', ')}
+                  </p>
+                )}
+              </div>
             )}
           </div>
-        )}
-        <div className="mt-4">
-          <button type="button" data-arabic-pill aria-pressed={showArabic} onClick={() => onArabic(!showArabic)} className={pill(showArabic)}>
-            {t.sheetArabic}
-          </button>
+          {showBismillah && (
+            <div data-bismillah-block className="quran-bismillah-block scroll-mt-28">
+              <img
+                data-bismillah
+                src={`/assets/bismillah-${bismillahPlate}-script.png`}
+                alt={BISMILLAH}
+                lang="ar"
+                width={840}
+                height={bismillahPlate === 'blue' ? 131 : 171}
+                decoding="async"
+                draggable={false}
+                className="quran-bismillah-script"
+              />
+              {bismillahLine ? (
+                <p data-bismillah-meaning lang={lang} className="quran-bismillah-meaning">
+                  {bismillahLine}
+                </p>
+              ) : null}
+            </div>
+          )}
         </div>
-        {showBismillah && (
-          <div data-bismillah-block className="mt-6 scroll-mt-28 pt-3">
-            <p data-bismillah lang="ar" dir="rtl" className="quran-bismillah">
-              {BISMILLAH}
-            </p>
-            {bismillahLine ? (
-              <p data-bismillah-meaning lang={lang} className="mt-2 text-center text-sm text-[#314865]">
-                {bismillahLine}
-              </p>
-            ) : null}
-          </div>
-        )}
       </header>
 
       {showArabic && verseByVerse && (
@@ -387,7 +416,7 @@ export function ReadingSheet({
             type="button"
             data-player-play
             aria-label={listening ? t.sheetPause : t.sheetListen}
-            className="rounded-full bg-[#10233f] p-3 text-white"
+            className="rounded-full bg-[#16233B] p-3 text-white"
             onClick={onListen}
           >
             {listening ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
@@ -395,10 +424,14 @@ export function ReadingSheet({
           <button type="button" aria-label={t.playerNext} className="rounded-full p-2 text-[#1c3d66]" onClick={onNext}>
             <SkipForward className="h-5 w-5" />
           </button>
-          <p className="min-w-0 flex-1 text-sm text-[#1c3d66]">
+          <p className="shrink-0 text-sm text-[#16233B]">
             {playingAyah ? `${playingAyah.surah}:${playingAyah.ayah}` : selected ? `${selected.surah}:${selected.ayah}` : ''}
           </p>
-          <p data-player-time className="font-mono text-sm text-[#5c6b7a]">
+          <div className="quran-player-track" aria-hidden>
+            <span className="quran-player-fill" style={{ width: `${audio.duration > 0 ? Math.min(100, (audio.currentTime / audio.duration) * 100) : 0}%` }} />
+            <span className="quran-player-knob" style={{ left: audio.duration > 0 ? `${Math.min(100, Math.max(2, (audio.currentTime / audio.duration) * 100))}%` : '8px' }} />
+          </div>
+          <p data-player-time className="quran-player-time font-mono text-sm text-[#5c6b7a]">
             {clock(audio.currentTime)} / {clock(audio.duration)}
           </p>
         </div>
@@ -475,10 +508,6 @@ function TranslationPicker({ current, onClose, onChoose }: { current: string; on
       </div>
     </div>
   );
-}
-
-function pill(on: boolean): string {
-  return `rounded-full px-4 py-3 text-sm font-medium ${on ? 'bg-[#10233f] text-white' : 'bg-white text-[#1a2744]'}`;
 }
 
 function MenuButton({ children, onClick, pressed }: { children: ReactNode; onClick: () => void; pressed?: boolean }) {
