@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" role="img" aria-labelledby="question-title">
+  <title id="question-title">Prepare a question — quill and conversation</title>
+  <path class="dd-primary-stroke" d="M18 5.5H8C5.5 5.5 3.5 7.5 3.5 10V18C3.5 20.5 5.5 22.5 8 22.5H9V27L14 22.5H21C23.5 22.5 25.5 20.5 25.5 18V15.5" stroke="#F5F1E7"/>
+  <path class="dd-primary-fill" fill="#F5F1E7" fill-rule="evenodd" d="M14 19L18 9L28 3.8L25 13L16 21ZM17 17.7L23.8 7.7L24.6 8.3L17.8 18.3Z"/>
+  <path class="dd-accent-fill" fill="#C9A660" d="M14 19L16 21L11.5 24.5Z"/>
+</svg>

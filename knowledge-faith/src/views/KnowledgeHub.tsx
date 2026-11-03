@@ -298,9 +298,10 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
         <h1 className="mt-3 max-w-3xl font-display text-4xl font-bold leading-tight text-pine sm:text-5xl">{t.hubHeading}</h1>
       </header>
 
-      <section className="rounded-3xl bg-pine px-6 py-8 text-sand sm:px-8">
-        <h3 className="max-w-xl font-display text-3xl font-bold leading-tight">{t.hubHero}</h3>
-        <p className="mt-3 max-w-xl text-sm leading-relaxed text-sand/85">{t.hubHeroBody}</p>
+      <section className="kf-reflect relative overflow-hidden rounded-3xl bg-pine px-6 py-8 text-sand sm:px-8">
+        <div className="relative z-10 max-w-xl sm:max-w-[34rem]">
+        <h3 className="font-display text-3xl font-bold leading-tight">{t.hubHero}</h3>
+        <p className="mt-3 text-sm leading-relaxed text-sand/85">{t.hubHeroBody}</p>
         <div className="mt-6 flex flex-wrap gap-3">
           <a href="#/quran" className="inline-flex items-center rounded-full bg-moss px-4 py-2 text-sm font-medium text-white">
             {t.openQuran}
@@ -311,6 +312,10 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
           <a href="#/podcast" className="inline-flex items-center rounded-full border border-gold px-4 py-2 text-sm font-medium text-sand">
             {t.navPodcast}
           </a>
+        </div>
+        </div>
+        <div className="kf-reflect-art" aria-hidden>
+          <img src="/assets/geometric-carved-arch.jpg" alt="" />
         </div>
       </section>
 

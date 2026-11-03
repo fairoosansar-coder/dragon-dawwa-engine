@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" role="img" aria-labelledby="worship-title">
+  <title id="worship-title">Worship — mihrab and prayer mat</title>
+  <path class="dd-primary-stroke" d="M5 27.5V14C5 9.9 10.5 7.2 16 3.5C21.5 7.2 27 9.9 27 14V27.5M4 28H7M25 28H28" stroke="#F5F1E7"/>
+  <path class="dd-primary-fill" fill="#F5F1E7" d="M10 21.5H22C22.6 21.5 23 21.9 23 22.5V27H9V22.5C9 21.9 9.4 21.5 10 21.5Z"/>
+  <path class="dd-accent-fill" fill="#C9A660" d="M16 22.3L18.8 24.3L16 26.3L13.2 24.3Z"/>
+</svg>
