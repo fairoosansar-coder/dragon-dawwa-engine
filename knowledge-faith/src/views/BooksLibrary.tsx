@@ -315,7 +315,7 @@ function BookTile({ item, lang, onDetails }: { item: BookCard; lang: Lang; onDet
   const language = item.language === 'ta' || item.language === 'si' || item.language === 'en' ? item.language : lang;
   const credit = authorLine(item) ?? item.publisher;
   return (
-    <li className="min-w-0">
+    <li className="flex h-full min-w-0 flex-col">
       <button type="button" onClick={onDetails} className="block w-full text-left">
         <BookCover title={item.title} image={item.image} essential={item.essential} />
       </button>
@@ -324,7 +324,7 @@ function BookTile({ item, lang, onDetails }: { item: BookCard; lang: Lang; onDet
       </h3>
       {credit && <p className="mt-1 line-clamp-2 text-xs text-ink/70">{credit}</p>}
       <p className="mt-1 text-[11px] uppercase tracking-wide text-muted">{LANGUAGE_NAMES[language].english}</p>
-      <div className="mt-2 flex items-center gap-2">
+      <div className="mt-auto flex items-center gap-2 pt-2">
         <a href={`#/books/item/${item.id}`} className="inline-flex min-h-9 items-center rounded-full bg-moss px-3 text-xs font-semibold text-white">Read</a>
         <button type="button" onClick={onDetails} className="text-xs font-medium text-pine">Details</button>
       </div>
