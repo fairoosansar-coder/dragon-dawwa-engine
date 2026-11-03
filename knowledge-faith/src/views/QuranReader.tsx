@@ -286,22 +286,23 @@ function Library({
         </header>
       )}
       {section === 'home' && (
-        <section data-continue-reading className="relative overflow-hidden rounded-3xl border border-[#D4AF37]/40 bg-[#064936] shadow-sm">
+        <section data-continue-reading className="relative overflow-hidden rounded-3xl border border-[#D4AF37]/40 bg-[#13725A] shadow-sm">
           <img
-            src="/assets/geometric-studio.jpg"
+            src="/assets/geometric-worship.jpg"
             alt=""
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-right"
+            className="pointer-events-none absolute top-0 left-0 h-auto w-[62rem] max-w-none sm:w-[150rem]"
           />
-          <div className="relative max-w-[78%] px-5 py-5 sm:max-w-xl sm:px-6 sm:py-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#E6C665]">{t.continueReading}</p>
-            <h3 className="mt-2 font-display text-2xl font-bold text-[#F9E7B9]">{current ? current.englishName : `${t.surahs} ${displaySurah(surah)}`}</h3>
+          <div className="pointer-events-none absolute inset-y-0 left-8 w-24 bg-gradient-to-r from-transparent to-[#13725A] sm:left-[26%] sm:w-80" />
+          <div className="relative min-w-0 py-5 pr-4 pl-[8.5rem] sm:ml-[58%] sm:max-w-xl sm:py-6 sm:pr-8 sm:pl-2">
+            <p className="text-xs font-semibold uppercase leading-relaxed tracking-[0.12em] text-[#E6C665] sm:tracking-[0.18em]">{t.continueReading}</p>
+            <h3 className="mt-2 font-display text-2xl font-bold leading-tight text-[#F9E7B9]">{current ? current.englishName : `${t.surahs} ${displaySurah(surah)}`}</h3>
             {current && (
-              <p className="mt-1 text-sm text-stone-300">
+              <p className="mt-1 text-sm leading-snug text-stone-300">
                 {readingPlaceLabel(surah, ayah)} · {current.englishNameTranslation} · {current.numberOfAyahs}
               </p>
             )}
-            <Button className="mt-4 border border-[#E6C665]/50 bg-[#F6F1E4] text-[#0E382B] hover:bg-[#F9E7B9]" onClick={() => onOpen(surah, ayah, prefer)}>
-              {t.continueReading}
+            <Button className="mt-4 max-w-full whitespace-normal border border-[#E6C665]/50 bg-[#F6F1E4] text-left text-[#0E382B] hover:bg-[#F9E7B9]" onClick={() => onOpen(surah, ayah, prefer)}>
+              <span className="min-w-0 leading-snug">{t.continueReading}</span>
             </Button>
           </div>
         </section>

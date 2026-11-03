@@ -51,8 +51,8 @@ const PILLAR_MARK: Record<string, StudioMarkName> = {
   hajj: 'hajj',
 };
 
-export function Geometry({ name }: { name: string }) {
-  return <StudioMark name={PILLAR_MARK[name] ?? 'shahadah'} className="h-16 w-16 shrink-0 rounded-2xl shadow-sm" />;
+export function Geometry({ name, className = 'h-16 w-16 shrink-0 rounded-2xl shadow-sm' }: { name: string; className?: string }) {
+  return <StudioMark name={PILLAR_MARK[name] ?? 'shahadah'} className={className} />;
 }
 
 export function Panel({ children, className = '' }: { children: ReactNode; className?: string }) {
