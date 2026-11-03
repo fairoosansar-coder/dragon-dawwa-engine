@@ -8,6 +8,7 @@ import { useStored } from '../lib/store.tsx';
 import type { AskResult, Verse } from '../shared/types.ts';
 import { CitationChips, EvidenceList } from '../components/cards.tsx';
 import { VerseCard } from '../components/cards.tsx';
+import { SelectionWash } from '../components/ui.tsx';
 import { DHIKR, DUA_CATEGORIES, DUA_ENTRIES, PRAYER_TOPICS, text } from './content.ts';
 import { Banner, PageBack, Panel, control, useSp } from './chrome.tsx';
 import { useBookmarks, useGuideProgress } from './GuideView.tsx';
@@ -22,9 +23,10 @@ export function TopicsIndex({ segments }: { segments: string[] }) {
       <ul className="grid gap-3 sm:grid-cols-2">
         {PRAYER_TOPICS.map(topic => (
           <li key={topic.id}>
-            <a className="block min-h-16 rounded-2xl bg-white p-4 text-dd-emerald shadow-sm" href={`#/spiritual/salah/topics/${topic.id}`}>
-              {text(topic.title, lang)}
-              {topic.refs.length === 0 ? <span className="mt-1 block text-xs text-dd-ink/60">{s.withheld}</span> : null}
+            <a className="relative block min-h-16 overflow-hidden rounded-2xl bg-white p-4 pr-16 text-dd-emerald shadow-sm" href={`#/spiritual/salah/topics/${topic.id}`}>
+              <SelectionWash />
+              <span className="relative block">{text(topic.title, lang)}</span>
+              {topic.refs.length === 0 ? <span className="relative mt-1 block text-xs text-dd-ink/60">{s.withheld}</span> : null}
             </a>
           </li>
         ))}

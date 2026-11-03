@@ -6,7 +6,7 @@ import { useApp } from '../lib/store.tsx';
 import { knowledgePath } from '../shared/sourceRegistry.ts';
 import type { LibraryCategory, LibraryItem } from '../shared/islamhouse.ts';
 import type { Lang } from '../shared/sources.ts';
-import { Card, ErrorNote, Loading, SectionTitle } from '../components/ui.tsx';
+import { Card, ErrorNote, Loading, SectionTitle, SelectionWash } from '../components/ui.tsx';
 import { EmptyState } from '../components/shell/widgets.tsx';
 
 interface Shelf {
@@ -83,9 +83,10 @@ export function KnowledgeShelf({ pathId }: { pathId: string }) {
               <a
                 href={`#/hub/${pathId}?category=${category.id}`}
                 aria-current={category.id === data.categoryId ? 'page' : undefined}
-                className={`block min-h-11 rounded-2xl border px-4 py-3 text-sm font-medium ${category.id === data.categoryId ? 'border-pine bg-pine text-white' : 'border-pine/10 bg-white text-pine'}`}
+                className={`relative block min-h-11 overflow-hidden rounded-2xl border px-4 py-3 text-sm font-medium ${category.id === data.categoryId ? 'border-pine bg-pine text-white' : 'border-pine/10 bg-white pr-14 text-pine'}`}
               >
-                {category.title}
+                {category.id !== data.categoryId && <SelectionWash />}
+                <span className="relative">{category.title}</span>
               </a>
             </li>
           ))}
