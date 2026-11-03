@@ -1,4 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
 
 /**
  * Dragon Dawwa - Gemini Multilingual Speech Generation Engine
@@ -263,15 +262,6 @@ export async function synthesizeGeminiVoice(
     return audioCache.get(cacheKey)!;
   }
 
-  const ai = new GoogleGenAI({
-    apiKey,
-    httpOptions: {
-      headers: {
-        "User-Agent": "aistudio-build",
-      },
-    },
-  });
-
   // Candidate models: Primary is Gemini 3.8 Flash TTS; Fallback is Gemini 3.8 Flash Lite TTS
   const candidateModels = ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts"];
   let lastError: any = null;
@@ -283,36 +273,30 @@ export async function synthesizeGeminiVoice(
     while (attempts < maxAttempts) {
       attempts++;
       try {
-        const response = await ai.models.generateContent({
-          model,
-          contents: [
-            {
-              role: "user",
-              parts: [
-                {
-                  text: cleanText,
-                  speechMetadata: {
-                    speaker: profile.personaName,
-                    style: profile.style,
-                  },
-                },
-              ],
-            },
-          ],
-          config: {
-            responseModalities: ["AUDIO"],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: {
-                  voiceName: profile.voiceName,
-                },
-              },
-            },
-          },
+        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+          signal: AbortSignal.timeout(60000),
+          body: JSON.stringify({
+            model,
+            input: [{ type: 'user_input', content: [{ type: 'text', text: cleanText,
+              annotations: [{ type: 'speech_metadata', style: profile.style }] }] }],
+            response_format: { type: 'audio' },
+            generation_config: { speech_config: [{ voice: profile.voiceName }] },
+          }),
         });
-
-        // Unary generateContent returns a complete 24kHz mono 16-bit WAV file (audio/wav)
-        const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+        if (!response.ok) {
+          const explanation = response.status === 429 ? 'Gemini quota or rate limit reached.'
+            : [401, 403].includes(response.status) ? 'Gemini API key or model access was rejected.'
+            : response.status === 404 ? 'Gemini TTS model is unavailable for this project.'
+            : 'Gemini voice service is temporarily unavailable.';
+          throw new Error(`${explanation} HTTP ${response.status}`);
+        }
+        const payload = await response.json();
+        const audioParts = (payload.steps || []).filter((step: any) => step.type === 'model_output')
+          .flatMap((step: any) => step.content || []).filter((part: any) => part.type === 'audio');
+        const base64Audio = audioParts.at(-1)?.data;
+        if (!base64Audio) throw new Error('Gemini returned no audio. Please retry.');
         if (base64Audio) {
           const result: TtsResult = {
             audioBase64: base64Audio,

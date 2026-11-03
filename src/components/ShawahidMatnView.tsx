@@ -10,7 +10,7 @@ export const ShawahidMatnView: React.FC<ShawahidMatnViewProps> = ({ shawahid }) 
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-[#0b1219] border border-slate-800 rounded-2xl p-6 shadow-xl">
+      <div className="bg-[var(--surface-panel)] border border-slate-800 rounded-2xl p-6 shadow-xl">
         <div className="flex items-center gap-2">
           <span className="text-xs uppercase tracking-widest font-mono text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-800/40">
             Agent 4
@@ -28,7 +28,7 @@ export const ShawahidMatnView: React.FC<ShawahidMatnViewProps> = ({ shawahid }) 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Supporting Reports (Shawahid & Mutaabi'at) */}
-        <div className="bg-[#0b1219]/90 border border-slate-800 rounded-2xl p-6 shadow-lg space-y-4">
+        <div className="bg-[var(--surface-panel)]/90 border border-slate-800 rounded-2xl p-6 shadow-lg space-y-4">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
             <CheckCircle2 className="w-5 h-5 text-emerald-400" />
             <div>
@@ -55,7 +55,7 @@ export const ShawahidMatnView: React.FC<ShawahidMatnViewProps> = ({ shawahid }) 
         </div>
 
         {/* Hidden Critical Defects ('Ilal) */}
-        <div className="bg-[#0b1219]/90 border border-slate-800 rounded-2xl p-6 shadow-lg space-y-4">
+        <div className="bg-[var(--surface-panel)]/90 border border-slate-800 rounded-2xl p-6 shadow-lg space-y-4">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
             <ShieldAlert className="w-5 h-5 text-amber-400" />
             <div>
@@ -84,7 +84,7 @@ export const ShawahidMatnView: React.FC<ShawahidMatnViewProps> = ({ shawahid }) 
         </div>
 
         {/* Contradictions & Irregularity (Shudhudh) */}
-        <div className="bg-[#0b1219]/90 border border-slate-800 rounded-2xl p-6 shadow-lg space-y-4">
+        <div className="bg-[var(--surface-panel)]/90 border border-slate-800 rounded-2xl p-6 shadow-lg space-y-4">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
             <AlertOctagon className="w-5 h-5 text-rose-400" />
             <div>

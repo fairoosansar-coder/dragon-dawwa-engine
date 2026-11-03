@@ -79,7 +79,7 @@ export const PublicWallFeed: React.FC<PublicWallFeedProps> = ({
   return (
     <div className="space-y-6">
       {/* Wall Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-[#0d1624] to-[#0a121c] border border-slate-800 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-r from-slate-900 via-[var(--surface-raised)] to-[var(--surface-raised)] border border-slate-800 rounded-3xl p-6 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
           <div>
@@ -166,7 +166,7 @@ export const PublicWallFeed: React.FC<PublicWallFeedProps> = ({
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
                 currentSearchPost.is_public
                   ? 'bg-emerald-950 text-emerald-300 border border-emerald-600/60'
-                  : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-lg shadow-amber-500/20'
+                  : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-[var(--on-gold)] shadow-lg shadow-amber-500/20'
               }`}
             >
               {currentSearchPost.is_public ? (
@@ -176,7 +176,7 @@ export const PublicWallFeed: React.FC<PublicWallFeedProps> = ({
                 </>
               ) : (
                 <>
-                  <Globe className="w-4 h-4 text-slate-950" />
+                  <Globe className="w-4 h-4 text-[var(--on-gold)]" />
                   <span>{t.publishToWall}</span>
                 </>
               )}
@@ -195,7 +195,7 @@ export const PublicWallFeed: React.FC<PublicWallFeedProps> = ({
           return (
             <article
               key={post.post_id}
-              className="bg-[#0b1017] border border-slate-800/90 hover:border-slate-700/80 rounded-3xl p-5 sm:p-6 shadow-xl transition-all"
+              className="bg-[var(--surface-raised)] border border-slate-800/90 hover:border-slate-700/80 rounded-3xl p-5 sm:p-6 shadow-xl transition-all"
             >
               {/* Author & Header Row */}
               <div className="flex items-start justify-between gap-4 mb-4">
@@ -251,7 +251,7 @@ export const PublicWallFeed: React.FC<PublicWallFeedProps> = ({
 
               {/* Sacred Arabic Text Preservation Block */}
               {post.canonical_arabic && (
-                <div className="my-3.5 p-4 rounded-2xl bg-[#070b10] border border-slate-800/80 text-right">
+                <div className="my-3.5 p-4 rounded-2xl bg-[var(--surface-sunken)] border border-slate-800/80 text-right">
                   <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 mb-2">
                     <span className="text-amber-500/90 font-semibold uppercase tracking-wider flex items-center gap-1">
                       <Sparkles className="w-3 h-3 text-amber-400" />
@@ -397,7 +397,7 @@ export const PublicWallFeed: React.FC<PublicWallFeedProps> = ({
                           }
                         }}
                         placeholder={t.addCommentPlaceholder}
-                        className="w-full bg-[#070b10] border border-slate-800 focus:border-cyan-500 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-400 focus:outline-none transition-colors pr-10"
+                        className="w-full bg-[var(--surface-sunken)] border border-slate-800 focus:border-cyan-500 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-400 focus:outline-none transition-colors pr-10"
                       />
                       <button
                         type="button"

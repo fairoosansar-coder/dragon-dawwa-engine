@@ -1,0 +1,29 @@
+/* Shared product shell; sacred text and existing media controls retain their components. */
+[data-theme="mushaf"] { --surface-body:#f6f2e8; --surface-app:#f6f2e8; --surface-panel:#fffdf7; --surface-header:#fffdf7; --brand-green:#006b50; --gold-leaf:#d8a92f; }
+[data-theme="night"] { --surface-app:#06251e; --surface-body:#06251e; --surface-panel:#0a352b; --surface-header:#062b22; --surface-raised:#104436; --brand-green:#008765; --gold-leaf:#edbd47; }
+.dd-shell { background-image:radial-gradient(ellipse at top right, #00936e12, transparent 55%); }
+.dd-header { border-top:4px solid #00805d; box-shadow:0 4px 24px #002e2110; }
+.dd-welcome { display:grid; grid-template-columns:1fr 230px; gap:0 24px; position:relative; isolation:isolate; border-radius:28px; background:linear-gradient(120deg,#003c2d,#007a57); color:#fff9e9; overflow:hidden; padding:36px 36px 0; box-shadow:0 18px 50px #00462e22; }
+.dd-welcome:before { content:"";position:absolute;inset:0;z-index:-1;background-image:var(--pattern-star-strong);opacity:.8; }
+.dd-eyebrow { color:#ffda7c;font-size:11px;letter-spacing:.13em;text-transform:uppercase;font-weight:600; }
+.dd-welcome h1 {font-family:var(--font-display);font-size:clamp(32px,4.5vw,58px);line-height:1.07;margin:14px 0;max-width:660px;font-weight:600;}
+.dd-welcome-copy>p {font-size:15px;line-height:1.8;max-width:490px;color:#d6eee2;}
+.dd-gold-button {display:inline-flex;align-items:center;gap:8px;background:#f0c35a;color:#183d2c;border-radius:12px;padding:12px 18px;margin:22px 0 28px;font-weight:700;cursor:pointer;box-shadow:0 5px 20px #001e3220;}
+.dd-welcome-art {display:grid;place-items:center;}
+.dd-arch {width:178px;height:208px;border:1px solid #e8be6470;border-radius:100px 100px 14px 14px;outline:1px solid #e8be6430;outline-offset:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#ffda7c;background:linear-gradient(160deg,#ffffff10,#001f231c);}
+.dd-arch span {font-family:var(--font-arabic);font-size:40px;}
+.dd-discover {grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
+.dd-discover-card {display:flex;align-items:center;gap:14px;text-align:left;border-radius:15px;padding:18px;background:#fffaf0;color:#074632;cursor:pointer;transition:transform .15s,box-shadow .15s;min-width:0;}
+.dd-discover-card>span {flex:1;min-width:0}.dd-discover-card strong {display:block;font-size:16px}.dd-discover-card small {display:block;font-size:12px;margin-top:3px;color:#536c60;}
+.dd-discover-dossier {background:#ffe2a0;color:#553b05}.dd-discover-studio {background:#b8ebd6;color:#054c39}
+.dd-discover-card:hover {transform:translateY(-3px);box-shadow:0 8px 24px #00271f30;}
+.dd-preview-note {grid-column:1/-1;font-size:11px!important;color:#d1e8dc!important;margin:14px 0!important;}
+.dd-shell button:focus-visible,.dd-shell a:focus-visible {outline:3px solid #ddad31;outline-offset:4px;}
+.dd-mobile-nav {box-shadow:0 -6px 24px #00342312;}
+.dd-community-grid {grid-template-columns:210px minmax(0,1fr) 275px;}
+@media(min-width:1024px){.dd-community-grid>div:first-child{position:sticky;top:100px}}
+@media(max-width:1023px){.dd-community-grid{grid-template-columns:1fr}.dd-welcome{grid-template-columns:1fr 165px;padding:28px 24px 0}.dd-arch{width:130px;height:170px}.dd-discover-card{padding:14px;gap:9px}.dd-discover-card>svg:last-child{display:none}}
+@media(max-width:639px){.dd-welcome{grid-template-columns:1fr;padding:24px 18px 0;border-radius:22px}.dd-welcome-art{display:none}.dd-welcome h1{font-size:38px}.dd-welcome-copy>p{font-size:14px}.dd-eyebrow{font-size:9px;letter-spacing:.09em}.dd-discover{gap:7px}.dd-discover-card{flex-direction:column;align-items:flex-start;padding:13px 10px;gap:10px;border-radius:12px}.dd-discover-card strong{font-size:12px;overflow-wrap:anywhere}.dd-discover-card small{font-size:10px;line-height:1.4}.dd-gold-button{margin-bottom:23px}.dd-preview-note{font-size:10px!important}}
+@media(prefers-reduced-motion:reduce){.dd-discover-card{transition:none}.dd-discover-card:hover{transform:none}}
+.dd-mobile-nav button {min-width:0;overflow-wrap:anywhere;min-height:44px;}
+@media(min-width:1280px){.dd-header nav{min-width:0}.dd-header nav button{white-space:normal;text-align:left}}

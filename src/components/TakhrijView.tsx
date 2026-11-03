@@ -27,7 +27,7 @@ export const TakhrijView: React.FC<TakhrijViewProps> = ({ takhrij, queryHadith }
   return (
     <div className="space-y-6">
       {/* Header Info */}
-      <div className="bg-[#0b1219] border border-slate-800 rounded-2xl p-6 shadow-xl">
+      <div className="bg-[var(--surface-panel)] border border-slate-800 rounded-2xl p-6 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
           <div>
             <div className="flex items-center gap-2">
@@ -76,7 +76,7 @@ export const TakhrijView: React.FC<TakhrijViewProps> = ({ takhrij, queryHadith }
         {filteredSources.map((source, idx) => (
           <div
             key={idx}
-            className="bg-[#0b1219]/90 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-all shadow-md flex flex-col justify-between"
+            className="bg-[var(--surface-panel)]/90 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-all shadow-md flex flex-col justify-between"
           >
             <div className="space-y-3">
               <div className="flex items-center justify-between">

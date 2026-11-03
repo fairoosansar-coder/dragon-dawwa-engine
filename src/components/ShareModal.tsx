@@ -179,7 +179,7 @@ ${shareUrl}`;
       <div className="absolute inset-0" onClick={onClose} />
 
       {/* Modal Dialog Card */}
-      <div className="relative z-10 w-full max-w-xl bg-[#0b1219] border border-slate-800 rounded-3xl p-6 sm:p-7 shadow-2xl overflow-hidden space-y-5 max-h-[92vh] flex flex-col">
+      <div className="relative z-10 w-full max-w-xl bg-[var(--surface-panel)] border border-slate-800 rounded-3xl p-6 sm:p-7 shadow-2xl overflow-hidden space-y-5 max-h-[92vh] flex flex-col">
         
         {/* Glow effect */}
         <div 
@@ -294,13 +294,13 @@ ${shareUrl}`;
             <button
               type="button"
               onClick={handleNativeShare}
-              className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-emerald-400 hover:from-amber-400 hover:to-emerald-300 text-slate-950 font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-amber-500/20 transition-all cursor-pointer transform active:scale-[0.99]"
+              className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-emerald-400 hover:from-amber-400 hover:to-emerald-300 text-[var(--on-gold)] font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-amber-500/20 transition-all cursor-pointer transform active:scale-[0.99]"
             >
               <Smartphone className="w-5 h-5 fill-slate-950" />
               <span>
                 {isWebShareSupported ? 'Share via Device (Web Share API)' : 'Share via Device Sheet'}
               </span>
-              <Sparkles className="w-4 h-4 text-slate-950" />
+              <Sparkles className="w-4 h-4 text-[var(--on-gold)]" />
             </button>
             <p className="text-[11px] text-center text-slate-400 font-mono">
               {isWebShareSupported 

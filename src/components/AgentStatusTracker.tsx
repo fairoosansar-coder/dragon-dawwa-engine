@@ -113,7 +113,7 @@ export const AgentStatusTracker: React.FC<AgentStatusTrackerProps> = ({
   ];
 
   return (
-    <div className="bg-[#0b1219]/90 border border-slate-800 rounded-2xl p-2.5 shadow-xl backdrop-blur-md">
+    <div className="bg-[var(--surface-panel)]/90 border border-slate-800 rounded-2xl p-2.5 shadow-xl backdrop-blur-md">
       <div className="flex items-center justify-between gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
         {agents.map((ag) => {
           const Icon = ag.icon;

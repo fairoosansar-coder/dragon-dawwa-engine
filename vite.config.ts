@@ -1,3 +1,5 @@
+import { ummahStudyMiddleware } from './src/server/ummahStudy.ts';
+import { ummahQuranMiddleware } from './src/server/ummahQuran.ts';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
@@ -12,6 +14,8 @@ function dragonDawwaApiPlugin(): Plugin {
   return {
     name: 'dragon-dawwa-api-plugin',
     configureServer(server) {
+      server.middlewares.use(ummahQuranMiddleware);
+      server.middlewares.use(ummahStudyMiddleware);
       server.middlewares.use(async (req, res, next) => {
         if (req.url === '/api/analyze' && req.method === 'POST') {
           let body = '';
@@ -21,14 +25,14 @@ function dragonDawwaApiPlugin(): Plugin {
           req.on('end', async () => {
             try {
               const parsed = JSON.parse(body || '{}');
-              const { hadith_input, isnad_input } = parsed;
+              const { hadith_input, isnad_input, preferred_language } = parsed;
               if (!hadith_input || typeof hadith_input !== 'string') {
                 res.statusCode = 400;
                 res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify({ error: 'hadith_input is required' }));
                 return;
               }
-              const result = await executeDragonDawwaAnalysis(hadith_input, isnad_input);
+              const result = await executeDragonDawwaAnalysis(hadith_input, isnad_input, ['ta', 'si'].includes(preferred_language) ? preferred_language : 'en');
               res.statusCode = 200;
               res.setHeader('Content-Type', 'application/json');
               res.end(JSON.stringify(result));
@@ -50,14 +54,14 @@ function dragonDawwaApiPlugin(): Plugin {
           req.on('end', async () => {
             try {
               const parsed = JSON.parse(body || '{}');
-              const { text, speaker } = parsed;
+              const { text, speaker, voiceName } = parsed;
               if (!text || typeof text !== 'string') {
                 res.statusCode = 400;
                 res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify({ error: 'text is required' }));
                 return;
               }
-              const result = await synthesizeGeminiVoice(text, speaker || 'Host');
+              const result = await synthesizeGeminiVoice(text, speaker || 'Host', voiceName);
               res.statusCode = 200;
               res.setHeader('Content-Type', 'application/json');
               res.end(JSON.stringify(result));
