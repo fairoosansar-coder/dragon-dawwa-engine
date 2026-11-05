@@ -268,7 +268,7 @@ function Library({
           setFocus(true);
         }}
       />
-      {section === 'home' ? (
+      {mineWelcome ? null : section === 'home' ? (
         <header data-quran-hero className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/35 bg-[#0A3D2E]">
           <img
             src="/assets/geometric-edge.jpg"
@@ -281,24 +281,10 @@ function Library({
             <p className="mt-2 text-sm text-stone-300">{t.quranSubtitle}</p>
           </div>
         </header>
-      ) : mineWelcome ? null : (
+      ) : (
         <header>
           <h1 className="font-display text-4xl font-bold text-pine">{heading}</h1>
         </header>
-      )}
-      {mineWelcome && (
-        <section data-my-quran-empty className="relative overflow-hidden rounded-3xl border border-[#C9A14E]/55 bg-[#F6F1E4]">
-          <img
-            src="/assets/geometric-cream.jpg"
-            alt=""
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
-          />
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(246,241,228,0.78)_0%,rgba(246,241,228,0.22)_46%,rgba(246,241,228,0)_74%)]" />
-          <div className="relative px-6 py-10 text-center sm:px-10 sm:py-12">
-            <h1 className="font-display text-3xl font-bold text-[#123A2E] sm:text-4xl">{t.quranMine}</h1>
-            <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-[#1a2744]">{t.bookmarksEmpty}</p>
-          </div>
-        </section>
       )}
       {section === 'home' && (
         <section data-continue-reading className="relative overflow-hidden rounded-3xl border border-[#D4AF37]/40 bg-[#13725A] shadow-sm">
@@ -338,7 +324,20 @@ function Library({
         </div>
       )}
       {section === 'mine' || (section === 'home' && listTab === 'bookmarks') ? (
-        mineWelcome ? null : bookmarks.length === 0 ? (
+        mineWelcome ? (
+          <section data-my-quran-empty className="relative overflow-hidden rounded-3xl border border-[#C9A14E]/55 bg-[#F6F1E4]">
+            <img
+              src="/assets/geometric-cream.jpg"
+              alt=""
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(246,241,228,0.78)_0%,rgba(246,241,228,0.22)_46%,rgba(246,241,228,0)_74%)]" />
+            <div className="relative px-6 py-10 text-center sm:px-10 sm:py-12">
+              <h1 className="font-display text-3xl font-bold text-[#123A2E] sm:text-4xl">{t.quranMine}</h1>
+              <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-[#1a2744]">{t.bookmarksEmpty}</p>
+            </div>
+          </section>
+        ) : bookmarks.length === 0 ? (
           <EmptyState>{q ? t.noResults : t.bookmarksEmpty}</EmptyState>
         ) : (
           <ul className="space-y-2">
