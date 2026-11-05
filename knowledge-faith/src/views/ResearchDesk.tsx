@@ -251,7 +251,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
           subtitle={frame.subtitle}
           actions={
             <>
-              <PodcastHostChip />
+              <PodcastHostChip tone="plate" />
               <ResearchActionRow
                 onFullReport={() => document.getElementById('research-full-report')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
                 onRoundtable={() => {
