@@ -416,6 +416,77 @@ body {
   outline-offset: 2px;
 }
 
+/* Study-by-theme cards: a quiet emerald-and-gold plate, one slow sheen, and a soft lift. */
+.theme-plate {
+  isolation: isolate;
+}
+
+.theme-plate-sheen {
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  left: 0;
+  z-index: 1;
+  width: 42%;
+  pointer-events: none;
+  background: linear-gradient(
+    102deg,
+    transparent 0%,
+    rgba(6, 73, 54, 0.03) 34%,
+    rgba(249, 231, 185, 0.42) 50%,
+    rgba(6, 73, 54, 0.05) 66%,
+    transparent 100%
+  );
+  transform: translateX(-170%);
+  animation: theme-plate-sheen 12s ease-in-out infinite;
+}
+
+.theme-plate:nth-child(2n) .theme-plate-sheen {
+  animation-delay: -4s;
+}
+
+.theme-plate:nth-child(3n) .theme-plate-sheen {
+  animation-delay: -8s;
+}
+
+@keyframes theme-plate-sheen {
+  0%,
+  38% {
+    transform: translateX(-170%);
+    opacity: 0;
+  }
+  52% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(320%);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .theme-plate {
+    transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+  }
+
+  .theme-plate:hover {
+    transform: translateY(-2px);
+    border-color: #c9a14e;
+    box-shadow: 0 10px 22px rgba(6, 73, 54, 0.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-plate-sheen {
+    animation: none !important;
+    opacity: 0;
+  }
+
+  .theme-plate:hover {
+    transform: none;
+  }
+}
+
 /* Featured book portrait: a slow tilt and one soft sheen. The shelf covers stay still. */
 .featured-cover-stage {
   perspective: 800px;
@@ -569,68 +640,27 @@ body {
   }
 }
 
-/* Desk links: raised medallions on the emerald rail. Motion is a tilt and a light sweep. */
+/* Desk links. The supplied SVGs stay 24px with transparent backgrounds; hover and selection paint the whole row. */
 .kf-nav-side,
 .kf-nav-dock {
   border-color: transparent;
   color: #F5EEDC;
-  perspective: 700px;
 }
 
-.kf-nav-tile {
-  position: relative;
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 52px;
-  height: 52px;
-  overflow: hidden;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 32% 24%, #1d5c49 0%, #0b3a2e 46%, #021510 100%);
-  box-shadow:
-    0 0 0 1.5px #f3e2b4,
-    0 0 0 3px #8a6430,
-    0 12px 16px rgb(0 0 0 / 0.42),
-    inset 0 1px 0 rgb(255 246 210 / 0.35),
-    inset 0 -10px 14px rgb(0 0 0 / 0.45);
-  transform: perspective(320px) rotateX(14deg) rotateY(-16deg);
-  transform-style: preserve-3d;
+.kf-nav-icon {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
 }
 
-.kf-nav-tile svg {
-  width: 46px;
-  height: 46px;
-  overflow: visible;
-  filter: drop-shadow(0 3px 2px rgb(0 0 0 / 0.35));
+.kf-nav-icon svg {
+  display: block;
+  width: 24px;
+  height: 24px;
 }
 
-.kf-nav-sheen {
-  position: absolute;
-  inset: -20% -40%;
-  background: linear-gradient(115deg, transparent 36%, rgb(255 250 236 / 0.72) 50%, transparent 64%);
-  transform: translateX(-130%) rotate(8deg);
-  pointer-events: none;
-}
-
-.kf-nav-dock .kf-nav-tile {
-  width: 34px;
-  height: 34px;
-  transform: none;
-  box-shadow:
-    0 0 0 1px #f3e2b4,
-    0 0 0 2px #8a6430,
-    0 4px 6px rgb(0 0 0 / 0.4);
-}
-
-.kf-nav-dock .kf-nav-tile svg {
-  width: 28px;
-  height: 28px;
-  filter: none;
-}
-
-.kf-nav-side:hover {
+.kf-nav-side:hover,
+.kf-nav-side:focus-visible {
   background: rgb(245 238 220 / 0.1);
   color: #F5EEDC;
 }
@@ -642,13 +672,13 @@ body {
   box-shadow: none;
 }
 
-.kf-nav-side[aria-current='page'] .kf-nav-tile {
-  box-shadow:
-    0 0 0 2px #fff6d2,
-    0 0 0 4px #c6a15a,
-    0 14px 18px rgb(122 84 36 / 0.45),
-    inset 0 1px 0 rgb(255 246 210 / 0.5),
-    inset 0 -10px 14px rgb(0 0 0 / 0.4);
+/* Ivory (#F5F1E7) sits on the pale selected pill and disappears. Match the label's deep green; keep the gold accent. */
+.kf-nav-side[aria-current='page'] .dd-primary-fill {
+  fill: #0B4B3A;
+}
+
+.kf-nav-side[aria-current='page'] .dd-primary-stroke {
+  stroke: #0B4B3A;
 }
 
 .kf-nav-dock[aria-current='page'] {
@@ -656,11 +686,10 @@ body {
   color: #F6E7C1;
 }
 
-.kf-nav-dock[aria-current='page'] .kf-nav-tile {
-  box-shadow:
-    0 0 0 1.5px #C6A15A,
-    0 4px 6px rgb(2 16 12 / 0.35),
-    inset 0 1px 0 #fff;
+.kf-nav-side:focus-visible,
+.kf-nav-dock:focus-visible {
+  outline: 2px solid #C9A660;
+  outline-offset: 3px;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -668,29 +697,6 @@ body {
   .kf-nav-dock {
     transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
   }
-
-  .kf-nav-tile {
-    transition: transform 280ms ease, box-shadow 280ms ease;
-  }
-
-  .kf-nav-side:hover .kf-nav-tile,
-  .kf-nav-side:focus-visible .kf-nav-tile {
-    transform: perspective(320px) rotateX(20deg) rotateY(-28deg) translateY(-3px) scale(1.06);
-  }
-
-  .kf-nav-side:hover .kf-nav-sheen,
-  .kf-nav-side:focus-visible .kf-nav-sheen {
-    animation: kf-nav-sheen 900ms ease;
-  }
-
-  .kf-nav-side[aria-current='page'] .kf-nav-sheen {
-    animation: kf-nav-sheen 3.6s ease-in-out infinite;
-  }
-}
-
-@keyframes kf-nav-sheen {
-  0% { transform: translateX(-130%) rotate(8deg); }
-  100% { transform: translateX(130%) rotate(8deg); }
 }
 
 /* Reflection banner. The carved panel sits on the open side and fades before the words. */

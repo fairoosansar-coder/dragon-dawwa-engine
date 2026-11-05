@@ -122,3 +122,14 @@ export function Select({
     </label>
   );
 }
+
+/** A corner of the cream geometric plate, so a pale choice card is not an empty box. */
+export function SelectionWash() {
+  return (
+    <img
+      src="/assets/geometric-cream.jpg"
+      alt=""
+      className="pointer-events-none absolute inset-y-0 right-0 h-full w-28 object-cover object-[right_top] [mask-image:linear-gradient(90deg,transparent,#000_58%)]"
+    />
+  );
+}

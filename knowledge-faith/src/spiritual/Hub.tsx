@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Settings } from 'lucide-react';
 import { StudioMark, type StudioMarkName } from '../components/shell/studioMarks.tsx';
+import { SelectionWash } from '../components/ui.tsx';
 import { useShell } from '../lib/shell.tsx';
 import { useRemote } from '../lib/api.ts';
 import { useStored } from '../lib/store.tsx';
@@ -127,8 +128,9 @@ export function Hub() {
           ['#/spiritual/saved', s.saved],
           ['#/spiritual/questions', s.questions],
         ].map(([href, label]) => (
-          <a key={href} href={href} className="min-h-16 rounded-2xl border border-dd-lapis/30 bg-white px-4 py-4 font-semibold text-dd-emerald">
-            {label}
+          <a key={href} href={href} className="relative flex min-h-16 items-center overflow-hidden rounded-2xl border border-dd-lapis/30 bg-white px-4 py-4 pr-16 font-semibold text-dd-emerald">
+            <SelectionWash />
+            <span className="relative">{label}</span>
           </a>
         ))}
       </section>
