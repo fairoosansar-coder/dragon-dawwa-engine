@@ -108,6 +108,15 @@ export const PODCAST_PERSONA_PROFILES: Record<string, SpeakerVoiceProfile> = {
     style: 'Clear, poised, evidence-grounded female researcher citing HadeethEnc records, published grades, explanations, and documented lessons with scholarly precision',
     description: 'The HadeethEnc Source Specialist feeding retrieved primary records into the roundtable'
   },
+  farhan: {
+    id: 'farhan',
+    personaName: 'Shaykh Farhan al-Rashed',
+    role: 'Contemporary Fatwa & Field Research Lead',
+    voiceName: 'Charon',
+    gender: 'M',
+    style: 'Measured, authoritative, compassionate contemporary jurist and research synthesizer resolving modern expat and real-world rulings with clarity',
+    description: 'The Contemporary Fatwa & Field Research Synthesizer connecting classical jurisprudence to modern application'
+  },
   narrator: {
     id: 'narrator',
     personaName: 'Prime Dragon Radio Desk',
@@ -195,6 +204,17 @@ export function getGeminiVoiceForSpeaker(speaker: string): SpeakerVoiceProfile {
     s.includes('hadeethenc')
   ) {
     return PODCAST_PERSONA_PROFILES.amina;
+  }
+
+  // 5c. Shaykh Farhan al-Rashed (Contemporary Fatwa & Field Research Synthesizer)
+  if (
+    s.includes('farhan') ||
+    s.includes('rashed') ||
+    s.includes('fatwa') ||
+    s.includes('field research') ||
+    s.includes('research lead')
+  ) {
+    return PODCAST_PERSONA_PROFILES.farhan;
   }
 
   // 6. Host (Brother Feroz / Agent 6 Synthesis Moderator / Anchor)

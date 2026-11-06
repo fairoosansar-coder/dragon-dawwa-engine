@@ -152,9 +152,10 @@ function lessonClip(text: string): string {
 }
 
 function reconciliationFinding(language: Lang, roles: string, passages: readonly EvidencePassage[] = []): string {
+  const parallel = passages.filter(passage => passage.source.provider === 'Parallel' && passage.text.trim().length > 20);
   const ayah = passages.find(isOpenedAyah);
   const commentary = passages.find(passage => passage.role === 'commentary' && passage.source.provider !== 'Parallel' && passage.text.trim());
-  const lesson = lessonClip(commentary?.text || ayah?.text || '');
+  const lesson = lessonClip(parallel[0]?.text || commentary?.text || ayah?.text || '');
   if (ayah && language === 'en') {
     return `The practical lesson is ${lesson || 'the comfort the opened moment teaches'}. ${roles} sat with that moment. What was not opened was not added. This is not a hadith grade.`;
   }
@@ -171,12 +172,18 @@ function reconciliationFinding(language: Lang, roles: string, passages: readonly
     return `ප්‍රායෝගික පාඩම: ${bridged || 'විවෘත මොහොතේ සැනසීම'}. ${roles} එම මොහොත සමඟ වාඩි වූහ. නොවිවෘත දේ එකතු නොකෙරේ.`;
   }
   if (language === 'ta') {
-    return `${roles} அந்தத் தருணத்துடன் அமர்ந்தனர். நடைமுறைப் பாடம் அவர்கள் திறந்த மூலத்திலிருந்து. திறக்காததைச் சேர்க்கவில்லை.`;
+    const bridged = lesson && /[A-Za-z]/.test(lesson) && !/[\u0B80-\u0BFF]/.test(lesson)
+      ? `ஆங்கில மூலத்தின் பொருளைத் தமிழுடன் வைக்கிறேன்: ${lesson}`
+      : lesson;
+    return `${roles} அந்தத் தருணத்துடன் அமர்ந்தனர். நடைமுறைப் பாடம் அவர்கள் திறந்த மூலத்திலிருந்து${bridged ? `: ${bridged}` : '.'} திறக்காததைச் சேர்க்கவில்லை.`;
   }
   if (language === 'si') {
-    return `${roles} එම මොහොත සමඟ වාඩි වූහ. ප්‍රායෝගික පාඩම ඔවුන් විවෘත කළ මූලයෙනි. නොවිවෘත දේ එකතු නොකෙරේ.`;
+    const bridged = lesson && /[A-Za-z]/.test(lesson) && !/[\u0D80-\u0DFF]/.test(lesson)
+      ? `ඉංග්‍රීසි මූලයේ අර්ථය සිංහල සමඟ තබමු: ${lesson}`
+      : lesson;
+    return `${roles} එම මොහොත සමඟ වාඩි වූහ. ප්‍රායෝගික පාඩම ඔවුන් විවෘත කළ මූලයෙනි${bridged ? `: ${bridged}` : '.'} නොවිවෘත දේ එකතු නොකෙරේ.`;
   }
-  return `${roles} sat with the moment. The practical lesson is only what they opened. What was not opened was not added. This is not a hadith grade.`;
+  return `${roles} sat with the moment. The practical lesson is only what they opened${lesson ? `: ${lesson}` : '.'} What was not opened was not added. This is not a hadith grade.`;
 }
 
 export function buildDomainAgents(
@@ -193,8 +200,8 @@ export function buildDomainAgents(
     const local = dedupePassages(agent.evidence.flatMap(kind => passagesFor(kind, passages))).slice(0, 3);
     const report = byId.get(agent.id);
     const parts = [
-      local.length ? local.map(quotePassage).join(' ') : '',
       report?.status === 'ran' ? report.finding : '',
+      local.length ? local.map(quotePassage).join(' ') : '',
     ].filter(Boolean);
     const sources = [
       ...local.map(sourceFromPassage),

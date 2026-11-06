@@ -51,7 +51,7 @@ export function finalSynthesisSystemPrompt(): string {
 
 export type ResearchDomainId = 'hadith' | 'quran' | 'fiqh' | 'seerah';
 
-export type StudioSpeaker = 'host' | 'tariq' | 'layla' | 'imran' | 'zainab' | 'yusuf' | 'amina';
+export type StudioSpeaker = 'host' | 'tariq' | 'layla' | 'imran' | 'zainab' | 'yusuf' | 'amina' | 'farhan';
 
 /** Local evidence a configured agent may quote. Matching is by source, not by domain name. */
 export type EvidenceKind =
@@ -78,6 +78,7 @@ export const SPEAKER_LABEL: Record<StudioSpeaker, string> = {
   zainab: 'DR. ZAINAB:',
   yusuf: 'SHEIKH YUSUF:',
   amina: 'DR. AMINA:',
+  farhan: 'SHAYKH FARHAN:',
 };
 
 export const SPEAKER_PERSONA: Record<StudioSpeaker, string> = {
@@ -88,6 +89,7 @@ export const SPEAKER_PERSONA: Record<StudioSpeaker, string> = {
   zainab: 'Dr. Zainab al-Mubarak',
   yusuf: 'Sheikh Yusuf al-Azhari',
   amina: 'Dr. Amina al-Kindi',
+  farhan: 'Shaykh Farhan al-Rashed',
 };
 
 export interface DomainAgentConfig {

@@ -582,6 +582,21 @@ function quotedLesson(lang: Lang, text: string): string {
 export function quoteFromEvidence(topic: string, lang: Lang, evidence: Evidence[], hostName?: string | null): PodcastScript {
   if (!evidence.length) throw new UpstreamError('No sources could be retrieved for this topic.', 422);
   const welcome = generatedHostLine(topic, lang, hostName);
+  const castSpeakers = [
+    "Dr. Layla (Qur'an Specialist)" as const,
+    'Dr. Zainab (Hadith & Fiqh)' as const,
+    'Shaykh Farhan (Contemporary Fatwa & Field Research)' as const,
+  ];
+  const closingText = lang === 'ta'
+    ? 'ஆதாரங்களின் அடிப்படையில் நாம் தெளிவுபடுத்திக் கொள்ளும் நடைமுறை வழிகாட்டல் இதுவே.'
+    : lang === 'si'
+      ? 'මූලාශ්‍රවල පදනමින් අප පැහැදිලි කරගන්නා ප්‍රායෝගික මඟපෙන්වීම මෙයයි.'
+      : 'That brings together the textual foundation and the practical takeaway from our sources.';
+  const specialistLines = evidence.slice(0, 3).map((item, idx) => ({
+    speaker: castSpeakers[idx % castSpeakers.length],
+    text: quotedLesson(lang, item.text),
+    citations: [item.id],
+  }));
   return {
     id: randomUUID(),
     title: topic.slice(0, 140),
@@ -589,7 +604,8 @@ export function quoteFromEvidence(topic: string, lang: Lang, evidence: Evidence[
     createdAt: new Date().toISOString(),
     lines: [
       { speaker: 'Host', text: welcome, citations: [] },
-      ...evidence.slice(0, 4).map(item => ({ speaker: 'Guest' as const, text: quotedLesson(lang, item.text), citations: [item.id] })),
+      ...specialistLines,
+      { speaker: 'Host', text: closingText, citations: [evidence[0].id] },
     ],
     evidence,
     model: 'quotation',

@@ -151,8 +151,8 @@ describe('shared research plan', () => {
     assert.equal(kept.replacedPlaying, false);
     const idle = episodeIdForRevision({ currentEpisodeId: 'pod-1', playingEpisodeId: null, revision: 2 });
     assert.equal(idle.episodeId, 'pod-1');
-    const playing = { id: 'pod-1', audioBase64: 'AAAA', state: 'playable' as const, revision: 1 };
-    const created = { id: 'pod-1', audioBase64: undefined, state: 'script-ready' as const, question: 'later' };
+    const playing: { id: string; audioBase64?: string; state: 'playable' | 'script-ready'; question?: string; revision: number } = { id: 'pod-1', audioBase64: 'AAAA', state: 'playable', revision: 1 };
+    const created: { id: string; audioBase64?: string; state: 'playable' | 'script-ready'; question?: string; revision: number } = { id: 'pod-1', audioBase64: undefined, state: 'script-ready', question: 'later', revision: 2 };
     const merged = prependEpisodeRevision({ episodes: [playing], created, playingEpisodeId: 'pod-1', revision: 2 });
     assert.equal(merged.changed, true);
     assert.equal(merged.episodes[0].id, 'pod-1-r2');

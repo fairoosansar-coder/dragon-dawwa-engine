@@ -194,18 +194,37 @@ export function parsePodcastLines(script: string): PodcastLine[] {
     ) {
       speaker = 'Dr. Tariq al-Mansoor';
       text = speechAfterLabel(line, /^(HOST\s*1(\s*\([^)]*\))?|(DR\.\s*)?TARIQ(\s+AL-MANSOOR)?):\s*/i);
-    } else if (upper.startsWith('DR. LAYLA:') || upper.startsWith('DR. LAYLA AL-QASIMI:') || upper.startsWith('LAYLA:')) {
+    } else if (
+      upper.startsWith('DR. LAYLA:') ||
+      upper.startsWith('DR. LAYLA (') ||
+      upper.startsWith('DR. LAYLA AL-QASIMI:') ||
+      upper.startsWith('LAYLA:')
+    ) {
       speaker = 'Dr. Layla al-Qasimi';
-      text = speechAfterLabel(line, /^((DR\.\s*)?LAYLA(\s+AL-QASIMI)?):\s*/i);
+      text = speechAfterLabel(line, /^((DR\.\s*)?LAYLA(\s+AL-QASIMI)?(\s*\([^)]*\))?):\s*/i);
     } else if (upper.startsWith('SHEIKH IMRAN:') || upper.startsWith('SHEIKH IMRAN AL-HASANI:') || upper.startsWith('IMRAN:')) {
       speaker = 'Sheikh Imran al-Hasani';
       text = speechAfterLabel(line, /^((SHEIKH\s*)?IMRAN(\s+AL-HASANI)?):\s*/i);
-    } else if (upper.startsWith('DR. ZAINAB:') || upper.startsWith('DR. ZAINAB AL-MUBARAK:') || upper.startsWith('ZAINAB:')) {
+    } else if (
+      upper.startsWith('DR. ZAINAB:') ||
+      upper.startsWith('DR. ZAINAB (') ||
+      upper.startsWith('DR. ZAINAB AL-MUBARAK:') ||
+      upper.startsWith('ZAINAB:')
+    ) {
       speaker = 'Dr. Zainab al-Mubarak';
-      text = speechAfterLabel(line, /^((DR\.\s*)?ZAINAB(\s+AL-MUBARAK)?):\s*/i);
+      text = speechAfterLabel(line, /^((DR\.\s*)?ZAINAB(\s+AL-MUBARAK)?(\s*\([^)]*\))?):\s*/i);
     } else if (upper.startsWith('SHEIKH YUSUF:') || upper.startsWith('SHEIKH YUSUF AL-AZHARI:') || upper.startsWith('YUSUF:')) {
       speaker = 'Sheikh Yusuf al-Azhari';
       text = speechAfterLabel(line, /^((SHEIKH\s*)?YUSUF(\s+AL-AZHARI)?):\s*/i);
+    } else if (
+      upper.startsWith('SHAYKH FARHAN:') ||
+      upper.startsWith('SHAYKH FARHAN (') ||
+      upper.startsWith('SHAYKH FARHAN AL-RASHED:') ||
+      upper.startsWith('SHEIKH FARHAN:') ||
+      upper.startsWith('FARHAN:')
+    ) {
+      speaker = 'Shaykh Farhan al-Rashed';
+      text = speechAfterLabel(line, /^((SHAYKH\s*|SHEIKH\s*)?FARHAN(\s+AL-RASHED)?(\s*\([^)]*\))?):\s*/i);
     } else if (
       upper.startsWith('DR. AMINA:') ||
       upper.startsWith('DR. AMINA AL-KINDI:') ||

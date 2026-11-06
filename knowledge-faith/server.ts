@@ -685,7 +685,18 @@ const podcastScriptRoute = route(async (req, res) => {
     if (!evidence.length) {
       throw new UpstreamError(dossier?.unanswered[0] ?? 'No sources could be retrieved for this topic.', 422);
     }
-    const script = geminiConfigured() ? await writePodcast(topic, lang, minutes, evidence, generateJson, hostName) : quoteFromEvidence(topic, lang, evidence, hostName);
+    const synthesisContext =
+      typeof req.body?.synthesisContext === 'string' && req.body.synthesisContext.trim()
+        ? req.body.synthesisContext.trim()
+        : dossier
+          ? [
+              ...dossier.references.map(ref => `${ref.locator}: ${ref.passage}`),
+              ...dossier.disagreements,
+            ].join('\n\n')
+          : null;
+    const script = geminiConfigured()
+      ? await writePodcast(topic, lang, minutes, evidence, generateJson, hostName, synthesisContext)
+      : quoteFromEvidence(topic, lang, evidence, hostName);
     res.json({ ...attachVerification(script, verifyScript(script.lines, evidence), dossier?.unanswered ?? []), hostName });
 });
 
@@ -705,7 +716,12 @@ app.post(
   route(async (req, res) => {
     const lines: PodcastLine[] = Array.isArray(req.body?.lines)
       ? (req.body.lines as PodcastLine[]).slice(0, 60).map(l => ({
-          speaker: l.speaker === 'Guest' ? 'Guest' : 'Host',
+          speaker: l.speaker === 'Guest'
+            || l.speaker === "Dr. Layla (Qur'an Specialist)"
+            || l.speaker === 'Dr. Zainab (Hadith & Fiqh)'
+            || l.speaker === 'Shaykh Farhan (Contemporary Fatwa & Field Research)'
+            ? l.speaker
+            : 'Host',
           text: String(l.text ?? '').trim(),
           citations: [],
         }))
@@ -724,13 +740,18 @@ function withRequestedHost(replay: ResearchJobResponse, hostName: string | null)
 function scriptFromResearchJob(jobId: string, hostName: string) {
   const stored = getSharedResearchJob(jobId);
   if (!stored?.dossier || stored.job.status !== 'done') return null;
+  if (stored.job.parallel?.status === 'running' && stored.dossier.passages.length === 0) return null;
   const model = buildReportModel(stored.job, stored.dossier);
+  const parallelFirst = [
+    ...stored.dossier.passages.filter(p => p.source.provider === 'Parallel'),
+    ...stored.dossier.passages.filter(p => p.source.provider !== 'Parallel'),
+  ];
   return roundtableFromResearch({
     question: stored.job.question,
     language: stored.job.language,
     agents: stored.job.agents,
     answer: model.answer,
-    passages: stored.dossier.passages.map(passage => ({
+    passages: parallelFirst.map(passage => ({
       locator: passage.locator,
       text: passage.text,
       context: passage.context,
@@ -935,7 +956,7 @@ if (isProduction) {
   app.use(vite.middlewares);
 }
 
-httpServer.listen(process.env.PORT || 3000, '0.0.0.0', () => {
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(
     `DRAGON DAWWA running on ${publicAppUrl(PORT)} (${isProduction ? 'production' : 'development'}); Gemini neural TTS ${geminiConfigured() ? 'on' : 'off'}`,
   );

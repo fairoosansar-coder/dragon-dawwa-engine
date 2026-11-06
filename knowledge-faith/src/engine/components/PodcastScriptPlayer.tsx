@@ -50,6 +50,7 @@ export type PersonaId =
   | 'Dr. Zainab al-Mubarak' 
   | 'Sheikh Yusuf al-Azhari' 
   | 'Dr. Amina al-Kindi'
+  | 'Shaykh Farhan al-Rashed'
   | 'Narrator';
 
 interface DialogueItem {
@@ -232,6 +233,19 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
       rate: 1.0,
       avatar: 'A'
     },
+    'Shaykh Farhan al-Rashed': {
+      name: 'Shaykh Farhan al-Rashed',
+      role: 'Contemporary Fatwa & Field Research Lead',
+      geminiVoice: 'Charon',
+      voiceTag: 'Gemini Charon (Contemporary Fatwa Synthesizer)',
+      gender: 'M',
+      color: 'text-sky-400',
+      bg: 'bg-sky-950/60',
+      border: 'border-sky-500/50',
+      pitch: 0.92,
+      rate: 0.98,
+      avatar: 'F'
+    },
     'Narrator': {
       name: 'Prime Dragon Radio Desk',
       role: 'Studio Announcer',
@@ -316,11 +330,12 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
         speechText = line.replace(/^(HOST\s*1(\s*\([^)]*\))?|(DR\.\s*)?TARIQ(\s+AL-MANSOOR)?):\s*/i, '');
       } else if (
         upper.startsWith('DR. LAYLA:') ||
+        upper.startsWith('DR. LAYLA (') ||
         upper.startsWith('DR. LAYLA AL-QASIMI:') ||
         upper.startsWith('LAYLA:')
       ) {
         detectedSpeaker = 'Dr. Layla al-Qasimi';
-        speechText = line.replace(/^((DR\.\s*)?LAYLA(\s+AL-QASIMI)?):\s*/i, '');
+        speechText = line.replace(/^((DR\.\s*)?LAYLA(\s+AL-QASIMI)?(\s*\([^)]*\))?):\s*/i, '');
       } else if (
         upper.startsWith('SHEIKH IMRAN:') ||
         upper.startsWith('SHEIKH IMRAN AL-HASANI:') ||
@@ -330,11 +345,12 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
         speechText = line.replace(/^((SHEIKH\s*)?IMRAN(\s+AL-HASANI)?):\s*/i, '');
       } else if (
         upper.startsWith('DR. ZAINAB:') ||
+        upper.startsWith('DR. ZAINAB (') ||
         upper.startsWith('DR. ZAINAB AL-MUBARAK:') ||
         upper.startsWith('ZAINAB:')
       ) {
         detectedSpeaker = 'Dr. Zainab al-Mubarak';
-        speechText = line.replace(/^((DR\.\s*)?ZAINAB(\s+AL-MUBARAK)?):\s*/i, '');
+        speechText = line.replace(/^((DR\.\s*)?ZAINAB(\s+AL-MUBARAK)?(\s*\([^)]*\))?):\s*/i, '');
       } else if (
         upper.startsWith('SHEIKH YUSUF:') ||
         upper.startsWith('SHEIKH YUSUF AL-AZHARI:') ||
@@ -342,6 +358,15 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
       ) {
         detectedSpeaker = 'Sheikh Yusuf al-Azhari';
         speechText = line.replace(/^((SHEIKH\s*)?YUSUF(\s+AL-AZHARI)?):\s*/i, '');
+      } else if (
+        upper.startsWith('SHAYKH FARHAN:') ||
+        upper.startsWith('SHAYKH FARHAN (') ||
+        upper.startsWith('SHAYKH FARHAN AL-RASHED:') ||
+        upper.startsWith('SHEIKH FARHAN:') ||
+        upper.startsWith('FARHAN:')
+      ) {
+        detectedSpeaker = 'Shaykh Farhan al-Rashed';
+        speechText = line.replace(/^((SHAYKH\s*|SHEIKH\s*)?FARHAN(\s+AL-RASHED)?(\s*\([^)]*\))?):\s*/i, '');
       } else if (
         upper.startsWith('DR. AMINA:') ||
         upper.startsWith('DR. AMINA AL-KINDI:') ||
@@ -369,6 +394,8 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
         addressedTo = 'Dr. Zainab al-Mubarak';
       } else if (lowerText.includes('yusuf')) {
         addressedTo = 'Sheikh Yusuf al-Azhari';
+      } else if (lowerText.includes('farhan') || lowerText.includes('ஃபர்ஹான்') || lowerText.includes('ෆර්හාන්')) {
+        addressedTo = 'Shaykh Farhan al-Rashed';
       }
 
       const pConfig = personasConfig[detectedSpeaker];
@@ -545,6 +572,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
     'Dr. Zainab al-Mubarak': 'Hello, I am Dr. Zainab al-Mubarak, investigating hidden textual defects.',
     'Sheikh Yusuf al-Azhari': 'Peace and blessings. I am Sheikh Yusuf al-Azhari, scholars verdicts and legal grading master.',
     'Dr. Amina al-Kindi': 'Assalamu alaikum. I am Dr. Amina al-Kindi, HadeethEnc source research specialist.',
+    'Shaykh Farhan al-Rashed': 'Assalamu alaikum. I am Shaykh Farhan al-Rashed, contemporary fatwa and field research synthesizer.',
     'Narrator': 'Prime Dragon Radio Studio audio desk online.'
   };
 
@@ -781,7 +809,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
 
   // Helper to highlight addressed names in radio conversation
   const renderDialogueTextWithHighlights = (text: string) => {
-    const namePattern = /\b(Brother Feroz|Feroz|Dr\.\s*Tariq(\s+al-Mansoor)?|Tariq|Dr\.\s*Layla(\s+al-Qasimi)?|Layla|Sheikh\s*Imran(\s+al-Hasani)?|Imran|Dr\.\s*Zainab(\s+al-Mubarak)?|Zainab|Sheikh\s*Yusuf(\s+al-Azhari)?|Yusuf)\b/gi;
+    const namePattern = /\b(Brother Feroz|Feroz|Dr\.\s*Tariq(\s+al-Mansoor)?|Tariq|Dr\.\s*Layla(\s+al-Qasimi)?|Layla|Sheikh\s*Imran(\s+al-Hasani)?|Imran|Dr\.\s*Zainab(\s+al-Mubarak)?|Zainab|Sheikh\s*Yusuf(\s+al-Azhari)?|Yusuf|Shaykh\s*Farhan(\s+al-Rashed)?|Farhan)\b/gi;
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
     let match: RegExpExecArray | null;
@@ -983,7 +1011,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
             </div>
 
             {/* Panelists Microphone Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
               {([
                 'Host', 
                 'Dr. Tariq al-Mansoor', 
@@ -992,6 +1020,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                 'Dr. Zainab al-Mubarak', 
                 'Sheikh Yusuf al-Azhari',
                 'Dr. Amina al-Kindi',
+                'Shaykh Farhan al-Rashed',
               ] as PersonaId[]).map((pId) => {
                 const p = personasConfig[pId];
                 const isCurrentSpeaker = currentItemIndex >= 0 && dialogueItems[currentItemIndex]?.speaker === pId;

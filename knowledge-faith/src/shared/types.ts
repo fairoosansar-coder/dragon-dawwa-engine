@@ -98,8 +98,15 @@ export interface AskResult {
   model: string;
 }
 
+export type PodcastSpeaker =
+  | 'Host'
+  | 'Guest'
+  | "Dr. Layla (Qur'an Specialist)"
+  | 'Dr. Zainab (Hadith & Fiqh)'
+  | 'Shaykh Farhan (Contemporary Fatwa & Field Research)';
+
 export interface PodcastLine {
-  speaker: 'Host' | 'Guest';
+  speaker: PodcastSpeaker;
   text: string;
   citations: string[];
 }

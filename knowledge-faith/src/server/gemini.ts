@@ -268,7 +268,16 @@ const podcastSchema: Schema = {
       items: {
         type: Type.OBJECT,
         properties: {
-          speaker: { type: Type.STRING, enum: ['Host', 'Guest'] },
+          speaker: {
+            type: Type.STRING,
+            enum: [
+              'Host',
+              "Dr. Layla (Qur'an Specialist)",
+              'Dr. Zainab (Hadith & Fiqh)',
+              'Shaykh Farhan (Contemporary Fatwa & Field Research)',
+              'Guest',
+            ],
+          },
           text: { type: Type.STRING },
           citations: { type: Type.ARRAY, items: { type: Type.STRING } },
         },
@@ -371,10 +380,11 @@ export async function writePodcast(
   evidence: Evidence[],
   model: JsonModel = generateJson,
   hostName?: string | null,
+  synthesisContext?: string | null,
 ): Promise<PodcastScript> {
   if (evidence.length === 0) throw new UpstreamError('No sources could be retrieved for this topic.', 422);
   const { value, model: used } = await model<{ title: string; lines: PodcastLine[] }>(
-    podcastPrompt(topic, lang, evidence, minutes, hostName),
+    podcastPrompt(topic, lang, evidence, minutes, hostName, synthesisContext),
     podcastSchema,
   );
   const lines = sanitizeLines(value.lines ?? [], evidence);
@@ -474,12 +484,29 @@ async function speakWithDirection(text: string, voiceName: string, style: string
 
 export function narrateDialogue(lines: PodcastLine[], hostVoice: unknown, guestVoice: unknown): Promise<TtsResult> {
   const script = lines.map(l => `${l.speaker}: ${l.text}`).join('\n');
+  const uniqueSpeakers = [...new Set(lines.map(l => l.speaker))];
+  const speakerVoiceConfigs = uniqueSpeakers.map(speaker => {
+    let voiceName = voice(hostVoice, 'Kore');
+    if (speaker === 'Guest' || /farhan/i.test(speaker)) {
+      voiceName = voice(guestVoice, 'Charon');
+    } else if (/layla/i.test(speaker)) {
+      voiceName = 'Kore';
+    } else if (/zainab/i.test(speaker)) {
+      voiceName = 'Zephyr';
+    } else if (speaker === 'Host') {
+      voiceName = voice(hostVoice, 'Puck');
+    }
+    return { speaker, voiceConfig: { prebuiltVoiceConfig: { voiceName } } };
+  });
+  if (!speakerVoiceConfigs.some(c => c.speaker === 'Host')) {
+    speakerVoiceConfigs.push({ speaker: 'Host', voiceConfig: { prebuiltVoiceConfig: { voiceName: voice(hostVoice, 'Kore') } } });
+  }
+  if (!speakerVoiceConfigs.some(c => c.speaker === 'Guest') && speakerVoiceConfigs.length < 2) {
+    speakerVoiceConfigs.push({ speaker: 'Guest', voiceConfig: { prebuiltVoiceConfig: { voiceName: voice(guestVoice, 'Charon') } } });
+  }
   return generateSpeech(script, {
     multiSpeakerVoiceConfig: {
-      speakerVoiceConfigs: [
-        { speaker: 'Host', voiceConfig: { prebuiltVoiceConfig: { voiceName: voice(hostVoice, 'Kore') } } },
-        { speaker: 'Guest', voiceConfig: { prebuiltVoiceConfig: { voiceName: voice(guestVoice, 'Charon') } } },
-      ],
+      speakerVoiceConfigs,
     },
   });
 }
