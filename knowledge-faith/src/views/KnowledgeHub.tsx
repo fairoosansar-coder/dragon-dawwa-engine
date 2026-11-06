@@ -361,10 +361,7 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
       <AskPanel />
       <ScholarDraft focus={sub === 'scholar'} />
 
-      <section data-study-themes className="relative overflow-hidden rounded-3xl border border-[#C9A14E]/50 bg-[#F6F1E4] p-5 shadow-sm sm:p-6">
-        <img src="/assets/geometric-cream.jpg" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
-        <div className="pointer-events-none absolute inset-0 bg-[#F6F1E4]/80" />
-        <div className="relative">
+      <Card>
         {topic ? (
           <>
             <Button variant="ghost" onClick={() => setTopicId(null)} className="-ml-3 mb-2">
@@ -379,28 +376,32 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
             {topics.length === 0 ? (
               <EmptyState>{t.noResults}</EmptyState>
             ) : (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" data-theme-plates>
                 {topics.map(item => (
                   <button
                     key={item.id}
                     type="button"
-                    data-theme-card
                     onClick={() => setTopicId(item.id)}
-                    className="kf-theme-card relative overflow-hidden rounded-2xl border border-[#C9A14E]/50 bg-[#F6F1E4] p-4 text-left"
+                    className="theme-plate relative min-h-[6.5rem] overflow-hidden rounded-2xl border border-[#1F6B52]/30 bg-[#F7F1E4] p-3.5 text-left sm:p-4"
                   >
-                    <img src="/assets/geometric-cream.jpg" alt="" className="kf-theme-plate pointer-events-none absolute inset-0 h-full w-full object-cover" />
-                    <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(165deg,rgba(246,241,228,0.94)_0%,rgba(246,241,228,0.84)_62%,rgba(246,241,228,0.58)_100%)]" />
-                    <span className="kf-theme-sheen" aria-hidden="true" />
-                    <span lang={lang} className="relative block font-semibold leading-snug text-[#123A2E]">{item.title[lang]}</span>
-                    <span className="relative mt-1 block text-xs leading-relaxed text-[#1f3a32]">{item.refs.join(' · ')}</span>
+                    <img
+                      src="/assets/geometric-cream.jpg"
+                      alt=""
+                      className="pointer-events-none absolute inset-0 h-full w-full -scale-x-100 object-cover object-[8%_100%]"
+                    />
+                    <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(105deg,rgba(247,241,228,0.96)_0%,rgba(247,241,228,0.9)_46%,rgba(247,241,228,0.55)_78%,rgba(247,241,228,0.28)_100%)]" />
+                    <span className="theme-plate-sheen" aria-hidden="true" />
+                    <span lang={lang} className="relative z-10 block pr-6 font-semibold leading-snug text-pine">
+                      {item.title[lang]}
+                    </span>
+                    <span className="relative z-10 mt-1 block pr-8 text-xs leading-relaxed text-muted">{item.refs.join(' · ')}</span>
                   </button>
                 ))}
               </div>
             )}
           </>
         )}
-        </div>
-      </section>
+      </Card>
 
       <section ref={savedRef} id="saved" className="scroll-mt-28">
         <Card>
