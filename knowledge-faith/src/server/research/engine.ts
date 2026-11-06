@@ -1269,7 +1269,7 @@ export async function executeResearch(input: {
       if (parallelConsult.status === 'failed') {
         pushCoverage({ kind: 'source_unavailable', provider: 'Parallel', detail: parallelConsult.setup ?? 'Parallel did not return findings.' });
       } else if (parallelConsult.status === 'running') {
-        pushCoverage({ kind: 'budget_exhausted', provider: 'Parallel', detail: parallelConsult.setup ?? 'Parallel is still running. Its citations are not in this revision.' });
+        pushCoverage({ kind: 'budget_exhausted', provider: 'Parallel', detail: parallelConsult.setup ?? 'External research is still in progress. Its citations are not in this revision.' });
       }
     } catch (err) {
       if (isAbort(err, signal)) return finish('cancelled');

@@ -45,11 +45,12 @@ interface CommunityEpisode {
 const KEY = 'kf-research-podcasts';
 
 function voiceFor(speaker: string, hostName: string): string {
-  if (speaker === hostName || /feroz|^host\b/i.test(speaker)) return 'Puck';
-  if (/layla|passage reader/i.test(speaker)) return 'Kore';
+  if (speaker === hostName || /feroz|^host\b|brother tariq|seeker guide/i.test(speaker)) return 'Puck';
+  if (/layla|passage reader|qur['’]?an specialist/i.test(speaker)) return 'Kore';
+  if (/farhan|fatwa|field research/i.test(speaker)) return 'Charon';
   if (/tariq/i.test(speaker)) return 'Fenrir';
   if (/imran/i.test(speaker)) return 'Orus';
-  if (/zainab|distinction/i.test(speaker)) return 'Zephyr';
+  if (/zainab|distinction|hadith & fiqh/i.test(speaker)) return 'Zephyr';
   if (/yusuf/i.test(speaker)) return 'Fenrir';
   if (/amina|deep research/i.test(speaker)) return 'Aoede';
   return 'Kore';
@@ -305,13 +306,18 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
     const job = response.job;
     const dossier = response.dossier;
     if (job.status !== 'done' || job.investigation === 'blocked' || !dossier?.passages.length) return null;
+    if (job.parallel?.status === 'running' && dossier.passages.length === 0) return null;
     const model = buildReportModel(job, dossier);
+    const parallelFirst = [
+      ...dossier.passages.filter(p => p.source.provider === 'Parallel'),
+      ...dossier.passages.filter(p => p.source.provider !== 'Parallel'),
+    ];
     return roundtableFromResearch({
       question: job.question,
       language: job.language,
       agents: job.agents ?? [],
       answer: model.answer,
-      passages: dossier.passages.map(passage => ({
+      passages: parallelFirst.map(passage => ({
         locator: passage.locator,
         text: passage.text,
         context: passage.context,

@@ -349,7 +349,7 @@ export function reviewMaterialCoverage(input: {
       return { ...part, status: 'answered', note: 'A passage in the selected language addresses this part.' };
     }
     if (sameLanguage.some(isOpenedAyah)) {
-      return { ...part, status: 'unresolved', note: 'The opened ayah stays with the reader. What the opened commentary does not state is left unnamed.' };
+      return { ...part, status: 'unresolved', note: 'The opened ayah addresses the foundational theme, while additional historical details not stated in the opened commentary remain open.' };
     }
     return { ...part, status: 'unresolved', note: 'No passage in the selected language addresses this part of the question.' };
   });

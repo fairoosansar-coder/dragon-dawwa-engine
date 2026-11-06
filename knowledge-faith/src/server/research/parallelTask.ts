@@ -298,7 +298,7 @@ export async function consultParallel(input: {
       signal: input.signal,
     });
     if (result.status === 408 || result.status === 202) {
-      return { status: 'running', liveCallMade: true, runId, findings: [], setup: 'Parallel is still running. A later revision can carry its citations. This result does not claim them yet.', processor, durationMs: elapsed() };
+      return { status: 'running', liveCallMade: true, runId, findings: [], setup: 'External research is still in progress. A later revision can carry its citations. This result does not claim them yet.', processor, durationMs: elapsed() };
     }
     if (!result.ok) {
       return { status: 'failed', liveCallMade: true, runId, findings: [], setup: `Parallel result returned HTTP ${result.status}. No finding was invented.`, processor, durationMs: elapsed() };
@@ -400,8 +400,8 @@ export async function awaitParallelResult(input: {
     runId: input.runId,
     findings: [],
     setup: lastStatus
-      ? `Parallel is still running after HTTP ${lastStatus}. A later revision can carry its citations. This result does not claim them yet.`
-      : 'Parallel is still running. A later revision can carry its citations. This result does not claim them yet.',
+      ? `External research is still in progress after HTTP ${lastStatus}. A later revision can carry its citations. This result does not claim them yet.`
+      : 'External research is still in progress. A later revision can carry its citations. This result does not claim them yet.',
     processor,
     durationMs: Date.now() - started,
   };

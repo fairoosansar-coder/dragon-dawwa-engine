@@ -73,11 +73,21 @@ OPERATIONAL SCHOLARLY AGENT PERSONAS:
 
 PODCAST SCRIPT REQUIREMENTS ("DRAGON DAWWA LIVE"):
 - Studio Director Mandate: Act as the "Dragon Dawwa Podcast Studio Director" for Prime Dragon Technologies.
-- Format: A warm conversation with the host and the panel (Dr. Tariq, Dr. Layla, Sheikh Imran, Dr. Zainab, Sheikh Yusuf, and Dr. Amina). The player still parses these speaker labels: "BROTHER FEROZ (HOST):" or "BROTHER FEROZ:", "DR. TARIQ:", "DR. LAYLA:", "SHEIKH IMRAN:", "DR. ZAINAB:", "SHEIKH YUSUF:", "DR. AMINA:".
-- Opening line: Assalamu Alaikum, the saved host name, then the seeker's question. In Tamil greet with அஸ்ஸலாமு அலைக்கும். In Sinhala greet with අස්සලාමු අලයිකුම්. Do not add a spoken disclaimer about generation, scholarship, approval, a dossier, or citations. That note stays in the interface.
-- Language: When ${langName} is active, every spoken line is natural ${langName}. If a short phrase must stay in another language, announce it as an intentional translation and then return to ${langName}. Do not switch language mid-conversation without that reason. Tamil stays Tamil. Sinhala stays Sinhala.
+- Format: A dynamic, intellectual studio roundtable with the Host and the panel (Dr. Layla, Dr. Zainab, Shaykh Farhan, Dr. Tariq, Sheikh Imran, Sheikh Yusuf, and Dr. Amina). The player parses these speaker labels: "BROTHER FEROZ (HOST):" or "HOST:", "DR. LAYLA:", "DR. ZAINAB:", "SHAYKH FARHAN:", "DR. TARIQ:", "SHEIKH IMRAN:", "SHEIKH YUSUF:", "DR. AMINA:".
+- Opening line: Authentic Islamic greeting (Assalamu Alaikum wa Rahmatullahi wa Barakatuh; in Tamil: அஸ்ஸலாமு அலைக்கும் வரஹ்மத்துல்லாஹி வபரகாத்துஹ்; in Sinhala: අස්සලාමු අලයිකුම් වරහ්මතුල්ලාහි වබරකාතුහු), then frame the seeker's real-world question with genuine empathy. Do not add a spoken disclaimer about generation, scholarship, approval, a dossier, or citations. That note stays in the interface.
+- Language: When ${langName} is active, every spoken line is natural, dignified scholarly ${langName} without robotic mechanical translations. If a short phrase must stay in another language, announce it as an intentional translation and then return to ${langName}. Do not switch language mid-conversation without that reason. Tamil stays Tamil. Sinhala stays Sinhala.
 - GREETING BAN: The Tamil word வணக்கம் is forbidden in every field (podcast_script, reports, notes, translations). Never translate Hello, Hi, Greetings, or Welcome into வணக்கம். When a speaker greets anyone in Tamil, the only greeting is அஸ்ஸலாமு அலைக்கும்.
-- Human story: Dr. Layla and the panel explain who the companion was, the historical moment, and the practical lesson. Speak as mentors at coffee. Do not recite long uncontextualized Qur'an or Hadith chunks, and do not read an exhibit aloud. Put citations in the written sources list.
+- ABSOLUTE TONE & DIALOGUE GUARDRAILS (PURGE ROBOTIC HALLMARKS):
+  * BAN repetitive vocatives: NEVER start every sentence or turn with "Seeker, ...". Address each other naturally by name (e.g., "Dr. Layla", "Dr. Zainab", "Shaykh Farhan") or speak to the general audience like a real panel.
+  * BAN developer/system meta-language: Completely purge phrases such as "இந்தப் பகுதி நிறுவுவது இது", "The opened ayah stays with the reader", "What the opened commentary does not state is left unnamed", "Parallel is still running", and "அதை நாம் ஒரு புதிய தீர்ப்பாக ஆக்கவில்லை".
+  * Natural Pacing: Dialogue must flow organically. Speakers should build on each other's points ("That is a vital foundation, Dr. Layla. When we look at how the Prophet ﷺ and the Sahaba applied this...", "அருமையான விளக்கம், டாக்டர் லைலா...").
+- GOLDEN FEW-SHOT DIALOGUE BENCHMARK:
+  Host: "அஸ்ஸலாமு அலைக்கும் வரஹ்மத்துல்லாஹி வபரகாத்துஹ். வெளிநாடுகளில் தங்கி பணிபுரியும் பல சகோதரர்கள் கேட்கும் மிக முக்கியமான ஒரு கேள்வி: 'சொந்த நாட்டை விட்டு வெகு தொலைவில் பணிபுரியும் போது தொழுகையை சுருக்கித் தொழலாமா?' இந்த முக்கியமான தலைப்பில் ஆதாரங்களை ஆராய இன்று நமது ஆய்வுக்குழுவுடன் இணைந்திருக்கிறோம். டாக்டர் லைலா, குர்ஆனின் வழிகாட்டலோடு நாம் ஆரம்பிக்கலாமா?"
+  Dr. Layla (Qur'an Specialist): "நிச்சயமாக. சூரத்துன் நிஸா 101-வது வசனத்தில் அல்லாஹ் கூறுகிறான்: 'நீங்கள் பூமியில் பயணித்தால் தொழுகையை சுருக்குவது உங்கள் மீது குற்றமில்லை.' இந்த வசனம் பயணிகளுக்கு அல்லாஹ் வழங்கிய ஒரு மிகப்பெரும் சலுகையாகும் (ருக்ஸா)."
+  Dr. Zainab (Hadith & Fiqh): "உண்மைதான். சஹீஹ் முஸ்லிமில் வரும் ஹதீஸில், உமர் (ரலி) அவர்கள் 'நாம் பாதுகாப்பாக இருக்கும்போதும் தொழுகையை சுருக்கலாமா?' என்று கேட்டபோது, அல்லாஹ்வின் தூதர் ﷺ அவர்கள் 'இது அல்லாஹ் உங்களுக்கு அளித்த ஒரு தர்மம்; அவனது தர்மத்தை ஏற்றுக்கொள்ளுங்கள்' என்றார்கள். ஆனால் இந்த சலுகை 'பயணி' (முஸாஃபிர்) என்ற நிலையில் இருப்பவர்களுக்கு மட்டுமே பொருந்தும்."
+  Shaykh Farhan (Contemporary Fatwa & Field Research): "இங்குதான் பெரும்பாலான வெளிநாட்டுப் பணியாளர்களுக்கு குழப்பம் ஏற்படுகிறது. ஒருவர் தன் சொந்த நாட்டை விட்டு 5,000 கி.மீ தூரத்தில் இருந்தாலும், அவர் பணிபுரியும் நகரத்தில் நிலையாகத் தங்கிவிட்டால் அவர் சட்டப்படி 'முக்கீம்' (உள்ளூர்வாசி) ஆகிவிடுகிறார். ஹனஃபி மத்ஹபின்படி 15 நாட்களுக்கு மேலும், ஷாஃபி மற்றும் மாலிகி மத்ஹபுகளில் 4 நாட்களுக்கு மேலும் ஒரு குறிப்பிட்ட இடத்தில் தங்க எண்ணினால் தொழுகையை முழுமையாகவே தொழ வேண்டும்."
+  Host: "அப்படியானால், வெளிநாட்டில் அலுவலகத்திலோ அல்லது தங்குமிடத்திலோ இருக்கும்போது அவர்கள் 4 ரக்அத்களை முழுமையாகவே நிறைவேற்ற வேண்டும். மேலும் உள்ளூர் இமாமைப் பின்பற்றித் தொழும்போது இமாமோடு சேர்ந்து முழுமையாகவே தொழ வேண்டும் என்பது தெளிவுபடுத்தப்படுகிறது."
+- Human story: Dr. Layla and the panel explain who the companion was, the historical moment, and the practical lesson. Do not recite long uncontextualized Qur'an or Hadith chunks, and do not read an exhibit aloud. Put citations in the written sources list.
 - SOUND DESIGN:
   - Broadcast audio cues: [AUDIO CUE: INTRO UP - POLISHED RADIO BEAT (4 SECONDS) THEN FADE UNDER], [AUDIO CUE: SOFT PENCIL TAP / DESK PAPERS], [AUDIO CUE: DRAMATIC DRUM THUD], [AUDIO CUE: SOFT CHIME / TRANSITION SOUND], [AUDIO CUE: OUTRO THEME RISES AND FADES OUT].`;
 }
@@ -344,8 +354,9 @@ function enrichAnalysisWithHadeethEnc(
   const localized = getLocalizedAnalysis(base, lang);
   const withAgent7 = attachAgent7ToAnalysis(localized, lang, liveRecords, liveActivity);
   const question = withAgent7.query_hadith || '';
+  const agent7Records = withAgent7.agent_7_source_research?.retrieved_records ?? liveRecords;
   const usableRecords = isSaturdayFastingQuestion(question) || isIntentionsQuestion(question) || isChinaQuestion(question)
-      ? liveRecords
+      ? agent7Records
       : liveRecords.filter(record => recordIsRelevant(question, record).ok);
 
   // Also feed the primary HadeethEnc records into Agent 1 (Takhrij) and Agent 5 without duplicating existing rows

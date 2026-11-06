@@ -46,15 +46,17 @@ function everydayQuestion(question: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/** A short lesson for the ear. Locators and long quotations stay out of the spoken line. */
+/** A clear spoken lesson for the ear. Locators and long uncontextualized quotations stay out of the spoken line. */
 function spokenFinding(text: string): string {
   const stripped = clean(text)
     .replace(/\bSurah\s+\d+\s*,\s*ayah\s+\d+\s*:\s*/gi, '')
     .replace(/[“"][^”"]{120,}[”"]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  const sentence = stripped.split(/(?<=[.!?؟])\s+/).map(part => part.trim()).find(part => part.length >= 12) ?? stripped;
-  return sentence.length > 160 ? `${sentence.slice(0, 157).trim()}…` : sentence;
+  const sentences = stripped.split(/(?<=[.!?؟])\s+/).map(part => part.trim()).filter(part => part.length >= 12);
+  let sentence = sentences[0] ?? stripped;
+  if (sentence.length < 60 && sentences[1]) sentence = `${sentence} ${sentences[1]}`;
+  return sentence.length > 260 ? `${sentence.slice(0, 257).trim()}…` : sentence;
 }
 
 /** One language for the conversation. A foreign sentence is introduced as a translation. */
@@ -73,20 +75,27 @@ function inConversation(language: Lang, lesson: string): string {
 export function generatedHostLine(question: string, language: Lang, hostName?: string | null): string {
   const host = sanitizePodcastHostName(hostName);
   const asked = everydayQuestion(question);
-  if (language === 'ta') return `அஸ்ஸலாமு அலைக்கும், ${host}. இன்று நாம் உங்கள் கேள்வியுடன் அமர்கிறோம்: ${asked}`;
-  if (language === 'si') return `අස්සලාමු අලයිකුම්, ${host}. අද අපි ඔබේ ප්‍රශ්නය සමඟ වාඩි වෙමු: ${asked}`;
-  return `Assalamu Alaikum, ${host}. Today we sit with your question: ${asked}`;
+  if (language === 'ta') return `அஸ்ஸலாமு அலைக்கும் வரஹ்மத்துல்லாஹி வபரகாத்துஹ், ${host}. இன்று நாம் உங்கள் கேள்வியுடன் அமர்கிறோம்: ${asked}`;
+  if (language === 'si') return `අස්සලාමු අලයිකුම් වරහ්මතුල්ලාහි වබරකාතුහු, ${host}. අද අපි ඔබේ ප්‍රශ්නය සමඟ වාඩි වෙමු: ${asked}`;
+  return `Assalamu Alaikum wa Rahmatullahi wa Barakatuh, ${host}. Today we sit with your question: ${asked}`;
 }
 
-function contributorLine(agent: BroadcastAgent, language: Lang, hostName: string): string {
+function contributorLine(agent: BroadcastAgent, language: Lang, hostName: string, previousPersona?: string): string {
   const lesson = inConversation(language, spokenFinding(agent.finding));
+  const addressed = previousPersona ? previousPersona : hostName;
   if (language === 'ta') {
-    return `${hostName}, ${agent.persona} இங்கே இருக்கிறேன். தோழரின் தருணத்தையும் நடைமுறைப் பாடத்தையும் சொல்கிறேன். ${lesson}`;
+    return previousPersona
+      ? `அருமையான விளக்கம், ${addressed}. ${agent.persona} இங்கே இருக்கிறேன். நடைமுறைப் பாடத்தையும் மூலத்தின் வழிகாட்டலையும் சொல்கிறேன்: ${lesson}`
+      : `${hostName}, ${agent.persona} இங்கே இருக்கிறேன். தோழரின் தருணத்தையும் நடைமுறைப் பாடத்தையும் சொல்கிறேன். ${lesson}`;
   }
   if (language === 'si') {
-    return `${hostName}, මම ${agent.persona}. සගයාගේ මොහොත සහ ප්‍රායෝගික පාඩම කියමි. ${lesson}`;
+    return previousPersona
+      ? `වැදගත් පැහැදිලි කිරීමක්, ${addressed}. මම ${agent.persona}. ප්‍රායෝගික පාඩම කියමි: ${lesson}`
+      : `${hostName}, මම ${agent.persona}. සගයාගේ මොහොත සහ ප්‍රායෝගික පාඩම කියමි. ${lesson}`;
   }
-  return `${hostName}, this is ${agent.persona}. Let us sit with the person and the moment. The practical lesson is ${lesson}`;
+  return previousPersona
+    ? `That is a vital foundation, ${addressed}. This is ${agent.persona}. Building on that point, the practical lesson is ${lesson}`
+    : `${hostName}, this is ${agent.persona}. Let us sit with the person and the moment. The practical lesson is ${lesson}`;
 }
 
 /** Agents that ran, in the order they were aggregated. The host disclosure is separate. */
@@ -101,12 +110,14 @@ export function writeBroadcastScript(input: BroadcastScriptInput): string {
     '[AUDIO CUE: INTRO UP - POLISHED RADIO BEAT (4 SECONDS) THEN FADE UNDER]',
     `${label} ${generatedHostLine(input.question, input.language, hostName)}`,
   ];
+  let previousPersona: string | undefined;
   for (const agent of agentsThatRan(input.agents)) {
     if (isHostSpeaker(agent.speaker, label)) {
-      lines.push(`${label} ${hostName}, ${clean(agent.finding)}`);
+      lines.push(`${label} ${clean(agent.finding)}`);
       continue;
     }
-    lines.push(`${agent.speaker} ${contributorLine(agent, input.language, hostName)}`);
+    lines.push(`${agent.speaker} ${contributorLine(agent, input.language, hostName, previousPersona)}`);
+    previousPersona = agent.persona;
   }
   lines.push('[AUDIO CUE: OUTRO THEME RISES AND FADES OUT]');
   return lines.join('\n\n');
