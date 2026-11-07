@@ -1,7 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SOURCE_BUSY, SOURCE_TIMEOUT } from '../src/server/http.ts';
-import { parseReadingLink, readingLinkHash, verseShareText, wrapWords, packLines } from '../src/lib/verseShare.ts';
+import {
+  BRAND_FOOTER_LEFT,
+  BRAND_FOOTER_RIGHT,
+  CARD_HEIGHT,
+  CARD_WIDTH,
+  formatQuotedTranslation,
+  formatVerseCardBadge,
+} from '../src/lib/verseImage.ts';
+import {
+  listFaithWallPosts,
+  packLines,
+  parseReadingLink,
+  publishFaithWallPost,
+  readingLinkHash,
+  verseShareText,
+  wrapWords,
+} from '../src/lib/verseShare.ts';
 
 const verse = {
   surah: 2,
@@ -51,3 +67,24 @@ test('rate limits and timeouts use a plain message', () => {
   assert.match(SOURCE_TIMEOUT, /too long/i);
   assert.equal(SOURCE_BUSY.includes('429'), false);
 });
+
+test('verse card studio uses 1200x675 16:9 HD dimensions, illuminated badge, quoted translation, and brand footer', async () => {
+  assert.equal(CARD_WIDTH, 1200);
+  assert.equal(CARD_HEIGHT, 675);
+  assert.equal(formatVerseCardBadge(verse), '✦ SURAH AL-BAQARA 2:255');
+  assert.equal(formatQuotedTranslation('In the name of Allah[1]'), '“In the name of Allah”');
+  assert.equal(BRAND_FOOTER_LEFT, 'DRAGON DAWWA · Institutional Research Studio');
+  assert.equal(BRAND_FOOTER_RIGHT, 'dragondawwa.com');
+
+  const post = await publishFaithWallPost({
+    verse,
+    lang: 'en',
+    url: 'https://dragondawwa.com/#/quran/book?surah=2&ayah=255',
+    reflection: 'Ayat al-Kursi brings serenity to the heart.',
+  });
+  assert.equal(post.surah, 2);
+  assert.equal(post.ayah, 255);
+  assert.equal(post.reflection, 'Ayat al-Kursi brings serenity to the heart.');
+  assert.equal(listFaithWallPosts()[0]?.id, post.id);
+});
+

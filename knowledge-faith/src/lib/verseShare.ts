@@ -68,6 +68,96 @@ export function verseShareText(verse: ShareVerse): string {
   return parts.join('\n\n');
 }
 
+export interface FaithWallPost {
+  id: string;
+  surah: number;
+  ayah: number;
+  surahName: string;
+  arabic: string;
+  translation: string;
+  reflection: string;
+  lang: Lang;
+  url: string;
+  cardDataUrl?: string;
+  createdAt: string;
+}
+
+const WALL_STORAGE_KEY = 'kf-public-faith-wall';
+const memoryWallPosts: FaithWallPost[] = [];
+
+export function listFaithWallPosts(): FaithWallPost[] {
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = window.localStorage.getItem(WALL_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed as FaithWallPost[];
+      }
+    } catch {
+      /* ignore storage errors */
+    }
+  }
+  return [...memoryWallPosts];
+}
+
+export async function publishFaithWallPost(input: {
+  verse: ShareVerse;
+  lang: Lang;
+  url: string;
+  reflection?: string;
+  cardDataUrl?: string;
+}): Promise<FaithWallPost> {
+  const post: FaithWallPost = {
+    id: `wall-${input.verse.surah}-${input.verse.ayah}-${Date.now()}`,
+    surah: input.verse.surah,
+    ayah: input.verse.ayah,
+    surahName: input.verse.surahName,
+    arabic: input.verse.arabic,
+    translation: input.verse.translation.replace(/\[\d+\]/g, '').trim(),
+    reflection: (input.reflection ?? '').trim().slice(0, 600),
+    lang: input.lang,
+    url: input.url,
+    cardDataUrl: input.cardDataUrl,
+    createdAt: new Date().toISOString(),
+  };
+
+  const next = [post, ...listFaithWallPosts().filter(item => item.id !== post.id)].slice(0, 50);
+  memoryWallPosts.splice(0, memoryWallPosts.length, ...next);
+
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(WALL_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      /* keep in memory */
+    }
+  }
+
+  if (typeof fetch === 'function') {
+    try {
+      await fetch('/api/wall/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: post.id,
+          surah: post.surah,
+          ayah: post.ayah,
+          surahName: post.surahName,
+          arabic: post.arabic,
+          translation: post.translation,
+          reflection: post.reflection,
+          lang: post.lang,
+          url: post.url,
+          createdAt: post.createdAt,
+        }),
+      });
+    } catch {
+      /* offline or local mode: kept in local/in-memory state */
+    }
+  }
+
+  return post;
+}
+
 /** Break on spaces. A token wider than the line is split, and every character is kept. */
 export function wrapWords(text: string, maxWidth: number, measure: (sample: string) => number): string[] {
   if (!text) return [];
