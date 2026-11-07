@@ -9,6 +9,7 @@ import { buildStamp } from '../../buildStamp.ts';
 import { BrandLockup } from './Brand.tsx';
 import { NavGlyph, type NavIconName } from './navIcons.tsx';
 import { AudioMiniPlayer, DeskHeaderTabs } from './widgets.tsx';
+import { SeekerAccountPill, SeekerAuthModal } from '../SeekerAuthModal.tsx';
 
 interface NavItem {
   path: RouteRoot;
@@ -78,6 +79,7 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
             })}
           </nav>
           <div className="mt-auto border-t border-[#C6A15A]/35 px-3 py-4">
+            <SeekerAccountPill variant="sidebar" />
             <a href="#/hub/saved" className={`${navLinkClass('side')} text-[#F5EEDC]`}>
               <NavGlyph name="saved" />
               {t.sidebarSaved}
@@ -106,6 +108,7 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
               <div className="ml-auto flex shrink-0 items-center gap-2 sm:order-3">
                 {quranSettings && <div id="kf-library-settings" className="hidden lg:block" />}
                 {quranSettings && <div id="kf-library-settings-mobile" className="lg:hidden" />}
+                <SeekerAccountPill variant="header" />
                 <label className="flex shrink-0 items-center gap-2 text-xs text-muted">
                   <span className="hidden sm:inline">{t.language}</span>
                   <select aria-label={t.language} value={lang} onChange={event => setLang(toLang(event.target.value))} className="max-w-[7.5rem] truncate rounded-full border border-[#073C30]/15 bg-white px-3 py-1.5 text-sm text-[#16233B] sm:max-w-none">
@@ -154,6 +157,7 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
         </nav>
         )}
       </div>
+      <SeekerAuthModal />
     </div>
   );
 }
