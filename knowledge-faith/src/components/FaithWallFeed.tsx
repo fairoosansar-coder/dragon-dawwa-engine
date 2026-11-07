@@ -1,6 +1,24 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { BookOpen, Check, Copy, Download, Globe, Heart, Plus, Search, Send, Sparkles } from 'lucide-react';
-import { RubElHizb } from '../engine/ds/ornaments.tsx';
+import {
+  BookOpen,
+  Check,
+  Copy,
+  Download,
+  Edit3,
+  Globe,
+  Heart,
+  LogIn,
+  Plus,
+  Search,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  User,
+} from 'lucide-react';
+import { SeekerEmblemGlyph } from './SeekerAuthModal.tsx';
+import { SEEKER_AUTH_EVENT, useSeekerAuth } from '../lib/seekerAuth.ts';
+import { useApp } from '../lib/store.tsx';
 import {
   BRAND_FOOTER_LEFT,
   BRAND_FOOTER_RIGHT,
@@ -10,11 +28,13 @@ import {
   renderVerseImage,
 } from '../lib/verseImage.ts';
 import {
+  deleteFaithWallPost,
   FAITH_WALL_EVENT,
   listFaithWallPosts,
   publishFaithWallPost,
   readingLinkHash,
   toggleFaithWallLike,
+  updateFaithWallPost,
   type FaithWallPost,
 } from '../lib/verseShare.ts';
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
@@ -86,13 +106,21 @@ function formatWallDate(iso: string): string {
 }
 
 export function FaithWallFeed({ compact = false }: { compact?: boolean }) {
+  const { saved } = useApp();
+  const { user, openModal: openAuthModal } = useSeekerAuth();
   const [posts, setPosts] = useState<FaithWallPost[]>(() => listFaithWallPosts());
+  const [wallView, setWallView] = useState<'community' | 'mine'>(() => {
+    if (typeof window !== 'undefined' && window.location.hash.includes('view=mine')) return 'mine';
+    return 'community';
+  });
   const [langFilter, setLangFilter] = useState<'all' | Lang>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [composerOpen, setComposerOpen] = useState(false);
   const [selectedPresetKey, setSelectedPresetKey] = useState(FEATURED_VERSES[0].key);
   const [authorName, setAuthorName] = useState('');
   const [reflection, setReflection] = useState('');
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
+  const [editingDraft, setEditingDraft] = useState('');
   const [toast, setToast] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -100,16 +128,34 @@ export function FaithWallFeed({ compact = false }: { compact?: boolean }) {
   useEffect(() => {
     const sync = () => setPosts(listFaithWallPosts());
     window.addEventListener(FAITH_WALL_EVENT, sync);
+    window.addEventListener(SEEKER_AUTH_EVENT, sync);
     window.addEventListener('storage', sync);
     return () => {
       window.removeEventListener(FAITH_WALL_EVENT, sync);
+      window.removeEventListener(SEEKER_AUTH_EVENT, sync);
       window.removeEventListener('storage', sync);
     };
   }, []);
 
+  const isOwnedByUser = (post: FaithWallPost): boolean => {
+    if (!user) return false;
+    if (post.userId && post.userId === user.id) return true;
+    return false;
+  };
+
+  const myPosts = useMemo(
+    () => (user ? posts.filter(post => isOwnedByUser(post)) : []),
+    [posts, user],
+  );
+  const myTotalAmeen = useMemo(
+    () => myPosts.reduce((sum, post) => sum + (post.likes ?? 1), 0),
+    [myPosts],
+  );
+
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return posts.filter(post => {
+    const base = !compact && wallView === 'mine' ? myPosts : posts;
+    return base.filter(post => {
       if (langFilter !== 'all' && post.lang !== langFilter) return false;
       if (!q) return true;
       return (
@@ -120,7 +166,7 @@ export function FaithWallFeed({ compact = false }: { compact?: boolean }) {
         (post.authorName ?? '').toLowerCase().includes(q)
       );
     });
-  }, [posts, langFilter, searchQuery]);
+  }, [posts, myPosts, compact, wallView, langFilter, searchQuery]);
 
   const displayed = compact ? filtered.slice(0, 2) : filtered;
 
@@ -190,13 +236,30 @@ export function FaithWallFeed({ compact = false }: { compact?: boolean }) {
       lang: preset.lang,
       url: hash,
       reflection,
-      authorName,
+      authorName: user ? user.name : authorName,
+      authorRole: user ? user.kunyah : undefined,
     });
     setPosts(listFaithWallPosts());
     setReflection('');
     setComposerOpen(false);
-    setToast('Shared to the Public Faith Wall!');
+    setToast(user ? 'Published to your Personal Wall & Community Faith Wall!' : 'Shared to the Public Faith Wall!');
     window.setTimeout(() => setToast(null), 3200);
+  };
+
+  const handleSaveEdit = async (postId: string) => {
+    await updateFaithWallPost(postId, editingDraft);
+    setPosts(listFaithWallPosts());
+    setEditingPostId(null);
+    setEditingDraft('');
+    setToast('Updated your Faith Wall reflection.');
+    window.setTimeout(() => setToast(null), 2800);
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    await deleteFaithWallPost(postId);
+    setPosts(listFaithWallPosts());
+    setToast('Removed reflection from your Faith Wall.');
+    window.setTimeout(() => setToast(null), 2800);
   };
 
   return (
@@ -226,27 +289,52 @@ export function FaithWallFeed({ compact = false }: { compact?: boolean }) {
               <span className="rounded-full border border-[#D4AF37]/25 bg-white/5 px-3 py-1 text-xs font-medium text-[#F3E8C8]/85">
                 {posts.length} Illuminated Reflections
               </span>
+              {user && (
+                <span
+                  data-wall-seeker-badge
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/50 bg-[#0A2E23] px-3 py-1 text-xs font-semibold text-[#F9E7B9]"
+                >
+                  <SeekerEmblemGlyph emblem={user.emblem} size={13} />
+                  <span>{user.name}</span>
+                  <ShieldCheck className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                </span>
+              )}
             </div>
 
             <h2 className="font-display text-2xl font-bold leading-tight text-white sm:text-4xl">
-              Community Faith Wall
+              {!compact && wallView === 'mine' ? 'My Personal Faith Wall' : 'Community Faith Wall'}
             </h2>
             <p className="text-sm leading-relaxed text-[#F3E8C8]/80 sm:text-base">
-              Illuminated 16:9 Qur’an manuscript cards, verified translations, and personal reflections shared by the Dragon Dawwa community.
+              {!compact && wallView === 'mine'
+                ? 'Your personal sanctuary of shared 16:9 Qur’an manuscript cards, reflections, and community Ameens.'
+                : 'Illuminated 16:9 Qur’an manuscript cards, verified translations, and personal reflections shared by the Dragon Dawwa community.'}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
             {!compact && (
-              <button
-                type="button"
-                data-faith-wall-open-composer
-                onClick={() => setComposerOpen(open => !open)}
-                className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37] bg-[#D4AF37] px-4 py-2.5 text-sm font-semibold text-[#031812] shadow-sm transition hover:bg-[#e3c14d]"
-              >
-                <Plus className="h-4 w-4" aria-hidden />
-                <span>Share a Reflection</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  data-faith-wall-open-composer
+                  onClick={() => setComposerOpen(open => !open)}
+                  className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37] bg-[#D4AF37] px-4 py-2.5 text-sm font-semibold text-[#031812] shadow-sm transition hover:bg-[#e3c14d]"
+                >
+                  <Plus className="h-4 w-4" aria-hidden />
+                  <span>Share a Reflection</span>
+                </button>
+                {!user && (
+                  <button
+                    type="button"
+                    data-wall-hero-signin
+                    onClick={() => openAuthModal()}
+                    className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/55 bg-[#031812]/90 px-4 py-2.5 text-sm font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37]"
+                  >
+                    <LogIn className="h-4 w-4 text-[#D4AF37]" aria-hidden />
+                    <span>Sign In · My Wall</span>
+                  </button>
+                )}
+              </>
             )}
             <a
               href={compact ? '#/quran/wall' : '#/quran/book'}
@@ -266,7 +354,7 @@ export function FaithWallFeed({ compact = false }: { compact?: boolean }) {
             onSubmit={event => void handleCreatePost(event)}
             className="relative z-10 mt-6 rounded-2xl border border-[#D4AF37]/40 bg-[#031812]/90 p-4 sm:p-5"
           >
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#D4AF37]">
                 ✦ Share an Illuminated Ayah Reflection
               </p>
@@ -295,16 +383,30 @@ export function FaithWallFeed({ compact = false }: { compact?: boolean }) {
                 </select>
               </label>
 
-              <label className="block text-xs font-medium text-[#F3E8C8]/85">
-                Your Name or Kunyah (optional)
-                <input
-                  type="text"
-                  value={authorName}
-                  onChange={event => setAuthorName(event.target.value)}
-                  placeholder="e.g. Seeker of Knowledge"
-                  className="mt-1.5 w-full rounded-xl border border-[#D4AF37]/35 bg-[#0A2E23] px-3 py-2 text-sm text-[#F3E8C8] placeholder:text-[#F3E8C8]/40 focus:border-[#D4AF37] focus:outline-none"
-                />
-              </label>
+              {user ? (
+                <div className="flex flex-col justify-end">
+                  <span className="text-xs font-medium text-[#F3E8C8]/85">Publishing Identity</span>
+                  <div className="mt-1.5 flex items-center justify-between rounded-xl border border-[#D4AF37]/40 bg-[#0A2E23] px-3.5 py-2 text-xs text-white">
+                    <span className="flex items-center gap-2 truncate font-semibold">
+                      <SeekerEmblemGlyph emblem={user.emblem} size={15} />
+                      <span>{user.name}</span>
+                      <span className="text-[#D4AF37]">· {user.kunyah}</span>
+                    </span>
+                    <ShieldCheck className="h-4 w-4 shrink-0 text-[#D4AF37]" aria-hidden />
+                  </div>
+                </div>
+              ) : (
+                <label className="block text-xs font-medium text-[#F3E8C8]/85">
+                  Your Name or Kunyah (optional)
+                  <input
+                    type="text"
+                    value={authorName}
+                    onChange={event => setAuthorName(event.target.value)}
+                    placeholder="e.g. Seeker of Knowledge"
+                    className="mt-1.5 w-full rounded-xl border border-[#D4AF37]/35 bg-[#0A2E23] px-3 py-2 text-sm text-[#F3E8C8] placeholder:text-[#F3E8C8]/40 focus:border-[#D4AF37] focus:outline-none"
+                  />
+                </label>
+              )}
             </div>
 
             <label className="mt-3 block text-xs font-medium text-[#F3E8C8]/85">
@@ -319,14 +421,27 @@ export function FaithWallFeed({ compact = false }: { compact?: boolean }) {
               />
             </label>
 
-            <div className="mt-3.5 flex items-center justify-end gap-2">
+            <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2">
+              {!user ? (
+                <button
+                  type="button"
+                  onClick={() => openAuthModal()}
+                  className="text-xs font-semibold text-[#D4AF37] hover:underline"
+                >
+                  ✦ Sign in to save this card to your Personal Wall
+                </button>
+              ) : (
+                <span className="text-xs text-[#D4AF37]/85">
+                  ✦ Will appear on both Community Wall and My Wall
+                </span>
+              )}
               <button
                 type="submit"
                 data-faith-wall-composer-submit
                 className="inline-flex items-center gap-1.5 rounded-xl bg-[#D4AF37] px-4 py-2 text-xs font-semibold text-[#031812] transition hover:bg-[#e3c14d]"
               >
                 <Send className="h-3.5 w-3.5" aria-hidden />
-                <span>Publish to Public Faith Wall</span>
+                <span>{user ? 'Publish to My Wall & Community' : 'Publish to Public Faith Wall'}</span>
               </button>
             </div>
           </form>
@@ -346,42 +461,80 @@ export function FaithWallFeed({ compact = false }: { compact?: boolean }) {
         </div>
       )}
 
-      {/* Filter & Search Toolbar (Full View) */}
+      {/* Community Wall / My Wall Switcher + Filter & Search Toolbar (Full View) */}
       {!compact && (
         <div
           data-faith-wall-toolbar
-          className="flex flex-col justify-between gap-3 rounded-2xl border border-pine/15 bg-parchment px-4 py-3 sm:flex-row sm:items-center"
+          className="flex flex-col justify-between gap-3 rounded-2xl border border-pine/15 bg-parchment px-4 py-3 lg:flex-row lg:items-center"
         >
-          <div role="group" aria-label="Filter Faith Wall by language" className="flex flex-wrap items-center gap-1.5">
-            {(
-              [
-                { id: 'all', label: 'All Languages' },
-                { id: 'en', label: 'English' },
-                { id: 'ta', label: 'Tamil (தமிழ்)' },
-                { id: 'si', label: 'Sinhala (සිංහල)' },
-              ] as const
-            ).map(tab => {
-              const active = langFilter === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  data-wall-lang-filter={tab.id}
-                  aria-pressed={active}
-                  onClick={() => setLangFilter(tab.id)}
-                  className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
-                    active
-                      ? 'bg-[#0A2E23] text-[#F3E8C8] shadow-sm ring-1 ring-[#D4AF37]/50'
-                      : 'bg-white/80 text-pine hover:bg-white'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* View Switcher: Community Wall vs My Wall */}
+            <div
+              role="group"
+              aria-label="Faith Wall view"
+              className="inline-flex rounded-full border border-[#073C30]/20 bg-white p-1 shadow-xs"
+            >
+              <button
+                type="button"
+                data-wall-view="community"
+                aria-pressed={wallView === 'community'}
+                onClick={() => setWallView('community')}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+                  wallView === 'community'
+                    ? 'bg-[#073C30] text-[#F5EEDC] shadow-xs'
+                    : 'text-pine hover:bg-sand'
+                }`}
+              >
+                <Globe className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                <span>Community Wall ({posts.length})</span>
+              </button>
+              <button
+                type="button"
+                data-wall-view="mine"
+                aria-pressed={wallView === 'mine'}
+                onClick={() => setWallView('mine')}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+                  wallView === 'mine'
+                    ? 'bg-[#073C30] text-[#F5EEDC] shadow-xs'
+                    : 'text-pine hover:bg-sand'
+                }`}
+              >
+                <User className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                <span>My Wall ({myPosts.length})</span>
+              </button>
+            </div>
+
+            <div role="group" aria-label="Filter Faith Wall by language" className="flex flex-wrap items-center gap-1.5">
+              {(
+                [
+                  { id: 'all', label: 'All Languages' },
+                  { id: 'en', label: 'English' },
+                  { id: 'ta', label: 'Tamil (தமிழ்)' },
+                  { id: 'si', label: 'Sinhala (සිංහල)' },
+                ] as const
+              ).map(tab => {
+                const active = langFilter === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    data-wall-lang-filter={tab.id}
+                    aria-pressed={active}
+                    onClick={() => setLangFilter(tab.id)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                      active
+                        ? 'bg-[#0A2E23] text-[#F3E8C8] shadow-sm ring-1 ring-[#D4AF37]/50'
+                        : 'bg-white/80 text-pine hover:bg-white'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <label className="relative block min-w-0 sm:w-72">
+          <label className="relative block min-w-0 lg:w-68">
             <span className="sr-only">Search Faith Wall</span>
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
             <input
@@ -392,6 +545,113 @@ export function FaithWallFeed({ compact = false }: { compact?: boolean }) {
               className="w-full rounded-full border border-pine/20 bg-white py-1.5 pl-9 pr-4 text-xs text-ink placeholder:text-muted"
             />
           </label>
+        </div>
+      )}
+
+      {/* Personal Wall (My Wall) Profile Header or Sign-in Gate */}
+      {!compact && wallView === 'mine' && (
+        user ? (
+          <div
+            data-my-wall-profile
+            style={{
+              background: 'linear-gradient(135deg, #041E17 0%, #0B382B 55%, #051C15 100%)',
+            }}
+            className="rounded-3xl border border-[#D4AF37]/50 p-5 text-[#F5EEDC] shadow-lg sm:p-6"
+          >
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+              <div className="flex min-w-0 items-center gap-3.5">
+                <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 border-[#D4AF37]/60 bg-[#031812] shadow-md">
+                  <SeekerEmblemGlyph emblem={user.emblem} size={28} />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="truncate font-display text-xl font-bold text-white">{user.name}</h3>
+                    <span className="inline-flex items-center gap-1 rounded-full border border-[#D4AF37]/50 bg-[#D4AF37]/15 px-2.5 py-0.5 text-[11px] font-semibold text-[#D4AF37]">
+                      <ShieldCheck className="h-3.5 w-3.5" aria-hidden />
+                      Verified Seeker
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-xs font-medium text-[#D4AF37]">{user.kunyah}</p>
+                  {user.bio ? (
+                    <p className="mt-1 max-w-xl text-xs italic text-[#F5EEDC]/80">“{user.bio}”</p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                <div className="rounded-2xl border border-[#D4AF37]/30 bg-[#031812]/80 px-3.5 py-2 text-center">
+                  <p className="font-display text-lg font-bold text-[#D4AF37]">{myPosts.length}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-[#F5EEDC]/70">Shared Cards</p>
+                </div>
+                <div className="rounded-2xl border border-[#D4AF37]/30 bg-[#031812]/80 px-3.5 py-2 text-center">
+                  <p className="font-display text-lg font-bold text-[#D4AF37]">{myTotalAmeen}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-[#F5EEDC]/70">Ameen Received</p>
+                </div>
+                <div className="rounded-2xl border border-[#D4AF37]/30 bg-[#031812]/80 px-3.5 py-2 text-center">
+                  <p className="font-display text-lg font-bold text-[#D4AF37]">{saved.verses.length}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-[#F5EEDC]/70">Bookmarked Ayahs</p>
+                </div>
+                <button
+                  type="button"
+                  data-my-wall-edit-profile
+                  onClick={() => openAuthModal()}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-[#D4AF37]/50 bg-[#0A2E23] px-3.5 py-2.5 text-xs font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37]"
+                >
+                  <Edit3 className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                  <span>Edit Profile</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div
+            data-my-wall-signin-gate
+            className="flex flex-col items-center justify-between gap-4 rounded-3xl border border-[#D4AF37]/45 bg-[#051C15] p-6 text-center text-[#F5EEDC] shadow-lg sm:flex-row sm:text-left"
+          >
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#D4AF37]">
+                ✦ Personal Faith Wall Sanctuary
+              </p>
+              <h3 className="font-display text-xl font-bold text-white">
+                Sign in to curate your Personal Faith Wall
+              </h3>
+              <p className="max-w-xl text-xs leading-relaxed text-[#F5EEDC]/75 sm:text-sm">
+                Save your illuminated 16:9 Qur’an verse cards under your verified Seeker name and kunyah, edit reflections anytime, and keep all your shared ayahs in one place.
+              </p>
+            </div>
+            <button
+              type="button"
+              data-my-wall-gate-signin
+              onClick={() => openAuthModal()}
+              className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#D4AF37] px-5 py-2.5 text-sm font-bold text-[#031812] shadow-md transition hover:bg-[#e3c14d]"
+            >
+              <LogIn className="h-4 w-4" aria-hidden />
+              <span>Sign In / Create Seeker Account</span>
+            </button>
+          </div>
+        )
+      )}
+
+      {/* Empty State for My Wall when signed in */}
+      {!compact && wallView === 'mine' && user && displayed.length === 0 && (
+        <div
+          data-my-wall-empty
+          className="rounded-3xl border border-dashed border-[#073C30]/30 bg-parchment p-8 text-center"
+        >
+          <p className="font-display text-xl font-bold text-pine">
+            Your Personal Faith Wall is ready for your first reflection
+          </p>
+          <p className="mx-auto mt-2 max-w-md text-sm text-muted">
+            Share an illuminated 16:9 verse card from the Qur’an Reader or use the composer above to publish your first reflection.
+          </p>
+          <button
+            type="button"
+            onClick={() => setComposerOpen(true)}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#073C30] px-5 py-2.5 text-xs font-semibold text-[#F5EEDC] hover:bg-[#0A2E23]"
+          >
+            <Plus className="h-4 w-4 text-[#D4AF37]" aria-hidden />
+            <span>Share Your First Reflection</span>
+          </button>
         </div>
       )}
 
@@ -407,6 +667,8 @@ export function FaithWallFeed({ compact = false }: { compact?: boolean }) {
             surahName: post.surahName,
           });
           const quoted = formatQuotedTranslation(post.translation);
+          const owned = isOwnedByUser(post);
+          const isEditing = editingPostId === post.id;
           const openHref = post.url.startsWith('#')
             ? post.url
             : readingLinkHash({
@@ -504,12 +766,25 @@ export function FaithWallFeed({ compact = false }: { compact?: boolean }) {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2.5">
                       <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#D4AF37]/40 bg-[#0A2E23]">
-                        <RubElHizb size={16} />
+                        <SeekerEmblemGlyph emblem={post.authorEmblem} size={16} />
                       </span>
                       <div className="min-w-0">
-                        <p className="truncate text-xs font-semibold text-white">
-                          {post.authorName || 'Community Seeker'}
-                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="truncate text-xs font-semibold text-white">
+                            {post.authorName || 'Community Seeker'}
+                          </p>
+                          {post.verified && (
+                            <ShieldCheck
+                              className="h-3.5 w-3.5 shrink-0 text-[#D4AF37]"
+                              aria-label="Verified Seeker"
+                            />
+                          )}
+                          {owned && (
+                            <span className="rounded-full border border-[#D4AF37]/45 bg-[#D4AF37]/15 px-1.5 py-0.2 text-[9px] font-semibold uppercase tracking-wider text-[#D4AF37]">
+                              You
+                            </span>
+                          )}
+                        </div>
                         <p className="truncate text-[11px] text-[#D4AF37]/80">
                           {post.authorRole || 'Faith Wall Contributor'} · {formatWallDate(post.createdAt)}
                         </p>
@@ -521,8 +796,35 @@ export function FaithWallFeed({ compact = false }: { compact?: boolean }) {
                     </span>
                   </div>
 
-                  {/* Reflection Quote Box */}
-                  {post.reflection ? (
+                  {/* Inline Reflection Editor or Quote Box */}
+                  {isEditing ? (
+                    <div data-wall-edit-box={post.id} className="space-y-2 rounded-2xl border border-[#D4AF37]/45 bg-[#031812]/90 p-3">
+                      <input
+                        type="text"
+                        data-wall-edit-input={post.id}
+                        value={editingDraft}
+                        onChange={event => setEditingDraft(event.target.value)}
+                        className="w-full rounded-xl border border-[#D4AF37]/35 bg-[#0A2E23] px-3 py-1.5 text-xs text-white focus:border-[#D4AF37] focus:outline-none"
+                      />
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingPostId(null)}
+                          className="text-xs text-[#F5EEDC]/70 hover:text-white"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          data-wall-edit-save={post.id}
+                          onClick={() => void handleSaveEdit(post.id)}
+                          className="rounded-lg bg-[#D4AF37] px-3 py-1 text-xs font-bold text-[#031812] hover:bg-[#e3c14d]"
+                        >
+                          Save Reflection
+                        </button>
+                      </div>
+                    </div>
+                  ) : post.reflection ? (
                     <blockquote
                       lang={post.lang}
                       data-wall-card-reflection
@@ -551,6 +853,32 @@ export function FaithWallFeed({ compact = false }: { compact?: boolean }) {
                   </button>
 
                   <div className="flex items-center gap-1.5">
+                    {owned && (
+                      <>
+                        <button
+                          type="button"
+                          data-wall-edit={post.id}
+                          title="Edit your reflection"
+                          onClick={() => {
+                            setEditingPostId(post.id);
+                            setEditingDraft(post.reflection);
+                          }}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[#D4AF37]/30 bg-[#031812]/70 text-[#F3E8C8] transition hover:border-[#D4AF37] hover:text-white"
+                        >
+                          <Edit3 className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          data-wall-delete={post.id}
+                          title="Delete your reflection"
+                          onClick={() => void handleDeletePost(post.id)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[#D4AF37]/30 bg-[#031812]/70 text-[#F3E8C8] transition hover:border-red-400/60 hover:text-red-300"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                        </button>
+                      </>
+                    )}
+
                     <a
                       href={openHref}
                       title="Open Ayah in Qur'an Reader"

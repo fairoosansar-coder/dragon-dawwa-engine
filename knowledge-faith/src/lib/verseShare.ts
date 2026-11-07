@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Lang } from '../shared/sources.ts';
+import { readSeekerSession, sanitizeSeekerEmblem, type SeekerEmblem } from './seekerAuth.ts';
 
 export interface ReadingLink {
   surah?: number;
@@ -70,6 +71,7 @@ export function verseShareText(verse: ShareVerse): string {
 
 export interface FaithWallPost {
   id: string;
+  userId?: string;
   surah: number;
   ayah: number;
   surahName: string;
@@ -81,9 +83,12 @@ export interface FaithWallPost {
   cardDataUrl?: string;
   authorName?: string;
   authorRole?: string;
+  authorEmblem?: SeekerEmblem;
+  verified?: boolean;
   likes?: number;
   liked?: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export const FAITH_WALL_EVENT = 'kf-faith-wall-updated';
@@ -201,20 +206,37 @@ function readStoredWallPosts(): FaithWallPost[] {
 
 export function listFaithWallPosts(): FaithWallPost[] {
   const liked = readLikedSet();
+  const session = readSeekerSession();
   const userPosts = readStoredWallPosts();
   const seen = new Set(userPosts.map(item => item.id));
   const combined = [...userPosts, ...SEEDED_FAITH_WALL_POSTS.filter(seed => !seen.has(seed.id))];
   return combined.map(post => {
     const isLiked = liked.has(post.id);
     const baseLikes = typeof post.likes === 'number' ? post.likes : 1;
+    const isCurrentUser = Boolean(session?.user && post.userId && post.userId === session.user.id);
     return {
       ...post,
-      authorName: post.authorName || 'Community Seeker',
-      authorRole: post.authorRole || 'Faith Wall Contributor',
+      authorName: isCurrentUser ? session!.user.name : post.authorName || 'Community Seeker',
+      authorRole: isCurrentUser ? session!.user.kunyah : post.authorRole || 'Faith Wall Contributor',
+      authorEmblem: isCurrentUser ? session!.user.emblem : sanitizeSeekerEmblem(post.authorEmblem),
+      verified: isCurrentUser ? true : Boolean(post.verified || post.id.startsWith('seed-wall-')),
       liked: isLiked,
       likes: baseLikes + (isLiked && !post.liked ? 1 : 0),
     };
   });
+}
+
+function persistUserPosts(next: FaithWallPost[]) {
+  memoryWallPosts.splice(0, memoryWallPosts.length, ...next);
+  if (typeof window !== 'undefined') {
+    try {
+      const compactForStorage = next.map(({ cardDataUrl: _cardDataUrl, ...rest }) => rest);
+      window.localStorage.setItem(WALL_STORAGE_KEY, JSON.stringify(compactForStorage));
+    } catch {
+      /* keep in memory */
+    }
+    window.dispatchEvent(new Event(FAITH_WALL_EVENT));
+  }
 }
 
 export function toggleFaithWallLike(postId: string): FaithWallPost[] {
@@ -234,10 +256,14 @@ export async function publishFaithWallPost(input: {
   url: string;
   reflection?: string;
   authorName?: string;
+  authorRole?: string;
   cardDataUrl?: string;
 }): Promise<FaithWallPost> {
+  const session = readSeekerSession();
+  const seeker = session?.user ?? null;
   const post: FaithWallPost = {
     id: `wall-${input.verse.surah}-${input.verse.ayah}-${Date.now()}`,
+    userId: seeker?.id,
     surah: input.verse.surah,
     ayah: input.verse.ayah,
     surahName: input.verse.surahName,
@@ -247,8 +273,10 @@ export async function publishFaithWallPost(input: {
     lang: input.lang,
     url: input.url,
     cardDataUrl: input.cardDataUrl,
-    authorName: (input.authorName ?? '').trim() || 'Community Seeker',
-    authorRole: 'Faith Wall Contributor',
+    authorName: seeker?.name || (input.authorName ?? '').trim() || 'Community Seeker',
+    authorRole: seeker?.kunyah || (input.authorRole ?? '').trim() || 'Faith Wall Contributor',
+    authorEmblem: seeker?.emblem ?? 'rub-el-hizb',
+    verified: Boolean(seeker),
     likes: 1,
     liked: false,
     createdAt: new Date().toISOString(),
@@ -256,25 +284,18 @@ export async function publishFaithWallPost(input: {
 
   const existingUserPosts = readStoredWallPosts();
   const next = [post, ...existingUserPosts.filter(item => item.id !== post.id)].slice(0, 50);
-  memoryWallPosts.splice(0, memoryWallPosts.length, ...next);
-
-  if (typeof window !== 'undefined') {
-    try {
-      const compactForStorage = next.map(({ cardDataUrl: _cardDataUrl, ...rest }) => rest);
-      window.localStorage.setItem(WALL_STORAGE_KEY, JSON.stringify(compactForStorage));
-    } catch {
-      /* keep in memory */
-    }
-    window.dispatchEvent(new Event(FAITH_WALL_EVENT));
-  }
+  persistUserPosts(next);
 
   if (typeof fetch === 'function') {
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.token) headers.Authorization = `Bearer ${session.token}`;
       await fetch('/api/wall/posts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           id: post.id,
+          userId: post.userId,
           surah: post.surah,
           ayah: post.ayah,
           surahName: post.surahName,
@@ -283,6 +304,8 @@ export async function publishFaithWallPost(input: {
           reflection: post.reflection,
           authorName: post.authorName,
           authorRole: post.authorRole,
+          authorEmblem: post.authorEmblem,
+          verified: post.verified,
           likes: post.likes,
           lang: post.lang,
           url: post.url,
@@ -295,6 +318,71 @@ export async function publishFaithWallPost(input: {
   }
 
   return post;
+}
+
+export async function updateFaithWallPost(postId: string, reflection: string): Promise<FaithWallPost | null> {
+  const session = readSeekerSession();
+  const existingUserPosts = readStoredWallPosts();
+  const idx = existingUserPosts.findIndex(item => item.id === postId);
+  if (idx === -1) return null;
+  const target = existingUserPosts[idx];
+  if (target.userId && session?.user && target.userId !== session.user.id) {
+    return null;
+  }
+  const updated: FaithWallPost = {
+    ...target,
+    reflection: reflection.trim().slice(0, 600),
+    authorName: session?.user.name || target.authorName,
+    authorRole: session?.user.kunyah || target.authorRole,
+    authorEmblem: session?.user.emblem || target.authorEmblem,
+    verified: Boolean(session?.user || target.verified),
+    updatedAt: new Date().toISOString(),
+  };
+  const next = [...existingUserPosts];
+  next[idx] = updated;
+  persistUserPosts(next);
+
+  if (typeof fetch === 'function' && session?.token) {
+    try {
+      await fetch(`/api/wall/posts/${encodeURIComponent(postId)}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.token}`,
+        },
+        body: JSON.stringify({ reflection: updated.reflection }),
+      });
+    } catch {
+      /* local update already persisted */
+    }
+  }
+  return updated;
+}
+
+export async function deleteFaithWallPost(postId: string): Promise<boolean> {
+  const session = readSeekerSession();
+  const existingUserPosts = readStoredWallPosts();
+  const target = existingUserPosts.find(item => item.id === postId);
+  if (!target) return false;
+  if (target.userId && session?.user && target.userId !== session.user.id) {
+    return false;
+  }
+  const next = existingUserPosts.filter(item => item.id !== postId);
+  persistUserPosts(next);
+
+  if (typeof fetch === 'function' && session?.token) {
+    try {
+      await fetch(`/api/wall/posts/${encodeURIComponent(postId)}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${session.token}`,
+        },
+      });
+    } catch {
+      /* local deletion already persisted */
+    }
+  }
+  return true;
 }
 
 /** Break on spaces. A token wider than the line is split, and every character is kept. */
