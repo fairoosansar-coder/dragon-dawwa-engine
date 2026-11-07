@@ -171,7 +171,16 @@ export function ReadingBar({
           </button>
         </div>
         <div className={`inline-flex max-w-full items-center gap-1 rounded-full px-3 py-1 text-sm ${showTranslation ? 'bg-[#16233B] text-white' : 'border border-[#c5d0de] bg-white text-[#1c3d66]'}`}>
-          <button type="button" data-translation-pill aria-pressed={showTranslation} onClick={() => onTranslation(!showTranslation)} className="min-w-0 text-left leading-tight">
+          <button
+            type="button"
+            data-translation-pill
+            aria-pressed={showTranslation}
+            onClick={() => {
+              if (!showTranslation) onTranslation(true);
+              onOpenTranslations();
+            }}
+            className="min-w-0 text-left leading-tight"
+          >
             {translator || t.sheetTranslation}
           </button>
           <button type="button" data-translation-open aria-label={t.menuTranslations} onClick={onOpenTranslations} className="shrink-0">
