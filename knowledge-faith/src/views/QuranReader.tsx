@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen } from 'lucide-react';
 import type { ViewProps } from '../App.tsx';
 import { Mukhtasar } from '../components/Mukhtasar.tsx';
+import { FaithWallFeed } from '../components/FaithWallFeed.tsx';
 import { VerseShare } from '../components/VerseShare.tsx';
 import { pauseAudio, playAudio, resumeAudio, stopAudio, useAudioState } from '../lib/audio.ts';
 import { useRemote } from '../lib/api.ts';
@@ -144,7 +145,7 @@ export default function QuranReader({ sub }: ViewProps) {
     return (
       <Library
         surah={surah}
-        section={section === 'search' || section === 'mine' ? section : 'home'}
+        section={section === 'search' || section === 'mine' || section === 'wall' ? section : 'home'}
         textSize={textSize}
         onTextSize={setTextSize}
         translationSize={translationSize}
@@ -212,7 +213,7 @@ function Library({
 }: {
   surah: number;
   ayah: number;
-  section: 'home' | 'search' | 'mine';
+  section: 'home' | 'search' | 'mine' | 'wall';
   textSize: TextSize;
   onTextSize: (size: TextSize) => void;
   translationSize: TextSize;
@@ -276,7 +277,7 @@ function Library({
           setFocus(true);
         }}
       />
-      {mineWelcome ? null : section === 'home' ? (
+      {mineWelcome || section === 'wall' ? null : section === 'home' ? (
         <header data-quran-hero className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/35 bg-[#0A3D2E]">
           <img
             src="/assets/geometric-edge.jpg"
@@ -294,6 +295,9 @@ function Library({
           <h1 className="font-display text-4xl font-bold text-pine">{heading}</h1>
         </header>
       )}
+      {section === 'wall' ? (
+        <FaithWallFeed />
+      ) : null}
       {section === 'home' && (
         <section data-continue-reading className="relative overflow-hidden rounded-3xl border border-[#D4AF37]/40 bg-[#13725A] shadow-sm">
           <img
@@ -326,12 +330,15 @@ function Library({
           <Button variant={listTab === 'bookmarks' ? 'primary' : 'soft'} aria-pressed={listTab === 'bookmarks'} onClick={() => setListTab('bookmarks')}>
             {t.bookmarks}
           </Button>
+          <a href="#/quran/wall" className="inline-flex items-center rounded-full border border-[#D4AF37]/50 bg-[#0A2E23] px-4 py-2 text-sm font-medium text-[#F3E8C8]">
+            ✦ {t.quranFaithWall}
+          </a>
           <a href="#/quran/research" className="inline-flex items-center rounded-full border border-pine/20 px-4 py-2 text-sm font-medium text-pine">
             {t.researchQuran}
           </a>
         </div>
       )}
-      {section === 'mine' || (section === 'home' && listTab === 'bookmarks') ? (
+      {section === 'wall' ? null : section === 'mine' || (section === 'home' && listTab === 'bookmarks') ? (
         mineWelcome ? (
           <section data-my-quran-empty className="relative overflow-hidden rounded-3xl border border-[#C9A14E]/55 bg-[#F6F1E4]">
             <img

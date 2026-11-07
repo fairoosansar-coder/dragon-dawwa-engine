@@ -28,13 +28,14 @@ export function audioStatusLabel(t: Strings, status: AudioStatus, id?: string | 
   return meaning ? t.listenMeaning : t.audioIdle;
 }
 
-export type QuranSectionId = 'home' | 'read' | 'search' | 'study' | 'mine';
+export type QuranSectionId = 'home' | 'read' | 'search' | 'study' | 'mine' | 'wall';
 
 export function quranSectionId(segment?: string): QuranSectionId {
   if (segment === 'book') return 'read';
   if (segment === 'study') return 'study';
   if (segment === 'search') return 'search';
   if (segment === 'bookmarks') return 'mine';
+  if (segment === 'wall') return 'wall';
   return 'home';
 }
 
@@ -85,6 +86,7 @@ export function DeskHeaderTabs({ path, segments, className = '' }: { path: Route
       { id: 'search', href: '#/quran/search', label: t.quranSearch },
       { id: 'study', href: '#/quran/study', label: t.quranAyahStudy },
       { id: 'mine', href: '#/quran/bookmarks', label: t.quranMine },
+      { id: 'wall', href: '#/quran/wall', label: t.quranFaithWall },
     ];
     return (
       <div className={shell}>

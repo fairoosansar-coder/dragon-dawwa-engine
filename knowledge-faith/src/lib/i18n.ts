@@ -158,6 +158,7 @@ const en = {
   quranSearch: 'Search',
   quranAyahStudy: 'Ayah Study',
   quranMine: 'My Quran',
+  quranFaithWall: 'Faith Wall',
   bookmarks: 'Bookmarks',
   bookmarksEmpty: 'No verses saved yet. Bookmark one while you read.',
   studyMode: 'Study',

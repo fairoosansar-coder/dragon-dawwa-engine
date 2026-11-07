@@ -564,11 +564,13 @@ interface ServerWallPost {
 }
 
 const faithWallPosts: ServerWallPost[] = [];
+const wallLimiter = rateLimiter(Number(process.env.WALL_POSTS_PER_15_MIN ?? 30));
 
 app.get('/api/wall/posts', route(async (_req, res) => res.json({ posts: faithWallPosts })));
 
 app.post(
   '/api/wall/posts',
+  wallLimiter,
   route(async (req, res) => {
     const surah = Number(req.body?.surah);
     const ayah = Number(req.body?.ayah);

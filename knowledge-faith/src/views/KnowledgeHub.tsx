@@ -13,6 +13,7 @@ import { usePronunciation, withPronunciation } from '../lib/pronunciation.ts';
 import { shownVerses, translationRequest } from '../shared/quranenc.ts';
 import { useApp, useStored } from '../lib/store.tsx';
 import { CitationChips, EvidenceList, HadithCard, VerseCard } from '../components/cards.tsx';
+import { FaithWallFeed } from '../components/FaithWallFeed.tsx';
 import { KnowledgeShelf } from './KnowledgePaths.tsx';
 import { LibraryReader } from './LibraryReader.tsx';
 import { EmptyState, FeatureCard, PrayerStrip } from '../components/shell/widgets.tsx';
@@ -235,6 +236,7 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
     return <LibraryReader itemId={Number(segments[2])} backHref={`#/hub/${sub}`} />;
   }
   if (sub === 'discover' || sub === 'deepen' || sub === 'prophet') return <KnowledgeShelf pathId={sub} />;
+  if (sub === 'wall') return <FaithWallFeed />;
 
   return (
     <div className="space-y-6">
@@ -357,6 +359,8 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
         <SectionTitle>{t.verseOfDay}</SectionTitle>
         <VerseList refs={[today]} />
       </Card>
+
+      <FaithWallFeed compact />
 
       <AskPanel />
       <ScholarDraft focus={sub === 'scholar'} />

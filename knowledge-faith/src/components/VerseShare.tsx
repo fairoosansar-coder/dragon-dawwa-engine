@@ -528,25 +528,44 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
               <div
                 role="status"
                 data-wall-toast
-                className="mt-3 flex items-center justify-between rounded-xl border border-[#D4AF37]/60 bg-[#0A2E23] px-4 py-2.5 text-xs font-semibold text-[#F3E8C8]"
+                className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#D4AF37]/60 bg-[#0A2E23] px-4 py-2.5 text-xs font-semibold text-[#F3E8C8]"
               >
                 <span>✦ {wallToast}</span>
-                <button
-                  type="button"
-                  onClick={() => setWallToast(null)}
-                  className="text-[#D4AF37] hover:underline"
-                >
-                  Dismiss
-                </button>
+                <div className="flex items-center gap-3">
+                  <a
+                    href="#/quran/wall"
+                    data-open-full-faith-wall
+                    onClick={() => setStudioOpen(false)}
+                    className="rounded-lg bg-[#D4AF37] px-2.5 py-1 text-[11px] font-bold text-[#031812] hover:bg-[#e3c14d]"
+                  >
+                    Open Public Faith Wall →
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setWallToast(null)}
+                    className="text-[#D4AF37] hover:underline"
+                  >
+                    Dismiss
+                  </button>
+                </div>
               </div>
             )}
 
             {/* Recent Public Faith Wall Feed Preview */}
             {wallPosts.length > 0 && (
               <div data-wall-feed className="mt-4 border-t border-[#D4AF37]/20 pt-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#D4AF37]/80">
-                  Public Faith Wall ({wallPosts.length})
-                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#D4AF37]/80">
+                    Public Faith Wall ({wallPosts.length})
+                  </p>
+                  <a
+                    href="#/quran/wall"
+                    onClick={() => setStudioOpen(false)}
+                    className="text-xs font-semibold text-[#D4AF37] hover:underline"
+                  >
+                    View Full Faith Wall →
+                  </a>
+                </div>
                 <ul className="mt-2 max-h-36 space-y-2 overflow-y-auto pr-1">
                   {wallPosts.slice(0, 3).map(post => (
                     <li
@@ -557,7 +576,7 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
                         <span>
                           ✦ Surah {post.surahName} {post.surah}:{post.ayah}
                         </span>
-                        <span className="text-[#F3E8C8]/50">Public Faith Wall</span>
+                        <span className="text-[#F3E8C8]/60">{post.authorName || 'Public Faith Wall'}</span>
                       </div>
                       {post.reflection && (
                         <p className="mt-1 italic text-[#F3E8C8]">“{post.reflection}”</p>

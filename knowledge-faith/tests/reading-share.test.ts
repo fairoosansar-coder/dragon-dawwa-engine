@@ -15,9 +15,12 @@ import {
   parseReadingLink,
   publishFaithWallPost,
   readingLinkHash,
+  SEEDED_FAITH_WALL_POSTS,
+  toggleFaithWallLike,
   verseShareText,
   wrapWords,
 } from '../src/lib/verseShare.ts';
+import { quranSectionId } from '../src/components/shell/widgets.tsx';
 
 const verse = {
   surah: 2,
@@ -86,5 +89,13 @@ test('verse card studio uses 1200x675 16:9 HD dimensions, illuminated badge, quo
   assert.equal(post.ayah, 255);
   assert.equal(post.reflection, 'Ayat al-Kursi brings serenity to the heart.');
   assert.equal(listFaithWallPosts()[0]?.id, post.id);
+  assert.ok(listFaithWallPosts().length >= SEEDED_FAITH_WALL_POSTS.length + 1);
+  assert.equal(quranSectionId('wall'), 'wall');
+
+  const beforeLikes = listFaithWallPosts().find(item => item.id === post.id)?.likes ?? 1;
+  const afterToggle = toggleFaithWallLike(post.id);
+  const likedPost = afterToggle.find(item => item.id === post.id);
+  assert.equal(likedPost?.liked, true);
+  assert.equal(likedPost?.likes, beforeLikes + 1);
 });
 
