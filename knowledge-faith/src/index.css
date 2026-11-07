@@ -210,15 +210,27 @@ body {
 }
 
 .quran-btn-arabic {
-  padding: 0.3rem 0.1rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
   background: transparent;
   color: #16233B;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.quran-btn-arabic[aria-pressed='true'] {
+  background: rgb(22 35 59 / 0.1);
+  color: #16233B;
 }
 
 .quran-btn-arabic[aria-pressed='false'] {
-  color: rgb(22 35 59 / 0.5);
+  color: rgb(22 35 59 / 0.55);
+  font-weight: 500;
+}
+
+.quran-btn-arabic[aria-pressed='false']:hover {
+  color: #16233B;
 }
 
 .quran-bismillah-block {

@@ -359,6 +359,7 @@ const en = {
   sheetListen: 'Listen',
   sheetPause: 'Pause',
   sheetArabic: 'Arabic',
+  audioLanguage: 'Audio language',
   sheetPage: 'Page',
   sheetJuz: 'Juz',
   sheetHizb: 'Hizb',
