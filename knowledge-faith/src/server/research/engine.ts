@@ -1237,6 +1237,8 @@ export async function executeResearch(input: {
         pollMs: input.parallel?.pollMs ?? 2_000,
         apiKey: input.parallel?.apiKey,
         fetchImpl: input.parallel?.fetchImpl,
+        domainContext: input.assignment?.domainContext ?? null,
+        domainSource: input.assignment?.domainSource ?? 'unclassified',
       });
       timings.Parallel = parallelConsult.durationMs;
       for (const finding of parallelConsult.findings) {

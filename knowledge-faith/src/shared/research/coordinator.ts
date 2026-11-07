@@ -1,6 +1,7 @@
 import type { ResearchAssignmentView, ResearchNoticeId, ResearchScope, ResearchTeamId } from '../contracts/v1.ts';
 import type { Lang } from '../sources.ts';
 import { contentTokens } from '../research.ts';
+import { resolveDomainContext } from './agentConfig.ts';
 import { matchingThemes } from './themes.ts';
 
 const QURAN =
@@ -68,6 +69,8 @@ export interface CoordinationInput {
   /** The reader already answered the one clarification. */
   clarified?: boolean;
   priorQuestion?: string | null;
+  /** A category card label. An unknown value is ignored and the question is classified instead. */
+  domainContext?: string | null;
 }
 
 export interface CoordinationDecision {
@@ -108,10 +111,15 @@ export function questionNeedsClarification(question: string): boolean {
   return contentTokens(trimmed).length === 0;
 }
 
-export function researchFingerprint(question: string, language: string, assignment: Pick<ResearchAssignmentView, 'scope' | 'teams' | 'bookId'>): string {
+export function researchFingerprint(
+  question: string,
+  language: string,
+  assignment: Pick<ResearchAssignmentView, 'scope' | 'teams' | 'bookId' | 'domainContext' | 'domainSource'>,
+): string {
   const normalized = question.trim().toLocaleLowerCase('en').replace(/\s+/g, ' ');
   const teams = [...assignment.teams].sort().join('+');
-  return `${assignment.scope}|${language}|${assignment.bookId ?? ''}|${teams}|${normalized}`;
+  const domain = assignment.domainContext ? `|${assignment.domainSource ?? 'selected'}|${assignment.domainContext}` : '';
+  return `${assignment.scope}|${language}|${assignment.bookId ?? ''}|${teams}|${normalized}${domain}`;
 }
 
 function assignmentFor(
@@ -138,10 +146,15 @@ export function coordinateQuestion(input: CoordinationInput): CoordinationDecisi
   const teamsNamed = namedTeams(followed);
   const unclear = questionNeedsClarification(question) && teamsNamed.length === 0;
 
-  const finish = (decision: Omit<CoordinationDecision, 'fingerprint'>): CoordinationDecision => ({
-    ...decision,
-    fingerprint: researchFingerprint(question, input.language, decision.assignment),
-  });
+  const domain = resolveDomainContext(input.domainContext, question);
+  const finish = (decision: Omit<CoordinationDecision, 'fingerprint'>): CoordinationDecision => {
+    const assignment = { ...decision.assignment, domainContext: domain.label, domainSource: domain.source };
+    return {
+      ...decision,
+      assignment,
+      fingerprint: researchFingerprint(question, input.language, assignment),
+    };
+  };
 
   if (unclear && !input.clarified) {
     return finish({
