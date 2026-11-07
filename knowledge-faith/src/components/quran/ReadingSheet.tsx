@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Bookmark, Info, MoreHorizontal, Pause, Play, Repeat, SkipBack, SkipForward } from 'lucide-react';
 import { useRemote } from '../../lib/api.ts';
 import { pauseAudio, useAudioState } from '../../lib/audio.ts';
+import { doesAudioMatchVerse, isReaderAudioId, type AudioLang } from '../../lib/quranPlayback.ts';
 import { useApp } from '../../lib/store.tsx';
 import type { TextSize } from '../../lib/readingPlace.ts';
 import { chapterSentence, hizbFromQuarter } from '../../shared/readingNav.ts';
@@ -63,11 +64,13 @@ export function ReadingSheet({
   showArabic,
   onArabic,
   showTranslation,
-  onTranslation,
+  onTranslation: _onTranslation,
   verseByVerse,
   textSize,
   translationSize,
   lang,
+  audioLang = 'ar',
+  onAudioLang,
   selectedAyah,
   onPlayAyah,
   onRepeatAyah,
@@ -90,6 +93,8 @@ export function ReadingSheet({
   textSize: TextSize;
   translationSize: TextSize;
   lang: Lang;
+  audioLang?: AudioLang;
+  onAudioLang?: (lang: AudioLang) => void;
   selectedAyah: number;
   onPlayAyah: (ayah: number) => void;
   onRepeatAyah: (ayah: number) => void;
@@ -116,7 +121,7 @@ export function ReadingSheet({
   const headerJuz = selected && typeof selected.juz === 'number' ? selected.juz : (verses.find(verse => typeof verse.juz === 'number')?.juz ?? null);
   const page = selected && typeof selected.page === 'number' ? selected.page : null;
   const pageVerses = page == null ? verses : verses.filter(verse => verse.page === page);
-  const listening = Boolean(audio.id?.startsWith('ayah-')) && (audio.status === 'playing' || audio.status === 'loading');
+  const listening = isReaderAudioId(audio.id) && (audio.status === 'playing' || audio.status === 'loading');
   // Al-Fatiha’s first ayah is the basmala. At-Tawbah is not opened with one.
   const showBismillah = showArabic && info.number !== 1 && info.number !== 9 && pageVerses.some(verse => verse.ayah === 1);
   const bismillahPlate = info.number % 2 === 0 ? 'blue' : 'cream';
@@ -135,7 +140,14 @@ export function ReadingSheet({
     juz: headerJuz,
   });
   const footnotes = pageVerses.filter(verse => verse.footnotes?.trim());
-  const playingAyah = pageVerses.find(verse => audio.id === `ayah-${verse.number}`);
+  const playingAyah = pageVerses.find(verse => doesAudioMatchVerse(audio.id, verse));
+  const audioOptions: { id: AudioLang; label: string }[] = [
+    { id: 'ar', label: t.sheetArabic },
+    { id: 'ta', label: LANGUAGE_NAMES.ta.english },
+    { id: 'si', label: LANGUAGE_NAMES.si.english },
+    { id: 'en', label: LANGUAGE_NAMES.en.english },
+  ];
+  const activeAudioLabel = audioOptions.find(item => item.id === audioLang)?.label ?? t.sheetArabic;
 
   useEffect(() => {
     setDraft(choice ? (notes[choice.key] ?? '') : '');
@@ -255,9 +267,24 @@ export function ReadingSheet({
                 {t.sheetInfo}
               </button>
               <span className="quran-btn-rule" aria-hidden />
-              <button type="button" data-arabic-pill aria-pressed={showArabic} onClick={() => onArabic(!showArabic)} className="quran-btn-arabic">
-                {t.sheetArabic}
-              </button>
+              <div role="group" aria-label={t.audioLanguage} data-audio-lang-group className="inline-flex flex-wrap items-center gap-1">
+                {audioOptions.map(option => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    data-arabic-pill={option.id === 'ar' ? '' : undefined}
+                    data-audio-lang={option.id}
+                    aria-pressed={audioLang === option.id}
+                    onClick={() => {
+                      if (!showArabic) onArabic(true);
+                      onAudioLang?.(option.id);
+                    }}
+                    className="quran-btn-arabic"
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
             {infoOpen && (
               <div data-surah-info className="mt-3 max-w-3xl space-y-1 text-sm leading-relaxed text-[#24344d]">
@@ -293,13 +320,17 @@ export function ReadingSheet({
         </div>
       </header>
 
-      {showArabic && verseByVerse && (
+      {(showArabic || showTranslation) && verseByVerse && (
         <div data-verse-mode className="mt-6 space-y-6">
-          {pageVerses.map(verse => (
+          {pageVerses.map(verse => {
+            const versePlaying = doesAudioMatchVerse(audio.id, verse) && listening;
+            return (
             <section key={verse.key} id={`v-${verse.surah}-${verse.ayah}`} data-ayah={verse.ayah} className={`rounded-2xl px-3 py-4 ${verse.ayah === selectedAyah ? 'quran-band' : ''}`}>
-              <p dir="rtl" className={`quran-face text-center text-[#1e3a5f] ${ARABIC_SIZE[textSize]}`}>
-                {arabicLine(verse)}
-              </p>
+              {showArabic && (
+                <p dir="rtl" className={`quran-face text-center text-[#1e3a5f] ${ARABIC_SIZE[textSize]}`}>
+                  {arabicLine(verse)}
+                </p>
+              )}
               {showTranslation && (
                 <p lang={lang} className={`quran-prose mx-auto mt-4 ${PROSE_SIZE[translationSize]}`}>
                   {verse.translation.trim() ? verse.translation : t.verseTranslationUnavailable}
@@ -307,8 +338,8 @@ export function ReadingSheet({
                 </p>
               )}
               <div className="mt-2 flex items-center justify-end gap-1">
-                <button type="button" aria-label={`${t.sheetPlayVerse} ${verse.ayah}`} className="rounded-full p-2 text-[#1c3d66]" onClick={() => (audio.id === `ayah-${verse.number}` && listening ? pauseAudio() : onPlayAyah(verse.ayah))}>
-                  {audio.id === `ayah-${verse.number}` && listening ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                <button type="button" aria-label={`${t.sheetPlayVerse} ${verse.ayah}`} className="rounded-full p-2 text-[#1c3d66]" onClick={() => (versePlaying ? pauseAudio() : onPlayAyah(verse.ayah))}>
+                  {versePlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                 </button>
                 <button type="button" aria-pressed={isVerseSaved(verse.key)} aria-label={t.wordSave} className="rounded-full p-2 text-[#1c3d66]" onClick={() => toggleVerse(verse.key)}>
                   <Bookmark className="h-4 w-4" />
@@ -330,7 +361,8 @@ export function ReadingSheet({
                 />
               )}
             </section>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -424,8 +456,9 @@ export function ReadingSheet({
           <button type="button" aria-label={t.playerNext} className="rounded-full p-2 text-[#1c3d66]" onClick={onNext}>
             <SkipForward className="h-5 w-5" />
           </button>
-          <p className="shrink-0 text-sm text-[#16233B]">
+          <p data-player-status className="shrink-0 text-sm text-[#16233B]">
             {playingAyah ? `${playingAyah.surah}:${playingAyah.ayah}` : selected ? `${selected.surah}:${selected.ayah}` : ''}
+            {playingAyah || selected ? ` · ${activeAudioLabel}` : ''}
           </p>
           <div className="quran-player-track" aria-hidden>
             <span className="quran-player-fill" style={{ width: `${audio.duration > 0 ? Math.min(100, (audio.currentTime / audio.duration) * 100) : 0}%` }} />

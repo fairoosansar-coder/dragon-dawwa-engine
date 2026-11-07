@@ -6,6 +6,13 @@ import { VerseShare } from '../components/VerseShare.tsx';
 import { pauseAudio, playAudio, resumeAudio, stopAudio, useAudioState } from '../lib/audio.ts';
 import { useRemote } from '../lib/api.ts';
 import { useQuranEdition } from '../lib/quranEdition.ts';
+import {
+  audioEditionForLang,
+  isReaderAudioId,
+  resolveMeaningAudioSrc,
+  toAudioLang,
+  type AudioLang,
+} from '../lib/quranPlayback.ts';
 import { ayahForLoadedSurah, clampSurah, displaySurah, readTextSize, readTranslationSize, readingPlaceLabel, useReadingPlace, type TextSize } from '../lib/readingPlace.ts';
 import { quranListQuery } from '../lib/route.ts';
 import { scrollMain, scrollMarkIntoMain } from '../lib/scroll.ts';
@@ -14,6 +21,7 @@ import { usePronunciation, withPronunciation } from '../lib/pronunciation.ts';
 import { useApp, useStored } from '../lib/store.tsx';
 import { usePendingReadingLink } from '../lib/verseShare.ts';
 import {
+  acceptAudioEditionKey,
   acceptsMeaning,
   coverageFromPayload,
   listedMeaningUrl,
@@ -438,6 +446,9 @@ function Edition({
   const [storedTranslation, setStoredTranslation] = useStored<unknown>('kf-show-translation', true);
   const showArabic = storedArabic !== false;
   const showTranslation = storedTranslation !== false;
+  const [storedAudioLang, setStoredAudioLang] = useStored<unknown>('kf-quran-audio-lang', null);
+  const audioLang = toAudioLang(storedAudioLang, lang);
+  const prevLangRef = useRef(lang);
   const [verseStored, setVerseStored] = useStored<unknown>('kf-verse-by-verse', false);
   const verseByVerse = verseStored === true;
   const [settingsTick, setSettingsTick] = useState(0);
@@ -447,12 +458,16 @@ function Edition({
   const meaningUrl = editionKey ? `/api/quran/surah/${surah}/meaning?lang=${lang}&edition=${encodeURIComponent(editionKey)}` : null;
   const arabicRemote = useRemote<ArabicPayload>(arabicUrl);
   const meaningRemote = useRemote<MeaningPayload>(meaningUrl);
-  const manifestRemote = useRemote<unknown>(editionKey ? `/api/quran/audio-manifest?edition=${encodeURIComponent(editionKey)}` : null);
+  const audioEditionKey = audioEditionForLang(audioLang, lang, editionKey);
+  const manifestEditionKey = audioEditionKey ?? audioEditionForLang(lang, lang, editionKey);
+  const manifestRemote = useRemote<unknown>(
+    manifestEditionKey ? `/api/quran/audio-manifest?edition=${encodeURIComponent(manifestEditionKey)}` : null,
+  );
   const coverage = useMemo<AudioCoverage | null>(() => {
-    if (!editionKey || manifestRemote.error || !manifestRemote.data) return null;
+    if (!manifestEditionKey || manifestRemote.error || !manifestRemote.data) return null;
     const parsed = coverageFromPayload(manifestRemote.data);
-    return parsed && parsed.translation === editionKey ? parsed : null;
-  }, [editionKey, manifestRemote.data, manifestRemote.error]);
+    return parsed && parsed.translation === manifestEditionKey ? parsed : null;
+  }, [manifestEditionKey, manifestRemote.data, manifestRemote.error]);
   const arabic = arabicRemote.data?.info.number === surah ? arabicRemote.data : null;
   const meaning = acceptsMeaning(meaningRemote.data, surah, lang, editionKey) ? meaningRemote.data : null;
   const loaded = arabic;
@@ -466,6 +481,13 @@ function Edition({
   coverageRef.current = coverage;
 
   useEffect(() => {
+    if (prevLangRef.current !== lang) {
+      prevLangRef.current = lang;
+      setStoredAudioLang(lang);
+    }
+  }, [lang, setStoredAudioLang]);
+
+  useEffect(() => {
     const next = ayahForLoadedSurah(surah, loaded?.info.number, loaded?.info.numberOfAyahs, ayah);
     if (next != null && next !== ayah) setAyah(next);
   }, [loaded, ayah, surah, setAyah]);
@@ -473,7 +495,7 @@ function Edition({
   useEffect(() => {
     pendingMeaning.current = null;
     setMeaningNote(null);
-  }, [editionKey, lang, reciter]);
+  }, [editionKey, lang, reciter, audioLang]);
 
   const goSurah = useCallback(
     (number: number, verse = 1, keepMeaning = false) => {
@@ -507,10 +529,11 @@ function Edition({
     [ayah, goSurah, loaded, setAyah, surah],
   );
 
-  const playMeaningRef = useRef<(surahNumber: number, ayahNumber: number) => void>(() => undefined);
-  playMeaningRef.current = (surahNumber: number, ayahNumber: number) => {
-    const key = editionKey;
-    const src = coverageRef.current && key ? listedMeaningUrl(coverageRef.current, key, surahNumber, ayahNumber) : null;
+  const playMeaningRef = useRef<(surahNumber: number, ayahNumber: number, overrideKey?: string) => void>(() => undefined);
+  playMeaningRef.current = (surahNumber: number, ayahNumber: number, overrideKey?: string) => {
+    const key = overrideKey ?? audioEditionKey ?? audioEditionForLang(lang, lang, editionKey);
+    const failed = Boolean(manifestRemote.error && manifestEditionKey === key);
+    const src = key ? resolveMeaningAudioSrc(coverageRef.current, key, surahNumber, ayahNumber, failed) : null;
     if (!key || !src) {
       setMeaningNote(t.meaningAudioNotListedVerse);
       return;
@@ -520,9 +543,24 @@ function Edition({
     const info = loaded?.info.number === surahNumber ? loaded.info : null;
     const count = info?.numberOfAyahs ?? 0;
     void playAudio(meaningPlaybackId(key, surahNumber, ayahNumber), src, () => {
+      if (!coverageRef.current || coverageRef.current.translation !== key) {
+        if (acceptAudioEditionKey(key)) {
+          if (ayahNumber < count) {
+            playMeaningRef.current(surahNumber, ayahNumber + 1, key);
+            return;
+          }
+          if (surahNumber < 114) {
+            pendingMeaning.current = { key, surah: surahNumber + 1, ayah: 1 };
+            goSurah(surahNumber + 1, 1, true);
+            return;
+          }
+        }
+        stopAudio();
+        return;
+      }
       const next = nextListedMeaning(coverageRef.current, key, surahNumber, ayahNumber, count);
       if (next.kind === 'play' && next.surah === surahNumber) {
-        playMeaningRef.current(next.surah, next.ayah);
+        playMeaningRef.current(next.surah, next.ayah, key);
         return;
       }
       if (next.kind === 'play') {
@@ -535,13 +573,29 @@ function Edition({
     });
   };
 
+  const repeatMeaningRef = useRef<(surahNumber: number, ayahNumber: number, overrideKey?: string) => void>(() => undefined);
+  repeatMeaningRef.current = (surahNumber: number, ayahNumber: number, overrideKey?: string) => {
+    const key = overrideKey ?? audioEditionKey ?? audioEditionForLang(lang, lang, editionKey);
+    const failed = Boolean(manifestRemote.error && manifestEditionKey === key);
+    const src = key ? resolveMeaningAudioSrc(coverageRef.current, key, surahNumber, ayahNumber, failed) : null;
+    if (!key || !src) {
+      setMeaningNote(t.meaningAudioNotListedVerse);
+      return;
+    }
+    setMeaningNote(null);
+    setAyah(ayahNumber);
+    void playAudio(meaningPlaybackId(key, surahNumber, ayahNumber), src, () =>
+      repeatMeaningRef.current(surahNumber, ayahNumber, key),
+    );
+  };
+
   useEffect(() => {
     const pending = pendingMeaning.current;
     if (!pending || !loaded || !coverage) return;
-    if (pending.key !== editionKey || loaded.info.number !== pending.surah) return;
+    if (pending.key !== manifestEditionKey || loaded.info.number !== pending.surah) return;
     pendingMeaning.current = null;
-    playMeaningRef.current(pending.surah, pending.ayah);
-  }, [coverage, editionKey, loaded]);
+    playMeaningRef.current(pending.surah, pending.ayah, pending.key);
+  }, [coverage, manifestEditionKey, loaded]);
 
   const playRef = useRef<(n: number) => void>(() => undefined);
   playRef.current = (ayahNumber: number) => {
@@ -564,15 +618,24 @@ function Edition({
     setAyah(verse.ayah);
     void playAudio(`ayah-${verse.number}`, recitationUrl(reciter, verse.number), () => repeatRef.current(ayahNumber));
   };
+  const playSelectedRef = useRef<(ayahNumber: number, targetLang?: AudioLang) => void>(() => undefined);
+  playSelectedRef.current = (ayahNumber: number, targetLang: AudioLang = audioLang) => {
+    if (targetLang === 'ar') {
+      playRef.current(ayahNumber);
+      return;
+    }
+    const key = audioEditionForLang(targetLang, lang, editionKey);
+    if (key) playMeaningRef.current(surah, ayahNumber, key);
+  };
   const moveRef = useRef<(delta: number) => void>(() => undefined);
   moveRef.current = (delta: number) => {
     const list = versesRef.current;
     const index = list.findIndex(item => item.ayah === ayah);
     const next = list[index + delta];
-    const playing = audio.status === 'playing' || audio.status === 'loading';
+    const playing = isReaderAudioId(audio.id) && (audio.status === 'playing' || audio.status === 'loading');
     if (next) {
       setAyah(next.ayah);
-      if (playing) playRef.current(next.ayah);
+      if (playing) playSelectedRef.current(next.ayah);
       return;
     }
     if (delta < 0 && surah > 1) goSurah(surah - 1, 0);
@@ -623,7 +686,10 @@ function Edition({
     if (!listedMeaningUrl(coverage, editionKey, verse.surah, verse.ayah)) return { action: null, note: t.meaningAudioNotListedVerse };
     return { action: () => playMeaningRef.current(verse.surah, verse.ayah), note: null };
   };
-  const playbackStatus = audio.status === 'error' || audio.status === 'unavailable' ? audioStatusLabel(t, audio.status, audio.id) : null;
+  const playbackStatus =
+    audio.status === 'error' || audio.status === 'unavailable'
+      ? audioStatusLabel(t, audio.status, audio.id)
+      : meaningNote;
   const reciters = config?.reciters ?? [{ id: 'ar.alafasy', name: 'Mishary Rashid Alafasy' }];
   const shareVerse = current
     ? {
@@ -738,7 +804,10 @@ function Edition({
               translationSize={translationSize}
               onTranslationSize={onTranslationSize}
               reciter={reciter}
-              onReciter={onReciter}
+              onReciter={id => {
+                setStoredAudioLang('ar');
+                onReciter(id);
+              }}
               reciters={reciters}
               onPlace={(number, verse) => goSurah(number, verse)}
               translator={current?.translationTitle || current?.translator || ''}
@@ -757,18 +826,35 @@ function Edition({
               textSize={textSize}
               translationSize={translationSize}
               lang={lang}
+              audioLang={audioLang}
+              onAudioLang={nextLang => {
+                const wasPlaying = isReaderAudioId(audio.id) && (audio.status === 'playing' || audio.status === 'loading');
+                setMeaningNote(null);
+                setStoredAudioLang(nextLang);
+                if (wasPlaying) {
+                  playSelectedRef.current(ayah >= 1 ? ayah : 1, nextLang);
+                } else if (nextLang !== audioLang) {
+                  stopAudio();
+                }
+              }}
               selectedAyah={ayah}
-              onPlayAyah={next => playRef.current(next)}
-              onRepeatAyah={next => repeatRef.current(next)}
+              onPlayAyah={next => playSelectedRef.current(next)}
+              onRepeatAyah={next => {
+                if (audioLang === 'ar') repeatRef.current(next);
+                else repeatMeaningRef.current(surah, next);
+              }}
               onListen={() => {
-                if (audio.id?.startsWith('ayah-') && (audio.status === 'playing' || audio.status === 'loading')) pauseAudio();
-                else if (audio.id?.startsWith('ayah-') && audio.status === 'paused') resumeAudio();
-                else playRef.current(ayah >= 1 ? ayah : 1);
+                if (isReaderAudioId(audio.id) && (audio.status === 'playing' || audio.status === 'loading')) pauseAudio();
+                else if (isReaderAudioId(audio.id) && audio.status === 'paused') resumeAudio();
+                else playSelectedRef.current(ayah >= 1 ? ayah : 1);
               }}
               onPrevious={() => moveRef.current(-1)}
               onNext={() => moveRef.current(1)}
               onOpenSettings={() => setSettingsTick(value => value + 1)}
-              onChooseEdition={onChooseEdition}
+              onChooseEdition={(language, key) => {
+                setStoredAudioLang(language);
+                onChooseEdition(language, key);
+              }}
               openTranslations={translationTick}
               reciters={reciters}
             >
