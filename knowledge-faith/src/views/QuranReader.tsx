@@ -444,8 +444,8 @@ function Edition({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [storedArabic, setStoredArabic] = useStored<unknown>('kf-show-arabic', true);
   const [storedTranslation, setStoredTranslation] = useStored<unknown>('kf-show-translation', true);
-  const showArabic = storedArabic !== false;
-  const showTranslation = storedTranslation !== false;
+  const showArabic = true;
+  const showTranslation = true;
   const [storedAudioLang, setStoredAudioLang] = useStored<unknown>('kf-quran-audio-lang', null);
   const audioLang = toAudioLang(storedAudioLang, lang);
   const prevLangRef = useRef(lang);
@@ -479,6 +479,11 @@ function Edition({
   const [meaningNote, setMeaningNote] = useState<string | null>(null);
   const coverageRef = useRef(coverage);
   coverageRef.current = coverage;
+
+  useEffect(() => {
+    if (storedArabic === false) setStoredArabic(true);
+    if (storedTranslation === false) setStoredTranslation(true);
+  }, [storedArabic, setStoredArabic, storedTranslation, setStoredTranslation]);
 
   useEffect(() => {
     if (prevLangRef.current !== lang) {
