@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Check, Copy, Download, Link2, Send, Share2, Sparkles, X } from 'lucide-react';
+import { Check, Copy, Download, Link2, LogIn, Send, Share2, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { useSeekerAuth } from '../lib/seekerAuth.ts';
 import { useApp } from '../lib/store.tsx';
+import { SeekerEmblemGlyph } from './SeekerAuthModal.tsx';
 import {
   BRAND_FOOTER_LEFT,
   BRAND_FOOTER_RIGHT,
@@ -71,6 +73,7 @@ function DockIconButton({
 /** Compact Verse Icon Action Dock + Verse Card Studio Modal + Public Faith Wall sharing. */
 export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lang; mode: 'book' | 'study' }) {
   const { t } = useApp();
+  const { user, openModal: openAuthModal } = useSeekerAuth();
   const [note, setNote] = useState<string | null>(null);
   const [copiedKind, setCopiedKind] = useState<'copy' | 'link' | null>(null);
   const [studioOpen, setStudioOpen] = useState(false);
@@ -491,6 +494,29 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
                 data-wall-composer
                 className="mt-4 rounded-2xl border border-[#D4AF37]/35 bg-[#031812]/90 p-3.5"
               >
+                <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+                  {user ? (
+                    <div
+                      data-studio-seeker-chip
+                      className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/45 bg-[#0A2E23] px-3 py-1 text-xs text-[#F3E8C8]"
+                    >
+                      <SeekerEmblemGlyph emblem={user.emblem} size={14} />
+                      <span className="font-semibold text-white">{user.name}</span>
+                      <span className="text-[#D4AF37]">· {user.kunyah}</span>
+                      <ShieldCheck className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      data-studio-signin-prompt
+                      onClick={() => openAuthModal()}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/55 bg-[#0A2E23] px-3 py-1 text-xs font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37]"
+                    >
+                      <LogIn className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                      <span>Sign in to publish to your Personal Wall</span>
+                    </button>
+                  )}
+                </div>
                 <label className="block text-xs font-medium text-[#D4AF37]">
                   Public Faith Wall Reflection
                   <input
@@ -517,7 +543,7 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
                     className="inline-flex items-center gap-1.5 rounded-xl bg-[#D4AF37] px-4 py-2 text-xs font-semibold text-[#031812] transition hover:bg-[#e3c14d]"
                   >
                     <Send className="h-3.5 w-3.5" aria-hidden />
-                    <span>Post to Public Faith Wall</span>
+                    <span>{user ? 'Post to My Wall & Community' : 'Post to Public Faith Wall'}</span>
                   </button>
                 </div>
               </div>
