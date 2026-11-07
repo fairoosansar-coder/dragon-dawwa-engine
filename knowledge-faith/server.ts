@@ -550,6 +550,51 @@ app.post(
   }),
 );
 
+interface ServerWallPost {
+  id: string;
+  surah: number;
+  ayah: number;
+  surahName: string;
+  arabic: string;
+  translation: string;
+  reflection: string;
+  lang: string;
+  url: string;
+  createdAt: string;
+}
+
+const faithWallPosts: ServerWallPost[] = [];
+const wallLimiter = rateLimiter(Number(process.env.WALL_POSTS_PER_15_MIN ?? 30));
+
+app.get('/api/wall/posts', route(async (_req, res) => res.json({ posts: faithWallPosts })));
+
+app.post(
+  '/api/wall/posts',
+  wallLimiter,
+  route(async (req, res) => {
+    const surah = Number(req.body?.surah);
+    const ayah = Number(req.body?.ayah);
+    if (!Number.isInteger(surah) || surah < 1 || surah > 114 || !Number.isInteger(ayah) || ayah < 1 || ayah > 286) {
+      throw new UpstreamError('Valid surah and ayah are required.', 400);
+    }
+    const post: ServerWallPost = {
+      id: typeof req.body?.id === 'string' && req.body.id ? req.body.id.slice(0, 120) : `wall-${surah}-${ayah}-${Date.now()}`,
+      surah,
+      ayah,
+      surahName: String(req.body?.surahName ?? '').slice(0, 120),
+      arabic: String(req.body?.arabic ?? '').slice(0, 4000),
+      translation: String(req.body?.translation ?? '').slice(0, 4000),
+      reflection: String(req.body?.reflection ?? '').trim().slice(0, 600),
+      lang: toLang(req.body?.lang),
+      url: String(req.body?.url ?? '').slice(0, 400),
+      createdAt: new Date().toISOString(),
+    };
+    faithWallPosts.unshift(post);
+    if (faithWallPosts.length > 50) faithWallPosts.pop();
+    res.status(201).json(post);
+  }),
+);
+
 app.get(
   '/api/research/jobs/:id',
   route(async (req, res) => {
