@@ -1,17 +1,32 @@
 import { useCallback, useEffect, useState } from 'react';
+import { openSeekerAuthModal, readSeekerSession } from './seekerAuth.ts';
+
+function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  const headers: Record<string, string> = { ...(extra ?? {}) };
+  const session = readSeekerSession();
+  if (session?.token) {
+    headers.Authorization = `Bearer ${session.token}`;
+  }
+  return headers;
+}
 
 async function parse<T>(res: Response): Promise<T> {
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((body as { error?: string }).error ?? `Request failed (${res.status})`);
+  const body = (await res.json().catch(() => ({}))) as { error?: string; requiresAuth?: boolean };
+  if (res.status === 401 && body.requiresAuth) {
+    openSeekerAuthModal();
+  }
+  if (!res.ok) throw new Error(body.error ?? `Request failed (${res.status})`);
   return body as T;
 }
 
-export const getJson = <T,>(url: string) => fetch(url).then(r => parse<T>(r));
+export const getJson = <T,>(url: string) => fetch(url, { headers: authHeaders() }).then(r => parse<T>(r));
 
 export const postJson = <T,>(url: string, body: unknown) =>
-  fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r =>
-    parse<T>(r),
-  );
+  fetch(url, {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(body),
+  }).then(r => parse<T>(r));
 
 export interface Remote<T> {
   data: T | null;

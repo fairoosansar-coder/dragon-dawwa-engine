@@ -350,6 +350,25 @@ export function getRequestSeeker(req: Request): SeekerProfile | null {
   return verifySeekerToken(extractTokenFromRequest(req));
 }
 
+export const AUTH_REQUIRED_MESSAGE =
+  'Authentication required. Please sign in to use Dragon Dawwa research tools.';
+
+export function requireSeekerAuth(req: Request, res: Response, next: () => void) {
+  if (process.env.ALLOW_UNAUTHENTICATED_RESEARCH_FOR_TESTS === '1') {
+    next();
+    return;
+  }
+  const seeker = getRequestSeeker(req);
+  if (!seeker) {
+    res.status(401).json({
+      error: AUTH_REQUIRED_MESSAGE,
+      requiresAuth: true,
+    });
+    return;
+  }
+  next();
+}
+
 export function setSeekerCookie(res: Response, token: string) {
   res.append(
     'Set-Cookie',

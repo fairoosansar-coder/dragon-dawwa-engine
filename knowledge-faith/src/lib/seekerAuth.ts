@@ -52,7 +52,82 @@ const DEFAULT_GOOGLE_CONFIG: GoogleAuthClientConfig = {
 let memorySession: SeekerSession | null = null;
 let memoryGoogleConfig: GoogleAuthClientConfig = DEFAULT_GOOGLE_CONFIG;
 let modalRequestedOpen = false;
+let pendingRouteTarget: string | null = null;
+let pendingDeskLabel: string | null = null;
 let sessionHydrated = false;
+
+export const PENDING_ROUTE_STORAGE_KEY = 'dd-seeker-pending-route';
+
+export function isPublicHomeHash(rawHash: string): boolean {
+  const clean = rawHash.replace(/^#\/?/, '').split('?')[0].replace(/\/+$/, '').trim();
+  return clean === '' || clean === 'hub' || clean === 'screen-13';
+}
+
+export function deskLabelForHash(rawHash: string): string {
+  const clean = rawHash.replace(/^#\/?/, '').split('?')[0].replace(/\/+$/, '').toLowerCase();
+  if (!clean || clean === 'hub') return 'Knowledge Studio';
+  if (clean.includes('wall')) return 'Community Faith Wall';
+  if (clean.startsWith('quran')) return 'Al-Qur’an Reader & Tafsir';
+  if (clean.startsWith('hadith')) return 'Prophetic Sunnah (Hadith)';
+  if (clean.includes('names') || clean.includes('asma')) return '99 Names of Allah';
+  if (clean.includes('seerah') || clean.includes('prophet')) return 'Seerah & History';
+  if (clean.includes('fiqh')) return 'Fiqh & Fatwa Desk';
+  if (clean.startsWith('podcast') || clean.startsWith('studio')) return 'Research & Podcasts Studio';
+  if (clean.startsWith('books') || clean.includes('discover') || clean.includes('deepen')) return 'Books & Source Library';
+  if (clean.includes('shahadah')) return 'New to Islam (Shahadah)';
+  if (clean.startsWith('spiritual') || clean.startsWith('prayer')) return 'Five Pillars & Worship';
+  if (clean.includes('saved')) return 'Saved Bookmarks';
+  if (clean.includes('scholar')) return 'Ask a Scholar';
+  return 'Dragon Dawwa Studio';
+}
+
+export function readPendingRoute(): string | null {
+  if (pendingRouteTarget) return pendingRouteTarget;
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = window.sessionStorage.getItem(PENDING_ROUTE_STORAGE_KEY);
+      if (stored && stored.startsWith('#/')) return stored;
+    } catch {
+      /* ignore */
+    }
+  }
+  return null;
+}
+
+export function readPendingDeskLabel(): string | null {
+  if (pendingDeskLabel) return pendingDeskLabel;
+  const route = readPendingRoute();
+  return route ? deskLabelForHash(route) : null;
+}
+
+export function setPendingRoute(route: string | null, label?: string | null): void {
+  const normalized = route
+    ? route.startsWith('#')
+      ? route
+      : route.startsWith('/')
+        ? `#${route}`
+        : `#/${route}`
+    : null;
+  pendingRouteTarget = normalized && !isPublicHomeHash(normalized) ? normalized : null;
+  pendingDeskLabel = label ?? (pendingRouteTarget ? deskLabelForHash(pendingRouteTarget) : null);
+  if (typeof window !== 'undefined') {
+    try {
+      if (pendingRouteTarget) {
+        window.sessionStorage.setItem(PENDING_ROUTE_STORAGE_KEY, pendingRouteTarget);
+      } else {
+        window.sessionStorage.removeItem(PENDING_ROUTE_STORAGE_KEY);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+export function consumePendingRoute(): string | null {
+  const target = readPendingRoute();
+  setPendingRoute(null, null);
+  return target;
+}
 
 export const SEEKER_EMBLEMS: Array<{ id: SeekerEmblem; label: string; subtitle: string }> = [
   { id: 'rub-el-hizb', label: 'Rub el Hizb', subtitle: 'Eight-pointed Mushaf star' },
@@ -244,7 +319,12 @@ export async function refreshSeekerSessionAndConfig(): Promise<{
   return { session: local, googleAuth: memoryGoogleConfig };
 }
 
-export function openSeekerAuthModal(): void {
+export function openSeekerAuthModal(options?: { targetRoute?: string; deskLabel?: string }): void {
+  if (options?.targetRoute) {
+    setPendingRoute(options.targetRoute, options.deskLabel ?? deskLabelForHash(options.targetRoute));
+  } else if (options?.deskLabel) {
+    pendingDeskLabel = options.deskLabel;
+  }
   modalRequestedOpen = true;
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event(SEEKER_MODAL_EVENT));
@@ -256,6 +336,30 @@ export function closeSeekerAuthModal(): void {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event(SEEKER_MODAL_EVENT));
   }
+}
+
+export function requestAuthenticatedNavigation(targetHash: string, deskLabel?: string): boolean {
+  const session = readSeekerSession();
+  const normalized = targetHash.startsWith('#')
+    ? targetHash
+    : targetHash.startsWith('/')
+      ? `#${targetHash}`
+      : `#/${targetHash}`;
+  if (session?.user || isPublicHomeHash(normalized)) {
+    if (typeof window !== 'undefined' && window.location.hash !== normalized) {
+      window.location.hash = normalized;
+    }
+    return true;
+  }
+  openSeekerAuthModal({
+    targetRoute: normalized,
+    deskLabel: deskLabel ?? deskLabelForHash(normalized),
+  });
+  if (typeof window !== 'undefined' && !isPublicHomeHash(window.location.hash)) {
+    window.history.replaceState(null, '', '#/hub');
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  }
+  return false;
 }
 
 function buildLocalFallbackSession(input: {
@@ -318,7 +422,11 @@ export async function signInWithGoogleCredential(
 }
 
 export function buildGoogleOAuthRedirectUrl(returnTo?: string, callbackPath?: string): string {
-  const target = returnTo || (typeof window !== 'undefined' ? window.location.hash || '#/quran/wall' : '#/quran/wall');
+  const pending = readPendingRoute();
+  const target =
+    returnTo ||
+    pending ||
+    (typeof window !== 'undefined' ? window.location.hash || '#/quran/wall' : '#/quran/wall');
   const params = new URLSearchParams({ returnTo: target });
   if (callbackPath) params.set('callbackPath', callbackPath);
   return `/api/auth/google/start?${params.toString()}`;
@@ -461,7 +569,11 @@ export async function updateSeekerProfile(input: {
 
 export async function signOutSeeker(): Promise<void> {
   const current = readSeekerSession();
+  setPendingRoute(null, null);
   writeSeekerSession(null);
+  if (typeof window !== 'undefined' && !isPublicHomeHash(window.location.hash)) {
+    window.location.hash = '#/hub';
+  }
   if (current && typeof fetch === 'function') {
     try {
       await fetch('/api/auth/logout', {
@@ -478,13 +590,32 @@ export function useSeekerAuth() {
   const [session, setSession] = useState<SeekerSession | null>(() => readSeekerSession());
   const [googleAuth, setGoogleAuth] = useState<GoogleAuthClientConfig>(() => readGoogleAuthConfig());
   const [modalOpen, setModalOpen] = useState<boolean>(() => modalRequestedOpen);
+  const [pendingRoute, setPendingRouteState] = useState<string | null>(() => readPendingRoute());
+  const [pendingDesk, setPendingDeskState] = useState<string | null>(() => readPendingDeskLabel());
 
   useEffect(() => {
     const syncAuth = () => {
-      setSession(readSeekerSession());
+      const current = readSeekerSession();
+      setSession(current);
       setGoogleAuth(readGoogleAuthConfig());
+      if (current?.user) {
+        const dest = consumePendingRoute();
+        if (dest && typeof window !== 'undefined') {
+          modalRequestedOpen = false;
+          setModalOpen(false);
+          setPendingRouteState(null);
+          setPendingDeskState(null);
+          if (window.location.hash !== dest) {
+            window.location.hash = dest;
+          }
+        }
+      }
     };
-    const syncModal = () => setModalOpen(modalRequestedOpen);
+    const syncModal = () => {
+      setModalOpen(modalRequestedOpen);
+      setPendingRouteState(readPendingRoute());
+      setPendingDeskState(readPendingDeskLabel());
+    };
     window.addEventListener(SEEKER_AUTH_EVENT, syncAuth);
     window.addEventListener('storage', syncAuth);
     window.addEventListener(SEEKER_MODAL_EVENT, syncModal);
@@ -504,15 +635,21 @@ export function useSeekerAuth() {
     };
   }, []);
 
-  const openModal = useCallback(() => openSeekerAuthModal(), []);
+  const openModal = useCallback(
+    (options?: { targetRoute?: string; deskLabel?: string }) => openSeekerAuthModal(options),
+    [],
+  );
   const closeModal = useCallback(() => closeSeekerAuthModal(), []);
 
   return {
     session,
     user: session?.user ?? null,
     token: session?.token ?? null,
+    isAuthenticated: Boolean(session?.user),
     googleAuth,
     modalOpen,
+    pendingRoute,
+    pendingDesk,
     openModal,
     closeModal,
     loginOrRegister: loginOrRegisterSeeker,

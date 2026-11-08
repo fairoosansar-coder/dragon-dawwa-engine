@@ -45,6 +45,7 @@ import {
   loginSeekerAccount,
   readGoogleOAuthNonceCookie,
   registerSeekerAccount,
+  requireSeekerAuth,
   revokeSeekerToken,
   setGoogleOAuthNonceCookie,
   setSeekerCookie,
@@ -427,6 +428,7 @@ app.get('/api/names/:id', route(async (req, res) => res.json(await readName(Stri
 
 app.post(
   '/api/research/jobs',
+  requireSeekerAuth,
   rateLimiter(20, 'Too many research jobs. Please wait a few minutes.'),
   route(async (req, res) => {
     const question = text(req.body?.question, 4000, 'question');
@@ -491,6 +493,18 @@ app.post(
   }),
 );
 
+app.post(
+  '/api/research',
+  requireSeekerAuth,
+  rateLimiter(20, 'Too many research jobs. Please wait a few minutes.'),
+  route(async (req, res) => {
+    const question = text(req.body?.question ?? req.body?.topic, 4000, 'question');
+    const lang = toLang(req.body?.lang);
+    const id = startSharedResearchJob(question, lang);
+    res.status(202).json({ id, contractVersion: '1.0.0' });
+  }),
+);
+
 app.get('/api/sources/hadeethenc', route(async (_req, res) => res.json(collectionSummary())));
 
 app.get('/api/research/episodes', route(async (_req, res) => res.json({ episodes: listSavedEpisodes() })));
@@ -506,6 +520,7 @@ app.get(
 
 app.post(
   '/api/research/episodes',
+  requireSeekerAuth,
   route(async (req, res) => {
     const lines = Array.isArray(req.body?.lines) ? req.body.lines.slice(0, 24) : [];
     if (!lines.length) throw new UpstreamError('A saved episode needs its transcript.', 400);
@@ -544,6 +559,7 @@ app.get('/api/research/podcasts', route(async (_req, res) => res.json({ episodes
 
 app.post(
   '/api/research/podcasts',
+  requireSeekerAuth,
   route(async (req, res) => {
     if (req.body?.shared !== true) throw new UpstreamError('A podcast is published only when it is explicitly shared.', 400);
     const question = text(req.body?.question, 800, 'question');
@@ -688,6 +704,7 @@ app.get('/api/wall/posts', route(async (_req, res) => res.json({ posts: listServ
 
 app.post(
   '/api/wall/posts',
+  requireSeekerAuth,
   wallLimiter,
   route(async (req, res) => {
     const seeker = getRequestSeeker(req);
@@ -753,6 +770,7 @@ app.get('/api/studio/pilot', route(async (req, res) => res.json(await loadPilotE
 
 app.post(
   '/api/studio/pilot/ask',
+  requireSeekerAuth,
   aiLimiter,
   route(async (req, res) => {
     const question = text(req.body?.question, 500, 'question');
@@ -789,6 +807,7 @@ app.get(
 
 app.post(
   '/api/spiritual/zakah-draft',
+  requireSeekerAuth,
   aiLimiter,
   route(async (req, res) => {
     requireAi();
@@ -799,6 +818,7 @@ app.post(
 
 app.post(
   '/api/ask',
+  requireSeekerAuth,
   aiLimiter,
   route(async (req, res) => {
     const question = text(req.body?.question, 500, 'question');
@@ -806,12 +826,17 @@ app.post(
   }),
 );
 
-app.post('/api/podcast/generate', aiLimiter, (req, res, next) => {
+app.post('/api/podcast/generate', requireSeekerAuth, aiLimiter, (req, res, next) => {
+  podcastScriptRoute(req, res, next);
+});
+
+app.post('/api/podcasts/generate', requireSeekerAuth, aiLimiter, (req, res, next) => {
   podcastScriptRoute(req, res, next);
 });
 
 app.post(
   '/api/podcast/script',
+  requireSeekerAuth,
   aiLimiter,
   (req, res, next) => {
     podcastScriptRoute(req, res, next);
@@ -869,6 +894,7 @@ const podcastScriptRoute = route(async (req, res) => {
 
 app.post(
   '/api/voice/narrate',
+  requireSeekerAuth,
   aiLimiter,
   route(async (req, res) => {
     const body = text(req.body?.text, 3000, 'text');
@@ -879,6 +905,7 @@ app.post(
 
 app.post(
   '/api/voice/dialogue',
+  requireSeekerAuth,
   aiLimiter,
   route(async (req, res) => {
     const lines: PodcastLine[] = Array.isArray(req.body?.lines)
@@ -959,6 +986,7 @@ function engineFailure(err: unknown, fallback: string): UpstreamError {
 
 app.post(
   '/api/analyze',
+  requireSeekerAuth,
   aiLimiter,
   route(async (req, res) => {
     const hadith = text(req.body?.hadith_input, 4000, 'hadith_input');
@@ -1002,6 +1030,7 @@ app.get(
 
 app.post(
   '/api/tts',
+  requireSeekerAuth,
   ttsLimiter,
   route(async (req, res) => {
     const body = text(req.body?.text, 3000, 'text');
@@ -1032,6 +1061,7 @@ function mediaType(value: unknown, fallback: string): string {
 
 app.post(
   '/api/extract-hadith-media',
+  requireSeekerAuth,
   aiLimiter,
   route(async (req, res) => {
     const file = base64Field(req.body?.file_base64, 'file_base64');
@@ -1048,6 +1078,7 @@ app.post(
 
 app.post(
   '/api/transcribe-audio',
+  requireSeekerAuth,
   aiLimiter,
   route(async (req, res) => {
     const audio = base64Field(req.body?.audio_base64, 'audio_base64');
