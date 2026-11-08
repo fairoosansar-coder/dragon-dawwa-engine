@@ -7,7 +7,6 @@ import {
   Plus,
   Search,
   ShieldCheck,
-  Sparkles,
   User,
 } from 'lucide-react';
 import { SeekerAvatar } from '../SeekerAuthModal.tsx';
@@ -209,99 +208,63 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
   };
 
   return (
-    <section data-faith-wall className="space-y-6">
-      {/* Hero Banner */}
+    <section data-faith-wall className="mx-auto max-w-2xl space-y-5">
+      {/* 1. Compact, Soft Light-Surface Top Header Card */}
       <header
         data-faith-wall-hero
-        style={{
-          background: 'linear-gradient(135deg, #031812 0%, #0A2E23 55%, #041812 100%)',
-        }}
-        className="relative overflow-hidden rounded-3xl border border-[#D4AF37]/45 p-5 text-[#F3E8C8] shadow-lg sm:p-8"
+        className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm sm:p-5"
       >
-        <img
-          src="/assets/geometric-emerald.jpg"
-          alt=""
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-right opacity-25"
-        />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#031812]/95 via-[#07271d]/85 to-[#031812]/65" />
-
-        <div className="relative z-10 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
-          <div className="max-w-2xl space-y-2.5">
+        <div className="flex flex-col justify-between gap-3.5 sm:flex-row sm:items-center">
+          <div className="min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/50 bg-[#D4AF37]/15 px-3 py-1 text-[11px] font-semibold tracking-[0.18em] text-[#D4AF37]">
-                <Globe className="h-3.5 w-3.5" aria-hidden />
-                PUBLIC FAITH WALL
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-emerald-900">
+                <Globe className="h-3 w-3 text-emerald-700" aria-hidden />
+                <span>Community Faith Wall</span>
               </span>
-              <span className="rounded-full border border-[#D4AF37]/25 bg-white/5 px-3 py-1 text-xs font-medium text-[#F3E8C8]/85">
-                {posts.length} Illuminated Reflections
+              <span className="text-xs text-stone-500">
+                {posts.length} reflections
               </span>
-              {user && (
-                <span
-                  data-wall-seeker-badge
-                  className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/50 bg-[#0A2E23] px-3 py-1 text-xs font-semibold text-[#F9E7B9]"
-                >
-                  <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded-full ring-1 ring-emerald-400">
-                    <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={13} />
-                  </span>
-                  <span>{user.name}</span>
-                  <ShieldCheck className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-                </span>
-              )}
             </div>
 
-            <h2 className="font-display text-2xl font-bold leading-tight text-white sm:text-4xl">
+            <h2 className="font-display text-xl font-bold text-stone-900 sm:text-2xl">
               {!compact && wallView === 'mine'
                 ? 'My Personal Faith Wall'
                 : !compact && wallView === 'saved'
                   ? 'Saved Reflections'
-                  : 'Community Faith Wall'}
+                  : 'Reflections & Illuminated Ayahs'}
             </h2>
-            <p className="text-sm leading-relaxed text-[#F3E8C8]/80 sm:text-base">
-              {!compact && wallView === 'mine'
-                ? 'Your personal sanctuary of shared 16:9 Qur’an manuscript cards, reflections, and community Dhikr.'
-                : 'Illuminated 16:9 Qur’an manuscript cards, contextual Asma-ul-Husna expressions, and personal reflections shared by the Dragon Dawwa community.'}
+            <p className="text-xs leading-relaxed text-stone-600 sm:text-sm">
+              Share personal tadabbur, illuminated 16:9 Qur’an cards, and contextual Asma-ul-Husna dhikr.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            {!compact && (
-              <>
-                <button
-                  type="button"
-                  data-faith-wall-open-composer
-                  onClick={() => setComposerOpen(open => !open)}
-                  className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37] bg-[#D4AF37] px-4 py-2.5 text-sm font-semibold text-[#031812] shadow-sm transition hover:bg-[#e3c14d]"
-                >
-                  <Plus className="h-4 w-4" aria-hidden />
-                  <span>Share a Reflection</span>
-                </button>
-                {!user && (
-                  <button
-                    type="button"
-                    data-wall-hero-signin
-                    onClick={() => openAuthModal()}
-                    className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/55 bg-[#031812]/90 px-4 py-2.5 text-sm font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37]"
-                  >
-                    <LogIn className="h-4 w-4 text-[#D4AF37]" aria-hidden />
-                    <span>Sign In · My Wall</span>
-                  </button>
-                )}
-              </>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {!compact ? (
+              <button
+                type="button"
+                data-faith-wall-open-composer
+                data-open-reflection-modal
+                onClick={() => setComposerOpen(open => !open)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#073C30] px-4 py-2.5 text-xs font-semibold text-[#F5EEDC] shadow-xs transition hover:bg-[#0A2E23]"
+              >
+                <Plus className="h-4 w-4 text-[#D4AF37]" aria-hidden />
+                <span>Share a Reflection</span>
+              </button>
+            ) : (
+              <a
+                href="#/quran/wall"
+                data-faith-wall-cta
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#073C30] px-4 py-2 text-xs font-semibold text-[#F5EEDC] transition hover:bg-[#0A2E23]"
+              >
+                <span>Open Faith Wall →</span>
+              </a>
             )}
-            <a
-              href={compact ? '#/quran/wall' : '#/quran/book'}
-              data-faith-wall-cta
-              className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/55 bg-[#0A2E23]/90 px-4 py-2.5 text-sm font-semibold text-[#F3E8C8] transition hover:border-[#D4AF37] hover:bg-[#0f3d2f]"
-            >
-              <Sparkles className="h-4 w-4 text-[#D4AF37]" aria-hidden />
-              <span>{compact ? 'Explore Full Faith Wall' : 'Open Qur’an Reader'}</span>
-            </a>
           </div>
         </div>
 
-        {/* Inline Faith Wall Composer */}
+        {/* Modal / Inline Composer */}
         {!compact && composerOpen && (
-          <div className="relative z-10 mt-6">
+          <div className="mt-4">
             <ReflectionModal
               open={composerOpen}
               inline
@@ -316,79 +279,79 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
         <div
           role="status"
           data-faith-wall-toast
-          className="mx-auto flex max-w-2xl items-center justify-between rounded-2xl border border-[#D4AF37]/60 bg-[#0A2E23] px-4 py-3 text-sm font-semibold text-[#F3E8C8] shadow-md"
+          className="flex items-center justify-between rounded-xl border border-emerald-700/25 bg-emerald-50 px-4 py-2.5 text-xs font-semibold text-emerald-950 shadow-xs"
         >
           <span>✦ {toast}</span>
-          <button type="button" onClick={() => setToast(null)} className="text-xs text-[#D4AF37] hover:underline">
+          <button type="button" onClick={() => setToast(null)} className="text-xs text-emerald-800 hover:underline">
             Dismiss
           </button>
         </div>
       )}
 
-      {/* Community Wall / My Wall / Saved Switcher + Filter & Search Toolbar (Full View) */}
+      {/* 2. Sleek Single-Line Segmented Filter & Search Bar */}
       {!compact && (
         <div
           data-faith-wall-toolbar
-          className="flex flex-col justify-between gap-3 rounded-2xl border border-pine/15 bg-parchment px-4 py-3 lg:flex-row lg:items-center"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-stone-200/80 bg-white px-3 py-2 shadow-2xs"
         >
-          <div className="flex flex-wrap items-center gap-3">
-            {/* View Switcher: Community Wall vs My Wall vs Saved */}
-            <div
-              role="group"
-              aria-label="Faith Wall view"
-              className="inline-flex flex-wrap rounded-full border border-[#073C30]/20 bg-white p-1 shadow-xs"
+          {/* Segmented View Tabs */}
+          <div
+            role="group"
+            aria-label="Faith Wall view"
+            className="inline-flex items-center rounded-xl bg-stone-100 p-0.5"
+          >
+            <button
+              type="button"
+              data-wall-view="community"
+              aria-pressed={wallView === 'community'}
+              onClick={() => setWallView('community')}
+              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                wallView === 'community'
+                  ? 'bg-white text-stone-900 shadow-2xs'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
             >
-              <button
-                type="button"
-                data-wall-view="community"
-                aria-pressed={wallView === 'community'}
-                onClick={() => setWallView('community')}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
-                  wallView === 'community'
-                    ? 'bg-[#073C30] text-[#F5EEDC] shadow-xs'
-                    : 'text-pine hover:bg-sand'
-                }`}
-              >
-                <Globe className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-                <span>Community Wall ({posts.length})</span>
-              </button>
-              <button
-                type="button"
-                data-wall-view="mine"
-                aria-pressed={wallView === 'mine'}
-                onClick={() => setWallView('mine')}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
-                  wallView === 'mine'
-                    ? 'bg-[#073C30] text-[#F5EEDC] shadow-xs'
-                    : 'text-pine hover:bg-sand'
-                }`}
-              >
-                <User className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-                <span>My Wall ({myPosts.length})</span>
-              </button>
-              <button
-                type="button"
-                data-wall-view="saved"
-                aria-pressed={wallView === 'saved'}
-                onClick={() => setWallView('saved')}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
-                  wallView === 'saved'
-                    ? 'bg-[#073C30] text-[#F5EEDC] shadow-xs'
-                    : 'text-pine hover:bg-sand'
-                }`}
-              >
-                <Bookmark className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-                <span>Saved ({savedPosts.length})</span>
-              </button>
-            </div>
+              <span>Community ({posts.length})</span>
+            </button>
+            <button
+              type="button"
+              data-wall-view="mine"
+              aria-pressed={wallView === 'mine'}
+              onClick={() => setWallView('mine')}
+              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                wallView === 'mine'
+                  ? 'bg-white text-stone-900 shadow-2xs'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <User className="h-3 w-3 text-emerald-700" aria-hidden />
+              <span>My Wall ({myPosts.length})</span>
+            </button>
+            <button
+              type="button"
+              data-wall-view="saved"
+              aria-pressed={wallView === 'saved'}
+              onClick={() => setWallView('saved')}
+              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                wallView === 'saved'
+                  ? 'bg-white text-stone-900 shadow-2xs'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <Bookmark className="h-3 w-3 text-emerald-700" aria-hidden />
+              <span>Saved ({savedPosts.length})</span>
+            </button>
+          </div>
 
-            <div role="group" aria-label="Filter Faith Wall by language" className="flex flex-wrap items-center gap-1.5">
+          {/* Compact Language Pills + Search */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <div role="group" aria-label="Filter Faith Wall by language" className="inline-flex items-center gap-1">
               {(
                 [
-                  { id: 'all', label: 'All Languages' },
-                  { id: 'en', label: 'English' },
-                  { id: 'ta', label: 'Tamil (தமிழ்)' },
-                  { id: 'si', label: 'Sinhala (සිංහල)' },
+                  { id: 'all', label: 'All' },
+                  { id: 'en', label: 'EN' },
+                  { id: 'ta', label: 'தமிழ்' },
+                  { id: 'si', label: 'සිංහල' },
                 ] as const
               ).map(tab => {
                 const active = langFilter === tab.id;
@@ -399,10 +362,10 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
                     data-wall-lang-filter={tab.id}
                     aria-pressed={active}
                     onClick={() => setLangFilter(tab.id)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                    className={`rounded-lg px-2 py-1 text-[11px] font-semibold transition ${
                       active
-                        ? 'bg-[#0A2E23] text-[#F3E8C8] shadow-sm ring-1 ring-[#D4AF37]/50'
-                        : 'bg-white/80 text-pine hover:bg-white'
+                        ? 'bg-[#073C30] text-white'
+                        : 'bg-stone-100 text-stone-600 hover:bg-stone-200/75'
                     }`}
                   >
                     {tab.label}
@@ -410,19 +373,19 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
                 );
               })}
             </div>
-          </div>
 
-          <label className="relative block min-w-0 lg:w-68">
-            <span className="sr-only">Search Faith Wall</span>
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={event => setSearchQuery(event.target.value)}
-              placeholder="Filter by Surah, Ayah, or reflection…"
-              className="w-full rounded-full border border-pine/20 bg-white py-1.5 pl-9 pr-4 text-xs text-ink placeholder:text-muted"
-            />
-          </label>
+            <label className="relative block w-36 sm:w-44">
+              <span className="sr-only">Search Faith Wall</span>
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" aria-hidden />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={event => setSearchQuery(event.target.value)}
+                placeholder="Search surah or note…"
+                className="w-full rounded-lg border border-stone-200 bg-stone-50 py-1 pl-7 pr-2.5 text-xs text-stone-800 placeholder:text-stone-400 focus:border-emerald-700 focus:bg-white focus:outline-none"
+              />
+            </label>
+          </div>
         </div>
       )}
 
@@ -431,52 +394,49 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
         user ? (
           <div
             data-my-wall-profile
-            style={{
-              background: 'linear-gradient(135deg, #041E17 0%, #0B382B 55%, #051C15 100%)',
-            }}
-            className="mx-auto max-w-2xl rounded-3xl border border-[#D4AF37]/50 p-5 text-[#F5EEDC] shadow-lg sm:p-6"
+            className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm"
           >
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
               <div className="flex min-w-0 items-center gap-3.5">
-                <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-emerald-400 bg-[#031812] shadow-md ring-2 ring-[#D4AF37]/40">
-                  <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={28} />
+                <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#073C30] text-[#F5EEDC] ring-2 ring-emerald-600/35">
+                  <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={24} />
                 </span>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="truncate font-display text-xl font-bold text-white">{user.name}</h3>
-                    <span className="inline-flex items-center gap-1 rounded-full border border-[#D4AF37]/50 bg-[#D4AF37]/15 px-2.5 py-0.5 text-[11px] font-semibold text-[#D4AF37]">
-                      <ShieldCheck className="h-3.5 w-3.5" aria-hidden />
+                    <h3 className="truncate font-display text-lg font-bold text-stone-900">{user.name}</h3>
+                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-700/20 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-900">
+                      <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
                       {user.authProvider === 'google' || user.provider === 'google' ? 'Verified Google Seeker' : 'Verified Seeker'}
                     </span>
                   </div>
-                  <p className="mt-0.5 text-xs font-medium text-[#D4AF37]">{user.kunyah}</p>
+                  <p className="text-xs font-medium text-emerald-800">{user.kunyah}</p>
                   {user.bio ? (
-                    <p className="mt-1 max-w-xl text-xs italic text-[#F5EEDC]/80">“{user.bio}”</p>
+                    <p className="mt-1 max-w-xl text-xs italic text-stone-600">“{user.bio}”</p>
                   ) : null}
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2.5">
-                <div className="rounded-2xl border border-[#D4AF37]/30 bg-[#031812]/80 px-3.5 py-2 text-center">
-                  <p className="font-display text-lg font-bold text-[#D4AF37]">{myPosts.length}</p>
-                  <p className="text-[10px] uppercase tracking-wider text-[#F5EEDC]/70">Shared Cards</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-1.5 text-center">
+                  <p className="font-display text-base font-bold text-stone-900">{myPosts.length}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-stone-500">Cards</p>
                 </div>
-                <div className="rounded-2xl border border-[#D4AF37]/30 bg-[#031812]/80 px-3.5 py-2 text-center">
-                  <p className="font-display text-lg font-bold text-[#D4AF37]">{myTotalAmeen}</p>
-                  <p className="text-[10px] uppercase tracking-wider text-[#F5EEDC]/70">Dhikr Received</p>
+                <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-1.5 text-center">
+                  <p className="font-display text-base font-bold text-stone-900">{myTotalAmeen}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-stone-500">Dhikr</p>
                 </div>
-                <div className="rounded-2xl border border-[#D4AF37]/30 bg-[#031812]/80 px-3.5 py-2 text-center">
-                  <p className="font-display text-lg font-bold text-[#D4AF37]">{saved.verses.length + savedPosts.length}</p>
-                  <p className="text-[10px] uppercase tracking-wider text-[#F5EEDC]/70">Saved</p>
+                <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-1.5 text-center">
+                  <p className="font-display text-base font-bold text-stone-900">{saved.verses.length + savedPosts.length}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-stone-500">Saved</p>
                 </div>
                 <button
                   type="button"
                   data-my-wall-edit-profile
                   onClick={() => openAuthModal()}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-[#D4AF37]/50 bg-[#0A2E23] px-3.5 py-2.5 text-xs font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37]"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 transition hover:bg-stone-50"
                 >
-                  <Edit3 className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-                  <span>Edit Profile</span>
+                  <Edit3 className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+                  <span>Edit</span>
                 </button>
               </div>
             </div>
@@ -484,16 +444,16 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
         ) : (
           <div
             data-my-wall-signin-gate
-            className="mx-auto flex max-w-2xl flex-col items-center justify-between gap-4 rounded-3xl border border-[#D4AF37]/45 bg-[#051C15] p-6 text-center text-[#F5EEDC] shadow-lg sm:flex-row sm:text-left"
+            className="flex flex-col items-center justify-between gap-4 rounded-2xl border border-stone-200/80 bg-white p-5 text-center shadow-sm sm:flex-row sm:text-left"
           >
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#D4AF37]">
-                ✦ Personal Faith Wall Sanctuary
+              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-800">
+                ✦ Personal Faith Wall
               </p>
-              <h3 className="font-display text-xl font-bold text-white">
+              <h3 className="font-display text-lg font-bold text-stone-900">
                 Sign in to curate your Personal Faith Wall
               </h3>
-              <p className="max-w-xl text-xs leading-relaxed text-[#F5EEDC]/75 sm:text-sm">
+              <p className="max-w-xl text-xs leading-relaxed text-stone-600">
                 Save your illuminated 16:9 Qur’an verse cards under your verified Seeker name and kunyah, edit reflections anytime, and keep all your shared ayahs in one place.
               </p>
             </div>
@@ -501,10 +461,10 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
               type="button"
               data-my-wall-gate-signin
               onClick={() => openAuthModal()}
-              className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#D4AF37] px-5 py-2.5 text-sm font-bold text-[#031812] shadow-md transition hover:bg-[#e3c14d]"
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[#073C30] px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-[#0A2E23]"
             >
-              <LogIn className="h-4 w-4" aria-hidden />
-              <span>Sign In / Create Seeker Account</span>
+              <LogIn className="h-4 w-4 text-[#D4AF37]" aria-hidden />
+              <span>Sign In</span>
             </button>
           </div>
         )
@@ -514,18 +474,18 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
       {!compact && wallView === 'mine' && user && displayed.length === 0 && (
         <div
           data-my-wall-empty
-          className="mx-auto max-w-2xl rounded-3xl border border-dashed border-[#073C30]/30 bg-parchment p-8 text-center"
+          className="rounded-2xl border border-dashed border-stone-300 bg-white p-8 text-center"
         >
-          <p className="font-display text-xl font-bold text-pine">
+          <p className="font-display text-lg font-bold text-stone-900">
             Your Personal Faith Wall is ready for your first reflection
           </p>
-          <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-            Share an illuminated 16:9 verse card from the Qur’an Reader or use the composer above to publish your first reflection.
+          <p className="mx-auto mt-1.5 max-w-md text-xs text-stone-500">
+            Share an illuminated 16:9 verse card from the Qur’an Reader or use the button above to publish your first reflection.
           </p>
           <button
             type="button"
             onClick={() => setComposerOpen(true)}
-            className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#073C30] px-5 py-2.5 text-xs font-semibold text-[#F5EEDC] hover:bg-[#0A2E23]"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#073C30] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0A2E23]"
           >
             <Plus className="h-4 w-4 text-[#D4AF37]" aria-hidden />
             <span>Share Your First Reflection</span>
@@ -537,7 +497,7 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
       <div
         data-faith-wall-grid
         data-faith-wall-stream
-        className="mx-auto max-w-2xl space-y-6"
+        className="space-y-6"
       >
         {displayed.map(post => (
           <WallPostCard
