@@ -255,28 +255,30 @@ function Library({
   const reciters = config?.reciters ?? [{ id: 'ar.alafasy', name: 'Mishary Rashid Alafasy' }];
 
   return (
-    <div className="space-y-6">
-      <HeaderSettingsMenu
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-        mode={prefer}
-        textSize={textSize}
-        onTextSize={onTextSize}
-        translationSize={translationSize}
-        onTranslationSize={onTranslationSize}
-        reciter={reciter}
-        onReciter={onReciter}
-        reciters={reciters}
-        onMode={setPrefer}
-        editions={editions}
-        editionKey={editionKey}
-        onEdition={onEdition}
-        editionsError={editionsError}
-        onQuiet={() => {
-          setSettingsOpen(false);
-          setFocus(true);
-        }}
-      />
+    <div className="space-y-5">
+      {section !== 'wall' && (
+        <HeaderSettingsMenu
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          mode={prefer}
+          textSize={textSize}
+          onTextSize={onTextSize}
+          translationSize={translationSize}
+          onTranslationSize={onTranslationSize}
+          reciter={reciter}
+          onReciter={onReciter}
+          reciters={reciters}
+          onMode={setPrefer}
+          editions={editions}
+          editionKey={editionKey}
+          onEdition={onEdition}
+          editionsError={editionsError}
+          onQuiet={() => {
+            setSettingsOpen(false);
+            setFocus(true);
+          }}
+        />
+      )}
       {mineWelcome || section === 'wall' ? null : section === 'home' ? (
         <header data-quran-hero className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/35 bg-[#0A3D2E]">
           <img

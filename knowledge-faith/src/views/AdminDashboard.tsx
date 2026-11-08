@@ -44,7 +44,7 @@ export function AdminDashboard({ sub }: ViewProps) {
   };
 
   return (
-    <section data-admin-cockpit className="mx-auto max-w-3xl space-y-4">
+    <section data-admin-cockpit className="mx-auto w-full max-w-5xl space-y-4">
       {/* Top Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <a

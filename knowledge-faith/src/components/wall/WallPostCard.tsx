@@ -520,17 +520,17 @@ export function WallPostCard({
         </div>
 
         {/* Center: Pure White Glowing Arabic + Quoted Warm Ivory Translation */}
-        <div className="relative z-10 my-auto flex flex-col items-center justify-center px-2 py-2 text-center sm:px-5">
+        <div className="relative z-10 my-auto flex flex-col items-center justify-center px-2 py-1.5 text-center sm:px-5">
           <p
             lang="ar"
             dir="rtl"
             style={{ textShadow: '0 0 20px rgba(212,175,55,0.22)' }}
-            className="quran-face max-h-28 overflow-y-auto text-xl leading-[2.05] text-[#FFFFFF] sm:max-h-36 sm:text-2xl"
+            className="quran-face max-h-28 overflow-y-auto text-lg leading-[2.05] text-[#FFFFFF] sm:max-h-32 sm:text-xl"
           >
             {post.arabic}
           </p>
 
-          <div aria-hidden className="my-2 flex items-center gap-2 text-[#D4AF37]/55">
+          <div aria-hidden className="my-1.5 flex items-center gap-2 text-[#D4AF37]/55">
             <span className="h-px w-8 bg-[#D4AF37]/35 sm:w-12" />
             <span className="text-[9px]">◆</span>
             <span className="h-px w-8 bg-[#D4AF37]/35 sm:w-12" />
@@ -538,28 +538,28 @@ export function WallPostCard({
 
           <p
             lang={post.lang}
-            className="max-h-20 max-w-xl overflow-y-auto font-display text-xs leading-relaxed text-[#F3E8C8] sm:max-h-24 sm:text-sm"
+            className="max-h-20 max-w-xl overflow-y-auto font-sans text-xs leading-relaxed text-[#F3E8C8] sm:max-h-24 sm:text-[13px]"
           >
             {quoted}
           </p>
         </div>
 
         {/* Discreet Brand Footer */}
-        <div className="relative z-10 flex items-center justify-between gap-2 border-t border-white/15 pt-2 text-[10px] font-medium tracking-wide text-[#D4AF37]/75 sm:text-[11px]">
+        <div className="relative z-10 flex items-center justify-between gap-2 border-t border-white/15 pt-2 text-[10px] font-medium tracking-wide text-[#D4AF37]/75">
           <span className="truncate">{BRAND_FOOTER_LEFT}</span>
           <span className="shrink-0">{BRAND_FOOTER_RIGHT}</span>
         </div>
       </div>
       )}
 
-      {/* 4. Modern Single-Row Social Action Bar */}
+      {/* 4. Modern Single-Row Social Action Bar (No orphan wrapping) */}
       <div
         data-wall-reactions-bar={post.id}
-        className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 pt-3"
+        className="mt-3 flex flex-wrap items-center justify-between gap-1.5 border-t border-stone-100 pt-2.5 sm:flex-nowrap"
       >
-        {/* Left Side: Active Reaction Chips + [ + React ] Trigger */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          {activeReactionChips.map(chip => (
+        {/* Left Side: Active Reaction Chips + [ + React ] Trigger on a single clean row */}
+        <div className="flex min-w-0 flex-wrap items-center gap-1 sm:flex-nowrap">
+          {activeReactionChips.slice(0, 4).map(chip => (
             <button
               key={chip.id}
               type="button"
@@ -569,7 +569,7 @@ export function WallPostCard({
               data-asma-pill={chip.isAsma ? chip.label : undefined}
               aria-pressed={chip.active}
               onClick={() => onReact(post.id, chip.id)}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+              className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap transition ${
                 chip.active
                   ? 'border-emerald-600/45 bg-emerald-50 text-emerald-900 shadow-2xs'
                   : chip.isAsma
@@ -586,15 +586,15 @@ export function WallPostCard({
           ))}
 
           {/* Minimal [ + React ] Floating Tray Trigger */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               type="button"
               data-wall-express-trigger={post.id}
               aria-expanded={expressOpen}
               onClick={() => setExpressOpen(open => !open)}
-              className="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2.5 py-1 text-xs font-medium text-stone-600 transition hover:border-emerald-600/40 hover:bg-emerald-50/50 hover:text-emerald-900"
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-stone-600 transition hover:border-emerald-600/40 hover:bg-emerald-50/50 hover:text-emerald-900"
             >
-              <SmilePlus className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+              <SmilePlus className="h-3 w-3 text-emerald-700" aria-hidden />
               <span>+ React</span>
             </button>
 
@@ -680,18 +680,18 @@ export function WallPostCard({
         </div>
 
         {/* Right Side: Compact Utility Actions (Reply, Bookmark, Export Card) */}
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-0.5">
           <button
             type="button"
             data-wall-reply-trigger={post.id}
             aria-expanded={repliesOpen}
             onClick={() => setRepliesOpen(open => !open)}
-            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-900"
+            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-900"
           >
-            <MessageCircle className="h-4 w-4 text-stone-500" aria-hidden />
+            <MessageCircle className="h-3.5 w-3.5 text-stone-500" aria-hidden />
             <span>Reply</span>
             {(post.replies?.length ?? 0) > 0 && (
-              <span className="rounded-full bg-stone-100 px-1.5 py-0.2 text-[11px] font-semibold text-stone-700">
+              <span className="rounded-full bg-stone-100 px-1.5 py-0.2 text-[10px] font-semibold text-stone-700">
                 {post.replies?.length}
               </span>
             )}
@@ -703,16 +703,16 @@ export function WallPostCard({
             aria-pressed={Boolean(post.saved)}
             onClick={() => onToggleSave(post.id)}
             title={post.saved ? 'Saved in Bookmarks' : 'Bookmark reflection'}
-            className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${
+            className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium transition ${
               post.saved
                 ? 'bg-emerald-50 text-emerald-800'
                 : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
             }`}
           >
             {post.saved ? (
-              <BookmarkCheck className="h-4 w-4 text-emerald-700" aria-hidden />
+              <BookmarkCheck className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
             ) : (
-              <Bookmark className="h-4 w-4 text-stone-500" aria-hidden />
+              <Bookmark className="h-3.5 w-3.5 text-stone-500" aria-hidden />
             )}
             <span className="hidden sm:inline">{post.saved ? 'Saved' : 'Save'}</span>
           </button>
@@ -723,9 +723,9 @@ export function WallPostCard({
             disabled={exporting}
             onClick={() => onExportCard(post)}
             title="Export 1200×675 HD Card"
-            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-900 disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-900 disabled:opacity-50"
           >
-            <Share2 className="h-4 w-4 text-stone-500" aria-hidden />
+            <Share2 className="h-3.5 w-3.5 text-stone-500" aria-hidden />
             <span className="hidden sm:inline">Export</span>
           </button>
         </div>

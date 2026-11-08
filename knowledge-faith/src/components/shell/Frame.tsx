@@ -51,7 +51,7 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
   const { isAuthenticated } = useSeekerAuth();
   const audio = useAudioState();
   const player = Boolean(audio.id) && audio.status !== 'idle';
-  const quranSettings = path === 'quran';
+  const quranSettings = path === 'quran' && segments[0] !== 'wall';
   const quranBook = path === 'quran' && segments[0] === 'book';
 
   const handleNavClick = (event: React.MouseEvent<HTMLAnchorElement>, href: string, label: string) => {
@@ -121,16 +121,24 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
           </div>
         )}
         {!focus && (
-          <header className="shrink-0 overflow-x-clip border-b border-pine/10 bg-sand">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-4 py-1.5 sm:flex-nowrap sm:gap-3 sm:px-5">
-              <p className={`min-w-0 truncate font-display text-[15px] font-bold text-[#0B4B3A] sm:shrink-0 sm:text-base ${path === 'quran' ? 'max-w-[calc(100%-13.5rem)] sm:max-w-[14rem] lg:max-w-none' : path === 'hadith' ? 'max-w-[calc(100%-7.75rem)] sm:max-w-[14rem] lg:max-w-none' : ''}`}>{section}</p>
+          <header className="shrink-0 overflow-x-clip border-b border-stone-200/80 bg-sand/95 backdrop-blur-xs">
+            <div className="mx-auto flex max-w-[1280px] min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2 sm:flex-nowrap sm:px-6">
+              <p className="min-w-0 truncate text-sm font-semibold tracking-tight text-[#073C30] sm:shrink-0 sm:text-[15px]">
+                {section}
+              </p>
+              <DeskHeaderTabs path={path} segments={segments} className="order-last basis-full sm:order-none sm:min-w-0 sm:flex-1 sm:basis-auto" />
               <div className="ml-auto flex shrink-0 items-center gap-2 sm:order-3">
                 {quranSettings && <div id="kf-library-settings" className="hidden lg:block" />}
                 {quranSettings && <div id="kf-library-settings-mobile" className="lg:hidden" />}
                 <SeekerAccountPill variant="header" />
                 <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
-                  <span className="hidden sm:inline">{t.language}</span>
-                  <select aria-label={t.language} value={lang} onChange={event => setLang(toLang(event.target.value))} className="max-w-[7.25rem] truncate rounded-full border border-[#073C30]/15 bg-white px-2.5 py-1 text-xs text-[#16233B] sm:max-w-none sm:text-[13px]">
+                  <span className="sr-only">{t.language}</span>
+                  <select
+                    aria-label={t.language}
+                    value={lang}
+                    onChange={event => setLang(toLang(event.target.value))}
+                    className="rounded-full border border-stone-300/90 bg-white px-2.5 py-1 text-xs font-medium text-stone-800 shadow-2xs transition hover:border-[#073C30]/40"
+                  >
                     {LANGS.map(code => (
                       <option key={code} value={code}>
                         {LANGUAGE_NAMES[code].english}
@@ -139,7 +147,6 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
                   </select>
                 </label>
               </div>
-              <DeskHeaderTabs path={path} segments={segments} className="order-last basis-full sm:order-none sm:min-w-0 sm:flex-1 sm:basis-auto" />
             </div>
           </header>
         )}
@@ -147,11 +154,11 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
           id="main"
           className={
             quranBook
-              ? 'flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-3 sm:px-5'
-              : 'min-h-0 flex-1 overflow-x-clip overflow-y-auto scroll-pb-24 px-4 pt-3.5 pb-5 sm:px-5 sm:pt-4 sm:pb-6'
+              ? 'flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-3 sm:px-6'
+              : 'min-h-0 flex-1 overflow-x-clip overflow-y-auto scroll-pb-24 px-4 pt-4 pb-6 sm:px-6 sm:pt-5'
           }
         >
-          <div className={quranBook ? 'mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col' : 'mx-auto max-w-6xl pb-10'}>{children}</div>
+          <div className={quranBook ? 'mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col' : 'mx-auto max-w-[1240px] pb-10'}>{children}</div>
         </main>
         {player && !(path === 'quran' && (segments[0] === 'book' || segments[0] === 'study')) && <AudioMiniPlayer safe={focus} />}
         {!focus && !(path === 'quran' && segments[0] === 'book') && (

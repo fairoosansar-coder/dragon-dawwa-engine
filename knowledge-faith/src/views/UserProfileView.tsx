@@ -207,7 +207,7 @@ export function UserProfileView({ sub }: ViewProps) {
   };
 
   return (
-    <section data-user-profile-view className="mx-auto max-w-2xl space-y-4">
+    <section data-user-profile-view className="mx-auto w-full max-w-[1240px] space-y-4">
       {/* Top Breadcrumb Navigation */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <a
@@ -459,101 +459,151 @@ export function UserProfileView({ sub }: ViewProps) {
         </div>
       )}
 
-      {/* 3. Profile Body: User's Portfolio Filter Tabs */}
-      <div
-        data-profile-portfolio-tabs
-        className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-stone-200/80 bg-white px-3 py-2 shadow-2xs"
-      >
-        <div role="tablist" aria-label="Portfolio filter" className="inline-flex items-center rounded-xl bg-stone-100 p-0.5">
-          {(
-            [
-              { id: 'all', label: `All Contributions (${portfolio.approvedPosts.length})` },
-              { id: 'reflections', label: `Ayah Reflections (${portfolio.reflectionsCount})` },
-              { id: 'podcasts', label: `Podcasts (${portfolio.podcastsCount})` },
-            ] as const
-          ).map(tab => {
-            const active = portfolioTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                data-profile-tab={tab.id}
-                aria-selected={active}
-                onClick={() => setPortfolioTab(tab.id)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  active
-                    ? 'bg-white text-stone-900 shadow-2xs'
-                    : 'text-stone-600 hover:text-stone-900'
-                }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
+      {/* 3. Profile Body: Responsive 2-Column Portfolio Layout */}
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="min-w-0 space-y-4">
+          <div
+            data-profile-portfolio-tabs
+            className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-stone-200/80 bg-white px-3 py-2 shadow-2xs"
+          >
+            <div role="tablist" aria-label="Portfolio filter" className="inline-flex items-center rounded-xl bg-stone-100 p-0.5">
+              {(
+                [
+                  { id: 'all', label: `All Contributions (${portfolio.approvedPosts.length})` },
+                  { id: 'reflections', label: `Ayah Reflections (${portfolio.reflectionsCount})` },
+                  { id: 'podcasts', label: `Podcasts (${portfolio.podcastsCount})` },
+                ] as const
+              ).map(tab => {
+                const active = portfolioTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    data-profile-tab={tab.id}
+                    aria-selected={active}
+                    onClick={() => setPortfolioTab(tab.id)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                      active
+                        ? 'bg-white text-stone-900 shadow-2xs'
+                        : 'text-stone-600 hover:text-stone-900'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
 
-        <span className="px-2 text-[11px] font-medium text-stone-500">
-          Showing verified approved portfolio items
-        </span>
-      </div>
+            <span className="px-2 text-[11px] font-medium text-stone-500">
+              Showing verified approved portfolio items
+            </span>
+          </div>
 
-      {/* Portfolio Feed Stream */}
-      {filteredPosts.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-8 text-center">
-          <Sparkles className="mx-auto h-6 w-6 text-[#C6A15A]" aria-hidden />
-          <p className="mt-2 font-display text-base font-bold text-stone-900">
-            No {portfolioTab === 'podcasts' ? 'podcast episodes' : 'reflections'} in this tab yet
-          </p>
-          <p className="mx-auto mt-1 max-w-md text-xs text-stone-500">
-            Use the 2-Door Publishing Studio to share a Qur’an/Hadith reflection or a completed Research Podcast episode.
-          </p>
-          {portfolio.isSelf && (
-            <button
-              type="button"
-              onClick={() => setComposerOpen(true)}
-              className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#073C30] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0A2E23]"
-            >
-              <Plus className="h-4 w-4 text-[#D4AF37]" aria-hidden />
-              <span>Share Contribution</span>
-            </button>
+          {/* Portfolio Feed Stream */}
+          {filteredPosts.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-8 text-center">
+              <Sparkles className="mx-auto h-6 w-6 text-[#C6A15A]" aria-hidden />
+              <p className="mt-2 font-display text-base font-bold text-stone-900">
+                No {portfolioTab === 'podcasts' ? 'podcast episodes' : 'reflections'} in this tab yet
+              </p>
+              <p className="mx-auto mt-1 max-w-md text-xs text-stone-500">
+                Use the 2-Door Publishing Studio to share a Qur’an/Hadith reflection or a completed Research Podcast episode.
+              </p>
+              {portfolio.isSelf && (
+                <button
+                  type="button"
+                  onClick={() => setComposerOpen(true)}
+                  className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#073C30] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0A2E23]"
+                >
+                  <Plus className="h-4 w-4 text-[#D4AF37]" aria-hidden />
+                  <span>Share Contribution</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div data-profile-portfolio-feed className="space-y-4">
+              {filteredPosts.map(post => (
+                <WallPostCard
+                  key={post.id}
+                  post={post}
+                  owned={portfolio.isSelf}
+                  onReact={(postId, reactionId) => {
+                    toggleFaithWallReaction(postId, reactionId);
+                    setTick(n => n + 1);
+                  }}
+                  onToggleSave={postId => {
+                    toggleFaithWallBookmark(postId);
+                    setTick(n => n + 1);
+                  }}
+                  onAddReply={async (postId, text) => {
+                    await addFaithWallReply(postId, text);
+                    setTick(n => n + 1);
+                  }}
+                  onExportCard={item => void handleExportCard(item)}
+                  onCopyPost={item => void handleCopy(item)}
+                  onSaveEdit={async (postId, reflectionText, nextTheme) => {
+                    await updateFaithWallPost(postId, reflectionText, nextTheme);
+                    setTick(n => n + 1);
+                  }}
+                  onDeletePost={async postId => {
+                    await deleteFaithWallPost(postId);
+                    setTick(n => n + 1);
+                  }}
+                  copied={copiedId === post.id}
+                  exporting={downloadingId === post.id}
+                />
+              ))}
+            </div>
           )}
         </div>
-      ) : (
-        <div data-profile-portfolio-feed className="space-y-4">
-          {filteredPosts.map(post => (
-            <WallPostCard
-              key={post.id}
-              post={post}
-              owned={portfolio.isSelf}
-              onReact={(postId, reactionId) => {
-                toggleFaithWallReaction(postId, reactionId);
-                setTick(n => n + 1);
-              }}
-              onToggleSave={postId => {
-                toggleFaithWallBookmark(postId);
-                setTick(n => n + 1);
-              }}
-              onAddReply={async (postId, text) => {
-                await addFaithWallReply(postId, text);
-                setTick(n => n + 1);
-              }}
-              onExportCard={item => void handleExportCard(item)}
-              onCopyPost={item => void handleCopy(item)}
-              onSaveEdit={async (postId, reflectionText, nextTheme) => {
-                await updateFaithWallPost(postId, reflectionText, nextTheme);
-                setTick(n => n + 1);
-              }}
-              onDeletePost={async postId => {
-                await deleteFaithWallPost(postId);
-                setTick(n => n + 1);
-              }}
-              copied={copiedId === post.id}
-              exporting={downloadingId === post.id}
-            />
-          ))}
-        </div>
-      )}
+
+        {/* Right Portfolio Rail */}
+        <aside className="space-y-4">
+          <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-2xs">
+            <h3 className="text-xs font-semibold text-stone-900">
+              Scholarly Portfolio Summary
+            </h3>
+            <p className="mt-1 text-xs leading-relaxed text-stone-600">
+              Contributions anchored to verified Qur’anic verses, authentic Hadith collections, and 4-scholar roundtable episodes.
+            </p>
+            <div className="mt-3 space-y-2 border-t border-stone-100 pt-3 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-stone-500">Sacred Text Reflections</span>
+                <span className="font-semibold text-stone-900">{portfolio.reflectionsCount}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-stone-500">Research Podcasts</span>
+                <span className="font-semibold text-stone-900">{portfolio.podcastsCount}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-stone-500">Verification Status</span>
+                <span className="inline-flex items-center gap-1 font-semibold text-emerald-800">
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
+                  Verified
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-2xs">
+            <h3 className="text-xs font-semibold text-stone-900">
+              Referenced Sacred Anchors
+            </h3>
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {portfolio.approvedPosts.map(item => (
+                <a
+                  key={item.id}
+                  href={item.url}
+                  className="rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1 text-[11px] font-medium text-stone-700 transition hover:border-emerald-700/40 hover:bg-emerald-50/50 hover:text-emerald-950"
+                >
+                  Surah {item.surahName} {item.surah}:{item.ayah}
+                </a>
+              ))}
+            </div>
+          </div>
+        </aside>
+      </div>
     </section>
   );
 }

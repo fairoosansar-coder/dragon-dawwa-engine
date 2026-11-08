@@ -152,34 +152,22 @@ export function SeekerAccountPill({ variant = 'sidebar' }: { variant?: 'sidebar'
 
   if (variant === 'header') {
     return (
-      <div className="inline-flex items-center gap-1.5">
-        {user && (
-          <a
-            href="#/profile"
-            data-header-profile-link
-            title="Open My Profile Portfolio"
-            className="hidden items-center gap-1 rounded-full border border-[#D4AF37]/40 bg-[#04241C] px-2.5 py-1.5 text-[11px] font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37] sm:inline-flex"
-          >
-            <User className="h-3 w-3 text-[#D4AF37]" aria-hidden />
-            <span>Profile</span>
-          </a>
-        )}
-        <button
-          type="button"
-          data-header-account-pill
-          onClick={() => openModal()}
-          className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/55 bg-[#073C30] px-3 py-1.5 text-xs font-semibold text-[#F5EEDC] shadow-sm transition hover:border-[#D4AF37] hover:bg-[#0A2E23]"
-        >
-          <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#D4AF37]/45 bg-[#031812]">
-            {user ? (
-              <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={13} />
-            ) : (
-              <LogIn className="h-3 w-3 text-[#D4AF37]" aria-hidden />
-            )}
-          </span>
-          <span className="max-w-[7.5rem] truncate">{user ? user.name : 'Sign in'}</span>
-        </button>
-      </div>
+      <button
+        type="button"
+        data-header-account-pill
+        onClick={() => openModal()}
+        title={user ? `${user.name} · Account & Profile` : 'Sign in'}
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#D4AF37]/50 bg-[#073C30] px-2.5 py-1 text-xs font-medium text-[#F5EEDC] shadow-2xs transition hover:border-[#D4AF37] hover:bg-[#0A2E23]"
+      >
+        <span className="inline-flex h-4.5 w-4.5 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#D4AF37]/45 bg-[#031812]">
+          {user ? (
+            <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={12} />
+          ) : (
+            <LogIn className="h-3 w-3 text-[#D4AF37]" aria-hidden />
+          )}
+        </span>
+        <span className="max-w-[8.5rem] truncate">{user ? user.name : 'Sign in'}</span>
+      </button>
     );
   }
 
