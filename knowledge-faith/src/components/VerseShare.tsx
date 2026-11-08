@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Check, Copy, Download, Link2, LogIn, Send, Share2, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { useSeekerAuth } from '../lib/seekerAuth.ts';
 import { useApp } from '../lib/store.tsx';
-import { SeekerEmblemGlyph } from './SeekerAuthModal.tsx';
+import { SeekerAvatar } from './SeekerAuthModal.tsx';
 import {
   BRAND_FOOTER_LEFT,
   BRAND_FOOTER_RIGHT,
@@ -500,7 +500,9 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
                       data-studio-seeker-chip
                       className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/45 bg-[#0A2E23] px-3 py-1 text-xs text-[#F3E8C8]"
                     >
-                      <SeekerEmblemGlyph emblem={user.emblem} size={14} />
+                      <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded-full">
+                        <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={14} />
+                      </span>
                       <span className="font-semibold text-white">{user.name}</span>
                       <span className="text-[#D4AF37]">· {user.kunyah}</span>
                       <ShieldCheck className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />

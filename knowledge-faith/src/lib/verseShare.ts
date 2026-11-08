@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Lang } from '../shared/sources.ts';
-import { readSeekerSession, sanitizeSeekerEmblem, type SeekerEmblem } from './seekerAuth.ts';
+import { readSeekerSession, sanitizeSeekerEmblem, type SeekerAuthMethod, type SeekerEmblem } from './seekerAuth.ts';
 
 export interface ReadingLink {
   surah?: number;
@@ -84,6 +84,8 @@ export interface FaithWallPost {
   authorName?: string;
   authorRole?: string;
   authorEmblem?: SeekerEmblem;
+  authorAvatarUrl?: string | null;
+  authorAuthProvider?: SeekerAuthMethod;
   verified?: boolean;
   likes?: number;
   liked?: boolean;
@@ -219,6 +221,10 @@ export function listFaithWallPosts(): FaithWallPost[] {
       authorName: isCurrentUser ? session!.user.name : post.authorName || 'Community Seeker',
       authorRole: isCurrentUser ? session!.user.kunyah : post.authorRole || 'Faith Wall Contributor',
       authorEmblem: isCurrentUser ? session!.user.emblem : sanitizeSeekerEmblem(post.authorEmblem),
+      authorAvatarUrl: isCurrentUser ? session!.user.avatarUrl ?? post.authorAvatarUrl ?? null : post.authorAvatarUrl ?? null,
+      authorAuthProvider: isCurrentUser
+        ? session!.user.authProvider ?? (session!.user.provider === 'google' ? 'google' : 'password')
+        : post.authorAuthProvider,
       verified: isCurrentUser ? true : Boolean(post.verified || post.id.startsWith('seed-wall-')),
       liked: isLiked,
       likes: baseLikes + (isLiked && !post.liked ? 1 : 0),
@@ -276,6 +282,8 @@ export async function publishFaithWallPost(input: {
     authorName: seeker?.name || (input.authorName ?? '').trim() || 'Community Seeker',
     authorRole: seeker?.kunyah || (input.authorRole ?? '').trim() || 'Faith Wall Contributor',
     authorEmblem: seeker?.emblem ?? 'rub-el-hizb',
+    authorAvatarUrl: seeker?.avatarUrl ?? null,
+    authorAuthProvider: seeker?.authProvider ?? (seeker?.provider === 'google' ? 'google' : undefined),
     verified: Boolean(seeker),
     likes: 1,
     liked: false,
@@ -305,6 +313,8 @@ export async function publishFaithWallPost(input: {
           authorName: post.authorName,
           authorRole: post.authorRole,
           authorEmblem: post.authorEmblem,
+          authorAvatarUrl: post.authorAvatarUrl,
+          authorAuthProvider: post.authorAuthProvider,
           verified: post.verified,
           likes: post.likes,
           lang: post.lang,
@@ -335,6 +345,8 @@ export async function updateFaithWallPost(postId: string, reflection: string): P
     authorName: session?.user.name || target.authorName,
     authorRole: session?.user.kunyah || target.authorRole,
     authorEmblem: session?.user.emblem || target.authorEmblem,
+    authorAvatarUrl: session?.user.avatarUrl ?? target.authorAvatarUrl ?? null,
+    authorAuthProvider: session?.user.authProvider ?? target.authorAuthProvider,
     verified: Boolean(session?.user || target.verified),
     updatedAt: new Date().toISOString(),
   };

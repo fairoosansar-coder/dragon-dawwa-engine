@@ -23,14 +23,19 @@ import {
   wrapWords,
 } from '../src/lib/verseShare.ts';
 import {
+  authenticateGoogleCredential,
+  buildGoogleOAuthStart,
   createServerWallPost,
   deleteServerWallPost,
+  exchangeGoogleOAuthCode,
+  getGoogleAuthConfig,
   loginSeekerAccount,
   registerSeekerAccount,
   resetSeekerStoreForTests,
   revokeSeekerToken,
   updateSeekerAccountProfile,
   updateServerWallPost,
+  verifyGoogleOAuthState,
   verifySeekerToken,
 } from '../src/server/seekerAuth.ts';
 import { writeSeekerSession } from '../src/lib/seekerAuth.ts';
@@ -211,5 +216,119 @@ test('seeker login session signs tokens, attaches verified identity to personal 
   assert.equal(verifySeekerToken(updatedProfile.token), null);
   writeSeekerSession(null);
 });
+
+test('google OIDC config, OAuth start/callback flow, and GIS credential verification link seeker accounts and avatars', async () => {
+  resetSeekerStoreForTests();
+  const prevClientId = process.env.GOOGLE_OIDC_CLIENT_ID;
+  const prevClientSecret = process.env.GOOGLE_OIDC_CLIENT_SECRET;
+  const prevIssuer = process.env.GOOGLE_OIDC_ISSUER;
+
+  try {
+    process.env.GOOGLE_OIDC_CLIENT_ID = 'test-google-client-id.apps.googleusercontent.com';
+    process.env.GOOGLE_OIDC_CLIENT_SECRET = 'test-google-client-secret';
+    process.env.GOOGLE_OIDC_ISSUER = 'https://accounts.google.com';
+
+    const cfg = getGoogleAuthConfig();
+    assert.equal(cfg.enabled, true);
+    assert.equal(cfg.clientId, 'test-google-client-id.apps.googleusercontent.com');
+    assert.equal(cfg.hasClientSecret, true);
+    assert.equal(cfg.oauthRedirectPath, '/api/auth/google/start');
+
+    const fakeReq = {
+      headers: {
+        'x-forwarded-proto': 'https',
+        'x-forwarded-host': 'dragon-dawwa-production.up.railway.app',
+      },
+      protocol: 'https',
+      get: (name: string) => (name.toLowerCase() === 'host' ? 'dragon-dawwa-production.up.railway.app' : undefined),
+    } as unknown as Parameters<typeof buildGoogleOAuthStart>[0];
+
+    const started = buildGoogleOAuthStart(fakeReq, '#/quran/wall?view=mine');
+    assert.match(started.url, /^https:\/\/accounts\.google\.com\/o\/oauth2\/v2\/auth\?/);
+    assert.match(started.url, /client_id=test-google-client-id\.apps\.googleusercontent\.com/);
+    assert.match(started.url, /redirect_uri=https%3A%2F%2Fdragon-dawwa-production\.up\.railway\.app%2Fapi%2Fauth%2Fgoogle%2Fcallback/);
+    assert.match(started.url, /scope=openid\+email\+profile/);
+    assert.equal(started.redirectUri, 'https://dragon-dawwa-production.up.railway.app/api/auth/google/callback');
+
+    const verifiedState = verifyGoogleOAuthState(started.state, started.nonce);
+    assert.equal(verifiedState?.returnTo, '#/quran/wall?view=mine');
+    assert.equal(verifyGoogleOAuthState(started.state, 'wrong-nonce'), null);
+
+    // 1. Verify GIS ID token credential endpoint creates a verified Google Seeker with avatarUrl
+    const mockFetchForGis = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      assert.match(url, /oauth2\.googleapis\.com\/tokeninfo/);
+      return new Response(
+        JSON.stringify({
+          iss: 'https://accounts.google.com',
+          aud: 'test-google-client-id.apps.googleusercontent.com',
+          sub: 'google-sub-123456',
+          email: 'layla.google@dragondawwa.com',
+          email_verified: 'true',
+          name: 'Dr. Layla Al-Qasimi',
+          picture: 'https://lh3.googleusercontent.com/a/layla-avatar.png',
+          exp: String(Math.floor(Date.now() / 1000) + 3600),
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }) as typeof fetch;
+
+    const gisResult = await authenticateGoogleCredential('header.payload.sig', mockFetchForGis);
+    assert.equal(gisResult.user.email, 'layla.google@dragondawwa.com');
+    assert.equal(gisResult.user.name, 'Dr. Layla Al-Qasimi');
+    assert.equal(gisResult.user.googleSub, 'google-sub-123456');
+    assert.equal(gisResult.user.avatarUrl, 'https://lh3.googleusercontent.com/a/layla-avatar.png');
+    assert.equal(gisResult.user.authProvider, 'google');
+    assert.equal(gisResult.user.provider, 'google');
+    assert.equal(gisResult.user.verified, true);
+
+    // 2. Verify OAuth2 authorization code exchange links to the same Seeker account by googleSub
+    const fakeIdTokenPayload = Buffer.from(
+      JSON.stringify({
+        iss: 'https://accounts.google.com',
+        aud: 'test-google-client-id.apps.googleusercontent.com',
+        sub: 'google-sub-123456',
+        email: 'layla.google@dragondawwa.com',
+        email_verified: true,
+        name: 'Dr. Layla Al-Qasimi',
+        picture: 'https://lh3.googleusercontent.com/a/layla-avatar-hd.png',
+      }),
+      'utf8',
+    ).toString('base64url');
+    const mockFetchForOAuth = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      assert.equal(url, 'https://oauth2.googleapis.com/token');
+      return new Response(
+        JSON.stringify({
+          id_token: `eyJhbGciOiJSUzI1NiJ9.${fakeIdTokenPayload}.sig`,
+          access_token: 'ya29.mock-access-token',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }) as typeof fetch;
+
+    const oauthResult = await exchangeGoogleOAuthCode(
+      { code: '4/mock-oauth-code', state: started.state, cookieNonce: started.nonce },
+      mockFetchForOAuth,
+    );
+    assert.equal(oauthResult.user.id, gisResult.user.id);
+    assert.equal(oauthResult.user.avatarUrl, 'https://lh3.googleusercontent.com/a/layla-avatar-hd.png');
+    assert.equal(oauthResult.user.authProvider, 'google');
+    assert.equal(oauthResult.returnTo, '#/quran/wall?view=mine');
+
+    const decodedFromToken = verifySeekerToken(oauthResult.token);
+    assert.equal(decodedFromToken?.avatarUrl, 'https://lh3.googleusercontent.com/a/layla-avatar-hd.png');
+    assert.equal(decodedFromToken?.authProvider, 'google');
+  } finally {
+    if (prevClientId === undefined) delete process.env.GOOGLE_OIDC_CLIENT_ID;
+    else process.env.GOOGLE_OIDC_CLIENT_ID = prevClientId;
+    if (prevClientSecret === undefined) delete process.env.GOOGLE_OIDC_CLIENT_SECRET;
+    else process.env.GOOGLE_OIDC_CLIENT_SECRET = prevClientSecret;
+    if (prevIssuer === undefined) delete process.env.GOOGLE_OIDC_ISSUER;
+    else process.env.GOOGLE_OIDC_ISSUER = prevIssuer;
+    writeSeekerSession(null);
+  }
+});
+
 
 

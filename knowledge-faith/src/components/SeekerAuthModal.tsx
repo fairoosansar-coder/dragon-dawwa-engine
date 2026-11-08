@@ -1,13 +1,54 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Check, LogIn, LogOut, ShieldCheck, Sparkles, User, X } from 'lucide-react';
 import { RubElHizb } from '../engine/ds/ornaments.tsx';
 import {
+  buildGoogleOAuthRedirectUrl,
   SEEKER_EMBLEMS,
   useSeekerAuth,
   type SeekerAuthProvider,
   type SeekerEmblem,
 } from '../lib/seekerAuth.ts';
 import { listFaithWallPosts } from '../lib/verseShare.ts';
+
+declare global {
+  interface Window {
+    google?: {
+      accounts?: {
+        id?: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: { credential?: string }) => void;
+          }) => void;
+          renderButton: (parent: HTMLElement, options: Record<string, unknown>) => void;
+          prompt: () => void;
+        };
+      };
+    };
+  }
+}
+
+export function GoogleGMark({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden className="shrink-0">
+      <path
+        fill="#4285F4"
+        d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v2.98h3.86c2.26-2.09 3.56-5.17 3.56-8.8Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-2.98c-1.08.72-2.45 1.16-4.07 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.28 14.31A7.19 7.19 0 0 1 4.9 12c0-.81.14-1.59.38-2.31V6.6H1.29A11.99 11.99 0 0 0 0 12c0 1.93.46 3.77 1.29 5.4l3.99-3.09Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.6l3.99 3.09c.95-2.85 3.6-4.94 6.72-4.94Z"
+      />
+    </svg>
+  );
+}
 
 export function SeekerEmblemGlyph({
   emblem = 'rub-el-hizb',
@@ -67,6 +108,38 @@ export function SeekerEmblemGlyph({
   return <RubElHizb size={size} />;
 }
 
+export function SeekerAvatar({
+  avatarUrl,
+  name,
+  emblem = 'rub-el-hizb',
+  size = 18,
+}: {
+  avatarUrl?: string | null;
+  name?: string;
+  emblem?: SeekerEmblem;
+  size?: number;
+}) {
+  const [imgFailed, setImgFailed] = useState(false);
+
+  useEffect(() => {
+    setImgFailed(false);
+  }, [avatarUrl]);
+
+  if (avatarUrl && !imgFailed) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={name || 'Seeker avatar'}
+        referrerPolicy="no-referrer"
+        onError={() => setImgFailed(true)}
+        className="h-full w-full rounded-[inherit] object-cover"
+      />
+    );
+  }
+
+  return <SeekerEmblemGlyph emblem={emblem} size={size} />;
+}
+
 export function SeekerAccountPill({ variant = 'sidebar' }: { variant?: 'sidebar' | 'header' }) {
   const { user, openModal } = useSeekerAuth();
 
@@ -78,8 +151,12 @@ export function SeekerAccountPill({ variant = 'sidebar' }: { variant?: 'sidebar'
         onClick={openModal}
         className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/55 bg-[#073C30] px-3 py-1.5 text-xs font-semibold text-[#F5EEDC] shadow-sm transition hover:border-[#D4AF37] hover:bg-[#0A2E23]"
       >
-        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#D4AF37]/45 bg-[#031812]">
-          {user ? <SeekerEmblemGlyph emblem={user.emblem} size={13} /> : <LogIn className="h-3 w-3 text-[#D4AF37]" aria-hidden />}
+        <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#D4AF37]/45 bg-[#031812]">
+          {user ? (
+            <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={13} />
+          ) : (
+            <LogIn className="h-3 w-3 text-[#D4AF37]" aria-hidden />
+          )}
         </span>
         <span className="max-w-[7.5rem] truncate">{user ? user.name : 'Sign in'}</span>
       </button>
@@ -93,8 +170,12 @@ export function SeekerAccountPill({ variant = 'sidebar' }: { variant?: 'sidebar'
       onClick={openModal}
       className="mb-2 flex w-full items-center gap-2.5 rounded-2xl border border-[#C6A15A]/45 bg-[#04241C] px-3 py-2.5 text-left text-[#F5EEDC] shadow-sm transition hover:border-[#D4AF37] hover:bg-[#0A2E23]"
     >
-      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#D4AF37]/45 bg-[#073C30]">
-        {user ? <SeekerEmblemGlyph emblem={user.emblem} size={18} /> : <User className="h-4 w-4 text-[#D4AF37]" aria-hidden />}
+      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D4AF37]/45 bg-[#073C30]">
+        {user ? (
+          <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={18} />
+        ) : (
+          <User className="h-4 w-4 text-[#D4AF37]" aria-hidden />
+        )}
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
@@ -112,7 +193,16 @@ export function SeekerAccountPill({ variant = 'sidebar' }: { variant?: 'sidebar'
 }
 
 export function SeekerAuthModal() {
-  const { user, modalOpen, closeModal, loginOrRegister, updateProfile, signOut } = useSeekerAuth();
+  const {
+    user,
+    googleAuth,
+    modalOpen,
+    closeModal,
+    loginOrRegister,
+    signInWithGoogleCredential,
+    updateProfile,
+    signOut,
+  } = useSeekerAuth();
   const [tab, setTab] = useState<'signin' | 'register'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -123,6 +213,7 @@ export function SeekerAuthModal() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusNote, setStatusNote] = useState<string | null>(null);
+  const gisContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -144,12 +235,47 @@ export function SeekerAuthModal() {
     return () => window.removeEventListener('keydown', onKey);
   }, [modalOpen, closeModal]);
 
+  useEffect(() => {
+    if (!modalOpen || user || !googleAuth.enabled || !googleAuth.clientId) return;
+    const gId = window.google?.accounts?.id;
+    const slot = gisContainerRef.current;
+    if (!gId || !slot) return;
+    try {
+      gId.initialize({
+        client_id: googleAuth.clientId,
+        callback: response => {
+          if (!response.credential) return;
+          setBusy(true);
+          setError(null);
+          void signInWithGoogleCredential(response.credential)
+            .then(() => {
+              setStatusNote('Signed in with Google to your Personal Faith Wall.');
+            })
+            .catch((err: unknown) => {
+              setError(err instanceof Error ? err.message : 'Google Sign-In failed.');
+            })
+            .finally(() => setBusy(false));
+        },
+      });
+      gId.renderButton(slot, {
+        theme: 'filled_black',
+        size: 'large',
+        shape: 'pill',
+        text: 'continue_with',
+        width: 320,
+      });
+    } catch {
+      /* ignore GIS script initialization errors */
+    }
+  }, [modalOpen, user, googleAuth.enabled, googleAuth.clientId, signInWithGoogleCredential]);
+
   if (!modalOpen) return null;
 
   const myPosts = user
     ? listFaithWallPosts().filter(post => post.userId === user.id || post.authorName === user.name)
     : [];
   const totalAmeen = myPosts.reduce((sum, post) => sum + (post.likes ?? 1), 0);
+  const isGoogleUser = Boolean(user && (user.authProvider === 'google' || user.provider === 'google'));
 
   const handleQuickAuth = async (provider: SeekerAuthProvider) => {
     setBusy(true);
@@ -160,7 +286,7 @@ export function SeekerAuthModal() {
         google: {
           email: email.trim() || 'fairoos.seeker@gmail.com',
           name: name.trim() || 'Brother Feroz Ansar',
-          kunyah: kunyah.trim() || 'Institutional Research Fellow',
+          kunyah: kunyah.trim() || 'Verified Google Seeker',
         },
         apple: {
           email: email.trim() || 'seeker.icloud@apple.com',
@@ -194,6 +320,18 @@ export function SeekerAuthModal() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleContinueWithGoogle = async () => {
+    if (googleAuth.enabled && googleAuth.hasClientSecret && typeof window !== 'undefined') {
+      window.location.href = buildGoogleOAuthRedirectUrl(window.location.hash || '#/quran/wall');
+      return;
+    }
+    if (googleAuth.enabled && googleAuth.clientId && window.google?.accounts?.id) {
+      window.google.accounts.id.prompt();
+      return;
+    }
+    await handleQuickAuth('google');
   };
 
   const handleFormSubmit = async (event: FormEvent) => {
@@ -295,15 +433,15 @@ export function SeekerAuthModal() {
               className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#D4AF37]/45 bg-[#031812]/85 p-4"
             >
               <div className="flex min-w-0 items-center gap-3">
-                <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#D4AF37]/55 bg-[#0A2E23]">
-                  <SeekerEmblemGlyph emblem={emblem} size={24} />
+                <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#D4AF37]/55 bg-[#0A2E23]">
+                  <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={emblem} size={24} />
                 </span>
                 <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <p className="truncate font-display text-base font-bold text-white">{user.name}</p>
                     <span className="inline-flex items-center gap-1 rounded-full border border-[#D4AF37]/50 bg-[#D4AF37]/15 px-2 py-0.5 text-[10px] font-semibold text-[#D4AF37]">
                       <ShieldCheck className="h-3 w-3" aria-hidden />
-                      Verified Seeker
+                      {isGoogleUser ? 'Verified Google Seeker' : 'Verified Seeker'}
                     </span>
                   </div>
                   <p className="truncate text-xs text-[#D4AF37]/90">{user.kunyah}</p>
@@ -432,28 +570,44 @@ export function SeekerAuthModal() {
           </form>
         ) : (
           <div className="relative z-10 mt-5 space-y-4">
-            {/* One-Click Quick Auth Buttons */}
-            <div className="space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#D4AF37]/85">
-                Instant Studio Sign-In
-              </p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                <button
-                  type="button"
-                  data-quick-auth="google"
-                  disabled={busy}
-                  onClick={() => void handleQuickAuth('google')}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#D4AF37]/45 bg-[#0A2E23] px-3 py-2.5 text-xs font-semibold text-white transition hover:border-[#D4AF37] hover:bg-[#0f3d2f]"
-                >
-                  <span className="font-bold text-[#D4AF37]">G</span>
-                  <span>Continue with Google</span>
-                </button>
+            {/* Primary Continue with Google CTA */}
+            <div className="space-y-2.5">
+              <button
+                type="button"
+                data-google-signin-cta
+                data-quick-auth="google"
+                disabled={busy}
+                onClick={() => void handleContinueWithGoogle()}
+                className="flex w-full items-center justify-between gap-3 rounded-2xl border-2 border-[#D4AF37]/80 bg-gradient-to-r from-[#0A2E23] via-[#0F3F30] to-[#0A2E23] px-4 py-3 text-left text-white shadow-[0_0_24px_rgba(212,175,55,0.16)] transition hover:border-[#D4AF37] hover:bg-[#124535] disabled:opacity-50"
+              >
+                <span className="flex items-center gap-3">
+                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white shadow-xs">
+                    <GoogleGMark size={20} />
+                  </span>
+                  <span>
+                    <span className="block text-sm font-bold tracking-wide text-white">
+                      Continue with Google
+                    </span>
+                    <span className="block text-[11px] text-[#F5EEDC]/75">
+                      Verified Google account · Instant Personal Faith Wall sync
+                    </span>
+                  </span>
+                </span>
+                <span className="hidden shrink-0 rounded-full border border-[#D4AF37]/50 bg-[#031812]/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#D4AF37] sm:inline-block">
+                  1-Click Sign In
+                </span>
+              </button>
+
+              <div ref={gisContainerRef} data-gis-button-slot className="flex justify-center empty:hidden" />
+
+              {/* Secondary Quick Studio Options */}
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   data-quick-auth="apple"
                   disabled={busy}
                   onClick={() => void handleQuickAuth('apple')}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#D4AF37]/45 bg-[#0A2E23] px-3 py-2.5 text-xs font-semibold text-white transition hover:border-[#D4AF37] hover:bg-[#0f3d2f]"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#D4AF37]/40 bg-[#031812]/85 px-3 py-2 text-xs font-semibold text-[#F5EEDC] transition hover:border-[#D4AF37] hover:bg-[#0A2E23]"
                 >
                   <span className="font-bold text-[#D4AF37]"></span>
                   <span>Continue with Apple</span>
@@ -463,7 +617,7 @@ export function SeekerAuthModal() {
                   data-quick-auth="guest"
                   disabled={busy}
                   onClick={() => void handleQuickAuth('guest')}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#D4AF37] bg-[#D4AF37]/20 px-3 py-2.5 text-xs font-semibold text-[#F9E7B9] transition hover:bg-[#D4AF37]/30"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#D4AF37]/45 bg-[#D4AF37]/15 px-3 py-2 text-xs font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37] hover:bg-[#D4AF37]/25"
                 >
                   <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
                   <span>Instant Seeker Pass</span>
@@ -471,10 +625,10 @@ export function SeekerAuthModal() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 text-[11px] text-[#F5EEDC]/50">
-              <span className="h-px flex-1 bg-[#D4AF37]/20" />
-              <span>OR SIGN IN WITH EMAIL</span>
-              <span className="h-px flex-1 bg-[#D4AF37]/20" />
+            <div className="flex items-center gap-3 text-[11px] text-[#F5EEDC]/55">
+              <span className="h-px flex-1 bg-[#D4AF37]/25" />
+              <span>OR CONTINUE WITH EMAIL</span>
+              <span className="h-px flex-1 bg-[#D4AF37]/25" />
             </div>
 
             {/* Mode Switcher */}

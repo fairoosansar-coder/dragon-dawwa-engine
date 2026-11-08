@@ -30,15 +30,22 @@ import { listNames, readName } from './src/server/names.ts';
 import { cancelSharedResearchJob, getSharedResearchJob, startSharedResearchJob } from './src/server/research/jobs.ts';
 import { listCommunityPodcasts, publishCommunityPodcast } from './src/server/research/communityPodcasts.ts';
 import {
+  authenticateGoogleCredential,
+  buildGoogleOAuthStart,
+  clearGoogleOAuthNonceCookie,
   clearSeekerCookie,
   createServerWallPost,
   deleteServerWallPost,
+  exchangeGoogleOAuthCode,
   extractTokenFromRequest,
+  getGoogleAuthConfig,
   getRequestSeeker,
   listServerWallPosts,
   loginSeekerAccount,
+  readGoogleOAuthNonceCookie,
   registerSeekerAccount,
   revokeSeekerToken,
+  setGoogleOAuthNonceCookie,
   setSeekerCookie,
   updateSeekerAccountProfile,
   updateServerWallPost,
@@ -570,7 +577,54 @@ app.get(
   '/api/auth/session',
   route(async (req, res) => {
     const user = getRequestSeeker(req);
-    res.json({ authenticated: Boolean(user), user });
+    res.json({ authenticated: Boolean(user), user, googleAuth: getGoogleAuthConfig() });
+  }),
+);
+
+app.get(
+  '/api/auth/google/config',
+  route(async (_req, res) => {
+    res.json(getGoogleAuthConfig());
+  }),
+);
+
+app.get(
+  '/api/auth/google/start',
+  wallLimiter,
+  route(async (req, res) => {
+    const started = buildGoogleOAuthStart(req, req.query.returnTo);
+    setGoogleOAuthNonceCookie(res, started.nonce);
+    res.redirect(302, started.url);
+  }),
+);
+
+app.get(
+  '/api/auth/google/callback',
+  wallLimiter,
+  route(async (req, res) => {
+    const code = typeof req.query.code === 'string' ? req.query.code.trim() : '';
+    const state = typeof req.query.state === 'string' ? req.query.state.trim() : '';
+    if (!code || !state) {
+      clearGoogleOAuthNonceCookie(res);
+      res.redirect(302, '/#/quran/wall?auth_error=missing_code');
+      return;
+    }
+    const cookieNonce = readGoogleOAuthNonceCookie(req);
+    const { token, returnTo } = await exchangeGoogleOAuthCode({ code, state, cookieNonce });
+    clearGoogleOAuthNonceCookie(res);
+    setSeekerCookie(res, token);
+    const hash = returnTo.startsWith('#') ? returnTo : `#${returnTo}`;
+    res.redirect(302, `/?dd_seeker_handoff=${encodeURIComponent(token)}${hash}`);
+  }),
+);
+
+app.post(
+  '/api/auth/google/credential',
+  wallLimiter,
+  route(async (req, res) => {
+    const { token, user } = await authenticateGoogleCredential(req.body?.credential);
+    setSeekerCookie(res, token);
+    res.status(200).json({ ok: true, token, user });
   }),
 );
 

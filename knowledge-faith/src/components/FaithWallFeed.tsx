@@ -16,7 +16,7 @@ import {
   Trash2,
   User,
 } from 'lucide-react';
-import { SeekerEmblemGlyph } from './SeekerAuthModal.tsx';
+import { SeekerAvatar } from './SeekerAuthModal.tsx';
 import { SEEKER_AUTH_EVENT, useSeekerAuth } from '../lib/seekerAuth.ts';
 import { useApp } from '../lib/store.tsx';
 import {
@@ -294,7 +294,9 @@ export function FaithWallFeed({ compact = false }: { compact?: boolean }) {
                   data-wall-seeker-badge
                   className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/50 bg-[#0A2E23] px-3 py-1 text-xs font-semibold text-[#F9E7B9]"
                 >
-                  <SeekerEmblemGlyph emblem={user.emblem} size={13} />
+                  <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded-full">
+                    <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={13} />
+                  </span>
                   <span>{user.name}</span>
                   <ShieldCheck className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
                 </span>
@@ -388,7 +390,9 @@ export function FaithWallFeed({ compact = false }: { compact?: boolean }) {
                   <span className="text-xs font-medium text-[#F3E8C8]/85">Publishing Identity</span>
                   <div className="mt-1.5 flex items-center justify-between rounded-xl border border-[#D4AF37]/40 bg-[#0A2E23] px-3.5 py-2 text-xs text-white">
                     <span className="flex items-center gap-2 truncate font-semibold">
-                      <SeekerEmblemGlyph emblem={user.emblem} size={15} />
+                      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full">
+                        <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={15} />
+                      </span>
                       <span>{user.name}</span>
                       <span className="text-[#D4AF37]">· {user.kunyah}</span>
                     </span>
@@ -560,15 +564,15 @@ export function FaithWallFeed({ compact = false }: { compact?: boolean }) {
           >
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
               <div className="flex min-w-0 items-center gap-3.5">
-                <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 border-[#D4AF37]/60 bg-[#031812] shadow-md">
-                  <SeekerEmblemGlyph emblem={user.emblem} size={28} />
+                <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-[#D4AF37]/60 bg-[#031812] shadow-md">
+                  <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={28} />
                 </span>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="truncate font-display text-xl font-bold text-white">{user.name}</h3>
                     <span className="inline-flex items-center gap-1 rounded-full border border-[#D4AF37]/50 bg-[#D4AF37]/15 px-2.5 py-0.5 text-[11px] font-semibold text-[#D4AF37]">
                       <ShieldCheck className="h-3.5 w-3.5" aria-hidden />
-                      Verified Seeker
+                      {user.authProvider === 'google' || user.provider === 'google' ? 'Verified Google Seeker' : 'Verified Seeker'}
                     </span>
                   </div>
                   <p className="mt-0.5 text-xs font-medium text-[#D4AF37]">{user.kunyah}</p>
@@ -765,8 +769,13 @@ export function FaithWallFeed({ compact = false }: { compact?: boolean }) {
                   {/* Contributor Row */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2.5">
-                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#D4AF37]/40 bg-[#0A2E23]">
-                        <SeekerEmblemGlyph emblem={post.authorEmblem} size={16} />
+                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D4AF37]/40 bg-[#0A2E23]">
+                        <SeekerAvatar
+                          avatarUrl={post.authorAvatarUrl}
+                          name={post.authorName}
+                          emblem={post.authorEmblem}
+                          size={16}
+                        />
                       </span>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
@@ -776,7 +785,7 @@ export function FaithWallFeed({ compact = false }: { compact?: boolean }) {
                           {post.verified && (
                             <ShieldCheck
                               className="h-3.5 w-3.5 shrink-0 text-[#D4AF37]"
-                              aria-label="Verified Seeker"
+                              aria-label={post.authorAuthProvider === 'google' ? 'Verified Google Seeker' : 'Verified Seeker'}
                             />
                           )}
                           {owned && (
