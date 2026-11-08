@@ -31,6 +31,8 @@ export interface GoogleAuthClientConfig {
   clientId: string | null;
   hasClientSecret: boolean;
   oauthRedirectPath: string;
+  callbackPath: string;
+  redirectUriOverride?: string | null;
 }
 
 export const SEEKER_AUTH_EVENT = 'kf-seeker-auth-changed';
@@ -43,6 +45,8 @@ const DEFAULT_GOOGLE_CONFIG: GoogleAuthClientConfig = {
   clientId: null,
   hasClientSecret: false,
   oauthRedirectPath: '/api/auth/google/start',
+  callbackPath: '/api/auth/google/callback',
+  redirectUriOverride: null,
 };
 
 let memorySession: SeekerSession | null = null;
@@ -221,6 +225,8 @@ export async function refreshSeekerSessionAndConfig(): Promise<{
           clientId: body.googleAuth.clientId ?? null,
           hasClientSecret: Boolean(body.googleAuth.hasClientSecret),
           oauthRedirectPath: body.googleAuth.oauthRedirectPath || '/api/auth/google/start',
+          callbackPath: body.googleAuth.callbackPath || '/api/auth/google/callback',
+          redirectUriOverride: body.googleAuth.redirectUriOverride ?? null,
         };
       }
       if (body.authenticated && body.user && local?.token) {
@@ -311,9 +317,46 @@ export async function signInWithGoogleCredential(
   return session;
 }
 
-export function buildGoogleOAuthRedirectUrl(returnTo?: string): string {
+export function buildGoogleOAuthRedirectUrl(returnTo?: string, callbackPath?: string): string {
   const target = returnTo || (typeof window !== 'undefined' ? window.location.hash || '#/quran/wall' : '#/quran/wall');
-  return `/api/auth/google/start?returnTo=${encodeURIComponent(target)}`;
+  const params = new URLSearchParams({ returnTo: target });
+  if (callbackPath) params.set('callbackPath', callbackPath);
+  return `/api/auth/google/start?${params.toString()}`;
+}
+
+let gisScriptPromise: Promise<boolean> | null = null;
+
+export function ensureGoogleGisLoaded(): Promise<boolean> {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return Promise.resolve(false);
+  }
+  if (window.google?.accounts?.id) {
+    return Promise.resolve(true);
+  }
+  if (gisScriptPromise) return gisScriptPromise;
+  gisScriptPromise = new Promise<boolean>(resolve => {
+    const existing = document.querySelector<HTMLScriptElement>('script[src*="accounts.google.com/gsi/client"]');
+    if (existing) {
+      const check = () => {
+        if (window.google?.accounts?.id) resolve(true);
+      };
+      existing.addEventListener('load', () => resolve(Boolean(window.google?.accounts?.id)), { once: true });
+      existing.addEventListener('error', () => resolve(false), { once: true });
+      window.setTimeout(() => {
+        check();
+        resolve(Boolean(window.google?.accounts?.id));
+      }, 2500);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve(Boolean(window.google?.accounts?.id));
+    script.onerror = () => resolve(false);
+    document.head.appendChild(script);
+  });
+  return gisScriptPromise;
 }
 
 export async function loginOrRegisterSeeker(input: {

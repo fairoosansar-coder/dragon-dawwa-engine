@@ -29,6 +29,7 @@ import {
   deleteServerWallPost,
   exchangeGoogleOAuthCode,
   getGoogleAuthConfig,
+  GOOGLE_CALLBACK_ALIASES,
   loginSeekerAccount,
   registerSeekerAccount,
   resetSeekerStoreForTests,
@@ -253,6 +254,21 @@ test('google OIDC config, OAuth start/callback flow, and GIS credential verifica
     const verifiedState = verifyGoogleOAuthState(started.state, started.nonce);
     assert.equal(verifiedState?.returnTo, '#/quran/wall?view=mine');
     assert.equal(verifyGoogleOAuthState(started.state, 'wrong-nonce'), null);
+
+    // Verify custom GOOGLE_OIDC_REDIRECT_URI and callback alias support
+    assert.equal(GOOGLE_CALLBACK_ALIASES.includes('/api/auth/google/callback'), true);
+    assert.equal(GOOGLE_CALLBACK_ALIASES.includes('/auth/google/callback'), true);
+    assert.equal(GOOGLE_CALLBACK_ALIASES.includes('/api/auth/callback/google'), true);
+    assert.equal(GOOGLE_CALLBACK_ALIASES.includes('/api/oidc/callback'), true);
+    assert.equal(GOOGLE_CALLBACK_ALIASES.includes('/auth/callback'), true);
+
+    const aliasStarted = buildGoogleOAuthStart(fakeReq, '#/quran/wall', '/auth/callback');
+    assert.equal(aliasStarted.redirectUri, 'https://dragon-dawwa-production.up.railway.app/auth/callback');
+
+    process.env.GOOGLE_OIDC_REDIRECT_URI = 'https://dragon-dawwa-production.up.railway.app/auth/google/callback';
+    const overrideStarted = buildGoogleOAuthStart(fakeReq, '#/quran/wall');
+    assert.equal(overrideStarted.redirectUri, 'https://dragon-dawwa-production.up.railway.app/auth/google/callback');
+    delete process.env.GOOGLE_OIDC_REDIRECT_URI;
 
     // 1. Verify GIS ID token credential endpoint creates a verified Google Seeker with avatarUrl
     const mockFetchForGis = (async (input: RequestInfo | URL) => {

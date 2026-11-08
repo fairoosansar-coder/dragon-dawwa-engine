@@ -27,13 +27,23 @@ export interface SeekerProfile {
 
 export type PublicSeekerProfile = SeekerProfile;
 
+export const GOOGLE_CALLBACK_ALIASES = [
+  '/api/auth/google/callback',
+  '/auth/google/callback',
+  '/api/auth/callback/google',
+  '/api/oidc/callback',
+  '/auth/callback',
+] as const;
+
 export interface GoogleAuthConfig {
   enabled: boolean;
   clientId: string | null;
   hasClientSecret: boolean;
   issuer: string;
   oauthRedirectPath: '/api/auth/google/start';
-  callbackPath: '/api/auth/google/callback';
+  callbackPath: string;
+  redirectUriOverride: string | null;
+  callbackAliases: readonly string[];
 }
 
 export interface VerifiedGoogleClaims {
@@ -133,13 +143,34 @@ export function getGoogleAuthConfig(): GoogleAuthConfig {
     ''
   ).trim();
   const issuer = (process.env.GOOGLE_OIDC_ISSUER || 'https://accounts.google.com').trim();
+  const rawRedirectOverride = (
+    process.env.GOOGLE_REDIRECT_URI ||
+    process.env.GOOGLE_OIDC_REDIRECT_URI ||
+    ''
+  ).trim();
+  let callbackPath = '/api/auth/google/callback';
+  let redirectUriOverride: string | null = null;
+  if (rawRedirectOverride) {
+    if (/^https?:\/\//i.test(rawRedirectOverride)) {
+      redirectUriOverride = rawRedirectOverride;
+      try {
+        callbackPath = new URL(rawRedirectOverride).pathname || callbackPath;
+      } catch {
+        /* keep default */
+      }
+    } else if (rawRedirectOverride.startsWith('/')) {
+      callbackPath = rawRedirectOverride;
+    }
+  }
   return {
     enabled: Boolean(clientId),
     clientId: clientId || null,
     hasClientSecret: Boolean(clientSecret),
     issuer,
     oauthRedirectPath: '/api/auth/google/start',
-    callbackPath: '/api/auth/google/callback',
+    callbackPath,
+    redirectUriOverride,
+    callbackAliases: GOOGLE_CALLBACK_ALIASES,
   };
 }
 
@@ -411,16 +442,31 @@ export function verifyGoogleOAuthState(
   }
 }
 
+export function resolveGoogleRedirectUri(req: Request, callbackPathOverride?: unknown): string {
+  const cfg = getGoogleAuthConfig();
+  if (
+    typeof callbackPathOverride === 'string' &&
+    callbackPathOverride.startsWith('/') &&
+    (GOOGLE_CALLBACK_ALIASES as readonly string[]).includes(callbackPathOverride)
+  ) {
+    return `${resolveRequestOrigin(req)}${callbackPathOverride}`;
+  }
+  if (cfg.redirectUriOverride) {
+    return cfg.redirectUriOverride;
+  }
+  return `${resolveRequestOrigin(req)}${cfg.callbackPath}`;
+}
+
 export function buildGoogleOAuthStart(
   req: Request,
   returnToRaw?: unknown,
+  callbackPathOverride?: unknown,
 ): { url: string; nonce: string; state: string; redirectUri: string } {
   const cfg = getGoogleAuthConfig();
   if (!cfg.enabled || !cfg.clientId) {
     throw new UpstreamError('Google Sign-In is not configured on this server (GOOGLE_OIDC_CLIENT_ID missing).', 503);
   }
-  const origin = resolveRequestOrigin(req);
-  const redirectUri = `${origin}${cfg.callbackPath}`;
+  const redirectUri = resolveGoogleRedirectUri(req, callbackPathOverride);
   const nonce = crypto.randomBytes(16).toString('hex');
   const returnTo = sanitizeReturnToHash(returnToRaw);
   const state = createGoogleOAuthState({ nonce, returnTo, redirectUri });

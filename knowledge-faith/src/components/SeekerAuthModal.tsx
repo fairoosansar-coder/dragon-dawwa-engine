@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Check, LogIn, LogOut, ShieldCheck, Sparkles, User, X } from 'lucide-react';
+import { Check, Copy, HelpCircle, LogIn, LogOut, ShieldCheck, Sparkles, User, X } from 'lucide-react';
 import { RubElHizb } from '../engine/ds/ornaments.tsx';
 import {
   buildGoogleOAuthRedirectUrl,
+  ensureGoogleGisLoaded,
   SEEKER_EMBLEMS,
   useSeekerAuth,
   type SeekerAuthProvider,
@@ -17,10 +18,16 @@ declare global {
         id?: {
           initialize: (config: {
             client_id: string;
+            ux_mode?: 'popup' | 'redirect';
+            auto_select?: boolean;
+            itp_support?: boolean;
             callback: (response: { credential?: string }) => void;
           }) => void;
           renderButton: (parent: HTMLElement, options: Record<string, unknown>) => void;
-          prompt: () => void;
+          prompt: (momentListener?: (notification: {
+            isNotDisplayed?: () => boolean;
+            isSkippedMoment?: () => boolean;
+          }) => void) => void;
         };
       };
     };
@@ -213,6 +220,8 @@ export function SeekerAuthModal() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusNote, setStatusNote] = useState<string | null>(null);
+  const [showOAuthSetupHelp, setShowOAuthSetupHelp] = useState(false);
+  const [copiedUri, setCopiedUri] = useState<string | null>(null);
   const gisContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -224,6 +233,9 @@ export function SeekerAuthModal() {
     }
     setError(null);
     setStatusNote(null);
+    if (typeof window !== 'undefined' && window.location.href.includes('auth_error=')) {
+      setShowOAuthSetupHelp(true);
+    }
   }, [user, modalOpen]);
 
   useEffect(() => {
@@ -237,36 +249,47 @@ export function SeekerAuthModal() {
 
   useEffect(() => {
     if (!modalOpen || user || !googleAuth.enabled || !googleAuth.clientId) return;
-    const gId = window.google?.accounts?.id;
-    const slot = gisContainerRef.current;
-    if (!gId || !slot) return;
-    try {
-      gId.initialize({
-        client_id: googleAuth.clientId,
-        callback: response => {
-          if (!response.credential) return;
-          setBusy(true);
-          setError(null);
-          void signInWithGoogleCredential(response.credential)
-            .then(() => {
-              setStatusNote('Signed in with Google to your Personal Faith Wall.');
-            })
-            .catch((err: unknown) => {
-              setError(err instanceof Error ? err.message : 'Google Sign-In failed.');
-            })
-            .finally(() => setBusy(false));
-        },
-      });
-      gId.renderButton(slot, {
-        theme: 'filled_black',
-        size: 'large',
-        shape: 'pill',
-        text: 'continue_with',
-        width: 320,
-      });
-    } catch {
-      /* ignore GIS script initialization errors */
-    }
+    let active = true;
+    void ensureGoogleGisLoaded().then(loaded => {
+      if (!active || !loaded) return;
+      const gId = window.google?.accounts?.id;
+      const slot = gisContainerRef.current;
+      if (!gId || !slot) return;
+      try {
+        gId.initialize({
+          client_id: googleAuth.clientId!,
+          ux_mode: 'popup',
+          itp_support: true,
+          callback: response => {
+            if (!response.credential) return;
+            setBusy(true);
+            setError(null);
+            void signInWithGoogleCredential(response.credential)
+              .then(() => {
+                setStatusNote('Signed in with Google to your Personal Faith Wall.');
+              })
+              .catch((err: unknown) => {
+                setError(err instanceof Error ? err.message : 'Google Sign-In failed.');
+              })
+              .finally(() => setBusy(false));
+          },
+        });
+        slot.innerHTML = '';
+        gId.renderButton(slot, {
+          type: 'standard',
+          theme: 'filled_black',
+          size: 'large',
+          shape: 'pill',
+          text: 'continue_with',
+          width: 380,
+        });
+      } catch {
+        /* ignore GIS script initialization errors */
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, [modalOpen, user, googleAuth.enabled, googleAuth.clientId, signInWithGoogleCredential]);
 
   if (!modalOpen) return null;
@@ -276,6 +299,22 @@ export function SeekerAuthModal() {
     : [];
   const totalAmeen = myPosts.reduce((sum, post) => sum + (post.likes ?? 1), 0);
   const isGoogleUser = Boolean(user && (user.authProvider === 'google' || user.provider === 'google'));
+
+  const currentOrigin =
+    typeof window !== 'undefined' && window.location.origin
+      ? window.location.origin
+      : 'https://dragon-dawwa-production.up.railway.app';
+  const expectedRedirectUri = googleAuth.redirectUriOverride || `${currentOrigin}${googleAuth.callbackPath || '/api/auth/google/callback'}`;
+
+  const copyUri = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedUri(label);
+      window.setTimeout(() => setCopiedUri(current => (current === label ? null : current)), 2200);
+    } catch {
+      /* ignore */
+    }
+  };
 
   const handleQuickAuth = async (provider: SeekerAuthProvider) => {
     setBusy(true);
@@ -323,15 +362,29 @@ export function SeekerAuthModal() {
   };
 
   const handleContinueWithGoogle = async () => {
-    if (googleAuth.enabled && googleAuth.hasClientSecret && typeof window !== 'undefined') {
-      window.location.href = buildGoogleOAuthRedirectUrl(window.location.hash || '#/quran/wall');
-      return;
-    }
-    if (googleAuth.enabled && googleAuth.clientId && window.google?.accounts?.id) {
-      window.google.accounts.id.prompt();
-      return;
+    if (googleAuth.enabled && googleAuth.clientId) {
+      const loaded = await ensureGoogleGisLoaded();
+      const gId = window.google?.accounts?.id;
+      if (loaded && gId) {
+        const gisBtn = gisContainerRef.current?.querySelector<HTMLElement>('[role="button"], div[ tabindex="0" ]');
+        if (gisBtn) {
+          gisBtn.click();
+          return;
+        }
+        gId.prompt(notification => {
+          if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
+            void handleQuickAuth('google');
+          }
+        });
+        return;
+      }
     }
     await handleQuickAuth('google');
+  };
+
+  const handleOAuthRedirectStart = (callbackPath?: string) => {
+    if (typeof window === 'undefined') return;
+    window.location.href = buildGoogleOAuthRedirectUrl(window.location.hash || '#/quran/wall', callbackPath);
   };
 
   const handleFormSubmit = async (event: FormEvent) => {
@@ -570,35 +623,116 @@ export function SeekerAuthModal() {
           </form>
         ) : (
           <div className="relative z-10 mt-5 space-y-4">
-            {/* Primary Continue with Google CTA */}
+            {/* Primary Continue with Google CTA (GIS Popup Primary + Transparent GIS Overlay) */}
             <div className="space-y-2.5">
-              <button
-                type="button"
-                data-google-signin-cta
-                data-quick-auth="google"
-                disabled={busy}
-                onClick={() => void handleContinueWithGoogle()}
-                className="flex w-full items-center justify-between gap-3 rounded-2xl border-2 border-[#D4AF37]/80 bg-gradient-to-r from-[#0A2E23] via-[#0F3F30] to-[#0A2E23] px-4 py-3 text-left text-white shadow-[0_0_24px_rgba(212,175,55,0.16)] transition hover:border-[#D4AF37] hover:bg-[#124535] disabled:opacity-50"
-              >
-                <span className="flex items-center gap-3">
-                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white shadow-xs">
-                    <GoogleGMark size={20} />
-                  </span>
-                  <span>
-                    <span className="block text-sm font-bold tracking-wide text-white">
-                      Continue with Google
+              <div className="relative">
+                <button
+                  type="button"
+                  data-google-signin-cta
+                  data-quick-auth="google"
+                  disabled={busy}
+                  onClick={() => void handleContinueWithGoogle()}
+                  className="flex w-full items-center justify-between gap-3 rounded-2xl border-2 border-[#D4AF37]/80 bg-gradient-to-r from-[#0A2E23] via-[#0F3F30] to-[#0A2E23] px-4 py-3 text-left text-white shadow-[0_0_24px_rgba(212,175,55,0.16)] transition hover:border-[#D4AF37] hover:bg-[#124535] disabled:opacity-50"
+                >
+                  <span className="flex items-center gap-3">
+                    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white shadow-xs">
+                      <GoogleGMark size={20} />
                     </span>
-                    <span className="block text-[11px] text-[#F5EEDC]/75">
-                      Verified Google account · Instant Personal Faith Wall sync
+                    <span>
+                      <span className="block text-sm font-bold tracking-wide text-white">
+                        Continue with Google
+                      </span>
+                      <span className="block text-[11px] text-[#F5EEDC]/75">
+                        Verified Google account · Instant Personal Faith Wall sync
+                      </span>
                     </span>
                   </span>
-                </span>
-                <span className="hidden shrink-0 rounded-full border border-[#D4AF37]/50 bg-[#031812]/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#D4AF37] sm:inline-block">
-                  1-Click Sign In
-                </span>
-              </button>
+                  <span className="hidden shrink-0 rounded-full border border-[#D4AF37]/50 bg-[#031812]/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#D4AF37] sm:inline-block">
+                    1-Click Sign In
+                  </span>
+                </button>
 
-              <div ref={gisContainerRef} data-gis-button-slot className="flex justify-center empty:hidden" />
+                {/* Google Identity Services Popup Button Overlay (when GIS script is ready) */}
+                <div
+                  ref={gisContainerRef}
+                  data-gis-button-slot
+                  className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden rounded-2xl opacity-[0.01]"
+                />
+              </div>
+
+              {/* Secondary OAuth Redirect & Setup Helper Row */}
+              <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-[#F5EEDC]/70">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    data-google-oauth-redirect-link
+                    onClick={() => handleOAuthRedirectStart('/auth/callback')}
+                    className="font-medium text-[#D4AF37] hover:underline"
+                  >
+                    Use Google Redirect Sign-In
+                  </button>
+                  <span aria-hidden>·</span>
+                  <button
+                    type="button"
+                    data-google-oauth-help-toggle
+                    onClick={() => setShowOAuthSetupHelp(open => !open)}
+                    className="inline-flex items-center gap-1 text-[#F5EEDC]/75 hover:text-white"
+                  >
+                    <HelpCircle className="h-3 w-3 text-[#D4AF37]" aria-hidden />
+                    <span>Google OAuth URI setup</span>
+                  </button>
+                </div>
+              </div>
+
+              {showOAuthSetupHelp && (
+                <div
+                  data-google-oauth-help
+                  className="space-y-2 rounded-2xl border border-[#D4AF37]/35 bg-[#031812]/95 p-3 text-[11px] text-[#F5EEDC]/85"
+                >
+                  <p className="font-semibold text-[#D4AF37]">
+                    Google Cloud Console OAuth 2.0 Client Settings:
+                  </p>
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-[#D4AF37]/20 bg-[#0A2E23]/60 px-2.5 py-1.5">
+                    <span className="truncate font-mono text-[10px]">
+                      Origin: {currentOrigin}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void copyUri(currentOrigin, 'origin')}
+                      className="inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold text-[#D4AF37]"
+                    >
+                      {copiedUri === 'origin' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                      <span>{copiedUri === 'origin' ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-[#D4AF37]/20 bg-[#0A2E23]/60 px-2.5 py-1.5">
+                    <span className="truncate font-mono text-[10px]">
+                      Redirect: {expectedRedirectUri}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void copyUri(expectedRedirectUri, 'redirect')}
+                      className="inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold text-[#D4AF37]"
+                    >
+                      {copiedUri === 'redirect' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                      <span>{copiedUri === 'redirect' ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-[#D4AF37]/20 bg-[#0A2E23]/60 px-2.5 py-1.5">
+                    <span className="truncate font-mono text-[10px]">
+                      Legacy Redirect: {currentOrigin}/auth/callback
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void copyUri(`${currentOrigin}/auth/callback`, 'legacy')}
+                      className="inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold text-[#D4AF37]"
+                    >
+                      {copiedUri === 'legacy' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                      <span>{copiedUri === 'legacy' ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Secondary Quick Studio Options */}
               <div className="grid grid-cols-2 gap-2">
