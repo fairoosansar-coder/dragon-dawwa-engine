@@ -44,12 +44,12 @@ export function AdminDashboard({ sub }: ViewProps) {
   };
 
   return (
-    <section data-admin-cockpit className="mx-auto max-w-3xl space-y-5">
+    <section data-admin-cockpit className="mx-auto max-w-3xl space-y-4">
       {/* Top Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <a
           href="#/quran/wall"
-          className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-2xs transition hover:bg-stone-50"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 shadow-2xs transition hover:bg-stone-50"
         >
           <ArrowLeft className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
           <span>Back to Faith Wall</span>
@@ -57,7 +57,7 @@ export function AdminDashboard({ sub }: ViewProps) {
 
         <a
           href="#/profile"
-          className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-2xs transition hover:bg-stone-50"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 shadow-2xs transition hover:bg-stone-50"
         >
           <User className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
           <span>My Profile Portfolio</span>
@@ -65,17 +65,17 @@ export function AdminDashboard({ sub }: ViewProps) {
       </div>
 
       {/* Cockpit Header Card */}
-      <header className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+      <header className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#073C30] px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-[#F9E7B9]">
-              <ShieldCheck className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#073C30] px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#F9E7B9]">
+              <ShieldCheck className="h-3 w-3 text-[#D4AF37]" aria-hidden />
               Institutional Admin Cockpit
             </span>
-            <h1 className="mt-1.5 font-display text-xl font-bold text-stone-900 sm:text-2xl">
+            <h1 className="mt-1 font-display text-lg font-bold text-stone-900 sm:text-xl">
               Governance, Moderation & Broadcast Studio
             </h1>
-            <p className="mt-0.5 text-xs text-stone-600 sm:text-sm">
+            <p className="mt-0.5 text-xs text-stone-600 sm:text-[13px]">
               Curate the Community Faith Wall, answer flagged seeker inquiries, publish pinned institutional broadcasts, and customize studio banners.
             </p>
           </div>

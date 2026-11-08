@@ -52,11 +52,11 @@ export function AdminQAInbox() {
   };
 
   return (
-    <div data-admin-qa-inbox className="space-y-5">
-      <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
+    <div data-admin-qa-inbox className="space-y-4">
+      <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-xs">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h3 className="font-display text-base font-bold text-stone-900">
+            <h3 className="font-display text-sm font-bold text-stone-900 sm:text-base">
               Scholar Q&A Inbox ({openQuestions.length} Open · {answeredQuestions.length} Answered)
             </h3>
             <p className="text-xs text-stone-600">

@@ -230,43 +230,43 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
   };
 
   return (
-    <section data-faith-wall className="mx-auto max-w-2xl space-y-5">
+    <section data-faith-wall className="mx-auto max-w-2xl space-y-4">
       {/* 1. Compact, Soft Light-Surface Top Header Card */}
       <header
         data-faith-wall-hero
         className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm sm:p-5"
       >
-        <div className="flex flex-col justify-between gap-3.5 sm:flex-row sm:items-center">
-          <div className="min-w-0 space-y-1">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+          <div className="min-w-0 space-y-0.5">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-emerald-900">
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-emerald-900">
                 <Globe className="h-3 w-3 text-emerald-700" aria-hidden />
                 <span>Community Faith Wall</span>
               </span>
-              <span className="text-xs text-stone-500">
+              <span className="text-[11px] text-stone-500">
                 {posts.length} reflections
               </span>
             </div>
 
-            <h2 className="font-display text-xl font-bold text-stone-900 sm:text-2xl">
+            <h2 className="font-display text-lg font-bold text-stone-900 sm:text-xl">
               {!compact && wallView === 'mine'
                 ? 'My Personal Faith Wall'
                 : !compact && wallView === 'saved'
                   ? 'Saved Reflections'
                   : 'Reflections & Illuminated Ayahs'}
             </h2>
-            <p className="text-xs leading-relaxed text-stone-600 sm:text-sm">
+            <p className="text-xs leading-relaxed text-stone-600 sm:text-[13px]">
               Share personal tadabbur, illuminated 16:9 Qur’an cards, and contextual Asma-ul-Husna dhikr.
             </p>
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
             {!compact ? (
               <>
                 <a
                   href="#/profile"
                   data-wall-open-profile
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-semibold text-stone-700 transition hover:bg-stone-100"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs font-semibold text-stone-700 transition hover:bg-stone-100"
                 >
                   <User className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
                   <span>My Profile</span>
@@ -274,7 +274,7 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
                 <a
                   href="#/admin"
                   data-wall-open-admin
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-semibold text-stone-700 transition hover:bg-stone-100"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs font-semibold text-stone-700 transition hover:bg-stone-100"
                 >
                   <ShieldCheck className="h-3.5 w-3.5 text-[#C6A15A]" aria-hidden />
                   <span>Admin Cockpit</span>
@@ -284,9 +284,9 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
                   data-faith-wall-open-composer
                   data-open-reflection-modal
                   onClick={() => setComposerOpen(open => !open)}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#073C30] px-4 py-2.5 text-xs font-semibold text-[#F5EEDC] shadow-xs transition hover:bg-[#0A2E23]"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#073C30] px-3.5 py-2 text-xs font-semibold text-[#F5EEDC] shadow-xs transition hover:bg-[#0A2E23]"
                 >
-                  <Plus className="h-4 w-4 text-[#D4AF37]" aria-hidden />
+                  <Plus className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
                   <span>Share a Reflection</span>
                 </button>
               </>
@@ -294,7 +294,7 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
               <a
                 href="#/quran/wall"
                 data-faith-wall-cta
-                className="inline-flex items-center gap-1.5 rounded-xl bg-[#073C30] px-4 py-2 text-xs font-semibold text-[#F5EEDC] transition hover:bg-[#0A2E23]"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#073C30] px-3.5 py-1.5 text-xs font-semibold text-[#F5EEDC] transition hover:bg-[#0A2E23]"
               >
                 <span>Open Faith Wall →</span>
               </a>
@@ -533,11 +533,11 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
         </div>
       )}
 
-      {/* Centered Single-Column Social Reflection Stream (max-w-2xl mx-auto space-y-6) */}
+      {/* Centered Single-Column Social Reflection Stream (max-w-2xl mx-auto space-y-4) */}
       <div
         data-faith-wall-grid
         data-faith-wall-stream
-        className="space-y-6"
+        className="space-y-4"
       >
         {displayed.map(post => (
           <WallPostCard

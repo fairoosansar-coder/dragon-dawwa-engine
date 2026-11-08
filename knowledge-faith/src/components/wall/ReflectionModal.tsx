@@ -289,16 +289,16 @@ export function ReflectionModal({
       data-faith-wall-composer
       data-two-door-modal
       onSubmit={event => void handleSubmit(event)}
-      className="relative z-10 rounded-2xl border border-stone-200 bg-white p-5 text-stone-900 shadow-xl sm:p-6"
+      className="relative z-10 rounded-2xl border border-stone-200 bg-white p-4 text-stone-900 shadow-xl sm:p-5"
     >
       {/* Modal Header */}
-      <div className="flex items-start justify-between gap-3 border-b border-stone-100 pb-4">
+      <div className="flex items-start justify-between gap-3 border-b border-stone-100 pb-3">
         <div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-900">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-900">
             <Sparkles className="h-3 w-3 text-emerald-700" aria-hidden />
             Controlled 2-Door Publishing Studio
           </span>
-          <h3 className="mt-1 font-display text-lg font-bold text-stone-900 sm:text-xl">
+          <h3 className="mt-1 font-display text-base font-bold text-stone-900 sm:text-lg">
             Share to the Faith Wall
           </h3>
           <p className="text-xs text-stone-500">
@@ -309,36 +309,36 @@ export function ReflectionModal({
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-stone-200 text-stone-500 hover:bg-stone-100 hover:text-stone-800"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-stone-200 text-stone-500 hover:bg-stone-100 hover:text-stone-800"
         >
-          <X className="h-4 w-4" aria-hidden />
+          <X className="h-3.5 w-3.5" aria-hidden />
         </button>
       </div>
 
       {/* 2-Door Selector Cards (Always visible at top so user can pick or switch between Door 1 and Door 2) */}
-      <div data-two-door-selector className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div data-two-door-selector className="mt-3.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         <button
           type="button"
           data-door-option="reflection"
           aria-pressed={activeDoor === 'reflection'}
           onClick={() => setSelectedDoor('reflection')}
-          className={`flex items-start gap-3.5 rounded-2xl border-2 p-4 text-left transition ${
+          className={`flex items-start gap-3 rounded-xl border-2 p-3 text-left transition ${
             activeDoor === 'reflection'
               ? 'border-[#073C30] bg-emerald-50/60 shadow-xs'
               : 'border-stone-200 bg-stone-50/60 hover:border-stone-300 hover:bg-white'
           }`}
         >
-          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#073C30] text-[#D4AF37]">
-            <BookOpen className="h-5 w-5" aria-hidden />
+          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#073C30] text-[#D4AF37]">
+            <BookOpen className="h-4 w-4" aria-hidden />
           </span>
           <div className="min-w-0">
             <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-800">
               Door 1 · Sacred Text
             </span>
-            <span className="mt-0.5 block font-display text-sm font-bold text-stone-900">
+            <span className="mt-0.5 block font-display text-xs font-bold text-stone-900 sm:text-sm">
               Share a Qur’an or Hadith Reflection
             </span>
-            <span className="mt-1 block text-xs leading-snug text-stone-600">
+            <span className="mt-0.5 block text-[11px] leading-snug text-stone-600">
               Anchor your tadabbur to a verified Ayah or Prophetic narration with a 16:9 illuminated card.
             </span>
           </div>
@@ -349,23 +349,23 @@ export function ReflectionModal({
           data-door-option="podcast"
           aria-pressed={activeDoor === 'podcast'}
           onClick={() => setSelectedDoor('podcast')}
-          className={`flex items-start gap-3.5 rounded-2xl border-2 p-4 text-left transition ${
+          className={`flex items-start gap-3 rounded-xl border-2 p-3 text-left transition ${
             activeDoor === 'podcast'
               ? 'border-[#073C30] bg-emerald-50/60 shadow-xs'
               : 'border-stone-200 bg-stone-50/60 hover:border-stone-300 hover:bg-white'
           }`}
         >
-          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#073C30] text-[#D4AF37]">
-            <Mic className="h-5 w-5" aria-hidden />
+          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#073C30] text-[#D4AF37]">
+            <Mic className="h-4 w-4" aria-hidden />
           </span>
           <div className="min-w-0">
             <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-800">
               Door 2 · Broadcast Audio
             </span>
-            <span className="mt-0.5 block font-display text-sm font-bold text-stone-900">
+            <span className="mt-0.5 block font-display text-xs font-bold text-stone-900 sm:text-sm">
               Share a Research Podcast Episode
             </span>
-            <span className="mt-1 block text-xs leading-snug text-stone-600">
+            <span className="mt-0.5 block text-[11px] leading-snug text-stone-600">
               Embed a completed 4-scholar roundtable audio episode with its primary citations.
             </span>
           </div>

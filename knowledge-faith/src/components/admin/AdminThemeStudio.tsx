@@ -49,10 +49,10 @@ export function AdminThemeStudio() {
     <form
       data-admin-theme-studio
       onSubmit={event => void handleSave(event)}
-      className="space-y-5 rounded-2xl border border-stone-200 bg-white p-5 shadow-xs sm:p-6"
+      className="space-y-4 rounded-2xl border border-stone-200 bg-white p-4 shadow-xs sm:p-5"
     >
-      <div className="border-b border-stone-100 pb-4">
-        <h3 className="font-display text-lg font-bold text-stone-900">
+      <div className="border-b border-stone-100 pb-3">
+        <h3 className="font-display text-base font-bold text-stone-900 sm:text-lg">
           Banner & Theme Studio
         </h3>
         <p className="text-xs text-stone-600">

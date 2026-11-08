@@ -179,7 +179,7 @@ export function WallPostCard({
       data-faith-wall-card={post.id}
       data-post-theme={themeKey}
       data-post-type={post.type ?? 'reflection'}
-      className={`rounded-2xl border bg-white p-5 text-stone-900 shadow-sm transition sm:p-6 ${
+      className={`rounded-2xl border bg-white p-4 text-stone-900 shadow-sm transition sm:p-5 ${
         post.isPinned || post.isOfficialBroadcast
           ? 'border-[#C6A15A]/70 ring-1 ring-[#C6A15A]/30'
           : 'border-stone-200/80 hover:border-stone-300/90'
@@ -394,21 +394,21 @@ export function WallPostCard({
         <p
           lang={post.lang}
           data-wall-card-reflection
-          className="my-3.5 font-sans text-[15px] leading-relaxed text-stone-800 sm:text-base"
+          className="my-3 font-sans text-sm leading-relaxed text-stone-800"
         >
           {post.reflection}
         </p>
       ) : (
-        <div className="my-2" />
+        <div className="my-1.5" />
       )}
 
       {/* 3. Attached Sacred Anchor: Either Podcast Episode Player OR 16:9 Illuminated Ayah/Hadith Card */}
       {post.type === 'podcast' ? (
         <div
           data-wall-podcast-card={post.id}
-          className={`relative flex flex-col justify-between overflow-hidden rounded-xl border border-[#D4AF37]/35 p-4 text-[#F3E8C8] shadow-sm sm:p-5 ${themeSpec.classes}`}
+          className={`relative flex flex-col justify-between overflow-hidden rounded-xl border border-[#D4AF37]/35 p-4 text-[#F3E8C8] shadow-sm ${themeSpec.classes}`}
         >
-          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-wider text-[#D4AF37]">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-wider text-[#D4AF37]">
             <span className="inline-flex items-center gap-1.5">
               <Headphones className="h-3.5 w-3.5" aria-hidden />
               <span>Research Podcast Episode</span>
@@ -416,12 +416,12 @@ export function WallPostCard({
             <span>{post.podcastDuration || '06:42'}</span>
           </div>
 
-          <h4 className="mt-2 font-display text-base font-bold text-white sm:text-lg">
+          <h4 className="mt-1.5 font-display text-sm font-bold text-white sm:text-base">
             {post.podcastTitle || `Roundtable on Surah ${post.surahName} ${post.surah}:${post.ayah}`}
           </h4>
 
           {/* Interactive Audio Waveform Bar */}
-          <div className="mt-3 flex items-center gap-3 rounded-xl border border-[#D4AF37]/30 bg-[#031812]/80 px-3.5 py-2.5">
+          <div className="mt-2.5 flex items-center gap-2.5 rounded-xl border border-[#D4AF37]/30 bg-[#031812]/80 px-3 py-2">
             <button
               type="button"
               data-wall-podcast-play={post.id}
@@ -435,12 +435,12 @@ export function WallPostCard({
                   );
                 }
               }}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#D4AF37] text-[#031812] shadow-sm transition hover:bg-[#e3c14d]"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#D4AF37] text-[#031812] shadow-sm transition hover:bg-[#e3c14d]"
             >
               {podcastPlaying ? (
-                <Pause className="h-4 w-4 fill-current" aria-hidden />
+                <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
               ) : (
-                <Play className="h-4 w-4 fill-current" aria-hidden />
+                <Play className="h-3.5 w-3.5 fill-current" aria-hidden />
               )}
             </button>
 
@@ -448,7 +448,7 @@ export function WallPostCard({
               {[35, 65, 45, 80, 55, 90, 40, 70, 60, 85, 50, 75, 45, 65, 35, 60, 80, 50, 40, 72].map((h, idx) => (
                 <span
                   key={idx}
-                  style={{ height: `${Math.round(h * 0.24)}px` }}
+                  style={{ height: `${Math.round(h * 0.22)}px` }}
                   className={`w-1.5 rounded-full transition-colors ${
                     podcastPlaying && idx % 2 === 0 ? 'bg-emerald-400' : 'bg-[#D4AF37]/75'
                   }`}
@@ -456,18 +456,18 @@ export function WallPostCard({
               ))}
             </div>
 
-            <span className="font-mono text-xs text-[#D4AF37]">
+            <span className="font-mono text-[11px] text-[#D4AF37]">
               {post.podcastDuration || '06:42'}
             </span>
           </div>
 
           {/* Key Citations */}
           {(post.podcastCitations?.length ?? 0) > 0 && (
-            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
               {post.podcastCitations!.map(cite => (
                 <span
                   key={cite}
-                  className="rounded-full border border-[#D4AF37]/40 bg-[#D4AF37]/15 px-2.5 py-0.5 text-[10px] font-semibold text-[#F9E7B9]"
+                  className="rounded-full border border-[#D4AF37]/40 bg-[#D4AF37]/15 px-2 py-0.5 text-[10px] font-semibold text-[#F9E7B9]"
                 >
                   ✦ {cite}
                 </span>
@@ -475,7 +475,7 @@ export function WallPostCard({
             </div>
           )}
 
-          <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/15 pt-2 text-[10px] font-medium tracking-wide text-[#D4AF37]/75">
+          <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-white/15 pt-2 text-[10px] font-medium tracking-wide text-[#D4AF37]/75">
             <span className="truncate">{BRAND_FOOTER_LEFT}</span>
             <span className="shrink-0">{BRAND_FOOTER_RIGHT}</span>
           </div>
@@ -483,7 +483,7 @@ export function WallPostCard({
       ) : (
       <div
         data-wall-ayah-card={post.id}
-        className={`relative flex min-h-[15.5rem] w-full flex-col justify-between overflow-hidden rounded-xl border border-[#D4AF37]/30 p-4 text-[#F3E8C8] shadow-sm sm:aspect-[16/9] sm:min-h-0 sm:p-6 ${themeSpec.classes}`}
+        className={`relative flex min-h-[14rem] w-full flex-col justify-between overflow-hidden rounded-xl border border-[#D4AF37]/30 p-4 text-[#F3E8C8] shadow-sm sm:aspect-[16/9] sm:min-h-0 sm:p-5 ${themeSpec.classes}`}
       >
         {/* Subtle Inner Frame Line */}
         <div

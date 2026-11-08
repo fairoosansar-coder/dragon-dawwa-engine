@@ -58,15 +58,15 @@ export function AdminBroadcast({ onPublished }: { onPublished?: () => void }) {
     <form
       data-admin-broadcast
       onSubmit={event => void handleBroadcastSubmit(event)}
-      className="space-y-4 rounded-2xl border border-stone-200 bg-white p-5 shadow-xs sm:p-6"
+      className="space-y-4 rounded-2xl border border-stone-200 bg-white p-4 shadow-xs sm:p-5"
     >
-      <div className="flex items-start justify-between gap-3 border-b border-stone-100 pb-4">
+      <div className="flex items-start justify-between gap-3 border-b border-stone-100 pb-3">
         <div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#073C30] px-3 py-0.5 text-[11px] font-semibold text-[#F9E7B9]">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#073C30] px-2.5 py-0.5 text-[10px] font-semibold text-[#F9E7B9]">
             <Sparkles className="h-3 w-3 text-[#D4AF37]" aria-hidden />
             ✦ Official Institutional Broadcast Studio
           </span>
-          <h3 className="mt-1.5 font-display text-lg font-bold text-stone-900">
+          <h3 className="mt-1 font-display text-base font-bold text-stone-900 sm:text-lg">
             Publish & Pin Official Wall Broadcast
           </h3>
           <p className="text-xs text-stone-600">

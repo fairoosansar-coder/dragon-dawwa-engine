@@ -106,14 +106,14 @@ export function PublicHomeOverview() {
   };
 
   return (
-    <div data-public-home className="space-y-8">
+    <div data-public-home className="space-y-6">
       {/* Hero Banner */}
       <section
         data-public-hero
         style={{
           background: 'linear-gradient(135deg, #031812 0%, #0A2E23 52%, #041812 100%)',
         }}
-        className="relative overflow-hidden rounded-3xl border-2 border-[#D4AF37]/50 p-6 text-[#F5EEDC] shadow-[0_12px_40px_rgba(3,24,18,0.22)] sm:p-10"
+        className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/50 p-5 text-[#F5EEDC] shadow-[0_8px_28px_rgba(3,24,18,0.18)] sm:p-6"
       >
         <img
           src="/assets/geometric-emerald.jpg"
@@ -125,18 +125,18 @@ export function PublicHomeOverview() {
         {/* Inner Gold Frame */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-3 rounded-2xl border border-[#D4AF37]/25"
+          className="pointer-events-none absolute inset-2.5 rounded-xl border border-[#D4AF37]/25"
         />
 
-        <div className="relative z-10 flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
-          <div className="max-w-2xl space-y-3.5">
+        <div className="relative z-10 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+          <div className="max-w-2xl space-y-2.5">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/60 bg-[#D4AF37]/15 px-3.5 py-1 text-[11px] font-semibold tracking-[0.22em] text-[#D4AF37]">
-                <Sparkles className="h-3.5 w-3.5" aria-hidden />
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/60 bg-[#D4AF37]/15 px-3 py-0.5 text-[10px] font-semibold tracking-[0.2em] text-[#D4AF37]">
+                <Sparkles className="h-3 w-3" aria-hidden />
                 INSTITUTIONAL RESEARCH STUDIO
               </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/30 bg-white/5 px-3 py-1 text-xs font-medium text-[#F5EEDC]/85">
-                <ShieldCheck className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+              <span className="inline-flex items-center gap-1 rounded-full border border-[#D4AF37]/30 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-[#F5EEDC]/85">
+                <ShieldCheck className="h-3 w-3 text-[#D4AF37]" aria-hidden />
                 Verified Seeker Access
               </span>
             </div>
@@ -144,27 +144,27 @@ export function PublicHomeOverview() {
             <p
               dir="rtl"
               lang="ar"
-              className="quran-face text-3xl font-medium leading-[1.9] text-[#F9E7B9] sm:text-5xl"
+              className="quran-face text-2xl font-medium leading-[1.9] text-[#F9E7B9] sm:text-3xl"
             >
               طَلَبُ الْعِلْمِ فَرِيضَةٌ
             </p>
 
-            <h1 className="font-display text-2xl font-bold leading-tight text-white sm:text-4xl">
+            <h1 className="font-display text-xl font-bold leading-snug text-white sm:text-2xl">
               Learn from Authentic Sources with Clarity, Verification & Humility
             </h1>
 
-            <p className="text-sm leading-relaxed text-[#F5EEDC]/80 sm:text-base">
+            <p className="text-xs leading-relaxed text-[#F5EEDC]/80 sm:text-sm">
               Welcome to <strong className="text-white">Dragon Dawwa</strong>. Sign in once with your Google or Seeker account to unlock the Noble Qur’an Reader, Prophetic Hadith Encyclopedia, 7-Agent Research Desk, Scholarly Roundtable Podcasts, and your Personal Faith Wall.
             </p>
 
-            <div className="flex flex-wrap items-center gap-3 pt-2">
+            <div className="flex flex-wrap items-center gap-2.5 pt-1">
               <button
                 type="button"
                 data-public-hero-signin
                 onClick={() => openModal({ targetRoute: '#/quran', deskLabel: 'Dragon Dawwa Studio' })}
-                className="inline-flex items-center gap-2 rounded-full border-2 border-[#D4AF37] bg-[#D4AF37] px-6 py-3 text-sm font-bold text-[#031812] shadow-lg transition hover:bg-[#e3c14d]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37] bg-[#D4AF37] px-4 py-2 text-xs font-bold text-[#031812] shadow-md transition hover:bg-[#e3c14d] sm:text-[13px]"
               >
-                <LogIn className="h-4 w-4" aria-hidden />
+                <LogIn className="h-3.5 w-3.5" aria-hidden />
                 <span>Sign In to Enter Studio</span>
               </button>
 
@@ -172,9 +172,9 @@ export function PublicHomeOverview() {
                 type="button"
                 data-public-hero-quran
                 onClick={() => triggerProtectedRoute('#/quran/book', 'Al-Qur’an Reader & Tafsir')}
-                className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/55 bg-[#0A2E23]/90 px-5 py-3 text-sm font-semibold text-[#F5EEDC] transition hover:border-[#D4AF37] hover:bg-[#0f3d2f]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/55 bg-[#0A2E23]/90 px-4 py-2 text-xs font-semibold text-[#F5EEDC] transition hover:border-[#D4AF37] hover:bg-[#0f3d2f] sm:text-[13px]"
               >
-                <BookOpen className="h-4 w-4 text-[#D4AF37]" aria-hidden />
+                <BookOpen className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
                 <span>Open Noble Qur’an</span>
               </button>
 
@@ -182,9 +182,9 @@ export function PublicHomeOverview() {
                 type="button"
                 data-public-hero-wall
                 onClick={() => triggerProtectedRoute('#/quran/wall', 'Community Faith Wall')}
-                className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/45 bg-[#031812]/80 px-5 py-3 text-sm font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/45 bg-[#031812]/80 px-4 py-2 text-xs font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37] sm:text-[13px]"
               >
-                <Globe className="h-4 w-4 text-[#D4AF37]" aria-hidden />
+                <Globe className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
                 <span>Explore Faith Wall</span>
               </button>
             </div>
@@ -193,9 +193,9 @@ export function PublicHomeOverview() {
           {/* Daily Wisdom Preview Card (Zero-API Static Preview) */}
           <div
             data-public-daily-wisdom
-            className="w-full shrink-0 rounded-2xl border border-[#D4AF37]/45 bg-[#031812]/90 p-5 lg:w-88"
+            className="w-full shrink-0 rounded-2xl border border-[#D4AF37]/45 bg-[#031812]/90 p-4 lg:w-80"
           >
-            <div className="flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#D4AF37]">
+            <div className="flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#D4AF37]">
               <span>✦ Daily Qur’anic Wisdom</span>
               <span>Surah Ta-Ha 20:114</span>
             </div>
@@ -203,14 +203,14 @@ export function PublicHomeOverview() {
               lang="ar"
               dir="rtl"
               style={{ textShadow: '0 0 18px rgba(212,175,55,0.2)' }}
-              className="quran-face mt-3 text-center text-2xl leading-[2] text-white"
+              className="quran-face mt-2.5 text-center text-xl leading-[2] text-white sm:text-2xl"
             >
               وَقُل رَّبِّ زِدْنِى عِلْمًا
             </p>
-            <p className="mt-2 text-center font-display text-sm italic text-[#F3E8C8]">
+            <p className="mt-1.5 text-center font-display text-xs italic text-[#F3E8C8] sm:text-[13px]">
               “And say: My Lord, increase me in knowledge.”
             </p>
-            <div className="mt-4 flex items-center justify-between border-t border-[#D4AF37]/20 pt-3 text-xs">
+            <div className="mt-3 flex items-center justify-between border-t border-[#D4AF37]/20 pt-2.5 text-[11px]">
               <span className="text-[#F5EEDC]/70">Audio: Arabic · Tamil · Sinhala · English</span>
               <button
                 type="button"
@@ -228,19 +228,19 @@ export function PublicHomeOverview() {
       <section
         data-public-research-gate
         onClick={() => triggerProtectedRoute('#/hub/research', '7-Agent Research Desk')}
-        className="cursor-pointer rounded-3xl border border-[#073C30]/20 bg-parchment p-5 shadow-sm transition hover:border-[#D4AF37]"
+        className="cursor-pointer rounded-2xl border border-[#073C30]/20 bg-parchment p-4 shadow-sm transition hover:border-[#D4AF37] sm:p-5"
       >
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <div className="space-y-1">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-pine">
-              <Compass className="h-4 w-4 text-[#C6A15A]" aria-hidden />
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-pine">
+              <Compass className="h-3.5 w-3.5 text-[#C6A15A]" aria-hidden />
               <span>Multidisciplinary 7-Agent Research Engine</span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#073C30] px-2.5 py-0.5 text-[10px] text-[#F9E7B9]">
-                <Lock className="h-3 w-3 text-[#D4AF37]" aria-hidden />
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#073C30] px-2 py-0.5 text-[10px] text-[#F9E7B9]">
+                <Lock className="h-2.5 w-2.5 text-[#D4AF37]" aria-hidden />
                 Sign-In Required
               </span>
             </div>
-            <p className="text-sm text-muted">
+            <p className="text-xs text-muted sm:text-[13px]">
               Ask any question across Qur’an, Tafsir, Kutub al-Sittah, Fiqh, and Seerah—synthesized only from cited primary texts.
             </p>
           </div>
@@ -251,22 +251,22 @@ export function PublicHomeOverview() {
               event.stopPropagation();
               triggerProtectedRoute('#/hub/research', '7-Agent Research Desk');
             }}
-            className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#073C30] px-5 py-2.5 text-xs font-semibold text-[#F5EEDC] transition hover:bg-[#0A2E23]"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#073C30] px-4 py-2 text-xs font-semibold text-[#F5EEDC] transition hover:bg-[#0A2E23]"
           >
-            <Sparkles className="h-4 w-4 text-[#D4AF37]" aria-hidden />
+            <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
             <span>Sign In to Start Research</span>
           </button>
         </div>
       </section>
 
       {/* Studio Desks Grid */}
-      <section className="space-y-4" data-public-desks-section>
+      <section className="space-y-3" data-public-desks-section>
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
               ✦ Explore Dragon Dawwa Desks ({lang.toUpperCase()})
             </p>
-            <h2 className="mt-1 font-display text-2xl font-bold text-pine sm:text-3xl">
+            <h2 className="mt-0.5 font-display text-xl font-bold text-pine sm:text-2xl">
               Select Any Desk to Sign In & Enter
             </h2>
           </div>
@@ -275,7 +275,7 @@ export function PublicHomeOverview() {
           </p>
         </div>
 
-        <div data-public-desk-grid className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div data-public-desk-grid className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
           {PUBLIC_DESKS.map(desk => (
             <a
               key={desk.id}
@@ -285,31 +285,31 @@ export function PublicHomeOverview() {
                 event.preventDefault();
                 triggerProtectedRoute(desk.href, desk.title);
               }}
-              className="group relative flex h-full flex-col justify-between overflow-hidden rounded-3xl border border-pine/15 bg-parchment p-5 text-left shadow-xs transition duration-200 hover:-translate-y-0.5 hover:border-[#C6A15A] hover:shadow-md"
+              className="group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-pine/15 bg-parchment p-4 text-left shadow-xs transition duration-200 hover:-translate-y-0.5 hover:border-[#C6A15A] hover:shadow-md"
             >
               <div>
-                <div className="flex items-start justify-between gap-3">
-                  <StudioMark name={desk.mark} className="h-12 w-12 shrink-0 rounded-2xl border border-[#C6A15A]/40 shadow-xs" />
-                  <span className="inline-flex items-center gap-1 rounded-full border border-[#073C30]/15 bg-sand px-2.5 py-1 text-[10px] font-semibold tracking-wider text-pine">
+                <div className="flex items-start justify-between gap-2.5">
+                  <StudioMark name={desk.mark} className="h-10 w-10 shrink-0 rounded-xl border border-[#C6A15A]/40 shadow-xs" />
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[#073C30]/15 bg-sand px-2 py-0.5 text-[10px] font-semibold tracking-wider text-pine">
                     <Lock className="h-2.5 w-2.5 text-[#C6A15A]" aria-hidden />
                     {desk.badge}
                   </span>
                 </div>
 
-                <h3 className="mt-4 font-display text-xl font-bold text-pine group-hover:text-[#073C30]">
+                <h3 className="mt-3 font-display text-base font-bold text-pine group-hover:text-[#073C30] sm:text-lg">
                   {desk.title}
                 </h3>
-                <p className="mt-0.5 text-xs font-semibold text-[#0B4B3A]/80">
+                <p className="mt-0.5 text-[11px] font-semibold text-[#0B4B3A]/80">
                   {desk.subtitle}
                 </p>
-                <p className="mt-2 text-xs leading-relaxed text-muted">
+                <p className="mt-1.5 text-xs leading-relaxed text-muted">
                   {desk.description}
                 </p>
               </div>
 
-              <div className="mt-4 flex items-center justify-between border-t border-pine/10 pt-3 text-xs font-semibold text-pine">
+              <div className="mt-3 flex items-center justify-between border-t border-pine/10 pt-2.5 text-xs font-semibold text-pine">
                 <span className="group-hover:underline">Sign in to open desk</span>
-                <ArrowRight className="h-4 w-4 text-[#C6A15A] transition-transform group-hover:translate-x-1" aria-hidden />
+                <ArrowRight className="h-3.5 w-3.5 text-[#C6A15A] transition-transform group-hover:translate-x-1" aria-hidden />
               </div>
             </a>
           ))}
@@ -317,7 +317,7 @@ export function PublicHomeOverview() {
       </section>
 
       {/* Bottom Institutional Assurance Strip */}
-      <section className="grid gap-4 rounded-3xl border border-[#C6A15A]/40 bg-[#073C30] p-6 text-[#F5EEDC] sm:grid-cols-3">
+      <section className="grid gap-3.5 rounded-2xl border border-[#C6A15A]/40 bg-[#073C30] p-4 text-[#F5EEDC] sm:grid-cols-3 sm:p-5">
         <div className="flex items-start gap-3">
           <ScrollText className="mt-0.5 h-5 w-5 shrink-0 text-[#D4AF37]" aria-hidden />
           <div>

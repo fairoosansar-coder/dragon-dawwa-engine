@@ -207,22 +207,22 @@ export function UserProfileView({ sub }: ViewProps) {
   };
 
   return (
-    <section data-user-profile-view className="mx-auto max-w-2xl space-y-5">
+    <section data-user-profile-view className="mx-auto max-w-2xl space-y-4">
       {/* Top Breadcrumb Navigation */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <a
           href="#/quran/wall"
-          className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-2xs transition hover:bg-stone-50"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 shadow-2xs transition hover:bg-stone-50"
         >
           <ArrowLeft className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
           <span>Back to Community Faith Wall</span>
         </a>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <a
             href="#/admin"
             data-profile-open-admin
-            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-2xs transition hover:bg-stone-50"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 shadow-2xs transition hover:bg-stone-50"
           >
             <ShieldCheck className="h-3.5 w-3.5 text-[#C6A15A]" aria-hidden />
             <span>Admin Cockpit</span>
@@ -232,7 +232,7 @@ export function UserProfileView({ sub }: ViewProps) {
               type="button"
               data-profile-open-composer
               onClick={() => setComposerOpen(open => !open)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#073C30] px-3.5 py-1.5 text-xs font-semibold text-[#F5EEDC] shadow-xs transition hover:bg-[#0A2E23]"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#073C30] px-3 py-1.5 text-xs font-semibold text-[#F5EEDC] shadow-xs transition hover:bg-[#0A2E23]"
             >
               <Plus className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
               <span>Share Contribution</span>
@@ -246,10 +246,10 @@ export function UserProfileView({ sub }: ViewProps) {
         data-profile-header-card
         className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm"
       >
-        {/* 1. Hero Banner Area (~160px desktop, ~120px mobile) */}
+        {/* 1. Hero Banner Area (~144px desktop, ~112px mobile) */}
         <div
           data-profile-hero-banner
-          className="relative h-32 w-full overflow-hidden bg-[#073C30] sm:h-40"
+          className="relative h-28 w-full overflow-hidden bg-[#073C30] sm:h-36"
         >
           <img
             src={portfolio.bannerUrl}
@@ -259,23 +259,23 @@ export function UserProfileView({ sub }: ViewProps) {
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent" />
 
           {portfolio.isSelf && (
-            <div className="absolute right-3 top-3 flex items-center gap-2">
+            <div className="absolute right-2.5 top-2.5 flex items-center gap-1.5">
               <button
                 type="button"
                 data-profile-customize-banner
                 onClick={() => setEditingBannerOpen(open => !open)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-black/50 px-3 py-1 text-xs font-semibold text-white backdrop-blur-xs transition hover:bg-black/70"
+                className="inline-flex items-center gap-1 rounded-full border border-white/30 bg-black/50 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-xs transition hover:bg-black/70"
               >
-                <ImageIcon className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                <ImageIcon className="h-3 w-3 text-[#D4AF37]" aria-hidden />
                 <span>Customize Banner</span>
               </button>
               <button
                 type="button"
                 data-profile-edit-account
                 onClick={() => openAuthModal()}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-black/50 px-3 py-1 text-xs font-semibold text-white backdrop-blur-xs transition hover:bg-black/70"
+                className="inline-flex items-center gap-1 rounded-full border border-white/30 bg-black/50 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-xs transition hover:bg-black/70"
               >
-                <Edit3 className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                <Edit3 className="h-3 w-3 text-[#D4AF37]" aria-hidden />
                 <span>Edit Identity</span>
               </button>
             </div>
@@ -283,82 +283,82 @@ export function UserProfileView({ sub }: ViewProps) {
         </div>
 
         {/* 2. Avatar & Identity Bar */}
-        <div className="relative px-5 pb-5 sm:px-6">
-          <div className="-mt-10 flex flex-wrap items-end justify-between gap-4">
+        <div className="relative px-4 pb-4 sm:px-5">
+          <div className="-mt-8 flex flex-wrap items-end justify-between gap-3">
             {/* Overlapping Circular Avatar */}
             <span
               data-profile-avatar
-              className="inline-flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-stone-900 text-[#F5EEDC] shadow-lg ring-4 ring-emerald-600/40"
+              className="inline-flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-stone-900 text-[#F5EEDC] shadow-lg ring-4 ring-emerald-600/40 sm:h-18 sm:w-18"
             >
               <SeekerAvatar
                 avatarUrl={portfolio.avatarUrl}
                 name={portfolio.name}
                 emblem={portfolio.emblem}
-                size={36}
+                size={30}
               />
             </span>
 
             {/* Counter Chips: Reflections Shared & Podcasts Produced */}
-            <div className="flex flex-wrap items-center gap-2 pt-2">
+            <div className="flex flex-wrap items-center gap-2 pt-1.5">
               <div
                 data-profile-reflections-count
-                className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-3.5 py-2"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-1.5"
               >
-                <BookOpen className="h-4 w-4 text-emerald-700" aria-hidden />
+                <BookOpen className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
                 <div>
-                  <span className="font-display text-sm font-bold text-stone-900">
+                  <span className="font-display text-xs font-bold text-stone-900 sm:text-sm">
                     {portfolio.reflectionsCount}
                   </span>
-                  <span className="ml-1.5 text-xs text-stone-500">Reflections Shared</span>
+                  <span className="ml-1 text-[11px] text-stone-500">Reflections Shared</span>
                 </div>
               </div>
 
               <div
                 data-profile-podcasts-count
-                className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-3.5 py-2"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-1.5"
               >
-                <Headphones className="h-4 w-4 text-[#C6A15A]" aria-hidden />
+                <Headphones className="h-3.5 w-3.5 text-[#C6A15A]" aria-hidden />
                 <div>
-                  <span className="font-display text-sm font-bold text-stone-900">
+                  <span className="font-display text-xs font-bold text-stone-900 sm:text-sm">
                     {portfolio.podcastsCount}
                   </span>
-                  <span className="ml-1.5 text-xs text-stone-500">Podcasts Produced</span>
+                  <span className="ml-1 text-[11px] text-stone-500">Podcasts Produced</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Display Name, Handle, Role Badge & Joined Date */}
-          <div className="mt-3.5 space-y-1.5">
+          <div className="mt-3 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 data-profile-display-name className="font-display text-xl font-bold text-stone-900 sm:text-2xl">
+              <h1 data-profile-display-name className="font-display text-lg font-bold text-stone-900 sm:text-xl">
                 {portfolio.name}
               </h1>
-              <span data-profile-handle className="font-mono text-xs text-stone-500">
+              <span data-profile-handle className="font-mono text-[11px] text-stone-500">
                 {portfolio.handle}
               </span>
               <span
                 data-profile-role-badge
-                className="inline-flex items-center gap-1 rounded-full border border-emerald-800/20 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-900"
+                className="inline-flex items-center gap-1 rounded-full border border-emerald-800/20 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-900"
               >
-                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
+                <ShieldCheck className="h-3 w-3 text-emerald-600" aria-hidden />
                 <span>{portfolio.roleBadge}</span>
               </span>
             </div>
 
-            <p className="text-xs leading-relaxed text-stone-600 sm:text-sm">
+            <p className="text-xs leading-relaxed text-stone-600 sm:text-[13px]">
               {portfolio.bio}
             </p>
 
-            <div className="flex flex-wrap items-center gap-3 pt-1 text-xs text-stone-500">
+            <div className="flex flex-wrap items-center gap-2.5 pt-0.5 text-[11px] text-stone-500">
               <span className="inline-flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5 text-stone-400" aria-hidden />
+                <Calendar className="h-3 w-3 text-stone-400" aria-hidden />
                 <span>{joinedLabel}</span>
               </span>
               {portfolio.isSelf && portfolio.pendingPosts.length > 0 && (
                 <span
                   data-profile-pending-count
-                  className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-900"
+                  className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-900"
                 >
                   <Clock className="h-3 w-3 text-amber-700" aria-hidden />
                   <span>{portfolio.pendingPosts.length} Pending Moderation Review</span>
@@ -520,7 +520,7 @@ export function UserProfileView({ sub }: ViewProps) {
           )}
         </div>
       ) : (
-        <div data-profile-portfolio-feed className="space-y-6">
+        <div data-profile-portfolio-feed className="space-y-4">
           {filteredPosts.map(post => (
             <WallPostCard
               key={post.id}

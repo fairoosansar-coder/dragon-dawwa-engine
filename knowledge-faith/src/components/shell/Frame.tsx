@@ -41,8 +41,8 @@ const NAV: NavItem[] = [
 
 function navLinkClass(place: 'side' | 'dock') {
   return place === 'side'
-    ? 'kf-nav-side flex min-h-12 items-center gap-3 rounded-xl border-l-2 px-2.5 py-1.5 text-sm font-medium'
-    : 'kf-nav-dock flex min-h-12 w-full flex-col items-center justify-center gap-0.5 border-t-2 px-px py-1.5 text-center text-[10px] leading-none tracking-tight';
+    ? 'kf-nav-side flex min-h-10 items-center gap-2.5 rounded-xl border-l-2 px-2.5 py-1.5 text-[13px] font-medium'
+    : 'kf-nav-dock flex min-h-11 w-full flex-col items-center justify-center gap-0.5 border-t-2 px-px py-1 text-center text-[10px] leading-none tracking-tight';
 }
 
 export function AppFrame({ path, section, segments = [], children }: { path: RouteRoot; section: string; segments?: string[]; children: ReactNode }) {
@@ -122,15 +122,15 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
         )}
         {!focus && (
           <header className="shrink-0 overflow-x-clip border-b border-pine/10 bg-sand">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-4 py-2 sm:flex-nowrap sm:gap-3 sm:px-6">
-              <p className={`min-w-0 truncate font-display text-base font-bold text-[#0B4B3A] sm:shrink-0 sm:text-lg ${path === 'quran' ? 'max-w-[calc(100%-13.5rem)] sm:max-w-[14rem] lg:max-w-none' : path === 'hadith' ? 'max-w-[calc(100%-7.75rem)] sm:max-w-[14rem] lg:max-w-none' : ''}`}>{section}</p>
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-4 py-1.5 sm:flex-nowrap sm:gap-3 sm:px-5">
+              <p className={`min-w-0 truncate font-display text-[15px] font-bold text-[#0B4B3A] sm:shrink-0 sm:text-base ${path === 'quran' ? 'max-w-[calc(100%-13.5rem)] sm:max-w-[14rem] lg:max-w-none' : path === 'hadith' ? 'max-w-[calc(100%-7.75rem)] sm:max-w-[14rem] lg:max-w-none' : ''}`}>{section}</p>
               <div className="ml-auto flex shrink-0 items-center gap-2 sm:order-3">
                 {quranSettings && <div id="kf-library-settings" className="hidden lg:block" />}
                 {quranSettings && <div id="kf-library-settings-mobile" className="lg:hidden" />}
                 <SeekerAccountPill variant="header" />
-                <label className="flex shrink-0 items-center gap-2 text-xs text-muted">
+                <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
                   <span className="hidden sm:inline">{t.language}</span>
-                  <select aria-label={t.language} value={lang} onChange={event => setLang(toLang(event.target.value))} className="max-w-[7.5rem] truncate rounded-full border border-[#073C30]/15 bg-white px-3 py-1.5 text-sm text-[#16233B] sm:max-w-none">
+                  <select aria-label={t.language} value={lang} onChange={event => setLang(toLang(event.target.value))} className="max-w-[7.25rem] truncate rounded-full border border-[#073C30]/15 bg-white px-2.5 py-1 text-xs text-[#16233B] sm:max-w-none sm:text-[13px]">
                     {LANGS.map(code => (
                       <option key={code} value={code}>
                         {LANGUAGE_NAMES[code].english}
@@ -147,8 +147,8 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
           id="main"
           className={
             quranBook
-              ? 'flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-4 sm:px-6'
-              : 'min-h-0 flex-1 overflow-x-clip overflow-y-auto scroll-pb-28 px-4 pt-4 pb-5 sm:px-6 sm:pt-6 sm:pb-6'
+              ? 'flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-3 sm:px-5'
+              : 'min-h-0 flex-1 overflow-x-clip overflow-y-auto scroll-pb-24 px-4 pt-3.5 pb-5 sm:px-5 sm:pt-4 sm:pb-6'
           }
         >
           <div className={quranBook ? 'mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col' : 'mx-auto max-w-6xl pb-10'}>{children}</div>

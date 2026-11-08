@@ -18,7 +18,7 @@ export function Button({
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed ${variants[variant]} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors sm:text-[13px] disabled:cursor-not-allowed ${variants[variant]} ${className}`}
       {...props}
     />
   );
@@ -30,21 +30,21 @@ export function IconButton({ label, className = '', ...props }: ButtonHTMLAttrib
       type="button"
       aria-label={label}
       title={label}
-      className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-pine transition-colors hover:bg-mint disabled:opacity-40 ${className}`}
+      className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-pine transition-colors hover:bg-mint disabled:opacity-40 ${className}`}
       {...props}
     />
   );
 }
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-3xl border border-pine/10 bg-parchment p-5 shadow-sm sm:p-6 ${className}`}>{children}</section>;
+  return <section className={`rounded-2xl border border-pine/10 bg-parchment p-4 shadow-sm sm:p-5 ${className}`}>{children}</section>;
 }
 
 export function SectionTitle({ children, sub }: { children: ReactNode; sub?: ReactNode }) {
   return (
-    <div className="mb-4">
-      <h2 className="font-display text-2xl font-bold text-pine">{children}</h2>
-      {sub && <p className="mt-1 text-sm text-ink/70">{sub}</p>}
+    <div className="mb-3">
+      <h2 className="font-display text-lg font-bold text-pine sm:text-xl">{children}</h2>
+      {sub && <p className="mt-0.5 text-xs text-ink/70 sm:text-[13px]">{sub}</p>}
     </div>
   );
 }

@@ -40,12 +40,12 @@ export function AdminModeration({ onChanged }: { onChanged?: () => void }) {
   };
 
   return (
-    <div data-admin-moderation className="space-y-5">
+    <div data-admin-moderation className="space-y-4">
       {/* Moderation Policy Toggle Card */}
-      <div className="flex flex-col justify-between gap-4 rounded-2xl border border-stone-200 bg-white p-5 shadow-xs sm:flex-row sm:items-center">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-900">
-            <Shield className="h-4 w-4 text-emerald-700" aria-hidden />
+      <div className="flex flex-col justify-between gap-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-xs sm:flex-row sm:items-center">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-900">
+            <Shield className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
             <span>Publishing Governance Policy</span>
           </div>
           <p className="text-xs text-stone-600">
@@ -56,14 +56,14 @@ export function AdminModeration({ onChanged }: { onChanged?: () => void }) {
         <div
           role="group"
           aria-label="Moderation mode"
-          className="inline-flex shrink-0 rounded-xl border border-stone-200 bg-stone-100 p-1"
+          className="inline-flex shrink-0 rounded-xl border border-stone-200 bg-stone-100 p-0.5"
         >
           <button
             type="button"
             data-moderation-mode="instant"
             aria-pressed={mode === 'instant'}
             onClick={() => void handleModeChange('instant')}
-            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
               mode === 'instant'
                 ? 'bg-[#073C30] text-white shadow-xs'
                 : 'text-stone-600 hover:text-stone-900'
@@ -76,7 +76,7 @@ export function AdminModeration({ onChanged }: { onChanged?: () => void }) {
             data-moderation-mode="review"
             aria-pressed={mode === 'review'}
             onClick={() => void handleModeChange('review')}
-            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
               mode === 'review'
                 ? 'bg-[#073C30] text-white shadow-xs'
                 : 'text-stone-600 hover:text-stone-900'
@@ -124,7 +124,7 @@ export function AdminModeration({ onChanged }: { onChanged?: () => void }) {
               <article
                 key={post.id}
                 data-moderation-item={post.id}
-                className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs"
+                className="rounded-2xl border border-stone-200 bg-white p-4 shadow-xs"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
