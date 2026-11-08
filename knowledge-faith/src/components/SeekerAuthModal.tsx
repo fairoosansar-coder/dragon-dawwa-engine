@@ -155,7 +155,7 @@ export function SeekerAccountPill({ variant = 'sidebar' }: { variant?: 'sidebar'
       <button
         type="button"
         data-header-account-pill
-        onClick={openModal}
+        onClick={() => openModal()}
         className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/55 bg-[#073C30] px-3 py-1.5 text-xs font-semibold text-[#F5EEDC] shadow-sm transition hover:border-[#D4AF37] hover:bg-[#0A2E23]"
       >
         <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#D4AF37]/45 bg-[#031812]">
@@ -174,7 +174,7 @@ export function SeekerAccountPill({ variant = 'sidebar' }: { variant?: 'sidebar'
     <button
       type="button"
       data-seeker-account-pill
-      onClick={openModal}
+      onClick={() => openModal()}
       className="mb-2 flex w-full items-center gap-2.5 rounded-2xl border border-[#C6A15A]/45 bg-[#04241C] px-3 py-2.5 text-left text-[#F5EEDC] shadow-sm transition hover:border-[#D4AF37] hover:bg-[#0A2E23]"
     >
       <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D4AF37]/45 bg-[#073C30]">
@@ -204,6 +204,7 @@ export function SeekerAuthModal() {
     user,
     googleAuth,
     modalOpen,
+    pendingDesk,
     closeModal,
     loginOrRegister,
     signInWithGoogleCredential,
@@ -460,12 +461,18 @@ export function SeekerAuthModal() {
               DRAGON DAWWA · SEEKER SESSION
             </span>
             <h2 className="mt-2 font-display text-xl font-bold text-white sm:text-2xl">
-              {user ? 'Your Seeker Profile & Personal Wall' : 'Sign in to Your Personal Faith Wall'}
+              {user
+                ? 'Your Seeker Profile & Personal Wall'
+                : pendingDesk
+                  ? `Sign in to Enter ${pendingDesk}`
+                  : 'Sign in to Your Personal Faith Wall'}
             </h2>
-            <p className="mt-1 text-xs leading-relaxed text-[#F5EEDC]/75 sm:text-sm">
+            <p data-auth-modal-subtitle className="mt-1 text-xs leading-relaxed text-[#F5EEDC]/75 sm:text-sm">
               {user
                 ? 'Manage your verified Seeker identity, kunyah, emblem, and personal Qur’anic reflections.'
-                : 'Publish illuminated 16:9 verse cards under your verified name and curate your Personal Faith Wall.'}
+                : pendingDesk
+                  ? `Sign in to enter ${pendingDesk} and access Dragon Dawwa’s full research studio.`
+                  : 'Publish illuminated 16:9 verse cards under your verified name and curate your Personal Faith Wall.'}
             </p>
           </div>
           <button

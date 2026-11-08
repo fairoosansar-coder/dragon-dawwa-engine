@@ -7,6 +7,13 @@ import { Loading } from './components/ui.tsx';
 import { AppFrame } from './components/shell/Frame.tsx';
 import { buildStamp } from './buildStamp.ts';
 import { DossierProvider } from './engine/DossierContext.tsx';
+import {
+  deskLabelForHash,
+  isPublicHomeHash,
+  openSeekerAuthModal,
+  useSeekerAuth,
+} from './lib/seekerAuth.ts';
+import { PublicHomeOverview } from './views/PublicHomeOverview.tsx';
 
 const KnowledgeHub = lazy(() => import('./views/KnowledgeHub.tsx'));
 const QuranReader = lazy(() => import('./views/QuranReader.tsx'));
@@ -87,34 +94,55 @@ function useHashRoute(): Location {
 function Shell() {
   const { t, lang } = useApp();
   const { setQuery, setFocus, focus } = useShell();
+  const { isAuthenticated } = useSeekerAuth();
   const location = useHashRoute();
   const route = ROUTES.find(item => item.path === location.path) ?? ROUTES[0];
   const View = route.view;
   const opened = openedResearchDesk(location.path, location.segments);
   const sectionTitle = opened?.desk === 'fiqh' ? 'Fiqh' : opened?.desk === 'seerah' ? 'Seerah' : location.path === 'quran' ? t.quranTitle : t[route.label];
   const routeKey = `${location.path}/${location.segments.join('/')}?${location.params.toString()}`;
+  const rawHash = typeof window === 'undefined' ? '#/hub' : window.location.hash || '#/hub';
+  const onPublicHome = isPublicHomeHash(rawHash);
+
+  useEffect(() => {
+    if (!isAuthenticated && !isPublicHomeHash(rawHash)) {
+      const target = rawHash;
+      const label = deskLabelForHash(target);
+      openSeekerAuthModal({ targetRoute: target, deskLabel: label });
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', '#/hub');
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      }
+    }
+  }, [isAuthenticated, rawHash, routeKey]);
 
   useEffect(() => {
     const booksLibrary = location.path === 'books' && location.segments.length === 0;
     if (!booksLibrary) setQuery('');
-    if (location.path !== 'quran') setFocus(false);
-  }, [routeKey, location.path, location.segments.length, setQuery, setFocus]);
+    if (location.path !== 'quran' || !isAuthenticated) setFocus(false);
+  }, [routeKey, location.path, location.segments.length, setQuery, setFocus, isAuthenticated]);
 
   useEffect(() => {
-    if (location.path === 'spiritual') return;
-    document.title = `${sectionTitle} · DRAGON DAWWA`;
-  }, [sectionTitle, location.path]);
+    if (location.path === 'spiritual' && isAuthenticated) return;
+    document.title = `${isAuthenticated ? sectionTitle : t.navHub} · DRAGON DAWWA`;
+  }, [sectionTitle, location.path, isAuthenticated, t.navHub]);
 
   return (
-    <AppFrame path={location.path} section={sectionTitle} segments={location.segments}>
+    <AppFrame
+      path={isAuthenticated ? location.path : 'hub'}
+      section={isAuthenticated ? sectionTitle : t.navHub}
+      segments={isAuthenticated ? location.segments : []}
+    >
       <Suspense fallback={<Loading />}>
-        {opened && location.path !== 'hadith' ? (
+        {!isAuthenticated ? (
+          <PublicHomeOverview />
+        ) : opened && location.path !== 'hadith' ? (
           <ResearchDesk entry={opened.entry} desk={opened.desk} params={location.params} />
         ) : (
           <View sub={location.segments[0]} segments={location.segments} params={location.params} />
         )}
       </Suspense>
-      {!focus && !(location.path === 'quran' && location.segments[0] === 'book') && (
+      {!focus && (!isAuthenticated || !(location.path === 'quran' && location.segments[0] === 'book')) && (
         <footer className="mt-10 space-y-1 text-center text-xs text-muted">
           <p>{t.sourcesNote}</p>
           {lang !== 'en' && <p>{t.uiNote}</p>}

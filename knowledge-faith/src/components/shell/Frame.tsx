@@ -10,6 +10,7 @@ import { BrandLockup } from './Brand.tsx';
 import { NavGlyph, type NavIconName } from './navIcons.tsx';
 import { AudioMiniPlayer, DeskHeaderTabs } from './widgets.tsx';
 import { SeekerAccountPill, SeekerAuthModal } from '../SeekerAuthModal.tsx';
+import { isPublicHomeHash, requestAuthenticatedNavigation, useSeekerAuth } from '../../lib/seekerAuth.ts';
 
 interface NavItem {
   path: RouteRoot;
@@ -47,10 +48,18 @@ function navLinkClass(place: 'side' | 'dock') {
 export function AppFrame({ path, section, segments = [], children }: { path: RouteRoot; section: string; segments?: string[]; children: ReactNode }) {
   const { t, lang, setLang } = useApp();
   const { focus, setFocus } = useShell();
+  const { isAuthenticated } = useSeekerAuth();
   const audio = useAudioState();
   const player = Boolean(audio.id) && audio.status !== 'idle';
   const quranSettings = path === 'quran';
   const quranBook = path === 'quran' && segments[0] === 'book';
+
+  const handleNavClick = (event: React.MouseEvent<HTMLAnchorElement>, href: string, label: string) => {
+    if (!isAuthenticated && !isPublicHomeHash(href)) {
+      event.preventDefault();
+      requestAuthenticatedNavigation(href, label);
+    }
+  };
 
   return (
     <div className="flex h-dvh overflow-hidden bg-sand text-ink">
@@ -65,26 +74,36 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
           <nav aria-label="Main" className="mt-4 flex-1 space-y-1 px-3">
             {NAV.map(item => {
               const active = item.path === path;
+              const label = t[item.side ?? item.short];
               return (
                 <a
                   key={item.path}
                   href={item.href}
                   aria-current={active ? 'page' : undefined}
+                  onClick={event => handleNavClick(event, item.href, label)}
                   className={navLinkClass('side')}
                 >
                   <NavGlyph name={item.mark} />
-                  {t[item.side ?? item.short]}
+                  {label}
                 </a>
               );
             })}
           </nav>
           <div className="mt-auto border-t border-[#C6A15A]/35 px-3 py-4">
             <SeekerAccountPill variant="sidebar" />
-            <a href="#/hub/saved" className={`${navLinkClass('side')} text-[#F5EEDC]`}>
+            <a
+              href="#/hub/saved"
+              onClick={event => handleNavClick(event, '#/hub/saved', t.sidebarSaved)}
+              className={`${navLinkClass('side')} text-[#F5EEDC]`}
+            >
               <NavGlyph name="saved" />
               {t.sidebarSaved}
             </a>
-            <a href="#/hub/scholar" className={`${navLinkClass('side')} mt-1 text-[#F5EEDC]`}>
+            <a
+              href="#/hub/scholar"
+              onClick={event => handleNavClick(event, '#/hub/scholar', t.sidebarQuestion)}
+              className={`${navLinkClass('side')} mt-1 text-[#F5EEDC]`}
+            >
               <NavGlyph name="question" />
               {t.sidebarQuestion}
             </a>
@@ -140,15 +159,17 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
           <ul className="grid grid-cols-6">
             {NAV.map(item => {
               const active = item.path === path;
+              const label = t[item.short];
               return (
                 <li key={item.path} className="min-w-0">
                   <a
                     href={item.href}
                     aria-current={active ? 'page' : undefined}
+                    onClick={event => handleNavClick(event, item.href, label)}
                     className={navLinkClass('dock')}
                   >
                     <NavGlyph name={item.mark} />
-                    <span className="max-w-full truncate">{t[item.short]}</span>
+                    <span className="max-w-full truncate">{label}</span>
                   </a>
                 </li>
               );

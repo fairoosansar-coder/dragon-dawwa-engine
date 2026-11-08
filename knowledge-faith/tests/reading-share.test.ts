@@ -23,6 +23,7 @@ import {
   wrapWords,
 } from '../src/lib/verseShare.ts';
 import {
+  AUTH_REQUIRED_MESSAGE,
   authenticateGoogleCredential,
   buildGoogleOAuthStart,
   createServerWallPost,
@@ -32,6 +33,7 @@ import {
   GOOGLE_CALLBACK_ALIASES,
   loginSeekerAccount,
   registerSeekerAccount,
+  requireSeekerAuth,
   resetSeekerStoreForTests,
   revokeSeekerToken,
   updateSeekerAccountProfile,
@@ -39,7 +41,16 @@ import {
   verifyGoogleOAuthState,
   verifySeekerToken,
 } from '../src/server/seekerAuth.ts';
-import { writeSeekerSession } from '../src/lib/seekerAuth.ts';
+import {
+  consumePendingRoute,
+  deskLabelForHash,
+  isPublicHomeHash,
+  readPendingDeskLabel,
+  readPendingRoute,
+  requestAuthenticatedNavigation,
+  setPendingRoute,
+  writeSeekerSession,
+} from '../src/lib/seekerAuth.ts';
 import { quranSectionId } from '../src/components/shell/widgets.tsx';
 
 const verse = {
@@ -345,6 +356,73 @@ test('google OIDC config, OAuth start/callback flow, and GIS credential verifica
     writeSeekerSession(null);
   }
 });
+
+test('compulsory login gate intercepts internal routes when logged out and requireSeekerAuth rejects unauthenticated API calls', () => {
+  resetSeekerStoreForTests();
+  writeSeekerSession(null);
+  setPendingRoute(null, null);
+
+  assert.equal(isPublicHomeHash(''), true);
+  assert.equal(isPublicHomeHash('#/'), true);
+  assert.equal(isPublicHomeHash('#/hub'), true);
+  assert.equal(isPublicHomeHash('#/quran'), false);
+  assert.equal(isPublicHomeHash('#/podcast'), false);
+  assert.equal(isPublicHomeHash('#/hub/seerah'), false);
+
+  assert.equal(deskLabelForHash('#/quran'), 'Al-Qur’an Reader & Tafsir');
+  assert.equal(deskLabelForHash('#/hadith'), 'Prophetic Sunnah (Hadith)');
+  assert.equal(deskLabelForHash('#/podcast'), 'Research & Podcasts Studio');
+  assert.equal(deskLabelForHash('#/quran/wall'), 'Community Faith Wall');
+
+  // Logged-out navigation to internal route is intercepted and stored as pendingRoute
+  const allowed = requestAuthenticatedNavigation('#/quran/book', 'Al-Qur’an Reader & Tafsir');
+  assert.equal(allowed, false);
+  assert.equal(readPendingRoute(), '#/quran/book');
+  assert.equal(readPendingDeskLabel(), 'Al-Qur’an Reader & Tafsir');
+
+  const consumed = consumePendingRoute();
+  assert.equal(consumed, '#/quran/book');
+  assert.equal(readPendingRoute(), null);
+
+  // Server requireSeekerAuth rejects unauthenticated requests with 401 requiresAuth: true
+  let statusCode = 200;
+  let jsonBody: { error?: string; requiresAuth?: boolean } = {};
+  let nextCalled = false;
+  const unauthReq = { headers: {} } as unknown as Parameters<typeof requireSeekerAuth>[0];
+  const mockRes = {
+    status(code: number) {
+      statusCode = code;
+      return this;
+    },
+    json(payload: { error?: string; requiresAuth?: boolean }) {
+      jsonBody = payload;
+      return this;
+    },
+  } as unknown as Parameters<typeof requireSeekerAuth>[1];
+
+  requireSeekerAuth(unauthReq, mockRes, () => {
+    nextCalled = true;
+  });
+  assert.equal(nextCalled, false);
+  assert.equal(statusCode, 401);
+  assert.equal(jsonBody.requiresAuth, true);
+  assert.equal(jsonBody.error, AUTH_REQUIRED_MESSAGE);
+
+  // Authenticated request passes requireSeekerAuth
+  const registered = registerSeekerAccount({
+    email: 'seeker.gate@dragondawwa.com',
+    password: 'gate-password',
+    name: 'Gate Seeker',
+  });
+  const authReq = {
+    headers: { authorization: `Bearer ${registered.token}` },
+  } as unknown as Parameters<typeof requireSeekerAuth>[0];
+  requireSeekerAuth(authReq, mockRes, () => {
+    nextCalled = true;
+  });
+  assert.equal(nextCalled, true);
+});
+
 
 
 
