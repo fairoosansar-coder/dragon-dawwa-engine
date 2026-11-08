@@ -287,7 +287,7 @@ export function ResearchCapture({
   if (variant === 'omni') {
     const ready = value.trim().length >= 3;
     return (
-      <div className="rounded-2xl border border-stone-200 bg-white shadow-sm">
+      <div className="rounded-xl border border-stone-200/90 bg-white shadow-2xs">
         <label className="sr-only" htmlFor="research-question">
           Ask any question across Qur&apos;an, Hadith, Fiqh, or classical sciences
         </label>
@@ -296,13 +296,13 @@ export function ResearchCapture({
           data-research-question
           value={value}
           onChange={event => onChange(event.target.value)}
-          rows={4}
+          rows={2}
           maxLength={4000}
           disabled={disabled}
           placeholder="Ask any question across Qur'an, Hadith, Fiqh, or classical sciences..."
-          className="w-full resize-none bg-transparent px-4 pb-2 pt-4 text-base leading-relaxed text-stone-800 outline-none placeholder:text-stone-400"
+          className="min-h-[60px] w-full resize-none bg-transparent px-3.5 pb-1.5 pt-2.5 text-xs leading-relaxed text-stone-800 outline-none placeholder:text-stone-400 sm:text-[13px]"
         />
-        <div className="flex flex-col gap-2 border-t border-stone-100 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-1.5 border-t border-stone-100 px-2.5 py-1.5">
           <div className="flex items-center gap-1">
             <div className="relative" ref={attachRef}>
               <button
@@ -312,23 +312,23 @@ export function ResearchCapture({
                 aria-haspopup="menu"
                 disabled={disabled}
                 onClick={() => setAttachOpen(open => !open)}
-                className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2.5 text-sm font-medium text-stone-600 hover:bg-stone-50 disabled:opacity-50"
+                className="inline-flex h-7 items-center gap-1 rounded-lg px-2 text-[11px] font-medium text-stone-600 hover:bg-stone-50 disabled:opacity-50 sm:text-xs"
               >
-                <Paperclip className="h-4 w-4" aria-hidden />
-                Attach / OCR
+                <Paperclip className="h-3.5 w-3.5" aria-hidden />
+                <span>Attach / OCR</span>
               </button>
               {attachOpen && (
-                <div role="menu" className="absolute bottom-full left-0 z-20 mb-2 w-52 overflow-hidden rounded-xl border border-stone-200 bg-white py-1 shadow-lg">
-                  <button type="button" role="menuitem" data-research-capture="photo" className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm text-stone-700 hover:bg-stone-50" onClick={() => chooseCapture('camera')}>
-                    <Camera className="h-4 w-4 text-emerald-700" aria-hidden />
+                <div role="menu" className="absolute bottom-full left-0 z-20 mb-1.5 w-48 overflow-hidden rounded-xl border border-stone-200 bg-white py-1 shadow-lg">
+                  <button type="button" role="menuitem" data-research-capture="photo" className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs text-stone-700 hover:bg-stone-50" onClick={() => chooseCapture('camera')}>
+                    <Camera className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
                     Take Photo
                   </button>
-                  <button type="button" role="menuitem" data-research-capture="upload-photo" className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm text-stone-700 hover:bg-stone-50" onClick={() => chooseCapture('upload_photo')}>
-                    <ImageIcon className="h-4 w-4 text-stone-500" aria-hidden />
+                  <button type="button" role="menuitem" data-research-capture="upload-photo" className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs text-stone-700 hover:bg-stone-50" onClick={() => chooseCapture('upload_photo')}>
+                    <ImageIcon className="h-3.5 w-3.5 text-stone-500" aria-hidden />
                     Upload Photo
                   </button>
-                  <button type="button" role="menuitem" data-research-capture="upload-file" className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm text-stone-700 hover:bg-stone-50" onClick={() => chooseCapture('upload_file')}>
-                    <FileText className="h-4 w-4 text-emerald-700" aria-hidden />
+                  <button type="button" role="menuitem" data-research-capture="upload-file" className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs text-stone-700 hover:bg-stone-50" onClick={() => chooseCapture('upload_file')}>
+                    <FileText className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
                     Upload File / PDF
                   </button>
                 </div>
@@ -341,20 +341,20 @@ export function ResearchCapture({
               disabled={!recording && (disabled || transcribing)}
               aria-label={recording ? 'Stop dictation' : 'Start dictation'}
               title={recording ? 'Stop dictation' : 'Dictate the question'}
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${
+              className={`inline-flex h-7 w-7 items-center justify-center rounded-lg ${
                 recording ? 'bg-emerald-50 text-emerald-600' : 'text-stone-400 hover:bg-stone-50 hover:text-stone-600'
               }`}
             >
-              {transcribing ? <Loader2 className="h-4 w-4 animate-spin" /> : recording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              {transcribing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : recording ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
             </button>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               data-testid="content-language-chip"
               title="Content language used for research"
               onClick={() => setLang(lang === 'en' ? 'ta' : lang === 'ta' ? 'si' : 'en')}
-              className="rounded-lg border border-stone-200 bg-stone-50 px-2 py-1.5 text-[11px] font-semibold tracking-wide text-stone-600"
+              className="h-7 rounded-lg border border-stone-200 bg-stone-50 px-2 text-[11px] font-semibold tracking-wide text-stone-600"
             >
               {languageChip(lang)} · {languageLabel(lang)}
             </button>
@@ -362,7 +362,7 @@ export function ResearchCapture({
               type="button"
               onClick={() => onChange('')}
               disabled={disabled || !value}
-              className="min-h-10 rounded-xl px-2.5 text-sm font-medium text-stone-500 hover:text-stone-800 disabled:opacity-40"
+              className="h-7 rounded-lg px-2 text-[11px] font-medium text-stone-500 hover:text-stone-800 disabled:opacity-40"
             >
               Clear
             </button>
@@ -370,16 +370,16 @@ export function ResearchCapture({
               type="submit"
               data-testid="run-research-btn"
               disabled={disabled || !ready}
-              className="inline-flex min-h-10 max-w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-600/30 bg-[#0A3D2E] px-3 py-2 text-xs font-semibold tracking-wide text-white shadow-md hover:bg-[#0E4D3B] disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+              className="inline-flex h-7.5 items-center justify-center gap-1 rounded-lg border border-emerald-600/30 bg-[#0A3D2E] px-2.5 text-[11px] font-semibold tracking-wide text-white shadow-2xs hover:bg-[#0E4D3B] disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:text-xs"
             >
               <span aria-hidden>✨</span>
-              {disabled ? 'Researching…' : 'Run 7-Agent Research'}
+              <span>{disabled ? 'Researching…' : 'Run 7-Agent Research'}</span>
               {!disabled && <span aria-hidden>→</span>}
             </button>
           </div>
         </div>
         {(recording || transcribing || feedback || preview) && (
-          <p className="px-4 pb-3 text-[11px] text-stone-500">
+          <p className="px-3.5 pb-2 text-[11px] text-stone-500">
             {preview ? `${preview.label}: ${preview.excerpt}` : feedback}
           </p>
         )}

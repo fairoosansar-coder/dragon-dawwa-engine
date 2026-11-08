@@ -396,19 +396,19 @@ export function HadithEncyclopedia() {
   const phrase = (submitted || query).trim();
 
   return (
-    <div data-testid="hadith-encyclopedia" className="space-y-8">
-      <header data-hadith-hero className="relative overflow-hidden rounded-3xl border border-[#D4AF37]/40 bg-[#06281C]">
+    <div data-testid="hadith-encyclopedia" className="space-y-5">
+      <header data-hadith-hero className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/40 bg-[#06281C]">
         <img
           src="/assets/geometric-carved-arch.jpg"
           alt=""
           className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[78%_center] sm:object-[60%_center]"
         />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#041B14]/92 via-[#041B14]/58 to-[#041B14]/8" />
-        <div className="relative max-w-[15rem] space-y-2 px-5 py-6 sm:max-w-md sm:px-7 sm:py-7">
-          <p lang="ta" className="text-sm font-semibold text-[#E6C665]">ஹதீஸ் களஞ்சியம்</p>
-          <h1 className="font-display text-3xl font-bold text-[#F9E7B9] sm:text-4xl">Hadith Encyclopedia</h1>
-          <p lang="ta" className="text-sm leading-relaxed text-stone-200">
-            அரபு மூலம், தமிழ் மொழிபெயர்ப்பு, மற்றும் HadeethEnc வெளியிட்ட தரம். விளக்கம் அந்தப் பதிவில் இருந்தால் மட்டும்.
+        <div className="relative max-w-[16rem] space-y-1.5 px-4 py-4 sm:max-w-md sm:px-6 sm:py-5">
+          <p lang="ta" className="text-xs font-semibold text-[#E6C665]">ஹதீஸ் களஞ்சியம்</p>
+          <h1 className="font-display text-lg font-bold text-[#F9E7B9] sm:text-xl">Hadith Encyclopedia</h1>
+          <p lang="ta" className="text-xs leading-relaxed text-stone-200">
+            அரபு மூலம், தமிழ் மொழிபெயர்ப்பு, மற்றும் வெளியிடப்பட்ட தரம். விளக்கம் அந்தப் பதிவில் இருந்தால் மட்டும்.
           </p>
         </div>
       </header>

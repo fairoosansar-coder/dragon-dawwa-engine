@@ -255,66 +255,68 @@ function Library({
   const reciters = config?.reciters ?? [{ id: 'ar.alafasy', name: 'Mishary Rashid Alafasy' }];
 
   return (
-    <div className="space-y-6">
-      <HeaderSettingsMenu
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-        mode={prefer}
-        textSize={textSize}
-        onTextSize={onTextSize}
-        translationSize={translationSize}
-        onTranslationSize={onTranslationSize}
-        reciter={reciter}
-        onReciter={onReciter}
-        reciters={reciters}
-        onMode={setPrefer}
-        editions={editions}
-        editionKey={editionKey}
-        onEdition={onEdition}
-        editionsError={editionsError}
-        onQuiet={() => {
-          setSettingsOpen(false);
-          setFocus(true);
-        }}
-      />
+    <div className="space-y-5">
+      {section !== 'wall' && (
+        <HeaderSettingsMenu
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          mode={prefer}
+          textSize={textSize}
+          onTextSize={onTextSize}
+          translationSize={translationSize}
+          onTranslationSize={onTranslationSize}
+          reciter={reciter}
+          onReciter={onReciter}
+          reciters={reciters}
+          onMode={setPrefer}
+          editions={editions}
+          editionKey={editionKey}
+          onEdition={onEdition}
+          editionsError={editionsError}
+          onQuiet={() => {
+            setSettingsOpen(false);
+            setFocus(true);
+          }}
+        />
+      )}
       {mineWelcome || section === 'wall' ? null : section === 'home' ? (
-        <header data-quran-hero className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/35 bg-[#0A3D2E]">
+        <header data-quran-hero className="relative overflow-hidden rounded-xl border border-[#D4AF37]/35 bg-[#0A3D2E]">
           <img
             src="/assets/geometric-edge.jpg"
             alt=""
             className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[100%_72%]"
           />
-          <div className="relative max-w-[70%] px-5 py-7 sm:max-w-xl sm:px-8 sm:py-8">
-            <p className="text-[10px] font-semibold tracking-[0.28em] text-[#E6C665]">QUR’AN</p>
-            <h1 className="mt-2 font-display text-3xl font-bold leading-tight text-[#F9E7B9] sm:text-4xl">{t.quranTitle}</h1>
-            <p className="mt-2 text-sm text-stone-300">{t.quranSubtitle}</p>
+          <div className="relative max-w-[72%] px-4 py-4 sm:max-w-xl sm:px-6 sm:py-5">
+            <p className="text-[9px] font-semibold tracking-[0.24em] text-[#E6C665]">QUR’AN</p>
+            <h1 className="mt-1 font-display text-lg font-bold leading-snug text-[#F9E7B9] sm:text-xl">{t.quranTitle}</h1>
+            <p className="mt-1 text-xs text-stone-300">{t.quranSubtitle}</p>
           </div>
         </header>
       ) : (
         <header>
-          <h1 className="font-display text-4xl font-bold text-pine">{heading}</h1>
+          <h1 className="font-display text-lg font-bold text-pine sm:text-xl">{heading}</h1>
         </header>
       )}
       {section === 'wall' ? (
         <FaithWallFeed />
       ) : null}
       {section === 'home' && (
-        <section data-continue-reading className="relative overflow-hidden rounded-3xl border border-[#D4AF37]/40 bg-[#13725A] shadow-sm">
+        <section data-continue-reading className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/40 bg-[#13725A] shadow-2xs">
           <img
             src="/assets/geometric-worship.jpg"
             alt=""
             className="pointer-events-none absolute top-0 left-0 h-auto w-[62rem] max-w-none sm:w-[150rem]"
           />
           <div className="pointer-events-none absolute inset-y-0 left-8 w-24 bg-gradient-to-r from-transparent to-[#13725A] sm:left-[26%] sm:w-80" />
-          <div className="relative min-w-0 py-5 pr-4 pl-[8.5rem] sm:ml-[58%] sm:max-w-xl sm:py-6 sm:pr-8 sm:pl-2">
-            <p className="text-xs font-semibold uppercase leading-relaxed tracking-[0.12em] text-[#E6C665] sm:tracking-[0.18em]">{t.continueReading}</p>
-            <h3 className="mt-2 font-display text-2xl font-bold leading-tight text-[#F9E7B9]">{current ? current.englishName : `${t.surahs} ${displaySurah(surah)}`}</h3>
+          <div className="relative min-w-0 py-3.5 pr-4 pl-[7rem] sm:ml-[58%] sm:max-w-xl sm:py-4 sm:pr-6 sm:pl-2">
+            <p className="text-[10px] font-semibold uppercase leading-relaxed tracking-[0.12em] text-[#E6C665]">{t.continueReading}</p>
+            <h3 className="mt-1 font-display text-base font-bold leading-snug text-[#F9E7B9] sm:text-lg">{current ? current.englishName : `${t.surahs} ${displaySurah(surah)}`}</h3>
             {current && (
-              <p className="mt-1 text-sm leading-snug text-stone-300">
+              <p className="mt-0.5 text-xs leading-snug text-stone-300">
                 {readingPlaceLabel(surah, ayah)} · {current.englishNameTranslation} · {current.numberOfAyahs}
               </p>
             )}
-            <Button className="mt-4 max-w-full whitespace-normal border border-[#E6C665]/50 bg-[#F6F1E4] text-left text-[#0E382B] hover:bg-[#F9E7B9]" onClick={() => onOpen(surah, ayah, prefer)}>
+            <Button className="mt-2.5 max-w-full whitespace-normal border border-[#E6C665]/50 bg-[#F6F1E4] text-left text-[#0E382B] hover:bg-[#F9E7B9]" onClick={() => onOpen(surah, ayah, prefer)}>
               <span className="min-w-0 leading-snug">{t.continueReading}</span>
             </Button>
           </div>

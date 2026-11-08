@@ -128,36 +128,36 @@ function BooksShelf({ params }: { params: URLSearchParams }) {
   }
 
   return (
-    <div className="space-y-6">
-      <header data-books-hero className="relative min-h-32 overflow-hidden rounded-3xl">
+    <div className="space-y-4">
+      <header data-books-hero className="relative min-h-24 overflow-hidden rounded-2xl">
         <img
           src="/assets/geometric-mandala.jpg"
           alt=""
-          className="pointer-events-none absolute -right-2 top-1/2 h-32 w-32 -translate-y-1/2 object-cover [mask-image:radial-gradient(circle,black_66%,transparent_74%)] sm:right-1 sm:h-40 sm:w-40"
+          className="pointer-events-none absolute -right-2 top-1/2 h-28 w-28 -translate-y-1/2 object-cover [mask-image:radial-gradient(circle,black_66%,transparent_74%)] sm:right-1 sm:h-32 sm:w-32"
         />
-        <div className="relative max-w-[15rem] py-2 pr-2 sm:max-w-xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-pine">The Dawwa Library</p>
-          <h1 className="mt-1 font-display text-4xl font-bold text-pine">Islamic Books</h1>
-          <p className="mt-2 max-w-xs text-sm text-ink/70">Trusted knowledge, in the language of your heart.</p>
+        <div className="relative max-w-[15rem] py-1.5 pr-2 sm:max-w-xl">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-pine">The Dawwa Library</p>
+          <h1 className="mt-0.5 font-display text-lg font-bold text-pine sm:text-xl">Islamic Books</h1>
+          <p className="mt-1 max-w-xs text-xs text-ink/70">Trusted knowledge, in the language of your heart.</p>
         </div>
       </header>
 
       {showFeatured && view?.featured && (
-        <section className="overflow-hidden rounded-3xl bg-pine text-sand">
-          <div className="grid items-center gap-6 p-6 sm:p-8 md:grid-cols-[1fr_9.5rem]">
+        <section className="overflow-hidden rounded-2xl bg-pine text-sand">
+          <div className="grid items-center gap-4 p-4 sm:p-5 md:grid-cols-[1fr_8rem]">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Featured read</p>
-              <h2 className="mt-2 font-display text-3xl font-bold leading-tight" lang={lang}>{view.featured.title}</h2>
-              {cardCredit(view.featured) && <p className="mt-2 text-sm text-sand/80">{cardCredit(view.featured)}</p>}
-              {view.featured.description && <p className="mt-3 line-clamp-3 max-w-xl text-sm leading-relaxed text-sand/75" lang={lang}>{view.featured.description}</p>}
-              <div className="mt-5 flex flex-wrap gap-3">
-                <a href={`#/books/item/${view.featured.id}`} className="inline-flex min-h-11 items-center rounded-full bg-gold px-5 text-sm font-semibold text-pine">Read now</a>
-                <button type="button" onClick={() => openDetails(view.featured!.id)} className="inline-flex min-h-11 items-center rounded-full border border-gold/70 px-5 text-sm font-medium text-sand">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">Featured read</p>
+              <h2 className="mt-1 font-display text-base font-bold leading-snug sm:text-lg" lang={lang}>{view.featured.title}</h2>
+              {cardCredit(view.featured) && <p className="mt-1 text-xs text-sand/80">{cardCredit(view.featured)}</p>}
+              {view.featured.description && <p className="mt-2 line-clamp-3 max-w-xl text-xs leading-relaxed text-sand/75" lang={lang}>{view.featured.description}</p>}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <a href={`#/books/item/${view.featured.id}`} className="inline-flex h-8 items-center rounded-full bg-gold px-4 text-xs font-semibold text-pine">Read now</a>
+                <button type="button" onClick={() => openDetails(view.featured!.id)} className="inline-flex h-8 items-center rounded-full border border-gold/70 px-4 text-xs font-medium text-sand">
                   Book details
                 </button>
               </div>
             </div>
-            <div className="featured-cover-stage mx-auto w-36">
+            <div className="featured-cover-stage mx-auto w-28">
               <BookCover title={view.featured.title} image={null} essential={view.featured.essential} mark="dawwa" />
             </div>
           </div>

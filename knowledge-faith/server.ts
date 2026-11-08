@@ -31,19 +31,25 @@ import { cancelSharedResearchJob, getSharedResearchJob, startSharedResearchJob }
 import { listCommunityPodcasts, publishCommunityPodcast } from './src/server/research/communityPodcasts.ts';
 import {
   addReplyToServerWallPost,
+  answerServerQuestion,
   authenticateGoogleCredential,
   buildGoogleOAuthStart,
   clearGoogleOAuthNonceCookie,
   clearSeekerCookie,
+  createServerQuestion,
   createServerWallPost,
   deleteServerWallPost,
   exchangeGoogleOAuthCode,
   extractTokenFromRequest,
   getGoogleAuthConfig,
   getRequestSeeker,
+  getServerAdminSettings,
+  getServerUserProfile,
   GOOGLE_CALLBACK_ALIASES,
+  listServerQuestions,
   listServerWallPosts,
   loginSeekerAccount,
+  moderateServerWallPost,
   reactToServerWallPost,
   readGoogleOAuthNonceCookie,
   registerSeekerAccount,
@@ -52,6 +58,7 @@ import {
   setGoogleOAuthNonceCookie,
   setSeekerCookie,
   updateSeekerAccountProfile,
+  updateServerAdminSettings,
   updateServerWallPost,
 } from './src/server/seekerAuth.ts';
 import { coordinateQuestion } from './src/shared/research/coordinator.ts';
@@ -702,6 +709,44 @@ app.post(
   }),
 );
 
+app.get(
+  '/api/profiles/:id',
+  route(async (req, res) => {
+    const idOrHandle = String(req.params.id ?? '');
+    if (idOrHandle === 'me') {
+      const current = getRequestSeeker(req);
+      if (!current) throw new UpstreamError('Sign in to view your profile.', 401);
+      const result = getServerUserProfile(current.id) ?? { profile: current, posts: [] };
+      res.json(result);
+      return;
+    }
+    const result = getServerUserProfile(idOrHandle);
+    if (!result) throw new UpstreamError('Seeker profile not found.', 404);
+    res.json(result);
+  }),
+);
+
+app.put(
+  '/api/profiles/me',
+  wallLimiter,
+  route(async (req, res) => {
+    const current = getRequestSeeker(req);
+    if (!current) throw new UpstreamError('Sign in to update your Seeker profile.', 401);
+    const { token, user } = updateSeekerAccountProfile(current, req.body ?? {});
+    setSeekerCookie(res, token);
+    res.status(200).json({ token, user });
+  }),
+);
+
+app.get(
+  '/api/podcasts',
+  route(async (_req, res) => {
+    res.json({
+      episodes: [...listSavedEpisodes(), ...listCommunityPodcasts()],
+    });
+  }),
+);
+
 app.get('/api/wall/posts', route(async (_req, res) => res.json({ posts: listServerWallPosts() })));
 
 app.post(
@@ -762,6 +807,57 @@ app.delete(
     const seeker = getRequestSeeker(req);
     const result = deleteServerWallPost(String(req.params.id), seeker);
     res.status(200).json(result);
+  }),
+);
+
+app.patch(
+  '/api/admin/wall/posts/:id',
+  wallLimiter,
+  route(async (req, res) => {
+    const post = moderateServerWallPost(String(req.params.id), req.body ?? {});
+    res.status(200).json(post);
+  }),
+);
+
+app.get(
+  '/api/admin/settings',
+  route(async (_req, res) => {
+    res.json(getServerAdminSettings());
+  }),
+);
+
+app.put(
+  '/api/admin/settings',
+  wallLimiter,
+  route(async (req, res) => {
+    res.json(updateServerAdminSettings(req.body ?? {}));
+  }),
+);
+
+app.get(
+  '/api/admin/questions',
+  route(async (_req, res) => {
+    res.json({ questions: listServerQuestions() });
+  }),
+);
+
+app.post(
+  '/api/questions',
+  wallLimiter,
+  route(async (req, res) => {
+    const seeker = getRequestSeeker(req);
+    const q = createServerQuestion(req.body ?? {}, seeker);
+    res.status(201).json(q);
+  }),
+);
+
+app.patch(
+  '/api/admin/questions/:id',
+  wallLimiter,
+  route(async (req, res) => {
+    const seeker = getRequestSeeker(req);
+    const updated = answerServerQuestion(String(req.params.id), req.body ?? {}, seeker);
+    res.status(200).json(updated);
   }),
 );
 

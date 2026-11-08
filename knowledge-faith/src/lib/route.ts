@@ -1,6 +1,6 @@
 /** Hash routes for Knowledge & Faith. `#/prayer` remains an alias of `#/spiritual`. */
 
-export const ROUTE_ROOTS = ['hub', 'quran', 'hadith', 'books', 'spiritual', 'studio', 'podcast'] as const;
+export const ROUTE_ROOTS = ['hub', 'quran', 'hadith', 'books', 'spiritual', 'studio', 'podcast', 'profile', 'admin', 'about'] as const;
 export type RouteRoot = (typeof ROUTE_ROOTS)[number];
 
 export type ResearchDeskName = 'knowledge' | 'quran' | 'hadith' | 'books' | 'fiqh' | 'seerah';

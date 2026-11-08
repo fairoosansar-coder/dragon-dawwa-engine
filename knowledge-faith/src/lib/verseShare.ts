@@ -295,9 +295,16 @@ export function verseShareText(verse: ShareVerse): string {
   return parts.join('\n\n');
 }
 
+export type WallPostType = 'reflection' | 'podcast';
+export type WallPostStatus = 'pending' | 'approved' | 'rejected';
+
 export interface FaithWallPost {
   id: string;
   userId?: string;
+  type?: WallPostType;
+  status?: WallPostStatus;
+  isPinned?: boolean;
+  isOfficialBroadcast?: boolean;
   surah: number;
   ayah: number;
   surahName: string;
@@ -307,8 +314,17 @@ export interface FaithWallPost {
   lang: Lang;
   url: string;
   theme?: WallPostTheme;
+  podcastId?: string;
+  podcastTitle?: string;
+  podcastAudioUrl?: string;
+  podcastDuration?: string;
+  podcastCitations?: string[];
+  hadithCollection?: string;
+  hadithNumber?: number;
+  hadithGrade?: string;
   cardDataUrl?: string;
   authorName?: string;
+  authorHandle?: string;
   authorRole?: string;
   authorEmblem?: SeekerEmblem;
   authorAvatarUrl?: string | null;
@@ -323,6 +339,100 @@ export interface FaithWallPost {
   createdAt: string;
   updatedAt?: string;
 }
+
+export interface CompletedPodcastOption {
+  id: string;
+  title: string;
+  summary: string;
+  duration: string;
+  audioUrl: string;
+  lang: Lang;
+  citations: string[];
+  surah: number;
+  ayah: number;
+  surahName: string;
+  arabic: string;
+  translation: string;
+  createdAt: string;
+}
+
+export const SEEDED_COMPLETED_PODCASTS: CompletedPodcastOption[] = [
+  {
+    id: 'pod-qasr-travelers-4-101',
+    title: 'Shortening Prayer (Qaṣr) on Journeys: Qur’an 4:101 & Prophetic Practice',
+    summary: '4-persona scholarly roundtable examining Surah An-Nisa 4:101, Sahih Muslim narrations on travel distance, and contemporary expatriate rulings.',
+    duration: '06:42',
+    audioUrl: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/594.mp3',
+    lang: 'en',
+    citations: ['Qur’an 4:101', 'Sahih Muslim 686', 'Al-Mukhtasar 4:101'],
+    surah: 4,
+    ayah: 101,
+    surahName: 'An-Nisa',
+    arabic: 'وَإِذَا ضَرَبْتُمْ فِى ٱلْأَرْضِ فَلَيْسَ عَلَيْكُمْ جُنَاحٌ أَن تَقْصُرُوا۟ مِنَ ٱلصَّلَوٰةِ',
+    translation: 'And when you travel throughout the land, there is no blame upon you for shortening the prayer.',
+    createdAt: '2026-11-07T14:20:00.000Z',
+  },
+  {
+    id: 'pod-sabr-mercy-2-153',
+    title: 'Patience & Prayer in Times of Trial: Tafsir of Surah Al-Baqara 2:153–157',
+    summary: 'Dr. Layla al-Qasimi and Shaykh Farhan explore how sabr and salah anchor the believer through loss and uncertainty.',
+    duration: '08:15',
+    audioUrl: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/160.mp3',
+    lang: 'en',
+    citations: ['Qur’an 2:153', 'Qur’an 2:155', 'Sahih al-Bukhari 5641'],
+    surah: 2,
+    ayah: 153,
+    surahName: 'Al-Baqara',
+    arabic: 'يَٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُوا۟ ٱسْتَعِينُوا۟ بِٱلصَّبْرِ وَٱلصَّلَوٰةِ ۚ إِنَّ ٱللَّهَ مَعَ ٱلصَّٰبِرِينَ',
+    translation: 'O you who have believed, seek help through patience and prayer. Indeed, Allah is with the patient.',
+    createdAt: '2026-11-06T20:00:00.000Z',
+  },
+  {
+    id: 'pod-tamil-gratitude-14-7',
+    title: 'நன்றியுணர்வும் இறை அருளும்: சூரா இப்ராஹீம் 14:7 ஆய்வு உரையாடல்',
+    summary: 'குர்ஆன் 14:7 மற்றும் ஹதீஸ் ஆதாரங்களின் அடிப்படையில் நன்றியுணர்வின் ஆன்மீகப் பரிமாணங்கள்.',
+    duration: '05:50',
+    audioUrl: 'https://d.quranenc.com/data/audio/tamil_omar_brief/014007.mp3',
+    lang: 'ta',
+    citations: ['Qur’an 14:7', 'Al-Mukhtasar 14:7'],
+    surah: 14,
+    ayah: 7,
+    surahName: 'Ibrahim',
+    arabic: 'لَئِن شَكَرْتُمْ لَأَزِيدَنَّكُمْ',
+    translation: 'நீங்கள் நன்றி செலுத்தினால், உங்களுக்கு நான் மென்மேலும் அதிகப்படுத்துவேன்.',
+    createdAt: '2026-11-05T16:40:00.000Z',
+  },
+];
+
+export type ModerationMode = 'instant' | 'review';
+export type DeskPaletteId = 'emerald-gold' | 'amethyst-obsidian' | 'parchment-slate';
+
+export interface ClientAdminSettings {
+  moderationMode: ModerationMode;
+  heroBannerUrl: string;
+  deskPalette: DeskPaletteId;
+}
+
+export interface ScholarQuestionItem {
+  id: string;
+  userId?: string;
+  userName: string;
+  question: string;
+  language: Lang;
+  status: 'open' | 'answered';
+  answer?: string;
+  answeredBy?: string;
+  citations?: string[];
+  createdAt: string;
+  answeredAt?: string;
+}
+
+export const ADMIN_SETTINGS_EVENT = 'kf-admin-settings-updated';
+export const SCHOLAR_QA_EVENT = 'kf-scholar-qa-updated';
+
+const ADMIN_SETTINGS_KEY = 'kf-admin-settings';
+const WALL_MODERATION_MAP_KEY = 'kf-wall-moderation-status';
+const SCHOLAR_QUESTIONS_KEY = 'kf-scholar-questions';
 
 export const FAITH_WALL_EVENT = 'kf-faith-wall-updated';
 
@@ -397,6 +507,9 @@ export const SEEDED_FAITH_WALL_POSTS: FaithWallPost[] = [
   },
   {
     id: 'seed-wall-1-2-ta',
+    userId: 'seeker-fairoosseeker',
+    type: 'reflection',
+    status: 'approved',
     surah: 1,
     ayah: 2,
     surahName: 'Al-Faatiha',
@@ -407,6 +520,7 @@ export const SEEDED_FAITH_WALL_POSTS: FaithWallPost[] = [
     theme: 'sapphire',
     url: '#/quran/book?surah=1&ayah=2&lang=ta&edition=tamil_omar_brief',
     authorName: 'Brother Feroz Ansar',
+    authorHandle: '@brotherferozansar',
     authorRole: 'Community Researcher',
     authorEmblem: 'octagon-rosette',
     verified: true,
@@ -421,7 +535,42 @@ export const SEEDED_FAITH_WALL_POSTS: FaithWallPost[] = [
     createdAt: '2026-11-06T12:00:00.000Z',
   },
   {
+    id: 'seed-wall-podcast-feroz-1',
+    userId: 'seeker-fairoosseeker',
+    type: 'podcast',
+    status: 'approved',
+    surah: 4,
+    ayah: 101,
+    surahName: 'An-Nisa',
+    arabic: 'وَإِذَا ضَرَبْتُمْ فِى ٱلْأَرْضِ فَلَيْسَ عَلَيْكُمْ جُنَاحٌ أَن تَقْصُرُوا۟ مِنَ ٱلصَّلَوٰةِ',
+    translation: 'And when you travel throughout the land, there is no blame upon you for shortening the prayer.',
+    reflection: 'In this roundtable episode, our 4-scholar panel examines how Qur’an 4:101 and Sahih Muslim 686 frame the mercy of Qaṣr prayer for travelers.',
+    lang: 'en',
+    theme: 'emerald',
+    podcastId: 'pod-qasr-travelers-4-101',
+    podcastTitle: 'Shortening Prayer (Qaṣr) on Journeys: Qur’an 4:101 & Prophetic Practice',
+    podcastAudioUrl: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/594.mp3',
+    podcastDuration: '06:42',
+    podcastCitations: ['Qur’an 4:101', 'Sahih Muslim 686', 'Al-Mukhtasar 4:101'],
+    url: '#/podcast',
+    authorName: 'Brother Feroz Ansar',
+    authorHandle: '@brotherferozansar',
+    authorRole: 'Community Researcher',
+    authorEmblem: 'rub-el-hizb',
+    verified: true,
+    likes: 42,
+    reactions: {
+      mashaallah: 19,
+      alhamdulillah: 14,
+      'asma:ar_rahman': 17,
+    },
+    replies: [],
+    createdAt: '2026-11-06T14:00:00.000Z',
+  },
+  {
     id: 'seed-wall-2-286-si',
+    type: 'reflection',
+    status: 'approved',
     surah: 2,
     ayah: 286,
     surahName: 'Al-Baqara',
@@ -432,6 +581,7 @@ export const SEEDED_FAITH_WALL_POSTS: FaithWallPost[] = [
     theme: 'amber',
     url: '#/quran/book?surah=2&ayah=286&lang=si&edition=sinhalese_mahir',
     authorName: 'Sister Amina K.',
+    authorHandle: '@sisteraminak',
     authorRole: 'Student of Knowledge',
     authorEmblem: 'emerald-lamp',
     verified: true,
@@ -447,11 +597,192 @@ export const SEEDED_FAITH_WALL_POSTS: FaithWallPost[] = [
   },
 ];
 
+export const SEEDED_PENDING_WALL_POSTS: FaithWallPost[] = [
+  {
+    id: 'seed-pending-wall-20-114',
+    userId: 'seeker-zaydalansari',
+    type: 'reflection',
+    status: 'pending',
+    surah: 20,
+    ayah: 114,
+    surahName: 'Ta-Ha',
+    arabic: 'وَقُل رَّبِّ زِدْنِى عِلْمًا',
+    translation: 'And say: My Lord, increase me in knowledge.',
+    reflection: 'Beginning my morning study of Usool al-Tafsir with this prophetic supplication for beneficial knowledge.',
+    lang: 'en',
+    theme: 'obsidian',
+    url: '#/quran/book?surah=20&ayah=114&lang=en&edition=english_rwwad',
+    authorName: 'Ustadh Zayd al-Ansari',
+    authorHandle: '@ustadhzayd',
+    authorRole: 'Seeker of Knowledge',
+    authorEmblem: 'crescent-star',
+    verified: true,
+    likes: 1,
+    reactions: { amin: 1 },
+    replies: [],
+    createdAt: '2026-11-07T16:10:00.000Z',
+  },
+  {
+    id: 'seed-pending-podcast-2-153',
+    userId: 'seeker-laylamansoor',
+    type: 'podcast',
+    status: 'pending',
+    surah: 2,
+    ayah: 153,
+    surahName: 'Al-Baqara',
+    arabic: 'يَٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُوا۟ ٱسْتَعِينُوا۟ بِٱلصَّبْرِ وَٱلصَّلَوٰةِ',
+    translation: 'O you who have believed, seek help through patience and prayer.',
+    reflection: 'Sharing our latest roundtable episode on how sabr and salah work together during family hardship.',
+    lang: 'en',
+    theme: 'amethyst',
+    podcastId: 'pod-sabr-mercy-2-153',
+    podcastTitle: 'Patience & Prayer in Times of Trial: Tafsir of Surah Al-Baqara 2:153–157',
+    podcastAudioUrl: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/160.mp3',
+    podcastDuration: '08:15',
+    podcastCitations: ['Qur’an 2:153', 'Qur’an 2:155', 'Sahih al-Bukhari 5641'],
+    url: '#/podcast',
+    authorName: 'Sister Layla Mansoor',
+    authorHandle: '@sisterlayla',
+    authorRole: 'Student of Qur’anic Tafsir',
+    authorEmblem: 'octagon-rosette',
+    verified: true,
+    likes: 1,
+    reactions: { amin: 1 },
+    replies: [],
+    createdAt: '2026-11-07T17:05:00.000Z',
+  },
+];
+
+export const SEEDED_SCHOLAR_QUESTIONS: ScholarQuestionItem[] = [
+  {
+    id: 'qa-seed-1',
+    userName: 'Brother Bilal R.',
+    question: 'When combining Maghrib and Isha prayers during heavy rain or travel, do we recite the Sunnah rawatib prayers between them or after both fard prayers?',
+    language: 'en',
+    status: 'open',
+    createdAt: '2026-11-07T11:30:00.000Z',
+  },
+  {
+    id: 'qa-seed-2',
+    userName: 'Sister Fathima S.',
+    question: 'தொழுகையில் சூரா அல்-ஃபாத்திஹாவுக்குப் பிறகு சிறிய சூராக்களை ஓதும்போது வரிசைக் கிரமத்தைப் பேணுவது அவசியமா?',
+    language: 'ta',
+    status: 'open',
+    createdAt: '2026-11-07T09:15:00.000Z',
+  },
+  {
+    id: 'qa-seed-3',
+    userName: 'Ustadh Tariq M.',
+    question: 'How do classical mufassirun reconcile the apparent lexical count of “yawm” in the Qur’an with contextual usages such as “yawma’idhin”?',
+    language: 'en',
+    status: 'answered',
+    answer: 'Classical scholars of ‘Ulum al-Qur’an distinguish between the singular indeterminate/determinate noun “yawm” (day) and compound adverbial forms such as “yawma’idhin” (on that Day). Both are examined in context rather than by detached string counting.',
+    answeredBy: 'Dr. Layla al-Qasimi · Institutional Scholarly Board',
+    citations: ['Surah Al-Baqara 2:85', 'Al-Itqan fi Ulum al-Quran'],
+    createdAt: '2026-11-06T10:00:00.000Z',
+    answeredAt: '2026-11-06T15:40:00.000Z',
+  },
+];
+
 const memoryWallPosts: FaithWallPost[] = [];
 const memoryLikedIds = new Set<string>();
 const memoryUserReactions = new Map<string, Set<string>>();
 const memoryPostReplies = new Map<string, FaithWallReply[]>();
 const memorySavedPostIds = new Set<string>();
+const memoryModerationStatus = new Map<string, { status?: WallPostStatus; isPinned?: boolean }>();
+let memoryAdminSettings: ClientAdminSettings = {
+  moderationMode: 'instant',
+  heroBannerUrl: '/assets/banner-art.jpg',
+  deskPalette: 'emerald-gold',
+};
+let memoryScholarQuestions: ScholarQuestionItem[] = [];
+
+function readModerationMap(): Record<string, { status?: WallPostStatus; isPinned?: boolean }> {
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = window.localStorage.getItem(WALL_MODERATION_MAP_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') return parsed as Record<string, { status?: WallPostStatus; isPinned?: boolean }>;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  const out: Record<string, { status?: WallPostStatus; isPinned?: boolean }> = {};
+  memoryModerationStatus.forEach((val, key) => {
+    out[key] = val;
+  });
+  return out;
+}
+
+function saveModerationMap(map: Record<string, { status?: WallPostStatus; isPinned?: boolean }>) {
+  memoryModerationStatus.clear();
+  for (const [k, v] of Object.entries(map)) {
+    memoryModerationStatus.set(k, v);
+  }
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(WALL_MODERATION_MAP_KEY, JSON.stringify(map));
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+export function readAdminSettings(): ClientAdminSettings {
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = window.localStorage.getItem(ADMIN_SETTINGS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<ClientAdminSettings>;
+        if (parsed && typeof parsed === 'object') {
+          return {
+            moderationMode: parsed.moderationMode === 'review' ? 'review' : 'instant',
+            heroBannerUrl: parsed.heroBannerUrl || '/assets/banner-art.jpg',
+            deskPalette:
+              parsed.deskPalette === 'amethyst-obsidian' || parsed.deskPalette === 'parchment-slate'
+                ? parsed.deskPalette
+                : 'emerald-gold',
+          };
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return { ...memoryAdminSettings };
+}
+
+export async function saveAdminSettings(patch: Partial<ClientAdminSettings>): Promise<ClientAdminSettings> {
+  const current = readAdminSettings();
+  const next: ClientAdminSettings = {
+    moderationMode: patch.moderationMode ?? current.moderationMode,
+    heroBannerUrl: patch.heroBannerUrl ?? current.heroBannerUrl,
+    deskPalette: patch.deskPalette ?? current.deskPalette,
+  };
+  memoryAdminSettings = next;
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(ADMIN_SETTINGS_KEY, JSON.stringify(next));
+    } catch {
+      /* ignore */
+    }
+    window.dispatchEvent(new Event(ADMIN_SETTINGS_EVENT));
+  }
+  if (typeof fetch === 'function') {
+    try {
+      await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next),
+      });
+    } catch {
+      /* local settings already saved */
+    }
+  }
+  return next;
+}
 
 function readLikedSet(): Set<string> {
   if (typeof window !== 'undefined') {
@@ -588,16 +919,18 @@ function readStoredWallPosts(): FaithWallPost[] {
   return [...memoryWallPosts];
 }
 
-export function listFaithWallPosts(): FaithWallPost[] {
+export function listAllFaithWallPosts(includeAllStatuses = false): FaithWallPost[] {
   const liked = readLikedSet();
   const reactionsMap = readUserReactionsMap();
   const repliesMap = readRepliesMap();
   const savedSet = readSavedPostIds();
+  const modMap = readModerationMap();
   const session = readSeekerSession();
   const userPosts = readStoredWallPosts();
   const seen = new Set(userPosts.map(item => item.id));
-  const combined = [...userPosts, ...SEEDED_FAITH_WALL_POSTS.filter(seed => !seen.has(seed.id))];
-  return combined.map(post => {
+  const allSeeds = [...SEEDED_FAITH_WALL_POSTS, ...SEEDED_PENDING_WALL_POSTS];
+  const combined = [...userPosts, ...allSeeds.filter(seed => !seen.has(seed.id))];
+  const hydrated = combined.map(post => {
     const isLiked = liked.has(post.id);
     const userReacted = new Set(reactionsMap[post.id] ?? []);
     if (isLiked) userReacted.add('amin');
@@ -615,18 +948,36 @@ export function listFaithWallPosts(): FaithWallPost[] {
     const extraReplies = repliesMap[post.id] ?? [];
     const existingReplyIds = new Set((post.replies ?? []).map(r => r.id));
     const mergedReplies = [...(post.replies ?? []), ...extraReplies.filter(r => !existingReplyIds.has(r.id))];
+    const modOverride = modMap[post.id];
+    const effectiveStatus: WallPostStatus = modOverride?.status ?? post.status ?? 'approved';
+    const effectivePinned = modOverride?.isPinned !== undefined ? modOverride.isPinned : Boolean(post.isPinned);
+    const authorName = post.isOfficialBroadcast
+      ? post.authorName || 'Dragon Dawwa Editorial Board'
+      : isCurrentUser
+        ? session!.user.name
+        : post.authorName || 'Community Seeker';
 
     return {
       ...post,
+      type: post.type ?? 'reflection',
+      status: effectiveStatus,
+      isPinned: effectivePinned,
       theme: sanitizeWallTheme(post.theme),
-      authorName: isCurrentUser ? session!.user.name : post.authorName || 'Community Seeker',
-      authorRole: isCurrentUser ? session!.user.kunyah : post.authorRole || 'Faith Wall Contributor',
+      authorName,
+      authorHandle:
+        post.authorHandle ||
+        `@${authorName.toLowerCase().replace(/[^a-z0-9]+/g, '') || 'seeker'}`,
+      authorRole: post.isOfficialBroadcast
+        ? '✦ Official Institutional Broadcast'
+        : isCurrentUser
+          ? session!.user.kunyah
+          : post.authorRole || 'Faith Wall Contributor',
       authorEmblem: isCurrentUser ? session!.user.emblem : sanitizeSeekerEmblem(post.authorEmblem),
       authorAvatarUrl: isCurrentUser ? session!.user.avatarUrl ?? post.authorAvatarUrl ?? null : post.authorAvatarUrl ?? null,
       authorAuthProvider: isCurrentUser
         ? session!.user.authProvider ?? (session!.user.provider === 'google' ? 'google' : 'password')
         : post.authorAuthProvider,
-      verified: isCurrentUser ? true : Boolean(post.verified || post.id.startsWith('seed-wall-')),
+      verified: isCurrentUser ? true : Boolean(post.verified || post.isOfficialBroadcast || post.id.startsWith('seed-wall-')),
       liked: isLiked || userReacted.has('amin'),
       likes: baseLikes + (userReacted.size > 0 && !post.liked ? userReacted.size : isLiked && !post.liked ? 1 : 0),
       reactions: baseReactions,
@@ -635,6 +986,55 @@ export function listFaithWallPosts(): FaithWallPost[] {
       saved: savedSet.has(post.id),
     };
   });
+
+  const filtered = includeAllStatuses
+    ? hydrated
+    : hydrated.filter(post => post.status === 'approved');
+
+  return filtered.sort((a, b) => {
+    if (Boolean(b.isPinned) !== Boolean(a.isPinned)) return b.isPinned ? 1 : -1;
+    return b.createdAt.localeCompare(a.createdAt);
+  });
+}
+
+export function listFaithWallPosts(): FaithWallPost[] {
+  return listAllFaithWallPosts(false);
+}
+
+export async function moderateFaithWallPost(
+  postId: string,
+  patch: { status?: WallPostStatus; isPinned?: boolean },
+): Promise<FaithWallPost[]> {
+  const modMap = readModerationMap();
+  modMap[postId] = { ...(modMap[postId] ?? {}), ...patch };
+  saveModerationMap(modMap);
+
+  const stored = readStoredWallPosts();
+  const idx = stored.findIndex(item => item.id === postId);
+  if (idx !== -1) {
+    stored[idx] = {
+      ...stored[idx],
+      ...(patch.status ? { status: patch.status } : {}),
+      ...(patch.isPinned !== undefined ? { isPinned: patch.isPinned } : {}),
+      updatedAt: new Date().toISOString(),
+    };
+    persistUserPosts(stored);
+  } else if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(FAITH_WALL_EVENT));
+  }
+
+  if (typeof fetch === 'function') {
+    try {
+      await fetch(`/api/admin/wall/posts/${encodeURIComponent(postId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+    } catch {
+      /* local moderation already saved */
+    }
+  }
+  return listAllFaithWallPosts(true);
 }
 
 function persistUserPosts(next: FaithWallPost[]) {
@@ -757,6 +1157,18 @@ export async function publishFaithWallPost(input: {
   url: string;
   reflection?: string;
   theme?: WallPostTheme;
+  type?: WallPostType;
+  status?: WallPostStatus;
+  isPinned?: boolean;
+  isOfficialBroadcast?: boolean;
+  podcastId?: string;
+  podcastTitle?: string;
+  podcastAudioUrl?: string;
+  podcastDuration?: string;
+  podcastCitations?: string[];
+  hadithCollection?: string;
+  hadithNumber?: number;
+  hadithGrade?: string;
   authorName?: string;
   authorRole?: string;
   cardDataUrl?: string;
@@ -764,25 +1176,65 @@ export async function publishFaithWallPost(input: {
   const session = readSeekerSession();
   const seeker = session?.user ?? null;
   const chosenTheme = sanitizeWallTheme(input.theme);
+  const postType: WallPostType = input.type === 'podcast' ? 'podcast' : 'reflection';
+  if (postType === 'podcast' && !input.podcastId && !input.podcastTitle) {
+    throw new Error('Sharing a podcast requires selecting a completed Research Podcast episode.');
+  }
+  if (
+    postType === 'reflection' &&
+    (!input.verse || (!input.verse.arabic && !input.verse.translation))
+  ) {
+    throw new Error('Sharing a reflection requires selecting a sacred Qur’an or Hadith passage.');
+  }
+  const settings = readAdminSettings();
+  const isOfficial = Boolean(input.isOfficialBroadcast);
+  const status: WallPostStatus =
+    isOfficial || input.status === 'approved'
+      ? 'approved'
+      : input.status === 'pending' || settings.moderationMode === 'review'
+        ? 'pending'
+        : 'approved';
+  const authorName = isOfficial
+    ? input.authorName || 'Dragon Dawwa Editorial Board'
+    : seeker?.name || (input.authorName ?? '').trim() || 'Community Seeker';
+
   const post: FaithWallPost = {
-    id: `wall-${input.verse.surah}-${input.verse.ayah}-${Date.now()}`,
+    id:
+      postType === 'podcast'
+        ? `wall-pod-${Date.now()}`
+        : `wall-${input.verse.surah}-${input.verse.ayah}-${Date.now()}`,
     userId: seeker?.id,
+    type: postType,
+    status,
+    isPinned: Boolean(input.isPinned || isOfficial),
+    isOfficialBroadcast: isOfficial,
     surah: input.verse.surah,
     ayah: input.verse.ayah,
     surahName: input.verse.surahName,
     arabic: input.verse.arabic,
     translation: input.verse.translation.replace(/\[\d+\]/g, '').trim(),
-    reflection: (input.reflection ?? '').trim().slice(0, 600),
+    reflection: (input.reflection ?? '').trim().slice(0, 500),
     lang: input.lang,
     url: input.url,
     theme: chosenTheme,
+    podcastId: input.podcastId,
+    podcastTitle: input.podcastTitle,
+    podcastAudioUrl: input.podcastAudioUrl,
+    podcastDuration: input.podcastDuration,
+    podcastCitations: input.podcastCitations,
+    hadithCollection: input.hadithCollection,
+    hadithNumber: input.hadithNumber,
+    hadithGrade: input.hadithGrade,
     cardDataUrl: input.cardDataUrl,
-    authorName: seeker?.name || (input.authorName ?? '').trim() || 'Community Seeker',
-    authorRole: seeker?.kunyah || (input.authorRole ?? '').trim() || 'Faith Wall Contributor',
+    authorName,
+    authorHandle: `@${authorName.toLowerCase().replace(/[^a-z0-9]+/g, '') || 'seeker'}`,
+    authorRole: isOfficial
+      ? '✦ Official Institutional Broadcast'
+      : seeker?.kunyah || (input.authorRole ?? '').trim() || 'Faith Wall Contributor',
     authorEmblem: seeker?.emblem ?? 'rub-el-hizb',
     authorAvatarUrl: seeker?.avatarUrl ?? null,
     authorAuthProvider: seeker?.authProvider ?? (seeker?.provider === 'google' ? 'google' : undefined),
-    verified: Boolean(seeker),
+    verified: Boolean(seeker || isOfficial),
     likes: 1,
     liked: false,
     reactions: { amin: 1 },
@@ -805,6 +1257,10 @@ export async function publishFaithWallPost(input: {
         body: JSON.stringify({
           id: post.id,
           userId: post.userId,
+          type: post.type,
+          status: post.status,
+          isPinned: post.isPinned,
+          isOfficialBroadcast: post.isOfficialBroadcast,
           surah: post.surah,
           ayah: post.ayah,
           surahName: post.surahName,
@@ -812,6 +1268,14 @@ export async function publishFaithWallPost(input: {
           translation: post.translation,
           reflection: post.reflection,
           theme: post.theme,
+          podcastId: post.podcastId,
+          podcastTitle: post.podcastTitle,
+          podcastAudioUrl: post.podcastAudioUrl,
+          podcastDuration: post.podcastDuration,
+          podcastCitations: post.podcastCitations,
+          hadithCollection: post.hadithCollection,
+          hadithNumber: post.hadithNumber,
+          hadithGrade: post.hadithGrade,
           authorName: post.authorName,
           authorRole: post.authorRole,
           authorEmblem: post.authorEmblem,
@@ -831,6 +1295,211 @@ export async function publishFaithWallPost(input: {
   }
 
   return post;
+}
+
+export function listScholarQuestions(): ScholarQuestionItem[] {
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = window.localStorage.getItem(SCHOLAR_QUESTIONS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          const seen = new Set(parsed.map((q: ScholarQuestionItem) => q.id));
+          return [...(parsed as ScholarQuestionItem[]), ...SEEDED_SCHOLAR_QUESTIONS.filter(q => !seen.has(q.id))];
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  const seen = new Set(memoryScholarQuestions.map(q => q.id));
+  return [...memoryScholarQuestions, ...SEEDED_SCHOLAR_QUESTIONS.filter(q => !seen.has(q.id))];
+}
+
+function saveScholarQuestionsList(list: ScholarQuestionItem[]) {
+  memoryScholarQuestions = [...list];
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(SCHOLAR_QUESTIONS_KEY, JSON.stringify(list));
+    } catch {
+      /* ignore */
+    }
+    window.dispatchEvent(new Event(SCHOLAR_QA_EVENT));
+  }
+}
+
+export async function submitScholarQuestion(input: {
+  question: string;
+  language: Lang;
+}): Promise<ScholarQuestionItem> {
+  const session = readSeekerSession();
+  const item: ScholarQuestionItem = {
+    id: `qa-${Date.now()}`,
+    userId: session?.user.id,
+    userName: session?.user.name || 'Community Seeker',
+    question: input.question.trim().slice(0, 1000),
+    language: input.language,
+    status: 'open',
+    createdAt: new Date().toISOString(),
+  };
+  const all = listScholarQuestions();
+  saveScholarQuestionsList([item, ...all.filter(q => q.id !== item.id)]);
+  if (typeof fetch === 'function') {
+    try {
+      await fetch('/api/questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item),
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+  return item;
+}
+
+export async function answerScholarQuestion(input: {
+  id: string;
+  answer: string;
+  answeredBy?: string;
+  citations?: string[];
+}): Promise<ScholarQuestionItem[]> {
+  const session = readSeekerSession();
+  const all = listScholarQuestions();
+  const updated = all.map(q => {
+    if (q.id !== input.id) return q;
+    return {
+      ...q,
+      status: 'answered' as const,
+      answer: input.answer.trim().slice(0, 4000),
+      answeredBy:
+        input.answeredBy?.trim() ||
+        (session?.user ? `${session.user.name} · Institutional Scholarly Board` : 'Institutional Scholarly Board'),
+      citations: input.citations ?? q.citations,
+      answeredAt: new Date().toISOString(),
+    };
+  });
+  saveScholarQuestionsList(updated);
+  if (typeof fetch === 'function') {
+    try {
+      await fetch(`/api/admin/questions/${encodeURIComponent(input.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+  return updated;
+}
+
+export interface UserProfilePortfolio {
+  id: string;
+  name: string;
+  handle: string;
+  roleBadge: string;
+  kunyah: string;
+  bio: string;
+  emblem: SeekerEmblem;
+  avatarUrl: string | null;
+  bannerUrl: string;
+  joinedAt: string;
+  isSelf: boolean;
+  approvedPosts: FaithWallPost[];
+  pendingPosts: FaithWallPost[];
+  reflectionsCount: number;
+  podcastsCount: number;
+}
+
+export function resolveUserProfilePortfolio(targetIdOrHandle?: string | null): UserProfilePortfolio {
+  const session = readSeekerSession();
+  const currentUser = session?.user ?? null;
+  const allPosts = listAllFaithWallPosts(true);
+  const settings = readAdminSettings();
+
+  const cleanTarget = (targetIdOrHandle ?? '').replace(/^@/, '').trim().toLowerCase();
+  const isSelf =
+    !cleanTarget ||
+    cleanTarget === 'me' ||
+    Boolean(
+      currentUser &&
+        (currentUser.id.toLowerCase() === cleanTarget ||
+          (currentUser.handle ?? '').replace(/^@/, '').toLowerCase() === cleanTarget ||
+          currentUser.name.toLowerCase().replace(/[^a-z0-9]+/g, '') === cleanTarget.replace(/[^a-z0-9]+/g, '')),
+    );
+
+  if (isSelf && currentUser) {
+    const handle = currentUser.handle || `@${currentUser.name.toLowerCase().replace(/[^a-z0-9]+/g, '') || 'seeker'}`;
+    const userPosts = allPosts.filter(
+      p =>
+        p.userId === currentUser.id ||
+        p.authorName?.toLowerCase() === currentUser.name.toLowerCase() ||
+        (p.authorHandle ?? '').toLowerCase() === handle.toLowerCase(),
+    );
+    const approvedPosts = userPosts.filter(p => p.status === 'approved');
+    const pendingPosts = userPosts.filter(p => p.status === 'pending');
+    const roleLabel =
+      currentUser.role === 'admin' || /feroz|fairoos/i.test(currentUser.name)
+        ? 'Admin · Community Researcher'
+        : currentUser.kunyah || 'Verified Seeker';
+
+    return {
+      id: currentUser.id,
+      name: currentUser.name,
+      handle,
+      roleBadge: roleLabel,
+      kunyah: currentUser.kunyah,
+      bio:
+        currentUser.bio ||
+        'Reflecting on the Makki and Madani revelations, prophetic narrations, and multidisciplinary tafsir.',
+      emblem: currentUser.emblem,
+      avatarUrl: currentUser.avatarUrl ?? null,
+      bannerUrl: currentUser.bannerUrl || settings.heroBannerUrl || '/assets/banner-art.jpg',
+      joinedAt: currentUser.createdAt || '2026-10-01T00:00:00.000Z',
+      isSelf: true,
+      approvedPosts,
+      pendingPosts,
+      reflectionsCount: approvedPosts.filter(p => (p.type ?? 'reflection') === 'reflection').length,
+      podcastsCount: approvedPosts.filter(p => p.type === 'podcast').length,
+    };
+  }
+
+  // Resolve another community author from posts
+  const matchingPosts = allPosts.filter(p => {
+    const handleClean = (p.authorHandle ?? '').replace(/^@/, '').toLowerCase();
+    const nameClean = (p.authorName ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    const targetAlnum = cleanTarget.replace(/[^a-z0-9]+/g, '');
+    return (
+      (p.userId ?? '').toLowerCase() === cleanTarget ||
+      handleClean === targetAlnum ||
+      nameClean === targetAlnum ||
+      (targetAlnum.length >= 5 && (handleClean.includes(targetAlnum) || nameClean.includes(targetAlnum)))
+    );
+  });
+
+  const sample = matchingPosts[0] ?? SEEDED_FAITH_WALL_POSTS[0];
+  const approvedPosts = matchingPosts.filter(p => p.status === 'approved');
+  const authorName = sample.authorName || 'Dr. Layla al-Qasimi';
+  const handle = sample.authorHandle || `@${authorName.toLowerCase().replace(/[^a-z0-9]+/g, '')}`;
+
+  return {
+    id: sample.userId || handle,
+    name: authorName,
+    handle,
+    roleBadge: sample.authorRole || 'Verified Scholar',
+    kunyah: sample.authorRole || 'Verified Scholar',
+    bio: 'Contributing verified Qur’anic reflections, classical tafsir insights, and sourced roundtable discussions.',
+    emblem: sample.authorEmblem ?? 'rub-el-hizb',
+    avatarUrl: sample.authorAvatarUrl ?? null,
+    bannerUrl: settings.heroBannerUrl || '/assets/banner-art.jpg',
+    joinedAt: sample.createdAt || '2026-10-15T00:00:00.000Z',
+    isSelf: false,
+    approvedPosts,
+    pendingPosts: [],
+    reflectionsCount: approvedPosts.filter(p => (p.type ?? 'reflection') === 'reflection').length,
+    podcastsCount: approvedPosts.filter(p => p.type === 'podcast').length,
+  };
 }
 
 export async function updateFaithWallPost(

@@ -1,5 +1,17 @@
-import { useState, type FormEvent } from 'react';
-import { LogIn, Palette, Send, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { useEffect, useState, type FormEvent } from 'react';
+import {
+  ArrowLeft,
+  BookOpen,
+  Headphones,
+  LogIn,
+  Mic,
+  Palette,
+  Play,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  X,
+} from 'lucide-react';
 import { SeekerAvatar } from '../SeekerAuthModal.tsx';
 import { useSeekerAuth } from '../../lib/seekerAuth.ts';
 import {
@@ -11,9 +23,12 @@ import {
 } from '../../lib/verseImage.ts';
 import {
   getContextualNamesOfAllah,
+  SEEDED_COMPLETED_PODCASTS,
   WALL_THEME_LIST,
   WALL_THEMES,
+  type CompletedPodcastOption,
   type WallPostTheme,
+  type WallPostType,
 } from '../../lib/verseShare.ts';
 import { LANGUAGE_NAMES, type Lang } from '../../shared/sources.ts';
 
@@ -25,6 +40,9 @@ export interface PresetVerseOption {
   lang: Lang;
   arabic: string;
   translation: string;
+  hadithCollection?: string;
+  hadithNumber?: number;
+  hadithGrade?: string;
 }
 
 export const FEATURED_WALL_VERSES: PresetVerseOption[] = [
@@ -65,6 +83,18 @@ export const FEATURED_WALL_VERSES: PresetVerseOption[] = [
     translation: 'And say: My Lord, increase me in knowledge.',
   },
   {
+    key: 'hadith-bukhari-1',
+    surah: 1,
+    ayah: 1,
+    surahName: 'Sahih al-Bukhari · Hadith 1',
+    lang: 'en',
+    arabic: 'إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ، وَإِنَّمَا لِكُلِّ امْرِئٍ مَا نَوَى',
+    translation: 'Actions are judged only by intentions, and every person shall have only what they intended.',
+    hadithCollection: 'Sahih al-Bukhari',
+    hadithNumber: 1,
+    hadithGrade: 'Sahih (Agreed Upon)',
+  },
+  {
     key: '1:2-ta',
     surah: 1,
     ayah: 2,
@@ -83,6 +113,49 @@ export const FEATURED_WALL_VERSES: PresetVerseOption[] = [
     translation: 'අල්ලාහ් කිසිදු ආත්මයකට එහි හැකියාවට වඩා බරක් නොපවරයි.',
   },
 ];
+
+function loadAvailablePodcasts(): CompletedPodcastOption[] {
+  const result = [...SEEDED_COMPLETED_PODCASTS];
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = window.localStorage.getItem('kf-research-episodes');
+      if (raw) {
+        const parsed = JSON.parse(raw) as Array<{
+          id?: string;
+          question?: string;
+          language?: Lang;
+          lines?: Array<{ text?: string }>;
+          sources?: string[];
+          createdAt?: string;
+        }>;
+        if (Array.isArray(parsed)) {
+          for (const ep of parsed) {
+            if (ep?.id && ep?.question && !result.some(item => item.id === ep.id)) {
+              result.unshift({
+                id: ep.id,
+                title: ep.question,
+                summary: ep.lines?.[0]?.text || 'Completed 4-persona scholarly roundtable episode.',
+                duration: '06:15',
+                audioUrl: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/1.mp3',
+                lang: ep.language ?? 'en',
+                citations: ep.sources?.slice(0, 4) ?? ['Qur’an & Sunnah Dossier'],
+                surah: 1,
+                ayah: 1,
+                surahName: 'Al-Faatiha',
+                arabic: 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ',
+                translation: ep.lines?.[0]?.text || ep.question,
+                createdAt: ep.createdAt || new Date().toISOString(),
+              });
+            }
+          }
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return result;
+}
 
 export function ThemeSwatches({
   selected,
@@ -106,13 +179,13 @@ export function ThemeSwatches({
             className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition ${
               active
                 ? 'border-[#D4AF37] bg-[#0A2E23] text-white shadow-sm ring-1 ring-[#D4AF37]/60'
-                : 'border-[#D4AF37]/25 bg-[#031812]/80 text-[#F5EEDC]/75 hover:border-[#D4AF37]/60 hover:text-white'
+                : 'border-stone-300 bg-white text-stone-700 hover:border-[#073C30]/50 hover:text-stone-900'
             }`}
           >
             <span
               aria-hidden
               style={{ background: item.cssGradient }}
-              className="inline-block h-3.5 w-3.5 rounded-full border border-white/40"
+              className="inline-block h-3.5 w-3.5 rounded-full border border-black/20"
             />
             <span>{item.label}</span>
           </button>
@@ -127,29 +200,46 @@ export function ReflectionModal({
   onClose,
   onPublish,
   inline = false,
+  initialDoor = null,
 }: {
   open: boolean;
   onClose: () => void;
   onPublish: (input: {
+    type?: WallPostType;
     preset: PresetVerseOption;
+    podcast?: CompletedPodcastOption;
     reflection: string;
     authorName: string;
     theme: WallPostTheme;
   }) => Promise<void> | void;
   inline?: boolean;
+  initialDoor?: 'reflection' | 'podcast' | null;
 }) {
   const { user, openModal: openAuthModal } = useSeekerAuth();
+  const [selectedDoor, setSelectedDoor] = useState<'reflection' | 'podcast' | null>(initialDoor);
   const [selectedPresetKey, setSelectedPresetKey] = useState(FEATURED_WALL_VERSES[0].key);
+  const [podcasts] = useState<CompletedPodcastOption[]>(() => loadAvailablePodcasts());
+  const [selectedPodcastId, setSelectedPodcastId] = useState(SEEDED_COMPLETED_PODCASTS[0].id);
   const [authorName, setAuthorName] = useState('');
   const [reflection, setReflection] = useState('');
   const [theme, setTheme] = useState<WallPostTheme>('emerald');
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    if (open && initialDoor !== undefined) {
+      setSelectedDoor(initialDoor);
+    }
+  }, [open, initialDoor]);
+
   if (!open) return null;
 
   const preset = FEATURED_WALL_VERSES.find(item => item.key === selectedPresetKey) ?? FEATURED_WALL_VERSES[0];
+  const selectedPodcast = podcasts.find(item => item.id === selectedPodcastId) ?? podcasts[0];
+  const activeDoor = selectedDoor ?? 'reflection';
   const themeSpec = WALL_THEMES[theme];
-  const badge = formatVerseCardBadge(preset);
+  const badge = preset.hadithCollection
+    ? `✦ ${preset.hadithCollection.toUpperCase()} #${preset.hadithNumber}`
+    : formatVerseCardBadge(preset);
   const quoted = formatQuotedTranslation(preset.translation);
   const contextualNames = getContextualNamesOfAllah(
     preset.surah,
@@ -162,12 +252,32 @@ export function ReflectionModal({
     if (busy) return;
     setBusy(true);
     try {
-      await onPublish({
-        preset,
-        reflection,
-        authorName,
-        theme,
-      });
+      if (activeDoor === 'podcast') {
+        await onPublish({
+          type: 'podcast',
+          preset: {
+            key: `${selectedPodcast.surah}:${selectedPodcast.ayah}`,
+            surah: selectedPodcast.surah,
+            ayah: selectedPodcast.ayah,
+            surahName: selectedPodcast.surahName,
+            lang: selectedPodcast.lang,
+            arabic: selectedPodcast.arabic,
+            translation: selectedPodcast.translation,
+          },
+          podcast: selectedPodcast,
+          reflection: reflection.slice(0, 500),
+          authorName,
+          theme,
+        });
+      } else {
+        await onPublish({
+          type: 'reflection',
+          preset,
+          reflection: reflection.slice(0, 500),
+          authorName,
+          theme,
+        });
+      }
       setReflection('');
     } finally {
       setBusy(false);
@@ -177,164 +287,348 @@ export function ReflectionModal({
   const formContent = (
     <form
       data-faith-wall-composer
+      data-two-door-modal
       onSubmit={event => void handleSubmit(event)}
-      className="relative z-10 rounded-3xl border border-[#D4AF37]/45 bg-[#031812]/95 p-5 text-[#F5EEDC] shadow-2xl sm:p-6"
+      className="relative z-10 rounded-2xl border border-stone-200 bg-white p-4 text-stone-900 shadow-xl sm:p-5"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-[#D4AF37]" aria-hidden />
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#D4AF37]">
-            Share an Illuminated Ayah Reflection
+      {/* Modal Header */}
+      <div className="flex items-start justify-between gap-3 border-b border-stone-100 pb-3">
+        <div>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-900">
+            <Sparkles className="h-3 w-3 text-emerald-700" aria-hidden />
+            Controlled 2-Door Publishing Studio
+          </span>
+          <h3 className="mt-1 font-display text-base font-bold text-stone-900 sm:text-lg">
+            Share to the Faith Wall
+          </h3>
+          <p className="text-xs text-stone-500">
+            Every post must be anchored to a verified Qur’an/Hadith citation or a completed Research Podcast episode.
           </p>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#D4AF37]/30 bg-white/5 text-[#F5EEDC]/80 hover:border-[#D4AF37] hover:text-white"
+          aria-label="Close"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-stone-200 text-stone-500 hover:bg-stone-100 hover:text-stone-800"
         >
-          <X className="h-4 w-4" aria-hidden />
+          <X className="h-3.5 w-3.5" aria-hidden />
         </button>
       </div>
 
-      {/* Live Illuminated Theme Preview */}
-      <div
-        data-composer-theme-preview={theme}
-        className={`relative mt-4 flex flex-col justify-between overflow-hidden rounded-2xl border p-4 shadow-inner sm:p-5 ${themeSpec.classes}`}
-      >
-        <div className="flex items-center justify-between gap-2 text-[11px]">
-          <span className="rounded-full border border-[#D4AF37]/50 bg-[#D4AF37]/15 px-3 py-0.5 font-semibold tracking-wider text-[#D4AF37]">
-            {badge}
+      {/* 2-Door Selector Cards (Always visible at top so user can pick or switch between Door 1 and Door 2) */}
+      <div data-two-door-selector className="mt-3.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <button
+          type="button"
+          data-door-option="reflection"
+          aria-pressed={activeDoor === 'reflection'}
+          onClick={() => setSelectedDoor('reflection')}
+          className={`flex items-start gap-3 rounded-xl border-2 p-3 text-left transition ${
+            activeDoor === 'reflection'
+              ? 'border-[#073C30] bg-emerald-50/60 shadow-xs'
+              : 'border-stone-200 bg-stone-50/60 hover:border-stone-300 hover:bg-white'
+          }`}
+        >
+          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#073C30] text-[#D4AF37]">
+            <BookOpen className="h-4 w-4" aria-hidden />
           </span>
-          <span lang="ar" dir="rtl" className="quran-face text-xs text-[#D4AF37]/90 sm:text-sm">
-            ۞ {CARD_BISMILLAH}
+          <div className="min-w-0">
+            <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+              Door 1 · Sacred Text
+            </span>
+            <span className="mt-0.5 block font-display text-xs font-bold text-stone-900 sm:text-sm">
+              Share a Qur’an or Hadith Reflection
+            </span>
+            <span className="mt-0.5 block text-[11px] leading-snug text-stone-600">
+              Anchor your tadabbur to a verified Ayah or Prophetic narration with a 16:9 illuminated card.
+            </span>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          data-door-option="podcast"
+          aria-pressed={activeDoor === 'podcast'}
+          onClick={() => setSelectedDoor('podcast')}
+          className={`flex items-start gap-3 rounded-xl border-2 p-3 text-left transition ${
+            activeDoor === 'podcast'
+              ? 'border-[#073C30] bg-emerald-50/60 shadow-xs'
+              : 'border-stone-200 bg-stone-50/60 hover:border-stone-300 hover:bg-white'
+          }`}
+        >
+          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#073C30] text-[#D4AF37]">
+            <Mic className="h-4 w-4" aria-hidden />
           </span>
-        </div>
-
-        <div className="my-3 text-center">
-          <p
-            lang="ar"
-            dir="rtl"
-            style={{ textShadow: '0 0 18px rgba(212,175,55,0.2)' }}
-            className="quran-face text-xl leading-[2] text-white sm:text-2xl"
-          >
-            {preset.arabic}
-          </p>
-          <p lang={preset.lang} className="mt-2 font-display text-xs italic text-[#F3E8C8] sm:text-sm">
-            {quoted}
-          </p>
-        </div>
-
-        <div className="flex items-center justify-between border-t border-white/15 pt-2 text-[10px] text-[#D4AF37]/75">
-          <span>{BRAND_FOOTER_LEFT}</span>
-          <span>{BRAND_FOOTER_RIGHT}</span>
-        </div>
+          <div className="min-w-0">
+            <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+              Door 2 · Broadcast Audio
+            </span>
+            <span className="mt-0.5 block font-display text-xs font-bold text-stone-900 sm:text-sm">
+              Share a Research Podcast Episode
+            </span>
+            <span className="mt-0.5 block text-[11px] leading-snug text-stone-600">
+              Embed a completed 4-scholar roundtable audio episode with its primary citations.
+            </span>
+          </div>
+        </button>
       </div>
 
-      {/* Theme Picker */}
-      <div className="mt-4 space-y-1.5">
-        <span className="flex items-center gap-1.5 text-xs font-medium text-[#F5EEDC]/85">
-          <Palette className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-          <span>Choose Card Atmosphere Theme</span>
-        </span>
-        <ThemeSwatches selected={theme} onSelect={setTheme} />
-      </div>
+      {activeDoor === 'reflection' ? (
+        <div data-door-panel="reflection" className="mt-4 space-y-4">
+          {/* Step 1: Select Sacred Anchor */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-xs font-semibold text-stone-700">
+              Step 1 · Select Qur’an Ayah or Hadith Reference
+              <select
+                data-door1-reference-select
+                value={selectedPresetKey}
+                onChange={event => setSelectedPresetKey(event.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-medium text-stone-900 focus:border-[#073C30] focus:outline-none"
+              >
+                {FEATURED_WALL_VERSES.map(item => (
+                  <option key={item.key} value={item.key}>
+                    {item.hadithCollection
+                      ? `${item.hadithCollection} #${item.hadithNumber} (${item.hadithGrade})`
+                      : `Surah ${item.surahName} ${item.surah}:${item.ayah} (${LANGUAGE_NAMES[item.lang].english})`}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <label className="block text-xs font-medium text-[#F5EEDC]/85">
-          Select Ayah
-          <select
-            value={selectedPresetKey}
-            onChange={event => setSelectedPresetKey(event.target.value)}
-            className="mt-1.5 w-full rounded-xl border border-[#D4AF37]/35 bg-[#0A2E23] px-3 py-2 text-sm text-[#F3E8C8] focus:border-[#D4AF37] focus:outline-none"
-          >
-            {FEATURED_WALL_VERSES.map(item => (
-              <option key={item.key} value={item.key}>
-                Surah {item.surahName} {item.surah}:{item.ayah} ({LANGUAGE_NAMES[item.lang].english})
-              </option>
-            ))}
-          </select>
-        </label>
+            {user ? (
+              <div className="flex flex-col justify-end">
+                <span className="text-xs font-semibold text-stone-700">Verified Author Identity</span>
+                <div className="mt-1.5 flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-900">
+                  <span className="flex items-center gap-2 truncate font-semibold">
+                    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#073C30] text-[#F5EEDC]">
+                      <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={14} />
+                    </span>
+                    <span>{user.name}</span>
+                    <span className="text-emerald-800">· {user.kunyah}</span>
+                  </span>
+                  <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
+                </div>
+              </div>
+            ) : (
+              <label className="block text-xs font-semibold text-stone-700">
+                Your Name or Kunyah
+                <input
+                  type="text"
+                  value={authorName}
+                  onChange={event => setAuthorName(event.target.value)}
+                  placeholder="e.g. Seeker of Knowledge"
+                  className="mt-1.5 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs text-stone-900 placeholder:text-stone-400 focus:border-[#073C30] focus:outline-none"
+                />
+              </label>
+            )}
+          </div>
 
-        {user ? (
-          <div className="flex flex-col justify-end">
-            <span className="text-xs font-medium text-[#F5EEDC]/85">Publishing Identity</span>
-            <div className="mt-1.5 flex items-center justify-between rounded-xl border border-[#D4AF37]/40 bg-[#0A2E23] px-3.5 py-2 text-xs text-white">
-              <span className="flex items-center gap-2 truncate font-semibold">
-                <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full ring-1 ring-emerald-400">
-                  <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={15} />
+          {/* Step 2: Choose Visual Card Theme + Live 16:9 Preview */}
+          <div className="space-y-2">
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-stone-700">
+              <Palette className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+              <span>Step 2 · Choose Illuminated Card Theme</span>
+            </span>
+            <ThemeSwatches selected={theme} onSelect={setTheme} />
+
+            <div
+              data-composer-theme-preview={theme}
+              className={`relative mt-2 flex flex-col justify-between overflow-hidden rounded-xl border p-4 text-[#F3E8C8] shadow-sm sm:p-5 ${themeSpec.classes}`}
+            >
+              <div className="flex items-center justify-between gap-2 text-[11px]">
+                <span className="rounded-full border border-[#D4AF37]/50 bg-[#D4AF37]/15 px-3 py-0.5 font-semibold tracking-wider text-[#D4AF37]">
+                  {badge}
                 </span>
-                <span>{user.name}</span>
-                <span className="text-[#D4AF37]">· {user.kunyah}</span>
-              </span>
-              <ShieldCheck className="h-4 w-4 shrink-0 text-[#D4AF37]" aria-hidden />
+                <span lang="ar" dir="rtl" className="quran-face text-xs text-[#D4AF37]/90 sm:text-sm">
+                  ۞ {CARD_BISMILLAH}
+                </span>
+              </div>
+
+              <div className="my-3 text-center">
+                <p
+                  lang="ar"
+                  dir="rtl"
+                  style={{ textShadow: '0 0 18px rgba(212,175,55,0.2)' }}
+                  className="quran-face text-xl leading-[2] text-white sm:text-2xl"
+                >
+                  {preset.arabic}
+                </p>
+                <p lang={preset.lang} className="mt-2 font-display text-xs italic text-[#F3E8C8] sm:text-sm">
+                  {quoted}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-white/15 pt-2 text-[10px] text-[#D4AF37]/75">
+                <span>{BRAND_FOOTER_LEFT}</span>
+                <span>{BRAND_FOOTER_RIGHT}</span>
+              </div>
             </div>
           </div>
-        ) : (
-          <label className="block text-xs font-medium text-[#F5EEDC]/85">
-            Your Name or Kunyah (optional)
+
+          {/* Step 3: Add Reflection Text (Max 500 chars) */}
+          <div>
+            <div className="flex items-center justify-between text-xs font-semibold text-stone-700">
+              <label htmlFor="door1-reflection-input">
+                Step 3 · Share how this verse guides your heart or daily practice
+              </label>
+              <span data-reflection-char-count className="font-mono text-[11px] text-stone-500">
+                {reflection.length} / 500
+              </span>
+            </div>
             <input
+              id="door1-reflection-input"
               type="text"
-              value={authorName}
-              onChange={event => setAuthorName(event.target.value)}
-              placeholder="e.g. Seeker of Knowledge"
-              className="mt-1.5 w-full rounded-xl border border-[#D4AF37]/35 bg-[#0A2E23] px-3 py-2 text-sm text-[#F3E8C8] placeholder:text-[#F3E8C8]/40 focus:border-[#D4AF37] focus:outline-none"
+              maxLength={500}
+              data-faith-wall-composer-input
+              value={reflection}
+              onChange={event => setReflection(event.target.value.slice(0, 500))}
+              placeholder="Write a concise reflection anchored to this passage (up to 500 characters)…"
+              className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50/70 px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#073C30] focus:bg-white focus:outline-none"
             />
+          </div>
+
+          {/* Contextual Asma-ul-Husna Preview Pills */}
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+            <span className="font-medium text-stone-500">✦ Contextual Asma-ul-Husna:</span>
+            {contextualNames.map(name => (
+              <span
+                key={name.id}
+                className="inline-flex items-center gap-1 rounded-full border border-amber-300/80 bg-amber-50 px-2.5 py-0.5 font-semibold text-amber-950"
+              >
+                <span>{name.transliteration}</span>
+                <span lang="ar" dir="rtl" className="quran-face text-xs text-amber-800">
+                  ({name.arabic})
+                </span>
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div data-door-panel="podcast" className="mt-4 space-y-4">
+          {/* Door 2 Step 1: Select Completed Podcast Episode */}
+          <label className="block text-xs font-semibold text-stone-700">
+            Step 1 · Select Completed Research Podcast Episode
+            <select
+              data-door2-podcast-select
+              value={selectedPodcastId}
+              onChange={event => setSelectedPodcastId(event.target.value)}
+              className="mt-1.5 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-medium text-stone-900 focus:border-[#073C30] focus:outline-none"
+            >
+              {podcasts.map(ep => (
+                <option key={ep.id} value={ep.id}>
+                  {ep.title} ({ep.duration})
+                </option>
+              ))}
+            </select>
           </label>
-        )}
-      </div>
 
-      <label className="mt-3 block text-xs font-medium text-[#F5EEDC]/85">
-        Personal Reflection or Tadabbur
-        <input
-          type="text"
-          data-faith-wall-composer-input
-          value={reflection}
-          onChange={event => setReflection(event.target.value)}
-          placeholder="Add a reflection or thought on how this verse speaks to your heart..."
-          className="mt-1.5 w-full rounded-xl border border-[#D4AF37]/35 bg-[#0A2E23] px-3.5 py-2.5 text-sm text-[#F3E8C8] placeholder:text-[#F3E8C8]/45 focus:border-[#D4AF37] focus:outline-none"
-        />
-      </label>
-
-      {/* Contextual Asma-ul-Husna Preview Pills */}
-      <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[11px]">
-        <span className="text-[#D4AF37]/80">✦ Contextual Asma-ul-Husna:</span>
-        {contextualNames.map(name => (
-          <span
-            key={name.id}
-            className="inline-flex items-center gap-1 rounded-full border border-[#D4AF37]/45 bg-[#D4AF37]/15 px-2.5 py-0.5 font-semibold text-[#F9E7B9]"
+          {/* Door 2 Step 2: Auto-Embedded Audio Wave Player & Citations Preview */}
+          <div
+            data-door2-podcast-preview
+            className={`rounded-xl border p-4 text-[#F3E8C8] shadow-sm ${themeSpec.classes}`}
           >
-            <span>{name.transliteration}</span>
-            <span lang="ar" dir="rtl" className="quran-face text-xs text-[#D4AF37]">
-              ({name.arabic})
-            </span>
-          </span>
-        ))}
-      </div>
+            <div className="flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-wider text-[#D4AF37]">
+              <span className="inline-flex items-center gap-1.5">
+                <Headphones className="h-3.5 w-3.5" aria-hidden />
+                <span>4-Scholar Roundtable Episode</span>
+              </span>
+              <span>{selectedPodcast.duration}</span>
+            </div>
+            <h4 className="mt-1.5 font-display text-base font-bold text-white">
+              {selectedPodcast.title}
+            </h4>
+            <p className="mt-1 text-xs leading-relaxed text-[#F5EEDC]/80">
+              {selectedPodcast.summary}
+            </p>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#D4AF37]/20 pt-3.5">
+            {/* Simulated Waveform Preview Bar */}
+            <div className="mt-3 flex items-center gap-3 rounded-xl border border-[#D4AF37]/30 bg-[#031812]/80 px-3 py-2">
+              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#D4AF37] text-[#031812]">
+                <Play className="h-3.5 w-3.5 fill-current" aria-hidden />
+              </span>
+              <div className="flex flex-1 items-center gap-1 overflow-hidden" aria-hidden>
+                {[35, 65, 45, 80, 55, 90, 40, 70, 60, 85, 50, 75, 45, 65, 35, 60, 80, 50].map((h, idx) => (
+                  <span
+                    key={idx}
+                    style={{ height: `${Math.round(h * 0.22)}px` }}
+                    className="w-1.5 rounded-full bg-[#D4AF37]/75"
+                  />
+                ))}
+              </div>
+              <span className="font-mono text-[11px] text-[#D4AF37]">{selectedPodcast.duration}</span>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              {selectedPodcast.citations.map(cite => (
+                <span
+                  key={cite}
+                  className="rounded-full border border-[#D4AF37]/40 bg-[#D4AF37]/15 px-2.5 py-0.5 text-[10px] font-semibold text-[#F9E7B9]"
+                >
+                  ✦ {cite}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Door 2 Step 3: Add Listener Note (Max 500 chars) */}
+          <div>
+            <div className="flex items-center justify-between text-xs font-semibold text-stone-700">
+              <label htmlFor="door2-reflection-input">
+                Step 3 · Share what listeners will discover in this episode
+              </label>
+              <span className="font-mono text-[11px] text-stone-500">
+                {reflection.length} / 500
+              </span>
+            </div>
+            <input
+              id="door2-reflection-input"
+              type="text"
+              maxLength={500}
+              data-faith-wall-composer-input
+              value={reflection}
+              onChange={event => setReflection(event.target.value.slice(0, 500))}
+              placeholder="Add a brief note introducing this episode’s scholarly findings (up to 500 characters)…"
+              className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50/70 px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-[#073C30] focus:bg-white focus:outline-none"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Footer Submit Bar */}
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 pt-4">
         {!user ? (
           <button
             type="button"
             onClick={() => openAuthModal()}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#D4AF37] hover:underline"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 hover:underline"
           >
             <LogIn className="h-3.5 w-3.5" aria-hidden />
-            <span>Sign in to save this card to your Personal Wall</span>
+            <span>Sign in to publish under your verified profile</span>
           </button>
         ) : (
-          <span className="text-xs text-[#D4AF37]/85">
-            ✦ Publishes to Community Stream & My Personal Wall ({themeSpec.label} theme)
+          <span className="text-xs text-stone-500">
+            ✦ Publishes to your Personal Portfolio (`#/profile`) and the Community Faith Wall
           </span>
         )}
-        <button
-          type="submit"
-          data-faith-wall-composer-submit
-          disabled={busy}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-[#D4AF37] px-5 py-2.5 text-xs font-bold text-[#031812] shadow-md transition hover:bg-[#e3c14d] disabled:opacity-50"
-        >
-          <Send className="h-3.5 w-3.5" aria-hidden />
-          <span>{user ? 'Publish to My Wall & Community' : 'Publish to Public Faith Wall'}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl px-3.5 py-2 text-xs font-medium text-stone-500 hover:bg-stone-100 hover:text-stone-800"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            data-faith-wall-composer-submit
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[#073C30] px-5 py-2.5 text-xs font-semibold text-[#F5EEDC] shadow-sm transition hover:bg-[#0A2E23] disabled:opacity-50"
+          >
+            <Send className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+            <span>
+              {activeDoor === 'podcast' ? 'Share Podcast to Faith Wall' : 'Publish Reflection'}
+            </span>
+          </button>
+        </div>
       </div>
     </form>
   );
@@ -345,8 +639,8 @@ export function ReflectionModal({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Share a Reflection"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-3 backdrop-blur-md sm:p-6"
+      aria-label="Share to Faith Wall"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 backdrop-blur-xs sm:p-6"
       onClick={onClose}
     >
       <div className="max-h-[92dvh] w-full max-w-2xl overflow-y-auto" onClick={event => event.stopPropagation()}>

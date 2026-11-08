@@ -466,16 +466,16 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
           <div className="absolute inset-0 bg-gradient-to-r from-[#041B14]/88 via-[#041B14]/42 to-transparent" />
           <div className="absolute inset-2.5 rounded-[1.3rem] border border-[#E6C665]/25 sm:inset-3.5" />
         </div>
-        <div className="relative max-w-[70%] px-5 py-6 sm:max-w-xl sm:px-8 sm:py-8">
-          <p className="flex items-center gap-2 text-[10px] font-semibold tracking-[0.18em] text-[#E6C665] sm:text-[11px] sm:tracking-[0.28em]">
-            <span className="h-px w-5 shrink-0 bg-[#E6C665] sm:w-7" aria-hidden />
+        <div className="relative max-w-[75%] px-4 py-4 sm:max-w-xl sm:px-6 sm:py-5">
+          <p className="flex items-center gap-2 text-[9px] font-semibold tracking-[0.18em] text-[#E6C665] sm:text-[10px] sm:tracking-[0.26em]">
+            <span className="h-px w-4 shrink-0 bg-[#E6C665] sm:w-6" aria-hidden />
             LISTENING DESK
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-            <h1 className="font-display text-[2.35rem] font-bold leading-none text-[#F9E7B9] sm:text-5xl">Podcast</h1>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+            <h1 className="font-display text-lg font-bold leading-none text-[#F9E7B9] sm:text-xl">Podcast</h1>
             <PodcastHostChip tone="plate" />
           </div>
-          <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-stone-200 sm:text-sm">Your questions stay on this device until you share an episode. The presenters are generated. {hostLabel} did not speak these words or approve them. They are not scholars.</p>
+          <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-stone-200">Your questions stay on this device until you share an episode. The presenters are generated. {hostLabel} did not speak these words or approve them. They are not scholars.</p>
         </div>
       </header>
       {error && <ErrorNote message={error} />}
@@ -485,8 +485,8 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
       {remote.error && !mine.some(item => item.jobId === jobId) && <ErrorNote message={remote.error} onRetry={remote.reload} />}
 
       <section className="min-w-0">
-        <p className="text-[10px] font-semibold tracking-[0.2em] text-[#8A7340]">ON THIS DEVICE</p>
-        <h2 className="mt-1 font-display text-2xl font-bold text-pine sm:text-3xl">My Research Podcasts</h2>
+        <p className="text-[10px] font-semibold tracking-[0.18em] text-[#8A7340]">ON THIS DEVICE</p>
+        <h2 className="mt-0.5 font-display text-base font-bold text-pine sm:text-lg">My Research Podcasts</h2>
         <div className="mt-2 h-px w-14 bg-[#C9A14E]" aria-hidden />
         {mine.length === 0 && <p className="mt-3 text-sm leading-relaxed text-muted">No episode is saved on this device yet.</p>}
         {mine.length > 1 && (
@@ -551,7 +551,7 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
 
       <section className="min-w-0">
         <p className="text-[10px] font-semibold tracking-[0.2em] text-[#8A7340]">SHARED</p>
-        <h2 className="mt-1 font-display text-2xl font-bold text-pine sm:text-3xl">Community Podcasts</h2>
+        <h2 className="mt-0.5 font-display text-base font-bold text-pine sm:text-lg">Community Podcasts</h2>
         <div className="mt-2 h-px w-14 bg-[#C9A14E]" aria-hidden />
         {community.error && <ErrorNote message={community.error} onRetry={community.reload} />}
         {(community.data?.episodes.length ?? 0) === 0 && <p className="mt-2 text-sm text-muted">No episode has been shared for publication.</p>}
