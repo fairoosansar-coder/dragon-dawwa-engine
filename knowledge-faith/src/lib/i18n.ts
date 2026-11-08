@@ -16,6 +16,8 @@ const en = {
   navSpiritual: 'Five Pillars of Islam',
   spiritualHint: 'Guides, prayer times, zakah, fasting',
   navStudio: 'Podcasts & Voice',
+  navProfile: 'Seeker Profile',
+  navAdmin: 'Admin Cockpit',
   language: 'Content language',
   verseOfDay: 'Verse of the day',
   askTitle: 'Ask a question',

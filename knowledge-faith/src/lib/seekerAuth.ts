@@ -3,16 +3,20 @@ import { useCallback, useEffect, useState } from 'react';
 export type SeekerEmblem = 'rub-el-hizb' | 'crescent-star' | 'octagon-rosette' | 'emerald-lamp';
 export type SeekerAuthProvider = 'email' | 'google' | 'apple' | 'guest';
 export type SeekerAuthMethod = 'google' | 'password' | 'studio';
+export type SeekerRole = 'seeker' | 'researcher' | 'scholar' | 'admin';
 
 export interface SeekerUser {
   id: string;
   email: string;
   name: string;
+  handle?: string;
   kunyah: string;
   bio: string;
   emblem: SeekerEmblem;
   provider: SeekerAuthProvider;
   authProvider?: SeekerAuthMethod;
+  role?: SeekerRole;
+  bannerUrl?: string | null;
   googleSub?: string | null;
   avatarUrl?: string | null;
   verified: boolean;
@@ -78,6 +82,8 @@ export function deskLabelForHash(rawHash: string): string {
   if (clean.startsWith('spiritual') || clean.startsWith('prayer')) return 'Five Pillars & Worship';
   if (clean.includes('saved')) return 'Saved Bookmarks';
   if (clean.includes('scholar')) return 'Ask a Scholar';
+  if (clean.startsWith('profile')) return 'Seeker Profile & Portfolio';
+  if (clean.startsWith('admin')) return 'Institutional Admin Cockpit';
   return 'Dragon Dawwa Studio';
 }
 
@@ -229,11 +235,14 @@ export function readSeekerSession(): SeekerSession | null {
               id: parsed.user.id,
               email: parsed.user.email || '',
               name: parsed.user.name || 'Community Seeker',
+              handle: parsed.user.handle,
               kunyah: parsed.user.kunyah || 'Seeker of Knowledge',
               bio: parsed.user.bio || '',
               emblem: sanitizeSeekerEmblem(parsed.user.emblem),
               provider,
               authProvider,
+              role: parsed.user.role,
+              bannerUrl: parsed.user.bannerUrl ?? null,
               googleSub: parsed.user.googleSub ?? null,
               avatarUrl: parsed.user.avatarUrl ?? null,
               verified: parsed.user.verified !== false,
@@ -526,6 +535,8 @@ export async function updateSeekerProfile(input: {
   bio?: string;
   emblem?: SeekerEmblem;
   avatarUrl?: string | null;
+  bannerUrl?: string | null;
+  role?: SeekerRole;
 }): Promise<SeekerSession | null> {
   const current = readSeekerSession();
   if (!current) return null;
@@ -557,10 +568,13 @@ export async function updateSeekerProfile(input: {
     user: {
       ...current.user,
       name: input.name.trim() || current.user.name,
+      handle: `@${(input.name.trim() || current.user.name).toLowerCase().replace(/[^a-z0-9]+/g, '') || 'seeker'}`,
       kunyah: input.kunyah.trim() || current.user.kunyah,
       bio: input.bio !== undefined ? input.bio.trim() : current.user.bio,
       emblem: input.emblem ? sanitizeSeekerEmblem(input.emblem) : current.user.emblem,
       avatarUrl: input.avatarUrl !== undefined ? input.avatarUrl : current.user.avatarUrl,
+      bannerUrl: input.bannerUrl !== undefined ? input.bannerUrl : current.user.bannerUrl,
+      role: input.role ?? current.user.role,
     },
   };
   writeSeekerSession(updated);

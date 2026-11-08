@@ -29,8 +29,10 @@ import {
   toggleFaithWallBookmark,
   toggleFaithWallReaction,
   updateFaithWallPost,
+  type CompletedPodcastOption,
   type FaithWallPost,
   type WallPostTheme,
+  type WallPostType,
 } from '../../lib/verseShare.ts';
 import type { Lang } from '../../shared/sources.ts';
 
@@ -159,20 +161,26 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
   };
 
   const handleCreatePost = async (input: {
+    type?: WallPostType;
     preset: PresetVerseOption;
+    podcast?: CompletedPodcastOption;
     reflection: string;
     authorName: string;
     theme: WallPostTheme;
   }) => {
-    const { preset, reflection, authorName, theme } = input;
-    const hash = readingLinkHash({
-      surah: preset.surah,
-      ayah: preset.ayah,
-      lang: preset.lang,
-      edition: preset.lang === 'ta' ? 'tamil_omar_brief' : preset.lang === 'si' ? 'sinhalese_mahir' : 'english_rwwad',
-      mode: 'book',
-    });
-    await publishFaithWallPost({
+    const { type, preset, podcast, reflection, authorName, theme } = input;
+    const hash =
+      type === 'podcast'
+        ? '#/podcast'
+        : readingLinkHash({
+            surah: preset.surah,
+            ayah: preset.ayah,
+            lang: preset.lang,
+            edition: preset.lang === 'ta' ? 'tamil_omar_brief' : preset.lang === 'si' ? 'sinhalese_mahir' : 'english_rwwad',
+            mode: 'book',
+          });
+    const created = await publishFaithWallPost({
+      type: type ?? 'reflection',
       verse: {
         surah: preset.surah,
         ayah: preset.ayah,
@@ -184,12 +192,26 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
       url: hash,
       reflection,
       theme,
+      podcastId: podcast?.id,
+      podcastTitle: podcast?.title,
+      podcastAudioUrl: podcast?.audioUrl,
+      podcastDuration: podcast?.duration,
+      podcastCitations: podcast?.citations,
+      hadithCollection: preset.hadithCollection,
+      hadithNumber: preset.hadithNumber,
+      hadithGrade: preset.hadithGrade,
       authorName: user ? user.name : authorName,
       authorRole: user ? user.kunyah : undefined,
     });
     setPosts(listFaithWallPosts());
     setComposerOpen(false);
-    setToast(user ? 'Published to your Personal Wall & Community Faith Wall!' : 'Shared to the Public Faith Wall!');
+    setToast(
+      created.status === 'pending'
+        ? 'Submitted for Admin Moderation Review! Track status on your Profile.'
+        : user
+          ? 'Published to your Personal Profile & Community Faith Wall!'
+          : 'Shared to the Public Faith Wall!',
+    );
     window.setTimeout(() => setToast(null), 3200);
   };
 
@@ -240,16 +262,34 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
 
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             {!compact ? (
-              <button
-                type="button"
-                data-faith-wall-open-composer
-                data-open-reflection-modal
-                onClick={() => setComposerOpen(open => !open)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-[#073C30] px-4 py-2.5 text-xs font-semibold text-[#F5EEDC] shadow-xs transition hover:bg-[#0A2E23]"
-              >
-                <Plus className="h-4 w-4 text-[#D4AF37]" aria-hidden />
-                <span>Share a Reflection</span>
-              </button>
+              <>
+                <a
+                  href="#/profile"
+                  data-wall-open-profile
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-semibold text-stone-700 transition hover:bg-stone-100"
+                >
+                  <User className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+                  <span>My Profile</span>
+                </a>
+                <a
+                  href="#/admin"
+                  data-wall-open-admin
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-semibold text-stone-700 transition hover:bg-stone-100"
+                >
+                  <ShieldCheck className="h-3.5 w-3.5 text-[#C6A15A]" aria-hidden />
+                  <span>Admin Cockpit</span>
+                </a>
+                <button
+                  type="button"
+                  data-faith-wall-open-composer
+                  data-open-reflection-modal
+                  onClick={() => setComposerOpen(open => !open)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#073C30] px-4 py-2.5 text-xs font-semibold text-[#F5EEDC] shadow-xs transition hover:bg-[#0A2E23]"
+                >
+                  <Plus className="h-4 w-4 text-[#D4AF37]" aria-hidden />
+                  <span>Share a Reflection</span>
+                </button>
+              </>
             ) : (
               <a
                 href="#/quran/wall"

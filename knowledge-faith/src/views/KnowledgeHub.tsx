@@ -14,6 +14,7 @@ import { shownVerses, translationRequest } from '../shared/quranenc.ts';
 import { useApp, useStored } from '../lib/store.tsx';
 import { CitationChips, EvidenceList, HadithCard, VerseCard } from '../components/cards.tsx';
 import { FaithWallFeed } from '../components/FaithWallFeed.tsx';
+import { ADMIN_SETTINGS_EVENT, readAdminSettings, submitScholarQuestion } from '../lib/verseShare.ts';
 import { KnowledgeShelf } from './KnowledgePaths.tsx';
 import { LibraryReader } from './LibraryReader.tsx';
 import { EmptyState, FeatureCard, PrayerStrip } from '../components/shell/widgets.tsx';
@@ -131,9 +132,10 @@ function AskPanel() {
 }
 
 function ScholarDraft({ focus }: { focus: boolean }) {
-  const { t } = useApp();
+  const { t, lang } = useApp();
   const [draft, setDraft] = useStored<string>('kf-scholar-draft', '');
   const [copied, setCopied] = useState(false);
+  const [flaggedToScholar, setFlaggedToScholar] = useState(false);
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
     if (focus) ref.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
@@ -147,6 +149,16 @@ function ScholarDraft({ focus }: { focus: boolean }) {
     } catch {
       setCopied(false);
     }
+  }
+
+  function handleSendToScholarInbox() {
+    if (draft.trim().length < 5) return;
+    submitScholarQuestion({
+      question: draft.trim(),
+      language: lang,
+    });
+    setFlaggedToScholar(true);
+    setTimeout(() => setFlaggedToScholar(false), 3500);
   }
 
   return (
@@ -167,6 +179,10 @@ function ScholarDraft({ focus }: { focus: boolean }) {
         <Button variant="soft" onClick={() => void copy()} disabled={!draft.trim()}>
           {copied ? <Check className="h-4 w-4" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
           {copied ? t.scholarCopied : t.sidebarQuestion}
+        </Button>
+        <Button variant="soft" onClick={handleSendToScholarInbox} disabled={draft.trim().length < 5}>
+          <Sparkles className="h-4 w-4" aria-hidden />
+          {flaggedToScholar ? 'Queued in Scholar Q&A Inbox' : 'Flag for Verified Scholar Q&A'}
         </Button>
         {draft.trim() && <span className="text-xs text-ink/50">{t.scholarSaved}</span>}
         <span className="ml-auto flex gap-3 text-sm">
@@ -193,6 +209,15 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
   const [askError, setAskError] = useState<string | null>(null);
   const [clarify, setClarify] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [adminBannerUrl, setAdminBannerUrl] = useState(() => readAdminSettings().heroBannerUrl || '/assets/geometric-emerald.jpg');
+
+  useEffect(() => {
+    const syncBanner = () => {
+      setAdminBannerUrl(readAdminSettings().heroBannerUrl || '/assets/geometric-emerald.jpg');
+    };
+    window.addEventListener(ADMIN_SETTINGS_EVENT, syncBanner);
+    return () => window.removeEventListener(ADMIN_SETTINGS_EVENT, syncBanner);
+  }, []);
   const topic = TOPICS.find(item => item.id === topicId);
   const today = useMemo(() => verseOfTheDay(new Date()), []);
   const savedRef = useRef<HTMLElement>(null);
@@ -245,7 +270,7 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
         className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/35 bg-gradient-to-r from-[#041B14] via-[#0A2E23] to-[#041B14] shadow-[0_0_25px_rgba(212,175,55,0.08)]"
       >
         <img
-          src="/assets/geometric-emerald.jpg"
+          src={adminBannerUrl}
           alt=""
           className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[40%_center] sm:object-center"
         />

@@ -11,16 +11,25 @@ import {
 } from '../src/lib/verseImage.ts';
 import {
   addFaithWallReply,
+  answerScholarQuestion,
   CORE_DHIKR_REACTIONS,
   deleteFaithWallPost,
   formatPostTimestamp,
   getContextualNamesOfAllah,
+  listAllFaithWallPosts,
   listFaithWallPosts,
+  listScholarQuestions,
+  moderateFaithWallPost,
   packLines,
   parseReadingLink,
   publishFaithWallPost,
+  readAdminSettings,
   readingLinkHash,
+  resolveUserProfilePortfolio,
+  saveAdminSettings,
+  SEEDED_COMPLETED_PODCASTS,
   SEEDED_FAITH_WALL_POSTS,
+  submitScholarQuestion,
   toggleFaithWallBookmark,
   toggleFaithWallLike,
   toggleFaithWallReaction,
@@ -32,25 +41,32 @@ import {
 } from '../src/lib/verseShare.ts';
 import {
   addReplyToServerWallPost,
+  answerServerQuestion,
   AUTH_REQUIRED_MESSAGE,
   authenticateGoogleCredential,
   buildGoogleOAuthStart,
+  createServerQuestion,
   createServerWallPost,
   deleteServerWallPost,
   exchangeGoogleOAuthCode,
   getGoogleAuthConfig,
+  getServerAdminSettings,
+  getServerUserProfile,
   GOOGLE_CALLBACK_ALIASES,
   loginSeekerAccount,
+  moderateServerWallPost,
   reactToServerWallPost,
   registerSeekerAccount,
   requireSeekerAuth,
   resetSeekerStoreForTests,
   revokeSeekerToken,
   updateSeekerAccountProfile,
+  updateServerAdminSettings,
   updateServerWallPost,
   verifyGoogleOAuthState,
   verifySeekerToken,
 } from '../src/server/seekerAuth.ts';
+import { parseHash } from '../src/lib/route.ts';
 import {
   consumePendingRoute,
   deskLabelForHash,
@@ -523,6 +539,161 @@ test('social faith wall supports 5 themes, contextual Asma-ul-Husna engine, Dhik
   const srvReply = addReplyToServerWallPost(srvPost.id, 'Alḥamdulillāh for this reminder.', seeker.user);
   assert.equal(srvReply.authorName, 'Brother Feroz Ansar');
 });
+
+test('curated user profiles, 2-door controlled posting engine, and institutional admin cockpit work end-to-end', async () => {
+  resetSeekerStoreForTests();
+  writeSeekerSession(null);
+
+  // 1. Routes support #/profile, #/profile/:id, and #/admin
+  assert.equal(parseHash('#/profile').path, 'profile');
+  const handleLoc = parseHash('#/profile/ferozansar');
+  assert.equal(handleLoc.path, 'profile');
+  assert.deepEqual(handleLoc.segments, ['ferozansar']);
+  assert.equal(parseHash('#/admin').path, 'admin');
+
+  // 2. Strict 2-door rule on server: rejecting raw unanchored post
+  const adminSeeker = registerSeekerAccount({
+    email: 'feroz@dragondawwa.com',
+    password: 'admin-password',
+    name: 'FEROZ ANSAR',
+    kunyah: 'Lead Researcher',
+  });
+  assert.equal(adminSeeker.user.role, 'admin');
+
+  assert.throws(
+    () =>
+      createServerWallPost(
+        {
+          type: 'podcast',
+          podcastId: '',
+          podcastAudioUrl: '',
+          reflection: 'Freeform text with no anchor',
+        },
+        adminSeeker.user,
+      ),
+    /sacred anchor/i,
+  );
+
+  // 3. Door 2: Publishing a completed Research Podcast episode
+  const episode = SEEDED_COMPLETED_PODCASTS[0];
+  const podcastPost = await publishFaithWallPost({
+    type: 'podcast',
+    verse,
+    lang: 'en',
+    url: '#/podcast',
+    podcastId: episode.id,
+    podcastTitle: episode.title,
+    podcastAudioUrl: episode.audioUrl,
+    podcastDuration: episode.duration,
+    podcastCitations: episode.citations,
+    reflection: 'Key takeaways from this research synthesis.',
+    authorName: 'Brother Feroz Ansar',
+    theme: 'emerald',
+  });
+  assert.equal(podcastPost.type, 'podcast');
+  assert.equal(podcastPost.podcastId, episode.id);
+  assert.equal(podcastPost.status, 'approved');
+
+  // 4. User Profile Portfolio resolution (#/profile/brotherferozansar)
+  const ferozPortfolio = resolveUserProfilePortfolio('brotherferozansar');
+  assert.equal(ferozPortfolio.name, 'Brother Feroz Ansar');
+  assert.equal(ferozPortfolio.reflectionsCount >= 1, true);
+  assert.equal(ferozPortfolio.podcastsCount >= 1, true);
+  assert.equal(ferozPortfolio.approvedPosts.every(p => p.status !== 'pending' && p.status !== 'rejected'), true);
+
+  // 5. Admin Moderation Queue & review mode
+  const updatedSettings = await saveAdminSettings({
+    moderationMode: 'review',
+    heroBannerUrl: '/assets/banner-art.jpg',
+    deskPalette: 'amethyst-obsidian',
+  });
+  assert.equal(updatedSettings.moderationMode, 'review');
+  assert.equal(readAdminSettings().heroBannerUrl, '/assets/banner-art.jpg');
+
+  const pendingPost = await publishFaithWallPost({
+    type: 'reflection',
+    verse,
+    lang: 'en',
+    url: '#/quran/book?surah=2&ayah=255',
+    reflection: 'A reflection submitted while Require Admin Review is active.',
+    authorName: 'Seeker Pending',
+  });
+  assert.equal(pendingPost.status, 'pending');
+  assert.equal(listFaithWallPosts().some(p => p.id === pendingPost.id), false);
+  assert.equal(listAllFaithWallPosts(true).some(p => p.id === pendingPost.id && p.status === 'pending'), true);
+
+  await moderateFaithWallPost(pendingPost.id, { status: 'approved' });
+  assert.equal(listFaithWallPosts().some(p => p.id === pendingPost.id), true);
+
+  // Reset moderation mode back to instant
+  await saveAdminSettings({ moderationMode: 'instant' });
+
+  // 6. Official Institutional Broadcast (pinned to top of Faith Wall)
+  const broadcast = await publishFaithWallPost({
+    type: 'reflection',
+    verse,
+    lang: 'en',
+    url: '#/quran/book?surah=2&ayah=255',
+    reflection: 'Official Friday institutional reminder from the Research Desk.',
+    isPinned: true,
+    isOfficialBroadcast: true,
+    status: 'approved',
+  });
+  assert.equal(broadcast.isPinned, true);
+  assert.equal(broadcast.isOfficialBroadcast, true);
+  assert.equal(listFaithWallPosts()[0].id, broadcast.id);
+
+  // 7. Scholar Q&A Inbox (create & answer question on client & server)
+  const qClient = await submitScholarQuestion({
+    question: 'What is the ruling on combining prayers while traveling?',
+    language: 'en',
+  });
+  assert.equal(qClient.status, 'open');
+  await answerScholarQuestion({
+    id: qClient.id,
+    answer: 'Combining Dhuhr with Asr and Maghrib with Isha is an established Prophetic concession (rukhṣah) during travel.',
+    citations: ['Quran 4:101', 'Sahih Muslim 705'],
+    answeredBy: 'Shaykh Ahmad Al-Mansoor',
+  });
+  const answeredClient = listScholarQuestions().find(item => item.id === qClient.id);
+  assert.equal(answeredClient?.status, 'answered');
+  assert.equal(answeredClient?.answeredBy, 'Shaykh Ahmad Al-Mansoor');
+
+  // Server-side admin settings, moderation, and Q&A
+  updateServerAdminSettings({ moderationMode: 'review' });
+  assert.equal(getServerAdminSettings().moderationMode, 'review');
+  const srvPending = createServerWallPost(
+    {
+      type: 'reflection',
+      surah: 2,
+      ayah: 255,
+      arabic: verse.arabic,
+      translation: verse.translation,
+      reflection: 'Server pending post',
+    },
+    adminSeeker.user,
+  );
+  assert.equal(srvPending.status, 'pending');
+  const srvApproved = moderateServerWallPost(srvPending.id, { status: 'approved', isPinned: true });
+  assert.equal(srvApproved.status, 'approved');
+  assert.equal(srvApproved.isPinned, true);
+
+  const srvProf = getServerUserProfile(adminSeeker.user.id);
+  assert.equal(srvProf?.profile.name, 'FEROZ ANSAR');
+  assert.equal(srvProf?.posts.length, 1);
+
+  const srvQ = createServerQuestion({ question: 'How is Zakah calculated on gold?' }, adminSeeker.user);
+  const srvAnswered = answerServerQuestion(
+    srvQ.id,
+    {
+      answer: '2.5% above the nisab of 85g of pure gold held for a lunar year.',
+      citations: ['Sahih Bukhari 1454'],
+    },
+    adminSeeker.user,
+  );
+  assert.equal(srvAnswered.status, 'answered');
+});
+
 
 
 

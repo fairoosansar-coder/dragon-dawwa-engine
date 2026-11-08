@@ -152,50 +152,85 @@ export function SeekerAccountPill({ variant = 'sidebar' }: { variant?: 'sidebar'
 
   if (variant === 'header') {
     return (
-      <button
-        type="button"
-        data-header-account-pill
-        onClick={() => openModal()}
-        className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/55 bg-[#073C30] px-3 py-1.5 text-xs font-semibold text-[#F5EEDC] shadow-sm transition hover:border-[#D4AF37] hover:bg-[#0A2E23]"
-      >
-        <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#D4AF37]/45 bg-[#031812]">
-          {user ? (
-            <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={13} />
-          ) : (
-            <LogIn className="h-3 w-3 text-[#D4AF37]" aria-hidden />
-          )}
-        </span>
-        <span className="max-w-[7.5rem] truncate">{user ? user.name : 'Sign in'}</span>
-      </button>
+      <div className="inline-flex items-center gap-1.5">
+        {user && (
+          <a
+            href="#/profile"
+            data-header-profile-link
+            title="Open My Profile Portfolio"
+            className="hidden items-center gap-1 rounded-full border border-[#D4AF37]/40 bg-[#04241C] px-2.5 py-1.5 text-[11px] font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37] sm:inline-flex"
+          >
+            <User className="h-3 w-3 text-[#D4AF37]" aria-hidden />
+            <span>Profile</span>
+          </a>
+        )}
+        <button
+          type="button"
+          data-header-account-pill
+          onClick={() => openModal()}
+          className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/55 bg-[#073C30] px-3 py-1.5 text-xs font-semibold text-[#F5EEDC] shadow-sm transition hover:border-[#D4AF37] hover:bg-[#0A2E23]"
+        >
+          <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#D4AF37]/45 bg-[#031812]">
+            {user ? (
+              <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={13} />
+            ) : (
+              <LogIn className="h-3 w-3 text-[#D4AF37]" aria-hidden />
+            )}
+          </span>
+          <span className="max-w-[7.5rem] truncate">{user ? user.name : 'Sign in'}</span>
+        </button>
+      </div>
     );
   }
 
   return (
-    <button
-      type="button"
-      data-seeker-account-pill
-      onClick={() => openModal()}
-      className="mb-2 flex w-full items-center gap-2.5 rounded-2xl border border-[#C6A15A]/45 bg-[#04241C] px-3 py-2.5 text-left text-[#F5EEDC] shadow-sm transition hover:border-[#D4AF37] hover:bg-[#0A2E23]"
-    >
-      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D4AF37]/45 bg-[#073C30]">
-        {user ? (
-          <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={18} />
-        ) : (
-          <User className="h-4 w-4 text-[#D4AF37]" aria-hidden />
-        )}
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <p className="truncate text-xs font-semibold text-[#F9E7B9]">
-            {user ? user.name : 'Sign in · My Wall'}
+    <div className="mb-2 space-y-1.5">
+      <button
+        type="button"
+        data-seeker-account-pill
+        onClick={() => openModal()}
+        className="flex w-full items-center gap-2.5 rounded-2xl border border-[#C6A15A]/45 bg-[#04241C] px-3 py-2.5 text-left text-[#F5EEDC] shadow-sm transition hover:border-[#D4AF37] hover:bg-[#0A2E23]"
+      >
+        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D4AF37]/45 bg-[#073C30]">
+          {user ? (
+            <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={18} />
+          ) : (
+            <User className="h-4 w-4 text-[#D4AF37]" aria-hidden />
+          )}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <p className="truncate text-xs font-semibold text-[#F9E7B9]">
+              {user ? user.name : 'Sign in · My Wall'}
+            </p>
+            {user?.verified && <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[#D4AF37]" aria-hidden />}
+          </div>
+          <p className="truncate text-[11px] text-[#F5EEDC]/70">
+            {user ? user.kunyah : 'Personal Faith Wall & Session'}
           </p>
-          {user?.verified && <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[#D4AF37]" aria-hidden />}
         </div>
-        <p className="truncate text-[11px] text-[#F5EEDC]/70">
-          {user ? user.kunyah : 'Personal Faith Wall & Session'}
-        </p>
-      </div>
-    </button>
+      </button>
+      {user && (
+        <div className="grid grid-cols-2 gap-1.5">
+          <a
+            href="#/profile"
+            data-sidebar-profile-link
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#C6A15A]/35 bg-[#04241C]/90 px-2.5 py-1.5 text-[11px] font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37] hover:bg-[#0A2E23]"
+          >
+            <User className="h-3 w-3 text-[#D4AF37]" aria-hidden />
+            <span>My Profile</span>
+          </a>
+          <a
+            href="#/admin"
+            data-sidebar-admin-link
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#C6A15A]/35 bg-[#04241C]/90 px-2.5 py-1.5 text-[11px] font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37] hover:bg-[#0A2E23]"
+          >
+            <ShieldCheck className="h-3 w-3 text-[#D4AF37]" aria-hidden />
+            <span>Admin</span>
+          </a>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -611,12 +646,28 @@ export function SeekerAuthModal() {
 
               <div className="flex flex-wrap items-center gap-2">
                 <a
+                  href="#/profile"
+                  onClick={closeModal}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-[#D4AF37]/50 bg-[#0A2E23] px-3.5 py-2 text-xs font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37]"
+                >
+                  <User className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                  <span>My Profile</span>
+                </a>
+                <a
+                  href="#/admin"
+                  onClick={closeModal}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-[#D4AF37]/50 bg-[#0A2E23] px-3.5 py-2 text-xs font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37]"
+                >
+                  <ShieldCheck className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                  <span>Admin Cockpit</span>
+                </a>
+                <a
                   href="#/quran/wall"
                   onClick={closeModal}
                   className="inline-flex items-center gap-1.5 rounded-xl border border-[#D4AF37]/50 bg-[#0A2E23] px-3.5 py-2 text-xs font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37]"
                 >
                   <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-                  <span>Open My Faith Wall</span>
+                  <span>Faith Wall</span>
                 </a>
                 <button
                   type="submit"

@@ -22,6 +22,8 @@ const SpiritualSection = lazy(() => import('./spiritual/SpiritualSection.tsx'));
 const PodcastStudio = lazy(() => import('./views/PodcastStudio.tsx'));
 const BooksLibrary = lazy(() => import('./views/BooksLibrary.tsx'));
 const ResearchPodcasts = lazy(() => import('./views/ResearchPodcasts.tsx'));
+const UserProfileView = lazy(() => import('./views/UserProfileView.tsx'));
+const AdminDashboard = lazy(() => import('./views/AdminDashboard.tsx'));
 const ResearchDesk = lazy(() => import('./views/ResearchDesk.tsx').then(module => ({ default: module.ResearchDesk })));
 
 export interface ViewProps {
@@ -44,6 +46,8 @@ const ROUTES: Route[] = [
   { path: 'spiritual', label: 'navSpiritual', view: SpiritualSection },
   { path: 'studio', label: 'navStudio', view: PodcastStudio },
   { path: 'podcast', label: 'navPodcast', view: ResearchPodcasts },
+  { path: 'profile', label: 'navProfile', view: UserProfileView },
+  { path: 'admin', label: 'navAdmin', view: AdminDashboard },
 ];
 
 interface Location {

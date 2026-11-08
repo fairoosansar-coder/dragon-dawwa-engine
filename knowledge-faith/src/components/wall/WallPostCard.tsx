@@ -6,8 +6,12 @@ import {
   Check,
   Copy,
   Edit3,
+  Headphones,
   MessageCircle,
   MoreHorizontal,
+  Pause,
+  Pin,
+  Play,
   Plus,
   Send,
   Share2,
@@ -16,6 +20,7 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react';
+import { pauseAudio, playAudio, useAudioState } from '../../lib/audio.ts';
 import { SeekerAvatar } from '../SeekerAuthModal.tsx';
 import { ThemeSwatches } from './ReflectionModal.tsx';
 import {
@@ -79,16 +84,25 @@ export function WallPostCard({
   const [isEditing, setIsEditing] = useState(false);
   const [editingDraft, setEditingDraft] = useState(post.reflection);
   const [editingTheme, setEditingTheme] = useState<WallPostTheme>(sanitizeWallTheme(post.theme));
+  const audio = useAudioState();
 
   const themeKey = sanitizeWallTheme(post.theme);
   const themeSpec = WALL_THEMES[themeKey];
-  const badge = formatVerseCardBadge({
-    surah: post.surah,
-    ayah: post.ayah,
-    surahName: post.surahName,
-  });
+  const badge = post.hadithCollection
+    ? `✦ ${post.hadithCollection.toUpperCase()} #${post.hadithNumber ?? 1}`
+    : formatVerseCardBadge({
+        surah: post.surah,
+        ayah: post.ayah,
+        surahName: post.surahName,
+      });
   const quoted = formatQuotedTranslation(post.translation);
   const timestamp = formatPostTimestamp(post.createdAt);
+  const profileSlug = encodeURIComponent(
+    (post.userId || post.authorHandle || post.authorName || 'me').replace(/^@/, ''),
+  );
+  const profileHref = `#/profile/${profileSlug}`;
+  const podcastAudioId = `wall-pod-audio-${post.id}`;
+  const podcastPlaying = audio.id === podcastAudioId && (audio.status === 'playing' || audio.status === 'loading');
 
   const contextualNames = getContextualNamesOfAllah(
     post.surah,
@@ -164,18 +178,44 @@ export function WallPostCard({
     <article
       data-faith-wall-card={post.id}
       data-post-theme={themeKey}
-      className="rounded-2xl border border-stone-200/80 bg-white p-5 text-stone-900 shadow-sm transition hover:border-stone-300/90 sm:p-6"
+      data-post-type={post.type ?? 'reflection'}
+      className={`rounded-2xl border bg-white p-5 text-stone-900 shadow-sm transition sm:p-6 ${
+        post.isPinned || post.isOfficialBroadcast
+          ? 'border-[#C6A15A]/70 ring-1 ring-[#C6A15A]/30'
+          : 'border-stone-200/80 hover:border-stone-300/90'
+      }`}
     >
+      {/* Pinned / Official Broadcast Ribbon */}
+      {(post.isPinned || post.isOfficialBroadcast) && (
+        <div
+          data-official-broadcast-badge={post.id}
+          className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#C6A15A]/45 bg-[#073C30] px-3.5 py-1.5 text-xs font-semibold text-[#F9E7B9]"
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+            <span>✦ Official Institutional Broadcast</span>
+          </span>
+          {post.isPinned && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-[#D4AF37]">
+              <Pin className="h-3 w-3" aria-hidden />
+              <span>Pinned</span>
+            </span>
+          )}
+        </div>
+      )}
+
       {/* 1. Top Social Header */}
       <header
         data-wall-post-header={post.id}
         className="flex items-start justify-between gap-3"
       >
         <div className="flex min-w-0 items-center gap-3">
-          {/* User Avatar with Subtle Emerald Ring */}
-          <span
+          {/* Clickable User Avatar with Subtle Emerald Ring */}
+          <a
+            href={profileHref}
             data-post-avatar
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#073C30] text-[#F5EEDC] ring-2 ring-emerald-600/35"
+            title={`View ${post.authorName || 'Seeker'}’s profile`}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#073C30] text-[#F5EEDC] ring-2 ring-emerald-600/35 transition hover:ring-emerald-600"
           >
             <SeekerAvatar
               avatarUrl={post.authorAvatarUrl}
@@ -183,13 +223,18 @@ export function WallPostCard({
               emblem={post.authorEmblem}
               size={18}
             />
-          </span>
+          </a>
 
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-1.5">
-              <span data-post-author-name className="truncate text-sm font-semibold text-stone-900">
+              <a
+                href={profileHref}
+                data-post-author-name
+                data-post-author-link
+                className="truncate text-sm font-semibold text-stone-900 hover:text-[#073C30] hover:underline"
+              >
                 {post.authorName || 'Community Seeker'}
-              </span>
+              </a>
               <span
                 data-post-author-role
                 className="inline-flex items-center gap-1 rounded-full border border-emerald-800/15 bg-emerald-50/80 px-2 py-0.5 text-[11px] font-medium text-emerald-900"
@@ -205,6 +250,14 @@ export function WallPostCard({
               {owned && (
                 <span className="rounded-full bg-amber-100/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-900">
                   You
+                </span>
+              )}
+              {post.status === 'pending' && (
+                <span
+                  data-post-pending-badge
+                  className="rounded-full border border-amber-400 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-900"
+                >
+                  Pending Review
                 </span>
               )}
             </div>
@@ -349,7 +402,85 @@ export function WallPostCard({
         <div className="my-2" />
       )}
 
-      {/* 3. Attached 16:9 Illuminated Ayah Card (Embedded Media Asset) */}
+      {/* 3. Attached Sacred Anchor: Either Podcast Episode Player OR 16:9 Illuminated Ayah/Hadith Card */}
+      {post.type === 'podcast' ? (
+        <div
+          data-wall-podcast-card={post.id}
+          className={`relative flex flex-col justify-between overflow-hidden rounded-xl border border-[#D4AF37]/35 p-4 text-[#F3E8C8] shadow-sm sm:p-5 ${themeSpec.classes}`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-wider text-[#D4AF37]">
+            <span className="inline-flex items-center gap-1.5">
+              <Headphones className="h-3.5 w-3.5" aria-hidden />
+              <span>Research Podcast Episode</span>
+            </span>
+            <span>{post.podcastDuration || '06:42'}</span>
+          </div>
+
+          <h4 className="mt-2 font-display text-base font-bold text-white sm:text-lg">
+            {post.podcastTitle || `Roundtable on Surah ${post.surahName} ${post.surah}:${post.ayah}`}
+          </h4>
+
+          {/* Interactive Audio Waveform Bar */}
+          <div className="mt-3 flex items-center gap-3 rounded-xl border border-[#D4AF37]/30 bg-[#031812]/80 px-3.5 py-2.5">
+            <button
+              type="button"
+              data-wall-podcast-play={post.id}
+              aria-label={podcastPlaying ? 'Pause podcast' : 'Play podcast'}
+              onClick={() => {
+                if (podcastPlaying) pauseAudio();
+                else {
+                  void playAudio(
+                    podcastAudioId,
+                    post.podcastAudioUrl || 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/1.mp3',
+                  );
+                }
+              }}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#D4AF37] text-[#031812] shadow-sm transition hover:bg-[#e3c14d]"
+            >
+              {podcastPlaying ? (
+                <Pause className="h-4 w-4 fill-current" aria-hidden />
+              ) : (
+                <Play className="h-4 w-4 fill-current" aria-hidden />
+              )}
+            </button>
+
+            <div className="flex flex-1 items-center gap-1 overflow-hidden" aria-hidden>
+              {[35, 65, 45, 80, 55, 90, 40, 70, 60, 85, 50, 75, 45, 65, 35, 60, 80, 50, 40, 72].map((h, idx) => (
+                <span
+                  key={idx}
+                  style={{ height: `${Math.round(h * 0.24)}px` }}
+                  className={`w-1.5 rounded-full transition-colors ${
+                    podcastPlaying && idx % 2 === 0 ? 'bg-emerald-400' : 'bg-[#D4AF37]/75'
+                  }`}
+                />
+              ))}
+            </div>
+
+            <span className="font-mono text-xs text-[#D4AF37]">
+              {post.podcastDuration || '06:42'}
+            </span>
+          </div>
+
+          {/* Key Citations */}
+          {(post.podcastCitations?.length ?? 0) > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              {post.podcastCitations!.map(cite => (
+                <span
+                  key={cite}
+                  className="rounded-full border border-[#D4AF37]/40 bg-[#D4AF37]/15 px-2.5 py-0.5 text-[10px] font-semibold text-[#F9E7B9]"
+                >
+                  ✦ {cite}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/15 pt-2 text-[10px] font-medium tracking-wide text-[#D4AF37]/75">
+            <span className="truncate">{BRAND_FOOTER_LEFT}</span>
+            <span className="shrink-0">{BRAND_FOOTER_RIGHT}</span>
+          </div>
+        </div>
+      ) : (
       <div
         data-wall-ayah-card={post.id}
         className={`relative flex min-h-[15.5rem] w-full flex-col justify-between overflow-hidden rounded-xl border border-[#D4AF37]/30 p-4 text-[#F3E8C8] shadow-sm sm:aspect-[16/9] sm:min-h-0 sm:p-6 ${themeSpec.classes}`}
@@ -419,6 +550,7 @@ export function WallPostCard({
           <span className="shrink-0">{BRAND_FOOTER_RIGHT}</span>
         </div>
       </div>
+      )}
 
       {/* 4. Modern Single-Row Social Action Bar */}
       <div

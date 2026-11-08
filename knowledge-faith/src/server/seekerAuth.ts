@@ -9,16 +9,20 @@ import { toLang, type Lang } from '../shared/sources.ts';
 export type SeekerEmblem = 'rub-el-hizb' | 'crescent-star' | 'octagon-rosette' | 'emerald-lamp';
 export type SeekerAuthProvider = 'email' | 'google' | 'apple' | 'guest';
 export type SeekerAuthMethod = 'google' | 'password' | 'studio';
+export type SeekerRole = 'seeker' | 'researcher' | 'scholar' | 'admin';
 
 export interface SeekerProfile {
   id: string;
   email: string;
   name: string;
+  handle?: string;
   kunyah: string;
   bio: string;
   emblem: SeekerEmblem;
   provider: SeekerAuthProvider;
   authProvider: SeekerAuthMethod;
+  role?: SeekerRole;
+  bannerUrl?: string | null;
   googleSub?: string | null;
   avatarUrl?: string | null;
   verified: boolean;
@@ -62,6 +66,8 @@ interface StoredAccount extends SeekerProfile {
 }
 
 export type WallPostTheme = 'emerald' | 'amethyst' | 'obsidian' | 'sapphire' | 'amber';
+export type WallPostType = 'reflection' | 'podcast';
+export type WallPostStatus = 'pending' | 'approved' | 'rejected';
 
 export interface StoredWallReply {
   id: string;
@@ -78,6 +84,10 @@ export interface StoredWallReply {
 export interface StoredWallPost {
   id: string;
   userId?: string;
+  type?: WallPostType;
+  status?: WallPostStatus;
+  isPinned?: boolean;
+  isOfficialBroadcast?: boolean;
   surah: number;
   ayah: number;
   surahName: string;
@@ -85,6 +95,14 @@ export interface StoredWallPost {
   translation: string;
   reflection: string;
   theme?: WallPostTheme;
+  podcastId?: string;
+  podcastTitle?: string;
+  podcastAudioUrl?: string;
+  podcastDuration?: string;
+  podcastCitations?: string[];
+  hadithCollection?: string;
+  hadithNumber?: number;
+  hadithGrade?: string;
   authorName: string;
   authorRole: string;
   authorEmblem?: SeekerEmblem;
@@ -100,6 +118,30 @@ export interface StoredWallPost {
   updatedAt?: string;
 }
 
+export type ModerationMode = 'instant' | 'review';
+export type DeskPaletteId = 'emerald-gold' | 'amethyst-obsidian' | 'parchment-slate';
+
+export interface AdminSettings {
+  moderationMode: ModerationMode;
+  heroBannerUrl: string;
+  deskPalette: DeskPaletteId;
+  updatedAt?: string;
+}
+
+export interface UnansweredQuestionRecord {
+  id: string;
+  userId?: string;
+  userName?: string;
+  question: string;
+  language: Lang;
+  status: 'open' | 'answered';
+  answer?: string;
+  answeredBy?: string;
+  citations?: string[];
+  createdAt: string;
+  answeredAt?: string;
+}
+
 const COOKIE_NAME = 'dd_seeker_token';
 const OAUTH_NONCE_COOKIE = 'dd_google_oauth_nonce';
 const EMBLEMS: readonly SeekerEmblem[] = ['rub-el-hizb', 'crescent-star', 'octagon-rosette', 'emerald-lamp'];
@@ -110,6 +152,12 @@ const accountsById = new Map<string, StoredAccount>();
 const accountsByGoogleSub = new Map<string, StoredAccount>();
 const revokedTokens = new Set<string>();
 const wallPosts: StoredWallPost[] = [];
+const unansweredQuestions: UnansweredQuestionRecord[] = [];
+let adminSettings: AdminSettings = {
+  moderationMode: 'instant',
+  heroBannerUrl: '/assets/banner-art.jpg',
+  deskPalette: 'emerald-gold',
+};
 let storeLoaded = false;
 
 function secretKey(): string {
@@ -212,6 +260,8 @@ function loadStore() {
     const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as {
       accounts?: StoredAccount[];
       posts?: StoredWallPost[];
+      adminSettings?: Partial<AdminSettings>;
+      questions?: UnansweredQuestionRecord[];
     };
     if (Array.isArray(raw.accounts)) {
       for (const acc of raw.accounts) {
@@ -222,6 +272,7 @@ function loadStore() {
             authProvider: sanitizeAuthMethod(acc.authProvider, sanitizeProvider(acc.provider)),
             googleSub: typeof acc.googleSub === 'string' && acc.googleSub ? acc.googleSub : null,
             avatarUrl: sanitizeAvatarUrl(acc.avatarUrl),
+            bannerUrl: sanitizeAvatarUrl(acc.bannerUrl) || '/assets/banner-art.jpg',
           };
           indexAccount(normalized);
         }
@@ -229,6 +280,22 @@ function loadStore() {
     }
     if (Array.isArray(raw.posts)) {
       wallPosts.splice(0, wallPosts.length, ...raw.posts.slice(0, 100));
+    }
+    if (raw.adminSettings && typeof raw.adminSettings === 'object') {
+      adminSettings = {
+        moderationMode: raw.adminSettings.moderationMode === 'review' ? 'review' : 'instant',
+        heroBannerUrl:
+          typeof raw.adminSettings.heroBannerUrl === 'string' && raw.adminSettings.heroBannerUrl
+            ? raw.adminSettings.heroBannerUrl
+            : '/assets/banner-art.jpg',
+        deskPalette:
+          raw.adminSettings.deskPalette === 'amethyst-obsidian' || raw.adminSettings.deskPalette === 'parchment-slate'
+            ? raw.adminSettings.deskPalette
+            : 'emerald-gold',
+      };
+    }
+    if (Array.isArray(raw.questions)) {
+      unansweredQuestions.splice(0, unansweredQuestions.length, ...raw.questions.slice(0, 100));
     }
   } catch {
     /* ignore corrupted file */
@@ -245,6 +312,8 @@ function saveStore() {
         {
           accounts: [...accountsById.values()],
           posts: wallPosts.slice(0, 100),
+          adminSettings,
+          questions: unansweredQuestions.slice(0, 100),
         },
         null,
         2,
@@ -259,16 +328,29 @@ function hashPassword(password: string, salt: string): string {
   return crypto.scryptSync(password, salt, 32).toString('hex');
 }
 
+function inferRole(email: string, name: string, explicitRole?: unknown): SeekerRole {
+  if (explicitRole === 'admin' || explicitRole === 'scholar' || explicitRole === 'researcher' || explicitRole === 'seeker') {
+    return explicitRole;
+  }
+  if (/feroz|fairoos|admin/i.test(email) || /feroz|fairoos/i.test(name)) {
+    return 'admin';
+  }
+  return 'seeker';
+}
+
 function toPublicProfile(account: StoredAccount): SeekerProfile {
   return {
     id: account.id,
     email: account.email,
     name: account.name,
+    handle: account.handle || `@${account.name.toLowerCase().replace(/[^a-z0-9]+/g, '') || 'seeker'}`,
     kunyah: account.kunyah,
     bio: account.bio,
     emblem: account.emblem,
     provider: account.provider,
     authProvider: account.authProvider,
+    role: account.role ?? inferRole(account.email, account.name),
+    bannerUrl: account.bannerUrl ?? '/assets/banner-art.jpg',
     googleSub: account.googleSub ?? null,
     avatarUrl: account.avatarUrl ?? null,
     verified: account.verified,
@@ -282,11 +364,14 @@ export function issueSeekerToken(profile: SeekerProfile): string {
       sub: profile.id,
       email: profile.email,
       name: profile.name,
+      handle: profile.handle,
       kunyah: profile.kunyah,
       bio: profile.bio,
       emblem: profile.emblem,
       provider: profile.provider,
       authProvider: profile.authProvider,
+      role: profile.role ?? inferRole(profile.email, profile.name),
+      bannerUrl: profile.bannerUrl ?? '/assets/banner-art.jpg',
       googleSub: profile.googleSub ?? null,
       avatarUrl: profile.avatarUrl ?? null,
       verified: profile.verified,
@@ -319,15 +404,19 @@ export function verifySeekerToken(token: string | null | undefined): SeekerProfi
     const stored = accountsById.get(id);
     if (stored) return toPublicProfile(stored);
     const provider = sanitizeProvider(decoded.provider);
+    const name = typeof decoded.name === 'string' && decoded.name ? decoded.name : 'Community Seeker';
     return {
       id,
       email,
-      name: typeof decoded.name === 'string' && decoded.name ? decoded.name : 'Community Seeker',
+      name,
+      handle: typeof decoded.handle === 'string' ? decoded.handle : `@${name.toLowerCase().replace(/[^a-z0-9]+/g, '') || 'seeker'}`,
       kunyah: typeof decoded.kunyah === 'string' && decoded.kunyah ? decoded.kunyah : 'Seeker of Knowledge',
       bio: typeof decoded.bio === 'string' ? decoded.bio : '',
       emblem: sanitizeEmblem(decoded.emblem),
       provider,
       authProvider: sanitizeAuthMethod(decoded.authProvider, provider),
+      role: inferRole(email, name, decoded.role),
+      bannerUrl: typeof decoded.bannerUrl === 'string' && decoded.bannerUrl ? decoded.bannerUrl : '/assets/banner-art.jpg',
       googleSub: typeof decoded.googleSub === 'string' && decoded.googleSub ? decoded.googleSub : null,
       avatarUrl: sanitizeAvatarUrl(decoded.avatarUrl),
       verified: decoded.verified !== false,
@@ -860,7 +949,15 @@ export function loginSeekerAccount(input: {
 
 export function updateSeekerAccountProfile(
   current: SeekerProfile,
-  input: { name?: unknown; kunyah?: unknown; bio?: unknown; emblem?: unknown; avatarUrl?: unknown },
+  input: {
+    name?: unknown;
+    kunyah?: unknown;
+    bio?: unknown;
+    emblem?: unknown;
+    avatarUrl?: unknown;
+    bannerUrl?: unknown;
+    role?: unknown;
+  },
 ): { token: string; user: SeekerProfile } {
   loadStore();
   const stored = accountsById.get(current.id);
@@ -881,16 +978,24 @@ export function updateSeekerAccountProfile(
     input.avatarUrl !== undefined
       ? sanitizeAvatarUrl(input.avatarUrl)
       : stored?.avatarUrl ?? current.avatarUrl ?? null;
+  const bannerUrl =
+    typeof input.bannerUrl === 'string' && input.bannerUrl.trim()
+      ? input.bannerUrl.trim().slice(0, 500)
+      : stored?.bannerUrl ?? current.bannerUrl ?? '/assets/banner-art.jpg';
+  const role = inferRole(stored?.email ?? current.email, name, input.role ?? stored?.role ?? current.role);
 
   const updated: StoredAccount = {
     id: current.id,
     email: stored?.email ?? current.email,
     name,
+    handle: `@${name.toLowerCase().replace(/[^a-z0-9]+/g, '') || 'seeker'}`,
     kunyah,
     bio,
     emblem,
     provider: stored?.provider ?? current.provider,
     authProvider: stored?.authProvider ?? current.authProvider,
+    role,
+    bannerUrl,
     googleSub: stored?.googleSub ?? current.googleSub ?? null,
     avatarUrl,
     verified: true,
@@ -922,7 +1027,10 @@ export function revokeSeekerToken(token: string | null) {
 
 export function listServerWallPosts(): StoredWallPost[] {
   loadStore();
-  return [...wallPosts];
+  return [...wallPosts].sort((a, b) => {
+    if (Boolean(b.isPinned) !== Boolean(a.isPinned)) return b.isPinned ? 1 : -1;
+    return b.createdAt.localeCompare(a.createdAt);
+  });
 }
 
 function sanitizeTheme(value: unknown): WallPostTheme {
@@ -938,36 +1046,86 @@ function sanitizeTheme(value: unknown): WallPostTheme {
   return 'emerald';
 }
 
+export const SACRED_ANCHOR_REQUIRED_MESSAGE =
+  'Posts on the Faith Wall require a sacred anchor (a Qur’an/Hadith citation or a completed Research Podcast episode).';
+
 export function createServerWallPost(
   body: Record<string, unknown>,
   seeker: SeekerProfile | null,
 ): StoredWallPost {
   loadStore();
-  const surah = Number(body.surah);
-  const ayah = Number(body.ayah);
-  if (!Number.isInteger(surah) || surah < 1 || surah > 114 || !Number.isInteger(ayah) || ayah < 1 || ayah > 286) {
-    throw new UpstreamError('Valid surah and ayah are required.', 400);
+  const postType: WallPostType = body.type === 'podcast' ? 'podcast' : 'reflection';
+  const surah = Number(body.surah ?? 0);
+  const ayah = Number(body.ayah ?? 0);
+  const podcastId = typeof body.podcastId === 'string' ? body.podcastId.trim().slice(0, 120) : '';
+  const podcastTitle = typeof body.podcastTitle === 'string' ? body.podcastTitle.trim().slice(0, 240) : '';
+  const hadithCollection = typeof body.hadithCollection === 'string' ? body.hadithCollection.trim().slice(0, 80) : '';
+  const hadithNumber = Number(body.hadithNumber ?? 0);
+
+  if (postType === 'podcast') {
+    if (!podcastId && !podcastTitle) {
+      throw new UpstreamError(SACRED_ANCHOR_REQUIRED_MESSAGE, 400);
+    }
+  } else {
+    const validQuran = Number.isInteger(surah) && surah >= 1 && surah <= 114 && Number.isInteger(ayah) && ayah >= 1 && ayah <= 286;
+    const validHadith = Boolean(hadithCollection && Number.isInteger(hadithNumber) && hadithNumber >= 1);
+    if (!validQuran && !validHadith) {
+      throw new UpstreamError('Valid surah and ayah are required.', 400);
+    }
   }
+
+  const isOfficialBroadcast = Boolean(body.isOfficialBroadcast);
+  const isPinned = Boolean(body.isPinned || isOfficialBroadcast);
+  const defaultStatus: WallPostStatus =
+    isOfficialBroadcast || body.status === 'approved'
+      ? 'approved'
+      : body.status === 'pending' || adminSettings.moderationMode === 'review'
+        ? 'pending'
+        : 'approved';
+
   const id =
     typeof body.id === 'string' && /^[A-Za-z0-9._-]{4,120}$/.test(body.id)
       ? body.id
-      : `wall-${surah}-${ayah}-${Date.now()}`;
+      : postType === 'podcast'
+        ? `wall-pod-${Date.now()}`
+        : `wall-${surah || 1}-${ayah || 1}-${Date.now()}`;
+
   const post: StoredWallPost = {
     id,
     userId: seeker?.id ?? (typeof body.userId === 'string' ? body.userId.slice(0, 80) : undefined),
-    surah,
-    ayah,
-    surahName: String(body.surahName ?? '').slice(0, 120),
-    arabic: String(body.arabic ?? '').slice(0, 4000),
-    translation: String(body.translation ?? '').slice(0, 4000),
-    reflection: String(body.reflection ?? '').trim().slice(0, 600),
+    type: postType,
+    status: defaultStatus,
+    isPinned,
+    isOfficialBroadcast,
+    surah: Number.isInteger(surah) && surah >= 1 ? surah : 1,
+    ayah: Number.isInteger(ayah) && ayah >= 1 ? ayah : 1,
+    surahName: String(body.surahName ?? (postType === 'podcast' ? 'Research Podcast' : '')).slice(0, 120),
+    arabic: String(body.arabic ?? body.verse_text ?? '').slice(0, 4000),
+    translation: String(body.translation ?? body.translation_text ?? '').slice(0, 4000),
+    reflection: String(body.reflection ?? body.reflection_text ?? '').trim().slice(0, 500),
     theme: sanitizeTheme(body.theme),
-    authorName: seeker?.name ?? (String(body.authorName ?? '').trim().slice(0, 80) || 'Community Seeker'),
-    authorRole: seeker?.kunyah ?? (String(body.authorRole ?? '').trim().slice(0, 80) || 'Faith Wall Contributor'),
+    podcastId: podcastId || undefined,
+    podcastTitle: podcastTitle || undefined,
+    podcastAudioUrl: typeof body.podcastAudioUrl === 'string' ? body.podcastAudioUrl.slice(0, 500) : undefined,
+    podcastDuration: typeof body.podcastDuration === 'string' ? body.podcastDuration.slice(0, 40) : undefined,
+    podcastCitations: Array.isArray(body.podcastCitations)
+      ? body.podcastCitations.slice(0, 12).map(c => String(c).slice(0, 160))
+      : undefined,
+    hadithCollection: hadithCollection || undefined,
+    hadithNumber: Number.isInteger(hadithNumber) && hadithNumber > 0 ? hadithNumber : undefined,
+    hadithGrade: typeof body.hadithGrade === 'string' ? body.hadithGrade.slice(0, 80) : undefined,
+    authorName:
+      isOfficialBroadcast
+        ? String(body.authorName || 'Dragon Dawwa Editorial Board').slice(0, 80)
+        : seeker?.name ?? (String(body.authorName ?? '').trim().slice(0, 80) || 'Community Seeker'),
+    authorRole:
+      isOfficialBroadcast
+        ? '✦ Official Institutional Broadcast'
+        : seeker?.kunyah ?? (String(body.authorRole ?? '').trim().slice(0, 80) || 'Faith Wall Contributor'),
     authorEmblem: seeker?.emblem ?? sanitizeEmblem(body.authorEmblem),
     authorAvatarUrl: seeker?.avatarUrl ?? sanitizeAvatarUrl(body.authorAvatarUrl),
     authorAuthProvider: seeker?.authProvider ?? (body.authorAuthProvider === 'google' ? 'google' : undefined),
-    verified: Boolean(seeker),
+    verified: Boolean(seeker || isOfficialBroadcast),
     likes: typeof body.likes === 'number' && body.likes >= 0 ? Math.min(body.likes, 10000) : 1,
     reactions: { amin: 1 },
     replies: [],
@@ -983,6 +1141,134 @@ export function createServerWallPost(
   return post;
 }
 
+export function moderateServerWallPost(
+  postId: string,
+  patch: { status?: unknown; isPinned?: unknown; isOfficialBroadcast?: unknown },
+): StoredWallPost {
+  loadStore();
+  const post = wallPosts.find(item => item.id === postId);
+  if (!post) throw new UpstreamError('Faith Wall post not found.', 404);
+  if (patch.status === 'approved' || patch.status === 'rejected' || patch.status === 'pending') {
+    post.status = patch.status;
+  }
+  if (typeof patch.isPinned === 'boolean') {
+    post.isPinned = patch.isPinned;
+  }
+  if (typeof patch.isOfficialBroadcast === 'boolean') {
+    post.isOfficialBroadcast = patch.isOfficialBroadcast;
+  }
+  post.updatedAt = new Date().toISOString();
+  saveStore();
+  return post;
+}
+
+export function getServerAdminSettings(): AdminSettings {
+  loadStore();
+  return { ...adminSettings };
+}
+
+export function updateServerAdminSettings(patch: Partial<AdminSettings>): AdminSettings {
+  loadStore();
+  if (patch.moderationMode === 'instant' || patch.moderationMode === 'review') {
+    adminSettings.moderationMode = patch.moderationMode;
+  }
+  if (typeof patch.heroBannerUrl === 'string' && patch.heroBannerUrl.trim()) {
+    adminSettings.heroBannerUrl = patch.heroBannerUrl.trim().slice(0, 500);
+  }
+  if (
+    patch.deskPalette === 'emerald-gold' ||
+    patch.deskPalette === 'amethyst-obsidian' ||
+    patch.deskPalette === 'parchment-slate'
+  ) {
+    adminSettings.deskPalette = patch.deskPalette;
+  }
+  adminSettings.updatedAt = new Date().toISOString();
+  saveStore();
+  return { ...adminSettings };
+}
+
+export function listServerQuestions(): UnansweredQuestionRecord[] {
+  loadStore();
+  return [...unansweredQuestions];
+}
+
+export function createServerQuestion(
+  body: Record<string, unknown>,
+  seeker: SeekerProfile | null,
+): UnansweredQuestionRecord {
+  loadStore();
+  const question = typeof body.question === 'string' ? body.question.trim().slice(0, 1200) : '';
+  if (!question) throw new UpstreamError('Question text is required.', 400);
+  const record: UnansweredQuestionRecord = {
+    id: typeof body.id === 'string' && body.id ? body.id.slice(0, 80) : `q-${Date.now()}`,
+    userId: seeker?.id ?? (typeof body.userId === 'string' ? body.userId : undefined),
+    userName: seeker?.name ?? (typeof body.userName === 'string' ? body.userName : 'Community Seeker'),
+    question,
+    language: toLang(body.language ?? body.lang),
+    status: 'open',
+    createdAt: new Date().toISOString(),
+  };
+  unansweredQuestions.unshift(record);
+  if (unansweredQuestions.length > 100) unansweredQuestions.pop();
+  saveStore();
+  return record;
+}
+
+export function answerServerQuestion(
+  questionId: string,
+  body: Record<string, unknown>,
+  seeker: SeekerProfile | null,
+): UnansweredQuestionRecord {
+  loadStore();
+  const answer = typeof body.answer === 'string' ? body.answer.trim().slice(0, 4000) : '';
+  if (!answer) throw new UpstreamError('Scholar answer text is required.', 400);
+  let record = unansweredQuestions.find(q => q.id === questionId);
+  if (!record) {
+    record = {
+      id: questionId,
+      question: typeof body.question === 'string' ? body.question : 'Seeker Inquiry',
+      language: toLang(body.language),
+      status: 'answered',
+      createdAt: new Date().toISOString(),
+    };
+    unansweredQuestions.unshift(record);
+  }
+  record.status = 'answered';
+  record.answer = answer;
+  record.answeredBy =
+    seeker?.name || (typeof body.answeredBy === 'string' && body.answeredBy ? body.answeredBy : 'Institutional Scholarly Board');
+  if (Array.isArray(body.citations)) {
+    record.citations = body.citations.slice(0, 12).map(c => String(c).slice(0, 160));
+  }
+  record.answeredAt = new Date().toISOString();
+  saveStore();
+  return record;
+}
+
+export function getServerUserProfile(idOrHandle: string): {
+  profile: SeekerProfile;
+  posts: StoredWallPost[];
+} | null {
+  loadStore();
+  const clean = idOrHandle.replace(/^@/, '').toLowerCase();
+  let found: StoredAccount | undefined = accountsById.get(idOrHandle);
+  if (!found) {
+    for (const acc of accountsById.values()) {
+      const h = (acc.handle || acc.name).replace(/^@/, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+      if (acc.id.toLowerCase() === clean || h === clean || acc.name.toLowerCase() === clean) {
+        found = acc;
+        break;
+      }
+    }
+  }
+  if (!found) return null;
+  const profile = toPublicProfile(found);
+  const posts = wallPosts.filter(
+    p => (p.userId === profile.id || p.authorName === profile.name) && p.status !== 'rejected',
+  );
+  return { profile, posts };
+}
+
 export function updateServerWallPost(
   postId: string,
   reflection: string,
@@ -996,7 +1282,7 @@ export function updateServerWallPost(
   if (post.userId && post.userId !== seeker.id) {
     throw new UpstreamError('You can only edit reflections on your own Faith Wall.', 403);
   }
-  post.reflection = reflection.trim().slice(0, 600);
+  post.reflection = reflection.trim().slice(0, 500);
   if (theme !== undefined) {
     post.theme = sanitizeTheme(theme);
   }
@@ -1075,5 +1361,11 @@ export function resetSeekerStoreForTests() {
   accountsByGoogleSub.clear();
   revokedTokens.clear();
   wallPosts.length = 0;
+  unansweredQuestions.length = 0;
+  adminSettings = {
+    moderationMode: 'instant',
+    heroBannerUrl: '/assets/banner-art.jpg',
+    deskPalette: 'emerald-gold',
+  };
   storeLoaded = true;
 }
