@@ -1,5 +1,5 @@
 import type { Lang } from '../shared/sources.ts';
-import { wrapWords, type ShareVerse } from './verseShare.ts';
+import { sanitizeWallTheme, WALL_THEMES, wrapWords, type ShareVerse, type WallPostTheme } from './verseShare.ts';
 
 export const CARD_WIDTH = 1200;
 export const CARD_HEIGHT = 675;
@@ -120,11 +120,13 @@ function drawCornerOrnaments(ctx: CanvasRenderingContext2D) {
   ctx.restore();
 }
 
-function paintIlluminatedBackground(ctx: CanvasRenderingContext2D) {
+function paintIlluminatedBackground(ctx: CanvasRenderingContext2D, theme: WallPostTheme = 'emerald') {
+  const spec = WALL_THEMES[sanitizeWallTheme(theme)];
+  const [startHex, midHex, endHex] = spec.canvasStops;
   const grad = ctx.createLinearGradient(0, 0, CARD_WIDTH, CARD_HEIGHT);
-  grad.addColorStop(0, OBSIDIAN_START);
-  grad.addColorStop(0.5, EMERALD_MID);
-  grad.addColorStop(1, OBSIDIAN_END);
+  grad.addColorStop(0, startHex);
+  grad.addColorStop(0.5, midHex);
+  grad.addColorStop(1, endHex);
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
 
@@ -290,6 +292,7 @@ function paintCard(
   meaningSize: number,
   meaningGap: number,
   pageNote?: string,
+  theme: WallPostTheme = 'emerald',
 ): HTMLCanvasElement | null {
   const canvas = document.createElement('canvas');
   canvas.width = CARD_WIDTH;
@@ -297,7 +300,7 @@ function paintCard(
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  paintIlluminatedBackground(ctx);
+  paintIlluminatedBackground(ctx, theme);
   paintHeaderAndFooter(ctx, badgeText, pageNote);
 
   const topBound = 122;
@@ -399,6 +402,7 @@ function stackCards(cards: HTMLCanvasElement[]): HTMLCanvasElement | null {
 export async function renderVerseImage(
   verse: ShareVerse,
   lang: Lang,
+  theme: WallPostTheme = 'emerald',
 ): Promise<{ cards: string[]; sheet: string } | { error: string }> {
   if (typeof document === 'undefined') {
     return { error: 'The verse image could not be drawn because a required font did not load.' };
@@ -448,6 +452,8 @@ export async function renderVerseImage(
       meaningFamily,
       chosen.meaningSize,
       chosen.meaningGap,
+      undefined,
+      theme,
     );
     if (!single) return { error: 'The verse image could not be drawn because a required font did not load.' };
     const dataUrl = single.toDataURL('image/png');
@@ -480,6 +486,7 @@ export async function renderVerseImage(
       chosen.meaningSize,
       chosen.meaningGap,
       totalPages > 1 ? `${i + 1}/${totalPages}` : undefined,
+      theme,
     );
     if (!card) return { error: 'The verse image could not be drawn because a required font did not load.' };
     cards.push(card);

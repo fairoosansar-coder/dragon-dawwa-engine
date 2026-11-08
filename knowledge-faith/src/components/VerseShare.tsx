@@ -17,10 +17,13 @@ import {
   publishFaithWallPost,
   readingLinkHash,
   verseShareText,
+  WALL_THEMES,
   type FaithWallPost,
   type ShareVerse,
+  type WallPostTheme,
 } from '../lib/verseShare.ts';
 import type { Lang } from '../shared/sources.ts';
+import { ThemeSwatches } from './wall/ReflectionModal.tsx';
 
 async function writeClipboard(value: string): Promise<boolean> {
   try {
@@ -82,6 +85,7 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
   const [socialDrawerOpen, setSocialDrawerOpen] = useState(false);
   const [wallOpen, setWallOpen] = useState(false);
   const [reflection, setReflection] = useState('');
+  const [cardTheme, setCardTheme] = useState<WallPostTheme>('emerald');
   const [wallToast, setWallToast] = useState<string | null>(null);
   const [wallPosts, setWallPosts] = useState<FaithWallPost[]>(() => listFaithWallPosts());
 
@@ -161,7 +165,7 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
     setNote(null);
     setWallToast(null);
     setDrawing(true);
-    const drawn = await renderVerseImage(verse, lang);
+    const drawn = await renderVerseImage(verse, lang, cardTheme);
     setDrawing(false);
     if ('error' in drawn) {
       setPreview(null);
@@ -171,15 +175,12 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
   };
 
   const downloadCard = async () => {
-    let target = preview;
-    if (!target) {
-      setDrawing(true);
-      const drawn = await renderVerseImage(verse, lang);
-      setDrawing(false);
-      if (!('error' in drawn)) {
-        target = drawn;
-        setPreview(drawn);
-      }
+    setDrawing(true);
+    const drawn = await renderVerseImage(verse, lang, cardTheme);
+    setDrawing(false);
+    let target = !('error' in drawn) ? drawn : preview;
+    if (!('error' in drawn)) {
+      setPreview(drawn);
     }
     if (!target) {
       setWallToast(t.shareImageFailed);
@@ -220,6 +221,7 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
       lang,
       url,
       reflection,
+      theme: cardTheme,
       cardDataUrl: preview?.cards[0],
     });
     setWallPosts(listFaithWallPosts().length ? listFaithWallPosts() : [posted]);
@@ -326,10 +328,8 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
             {/* 16:9 Illuminated Manuscript Card Live Preview */}
             <div
               data-verse-studio-card
-              style={{
-                background: 'linear-gradient(135deg, #031812 0%, #0A2E23 50%, #041812 100%)',
-              }}
-              className="relative flex min-h-[14.5rem] w-full flex-col justify-between overflow-hidden rounded-2xl border-2 border-[#D4AF37]/50 p-3.5 shadow-inner sm:aspect-[16/9] sm:min-h-0 sm:p-8"
+              data-studio-theme={cardTheme}
+              className={`relative flex min-h-[14.5rem] w-full flex-col justify-between overflow-hidden rounded-2xl border-2 p-3.5 shadow-inner sm:aspect-[16/9] sm:min-h-0 sm:p-8 ${WALL_THEMES[cardTheme].classes}`}
             >
               {/* Inner Second Gold Frame Line */}
               <div
@@ -419,6 +419,12 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
             {drawing && (
               <p className="mt-2 text-xs text-[#D4AF37]/80">Rendering 1200×675 HD canvas…</p>
             )}
+
+            {/* Theme Selector inside Studio Modal */}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-medium text-[#D4AF37]">Card Theme:</span>
+              <ThemeSwatches selected={cardTheme} onSelect={setCardTheme} />
+            </div>
 
             {/* Primary Studio Action Buttons */}
             <div className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-3">

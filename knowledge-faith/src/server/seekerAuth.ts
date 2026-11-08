@@ -61,6 +61,20 @@ interface StoredAccount extends SeekerProfile {
   salt: string;
 }
 
+export type WallPostTheme = 'emerald' | 'amethyst' | 'obsidian' | 'sapphire' | 'amber';
+
+export interface StoredWallReply {
+  id: string;
+  postId: string;
+  userId?: string;
+  authorName: string;
+  authorRole: string;
+  authorEmblem?: SeekerEmblem;
+  authorAvatarUrl?: string | null;
+  text: string;
+  createdAt: string;
+}
+
 export interface StoredWallPost {
   id: string;
   userId?: string;
@@ -70,6 +84,7 @@ export interface StoredWallPost {
   arabic: string;
   translation: string;
   reflection: string;
+  theme?: WallPostTheme;
   authorName: string;
   authorRole: string;
   authorEmblem?: SeekerEmblem;
@@ -77,6 +92,8 @@ export interface StoredWallPost {
   authorAuthProvider?: SeekerAuthMethod;
   verified?: boolean;
   likes: number;
+  reactions?: Record<string, number>;
+  replies?: StoredWallReply[];
   lang: Lang;
   url: string;
   createdAt: string;
@@ -908,6 +925,19 @@ export function listServerWallPosts(): StoredWallPost[] {
   return [...wallPosts];
 }
 
+function sanitizeTheme(value: unknown): WallPostTheme {
+  if (
+    value === 'emerald' ||
+    value === 'amethyst' ||
+    value === 'obsidian' ||
+    value === 'sapphire' ||
+    value === 'amber'
+  ) {
+    return value;
+  }
+  return 'emerald';
+}
+
 export function createServerWallPost(
   body: Record<string, unknown>,
   seeker: SeekerProfile | null,
@@ -931,6 +961,7 @@ export function createServerWallPost(
     arabic: String(body.arabic ?? '').slice(0, 4000),
     translation: String(body.translation ?? '').slice(0, 4000),
     reflection: String(body.reflection ?? '').trim().slice(0, 600),
+    theme: sanitizeTheme(body.theme),
     authorName: seeker?.name ?? (String(body.authorName ?? '').trim().slice(0, 80) || 'Community Seeker'),
     authorRole: seeker?.kunyah ?? (String(body.authorRole ?? '').trim().slice(0, 80) || 'Faith Wall Contributor'),
     authorEmblem: seeker?.emblem ?? sanitizeEmblem(body.authorEmblem),
@@ -938,6 +969,8 @@ export function createServerWallPost(
     authorAuthProvider: seeker?.authProvider ?? (body.authorAuthProvider === 'google' ? 'google' : undefined),
     verified: Boolean(seeker),
     likes: typeof body.likes === 'number' && body.likes >= 0 ? Math.min(body.likes, 10000) : 1,
+    reactions: { amin: 1 },
+    replies: [],
     lang: toLang(body.lang),
     url: String(body.url ?? '').slice(0, 400),
     createdAt: new Date().toISOString(),
@@ -954,6 +987,7 @@ export function updateServerWallPost(
   postId: string,
   reflection: string,
   seeker: SeekerProfile | null,
+  theme?: unknown,
 ): StoredWallPost {
   loadStore();
   if (!seeker) throw new UpstreamError('Sign in to edit your Faith Wall reflections.', 401);
@@ -963,6 +997,9 @@ export function updateServerWallPost(
     throw new UpstreamError('You can only edit reflections on your own Faith Wall.', 403);
   }
   post.reflection = reflection.trim().slice(0, 600);
+  if (theme !== undefined) {
+    post.theme = sanitizeTheme(theme);
+  }
   post.authorName = seeker.name;
   post.authorRole = seeker.kunyah;
   post.authorEmblem = seeker.emblem;
@@ -972,6 +1009,50 @@ export function updateServerWallPost(
   post.updatedAt = new Date().toISOString();
   saveStore();
   return post;
+}
+
+export function reactToServerWallPost(
+  postId: string,
+  reactionId: string,
+): { ok: true; postId: string; reactionId: string; count: number } {
+  loadStore();
+  const cleanId = reactionId.trim().slice(0, 64) || 'amin';
+  const post = wallPosts.find(item => item.id === postId);
+  if (post) {
+    post.reactions = post.reactions ?? {};
+    post.reactions[cleanId] = (post.reactions[cleanId] ?? 0) + 1;
+    post.likes = (post.likes ?? 0) + 1;
+    saveStore();
+    return { ok: true, postId, reactionId: cleanId, count: post.reactions[cleanId] };
+  }
+  return { ok: true, postId, reactionId: cleanId, count: 1 };
+}
+
+export function addReplyToServerWallPost(
+  postId: string,
+  text: string,
+  seeker: SeekerProfile | null,
+): StoredWallReply {
+  loadStore();
+  const cleaned = text.trim().slice(0, 500);
+  if (!cleaned) throw new UpstreamError('Reply text is required.', 400);
+  const reply: StoredWallReply = {
+    id: `reply-${postId}-${Date.now()}`,
+    postId,
+    userId: seeker?.id,
+    authorName: seeker?.name || 'Community Seeker',
+    authorRole: seeker?.kunyah || 'Seeker of Knowledge',
+    authorEmblem: seeker?.emblem ?? 'rub-el-hizb',
+    authorAvatarUrl: seeker?.avatarUrl ?? null,
+    text: cleaned,
+    createdAt: new Date().toISOString(),
+  };
+  const post = wallPosts.find(item => item.id === postId);
+  if (post) {
+    post.replies = [...(post.replies ?? []), reply].slice(-50);
+    saveStore();
+  }
+  return reply;
 }
 
 export function deleteServerWallPost(postId: string, seeker: SeekerProfile | null): { deleted: true; id: string } {
