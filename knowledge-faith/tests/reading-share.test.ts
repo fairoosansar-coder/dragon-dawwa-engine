@@ -10,19 +10,28 @@ import {
   formatVerseCardBadge,
 } from '../src/lib/verseImage.ts';
 import {
+  addFaithWallReply,
+  CORE_DHIKR_REACTIONS,
   deleteFaithWallPost,
+  formatPostTimestamp,
+  getContextualNamesOfAllah,
   listFaithWallPosts,
   packLines,
   parseReadingLink,
   publishFaithWallPost,
   readingLinkHash,
   SEEDED_FAITH_WALL_POSTS,
+  toggleFaithWallBookmark,
   toggleFaithWallLike,
+  toggleFaithWallReaction,
   updateFaithWallPost,
   verseShareText,
+  WALL_THEME_LIST,
+  WALL_THEMES,
   wrapWords,
 } from '../src/lib/verseShare.ts';
 import {
+  addReplyToServerWallPost,
   AUTH_REQUIRED_MESSAGE,
   authenticateGoogleCredential,
   buildGoogleOAuthStart,
@@ -32,6 +41,7 @@ import {
   getGoogleAuthConfig,
   GOOGLE_CALLBACK_ALIASES,
   loginSeekerAccount,
+  reactToServerWallPost,
   registerSeekerAccount,
   requireSeekerAuth,
   resetSeekerStoreForTests,
@@ -422,6 +432,98 @@ test('compulsory login gate intercepts internal routes when logged out and requi
   });
   assert.equal(nextCalled, true);
 });
+
+test('social faith wall supports 5 themes, contextual Asma-ul-Husna engine, Dhikr reactions, bookmarks, and replies', async () => {
+  resetSeekerStoreForTests();
+  writeSeekerSession(null);
+
+  // 1. Verify all 5 themes exist with expected gradient classes
+  assert.equal(WALL_THEME_LIST.length, 5);
+  assert.deepEqual(
+    WALL_THEME_LIST.map(t => t.id),
+    ['emerald', 'amethyst', 'obsidian', 'sapphire', 'amber'],
+  );
+  assert.match(WALL_THEMES.amethyst.classes, /from-\[#1A0B2E\]/);
+  assert.match(WALL_THEMES.sapphire.classes, /from-\[#051329\]/);
+  assert.match(WALL_THEMES.amber.classes, /from-\[#241407\]/);
+
+  // 2. Verify contextual Asma-ul-Husna detection for Tawhid/Kursi, Mercy, Relief, Knowledge, and Guidance
+  const kursiNames = getContextualNamesOfAllah(2, 255, verse.arabic + ' ' + verse.translation);
+  assert.equal(kursiNames.some(n => n.transliteration === 'Al-Aḥad'), true);
+  assert.equal(kursiNames.some(n => n.transliteration === 'Al-Qayyūm'), true);
+
+  const reliefNames = getContextualNamesOfAllah(94, 5, 'For indeed, with hardship comes ease.');
+  assert.equal(reliefNames.some(n => n.transliteration === 'Al-Fattāḥ'), true);
+  assert.equal(reliefNames.some(n => n.transliteration === 'Al-Laṭīf'), true);
+
+  const mercyNames = getContextualNamesOfAllah(39, 53, 'Allah forgives all sins; He is the Merciful.');
+  assert.equal(mercyNames.some(n => n.transliteration === 'Al-Ghafūr'), true);
+  assert.equal(mercyNames.some(n => n.transliteration === 'Ar-Raḥmān'), true);
+
+  const knowledgeNames = getContextualNamesOfAllah(20, 114, 'My Lord, increase me in knowledge and wisdom.');
+  assert.equal(knowledgeNames.some(n => n.transliteration === 'Al-ʿAlīm'), true);
+  assert.equal(knowledgeNames.some(n => n.transliteration === 'Al-Ḥakīm'), true);
+
+  assert.equal(CORE_DHIKR_REACTIONS.length, 5);
+
+  // 3. Verify timestamp formatting
+  const ts = formatPostTimestamp('2026-11-08T17:30:00.000Z', Date.parse('2026-11-08T19:30:00.000Z'));
+  assert.match(ts.absolute, /2026/);
+  assert.equal(ts.relative, '2h ago');
+
+  // 4. Publish post with amethyst theme, toggle Dhikr & Asma reactions, bookmark, and add reply
+  const post = await publishFaithWallPost({
+    verse,
+    lang: 'en',
+    url: '#/quran/book?surah=2&ayah=255',
+    reflection: 'Ayat al-Kursi in amethyst theme.',
+    theme: 'amethyst',
+  });
+  assert.equal(post.theme, 'amethyst');
+
+  const afterReact = toggleFaithWallReaction(post.id, 'asma:al_qayyum');
+  const reactedPost = afterReact.find(item => item.id === post.id);
+  assert.equal(reactedPost?.userReactions?.includes('asma:al_qayyum'), true);
+  assert.equal(reactedPost?.reactions?.['asma:al_qayyum'], 1);
+
+  const afterBookmark = toggleFaithWallBookmark(post.id);
+  assert.equal(afterBookmark.find(item => item.id === post.id)?.saved, true);
+
+  const reply = await addFaithWallReply(post.id, 'Māshā’Allāh, beautiful reflection!');
+  assert.equal(reply?.text, 'Māshā’Allāh, beautiful reflection!');
+  const withReplies = listFaithWallPosts().find(item => item.id === post.id);
+  assert.equal(withReplies?.replies?.some(r => r.id === reply?.id), true);
+
+  // 5. Server-side reaction and reply persistence
+  const seeker = registerSeekerAccount({
+    email: 'social@dragondawwa.com',
+    password: 'social-password',
+    name: 'Brother Feroz Ansar',
+    kunyah: 'Community Researcher',
+  });
+  const srvPost = createServerWallPost(
+    {
+      surah: 94,
+      ayah: 5,
+      surahName: 'Ash-Sharh',
+      arabic: 'فَإِنَّ مَعَ ٱلْعُسْرِ يُسْرًا',
+      translation: 'For indeed, with hardship comes ease.',
+      reflection: 'Relief accompanies hardship.',
+      theme: 'sapphire',
+      lang: 'en',
+      url: '#/quran/book?surah=94&ayah=5',
+    },
+    seeker.user,
+  );
+  assert.equal(srvPost.theme, 'sapphire');
+
+  const srvReact = reactToServerWallPost(srvPost.id, 'subhanallah');
+  assert.equal(srvReact.count, 1);
+
+  const srvReply = addReplyToServerWallPost(srvPost.id, 'Alḥamdulillāh for this reminder.', seeker.user);
+  assert.equal(srvReply.authorName, 'Brother Feroz Ansar');
+});
+
 
 
 

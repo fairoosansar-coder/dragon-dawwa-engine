@@ -355,6 +355,7 @@ export function SeekerAuthModal() {
         emblem,
       });
       setStatusNote('Signed in to your Personal Faith Wall session.');
+      closeModal();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not sign in.');
     } finally {
@@ -409,6 +410,7 @@ export function SeekerAuthModal() {
           ? 'Your Seeker account and Personal Faith Wall are ready!'
           : 'Welcome back to your Personal Faith Wall!',
       );
+      closeModal();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Authentication failed.');
     } finally {

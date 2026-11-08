@@ -2,6 +2,232 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Lang } from '../shared/sources.ts';
 import { readSeekerSession, sanitizeSeekerEmblem, type SeekerAuthMethod, type SeekerEmblem } from './seekerAuth.ts';
 
+export type WallPostTheme = 'emerald' | 'amethyst' | 'obsidian' | 'sapphire' | 'amber';
+
+export interface WallThemeSpec {
+  id: WallPostTheme;
+  label: string;
+  classes: string;
+  cssGradient: string;
+  canvasStops: [string, string, string];
+  accentHex: string;
+  pillBorderClass: string;
+}
+
+export const WALL_THEMES: Record<WallPostTheme, WallThemeSpec> = {
+  emerald: {
+    id: 'emerald',
+    label: 'Emerald',
+    classes: 'bg-gradient-to-br from-[#041B14] via-[#0A2E23] to-[#041B14] border-[#D4AF37]/35',
+    cssGradient: 'linear-gradient(135deg, #041B14 0%, #0A2E23 50%, #041B14 100%)',
+    canvasStops: ['#041B14', '#0A2E23', '#041B14'],
+    accentHex: '#D4AF37',
+    pillBorderClass: 'border-[#D4AF37]/45',
+  },
+  amethyst: {
+    id: 'amethyst',
+    label: 'Amethyst',
+    classes: 'bg-gradient-to-br from-[#1A0B2E] via-[#2A0845] to-[#120524] border-[#E0B0FF]/35',
+    cssGradient: 'linear-gradient(135deg, #1A0B2E 0%, #2A0845 50%, #120524 100%)',
+    canvasStops: ['#1A0B2E', '#2A0845', '#120524'],
+    accentHex: '#E0B0FF',
+    pillBorderClass: 'border-[#E0B0FF]/45',
+  },
+  obsidian: {
+    id: 'obsidian',
+    label: 'Obsidian',
+    classes: 'bg-gradient-to-br from-[#0B0F10] via-[#1A2326] to-[#0B0F10] border-stone-600/40',
+    cssGradient: 'linear-gradient(135deg, #0B0F10 0%, #1A2326 50%, #0B0F10 100%)',
+    canvasStops: ['#0B0F10', '#1A2326', '#0B0F10'],
+    accentHex: '#D4AF37',
+    pillBorderClass: 'border-stone-500/45',
+  },
+  sapphire: {
+    id: 'sapphire',
+    label: 'Sapphire',
+    classes: 'bg-gradient-to-br from-[#051329] via-[#0B2545] to-[#030D1B] border-sky-400/35',
+    cssGradient: 'linear-gradient(135deg, #051329 0%, #0B2545 50%, #030D1B 100%)',
+    canvasStops: ['#051329', '#0B2545', '#030D1B'],
+    accentHex: '#7DD3FC',
+    pillBorderClass: 'border-sky-400/45',
+  },
+  amber: {
+    id: 'amber',
+    label: 'Amber',
+    classes: 'bg-gradient-to-br from-[#241407] via-[#3D230D] to-[#1C0F05] border-amber-500/35',
+    cssGradient: 'linear-gradient(135deg, #241407 0%, #3D230D 50%, #1C0F05 100%)',
+    canvasStops: ['#241407', '#3D230D', '#1C0F05'],
+    accentHex: '#F59E0B',
+    pillBorderClass: 'border-amber-500/45',
+  },
+};
+
+export const WALL_THEME_LIST: WallThemeSpec[] = [
+  WALL_THEMES.emerald,
+  WALL_THEMES.amethyst,
+  WALL_THEMES.obsidian,
+  WALL_THEMES.sapphire,
+  WALL_THEMES.amber,
+];
+
+export function sanitizeWallTheme(value: unknown): WallPostTheme {
+  if (
+    value === 'emerald' ||
+    value === 'amethyst' ||
+    value === 'obsidian' ||
+    value === 'sapphire' ||
+    value === 'amber'
+  ) {
+    return value;
+  }
+  return 'emerald';
+}
+
+export interface DhikrReactionSpec {
+  id: string;
+  transliteration: string;
+  arabic: string;
+  meaning: string;
+  kind: 'dhikr' | 'asma';
+}
+
+export const CORE_DHIKR_REACTIONS: readonly DhikrReactionSpec[] = [
+  { id: 'mashaallah', transliteration: 'Māshā’Allāh', arabic: 'ما شاء الله', meaning: 'As Allah willed', kind: 'dhikr' },
+  { id: 'allahu_akbar', transliteration: 'Allāhu Akbar', arabic: 'الله أكبر', meaning: 'Allah is the Greatest', kind: 'dhikr' },
+  { id: 'subhanallah', transliteration: 'SubḥānAllāh', arabic: 'سبحان الله', meaning: 'Glory be to Allah', kind: 'dhikr' },
+  { id: 'alhamdulillah', transliteration: 'Alḥamdulillāh', arabic: 'الحمد لله', meaning: 'All praise is due to Allah', kind: 'dhikr' },
+  { id: 'amin', transliteration: 'Āmīn', arabic: 'آمين', meaning: 'O Allah, accept', kind: 'dhikr' },
+];
+
+export interface ContextualDivineName {
+  id: string;
+  transliteration: string;
+  arabic: string;
+  meaning: string;
+}
+
+const DIVINE_NAME_CATALOG: Record<string, ContextualDivineName> = {
+  al_ahad: { id: 'asma:al_ahad', transliteration: 'Al-Aḥad', arabic: 'الأَحَدُ', meaning: 'The One and Indivisible' },
+  al_qayyum: { id: 'asma:al_qayyum', transliteration: 'Al-Qayyūm', arabic: 'الْقَيُّومُ', meaning: 'The All-Sustaining' },
+  al_hayy: { id: 'asma:al_hayy', transliteration: 'Al-Ḥayy', arabic: 'الْحَيُّ', meaning: 'The Ever-Living' },
+  ar_rahman: { id: 'asma:ar_rahman', transliteration: 'Ar-Raḥmān', arabic: 'الرَّحْمَٰنُ', meaning: 'The Entirely Merciful' },
+  al_ghafur: { id: 'asma:al_ghafur', transliteration: 'Al-Ghafūr', arabic: 'الْغَفُورُ', meaning: 'The All-Forgiving' },
+  al_fattah: { id: 'asma:al_fattah', transliteration: 'Al-Fattāḥ', arabic: 'الْفَتَّاحُ', meaning: 'The Opener of Relief' },
+  al_latif: { id: 'asma:al_latif', transliteration: 'Al-Laṭīf', arabic: 'اللَّطِيفُ', meaning: 'The Subtle and Kind' },
+  al_alim: { id: 'asma:al_alim', transliteration: 'Al-ʿAlīm', arabic: 'الْعَلِيمُ', meaning: 'The All-Knowing' },
+  al_hakim: { id: 'asma:al_hakim', transliteration: 'Al-Ḥakīm', arabic: 'الْحَكِيمُ', meaning: 'The All-Wise' },
+  an_nur: { id: 'asma:an_nur', transliteration: 'An-Nūr', arabic: 'النُّورُ', meaning: 'The Light' },
+  al_hadi: { id: 'asma:al_hadi', transliteration: 'Al-Hādī', arabic: 'الْهَادِي', meaning: 'The Guide' },
+  as_sabur: { id: 'asma:as_sabur', transliteration: 'Aṣ-Ṣabūr', arabic: 'الصَّبُورُ', meaning: 'The Most Patient' },
+  al_wakil: { id: 'asma:al_wakil', transliteration: 'Al-Wakīl', arabic: 'الْوَكِيلُ', meaning: 'The Disposer of Affairs' },
+  ash_shakur: { id: 'asma:ash_shakur', transliteration: 'Ash-Shakūr', arabic: 'الشَّكُورُ', meaning: 'The Appreciative' },
+};
+
+/**
+ * Contextual Asma-ul-Husna engine: returns 2 to 3 Divine Names relevant to a verse's surah, ayah, and text/reflection.
+ */
+export function getContextualNamesOfAllah(
+  surah: number,
+  ayah: number,
+  content = '',
+): ContextualDivineName[] {
+  const picked: ContextualDivineName[] = [];
+  const add = (key: keyof typeof DIVINE_NAME_CATALOG) => {
+    const item = DIVINE_NAME_CATALOG[key];
+    if (item && !picked.some(p => p.id === item.id)) picked.push(item);
+  };
+
+  const lower = content.toLowerCase();
+
+  // Specific Surah & Ayah matches
+  if ((surah === 2 && ayah === 255) || surah === 112 || /kursi|tawhid|oneness|deity|slumber|قَيُّوم|أَحَد/i.test(content)) {
+    add('al_ahad');
+    add('al_qayyum');
+    add('al_hayy');
+  }
+  if ((surah === 20 && ayah === 114) || (surah === 2 && ayah === 269) || surah === 96 || /knowledge|wisdom|learn|teach|scholar|عِلْم|حِكْم/i.test(content)) {
+    add('al_alim');
+    add('al_hakim');
+  }
+  if (surah === 94 || (surah === 2 && ayah === 286) || /hardship|ease|relief|burden|trial|عُسْر|يُسْر|وُسْعَهَا/i.test(content)) {
+    add('al_fattah');
+    add('al_latif');
+  }
+  if (surah === 1 || (surah === 2 && ayah <= 5) || (surah === 24 && ayah === 35) || /guidance|light|straight path|mindful|righteous|هُدًى|نُور|صِرَٰط/i.test(content)) {
+    add('an_nur');
+    add('al_hadi');
+  }
+  if (/mercy|merciful|forgive|forgiveness|compassion|رَحْم|غَفُور|அருளாளன்|කරුණා/i.test(lower)) {
+    add('al_ghafur');
+    add('ar_rahman');
+  }
+  if (/patience|patient|sabr|persevere|trust|rely|صَبْر|وَكِيل|பொறுமை|ඉවසීම/i.test(lower)) {
+    add('as_sabur');
+    add('al_wakil');
+  }
+  if (/praise|gratitude|thankful|alhamdulillah|حَمْد|شَكُور|புகழ்|ನன்றி|ප්‍රශංසා/i.test(lower)) {
+    add('ash_shakur');
+    add('ar_rahman');
+  }
+
+  // Ensure 2 to 3 names are always returned
+  if (picked.length < 2) {
+    add('ar_rahman');
+    add('al_hadi');
+  }
+  if (picked.length < 2) {
+    add('al_qayyum');
+  }
+
+  return picked.slice(0, 3);
+}
+
+export function formatPostTimestamp(iso: string, nowMs = Date.now()): { absolute: string; relative: string; combined: string } {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) {
+      return { absolute: 'Nov 8, 2026 · 5:30 PM', relative: 'Recent', combined: 'Nov 8, 2026 · 5:30 PM' };
+    }
+    const datePart = d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    const timePart = d.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+    const absolute = `${datePart} · ${timePart}`;
+    const diffSec = Math.max(0, Math.floor((nowMs - d.getTime()) / 1000));
+    let relative = 'Just now';
+    if (diffSec >= 86400 * 7) {
+      relative = `${Math.floor(diffSec / (86400 * 7))}w ago`;
+    } else if (diffSec >= 86400) {
+      relative = `${Math.floor(diffSec / 86400)}d ago`;
+    } else if (diffSec >= 3600) {
+      relative = `${Math.floor(diffSec / 3600)}h ago`;
+    } else if (diffSec >= 60) {
+      relative = `${Math.floor(diffSec / 60)}m ago`;
+    }
+    return { absolute, relative, combined: `${absolute} (${relative})` };
+  } catch {
+    return { absolute: 'Nov 8, 2026 · 5:30 PM', relative: 'Recent', combined: 'Nov 8, 2026 · 5:30 PM' };
+  }
+}
+
+export interface FaithWallReply {
+  id: string;
+  postId: string;
+  userId?: string;
+  authorName: string;
+  authorRole: string;
+  authorEmblem?: SeekerEmblem;
+  authorAvatarUrl?: string | null;
+  text: string;
+  createdAt: string;
+}
+
 export interface ReadingLink {
   surah?: number;
   ayah?: number;
@@ -80,6 +306,7 @@ export interface FaithWallPost {
   reflection: string;
   lang: Lang;
   url: string;
+  theme?: WallPostTheme;
   cardDataUrl?: string;
   authorName?: string;
   authorRole?: string;
@@ -89,6 +316,10 @@ export interface FaithWallPost {
   verified?: boolean;
   likes?: number;
   liked?: boolean;
+  reactions?: Record<string, number>;
+  userReactions?: string[];
+  replies?: FaithWallReply[];
+  saved?: boolean;
   createdAt: string;
   updatedAt?: string;
 }
@@ -97,6 +328,9 @@ export const FAITH_WALL_EVENT = 'kf-faith-wall-updated';
 
 const WALL_STORAGE_KEY = 'kf-public-faith-wall';
 const WALL_LIKES_KEY = 'kf-public-faith-wall-likes';
+const WALL_REACTIONS_KEY = 'kf-public-faith-wall-reactions';
+const WALL_REPLIES_KEY = 'kf-public-faith-wall-replies';
+const WALL_SAVED_KEY = 'kf-public-faith-wall-saved';
 
 export const SEEDED_FAITH_WALL_POSTS: FaithWallPost[] = [
   {
@@ -108,10 +342,31 @@ export const SEEDED_FAITH_WALL_POSTS: FaithWallPost[] = [
     translation: 'Allah — there is no deity except Him, the Ever-Living, the All-Sustaining. Neither drowsiness overtakes Him nor sleep.',
     reflection: 'Reciting Ayat al-Kursi before sleep brings unshakable tranquility—knowing the Ever-Living Sustainer never slumbers over His creation.',
     lang: 'en',
+    theme: 'emerald',
     url: '#/quran/book?surah=2&ayah=255&lang=en&edition=english_rwwad',
     authorName: 'Dr. Layla al-Qasimi',
     authorRole: 'Qur’anic Studies Fellow',
+    authorEmblem: 'rub-el-hizb',
+    verified: true,
     likes: 48,
+    reactions: {
+      subhanallah: 19,
+      allahu_akbar: 15,
+      amin: 14,
+      'asma:al_qayyum': 22,
+      'asma:al_ahad': 16,
+    },
+    replies: [
+      {
+        id: 'seed-reply-1',
+        postId: 'seed-wall-2-255-en',
+        authorName: 'Ustadh Tariq M.',
+        authorRole: 'Verified Teacher',
+        authorEmblem: 'crescent-star',
+        text: 'SubḥānAllāh, pairing Al-Ḥayy with Al-Qayyūm is the greatest anchor of tawakkul.',
+        createdAt: '2026-11-06T19:10:00.000Z',
+      },
+    ],
     createdAt: '2026-11-06T18:30:00.000Z',
   },
   {
@@ -123,10 +378,21 @@ export const SEEDED_FAITH_WALL_POSTS: FaithWallPost[] = [
     translation: 'For indeed, with hardship comes ease. Indeed, with hardship comes ease.',
     reflection: 'Notice the preposition “ma‘a” (with), not merely “after”—relief is woven alongside the trial itself for those who persevere with sabr.',
     lang: 'en',
+    theme: 'amethyst',
     url: '#/quran/book?surah=94&ayah=5&lang=en&edition=english_rwwad',
     authorName: 'Ustadh Tariq M.',
     authorRole: 'Verified Teacher',
+    authorEmblem: 'crescent-star',
+    verified: true,
     likes: 64,
+    reactions: {
+      alhamdulillah: 28,
+      mashaallah: 18,
+      amin: 18,
+      'asma:al_fattah': 24,
+      'asma:al_latif': 19,
+    },
+    replies: [],
     createdAt: '2026-11-06T15:15:00.000Z',
   },
   {
@@ -138,10 +404,20 @@ export const SEEDED_FAITH_WALL_POSTS: FaithWallPost[] = [
     translation: 'புகழ் அனைத்தும் அகிலங்களின் இறைவனாகிய அல்லாஹ்வுக்கே உரியது.',
     reflection: 'ஒவ்வொரு தொழுகையிலும் நாம் மீண்டும் மீண்டும் ஓதும் இந்த வசனம், நன்றியுணர்வே ஈமானின் அடிப்படை என்பதை நினைவூட்டுகிறது.',
     lang: 'ta',
+    theme: 'sapphire',
     url: '#/quran/book?surah=1&ayah=2&lang=ta&edition=tamil_omar_brief',
-    authorName: 'Brother Feroz A.',
+    authorName: 'Brother Feroz Ansar',
     authorRole: 'Community Researcher',
+    authorEmblem: 'octagon-rosette',
+    verified: true,
     likes: 37,
+    reactions: {
+      alhamdulillah: 21,
+      subhanallah: 16,
+      'asma:ar_rahman': 15,
+      'asma:al_hadi': 12,
+    },
+    replies: [],
     createdAt: '2026-11-06T12:00:00.000Z',
   },
   {
@@ -153,16 +429,29 @@ export const SEEDED_FAITH_WALL_POSTS: FaithWallPost[] = [
     translation: 'අල්ලාහ් කිසිදු ආත්මයකට එහි හැකියාවට වඩා බරක් නොපවරයි.',
     reflection: 'ජීවිතයේ කුමන පරීක්ෂාවක් පැමිණියද, එය දරාගැනීමේ ශක්තිය අල්ලාහ් අප තුළම තබා ඇති බව මෙම වාක්‍යයෙන් සනාථ වේ.',
     lang: 'si',
+    theme: 'amber',
     url: '#/quran/book?surah=2&ayah=286&lang=si&edition=sinhalese_mahir',
     authorName: 'Sister Amina K.',
     authorRole: 'Student of Knowledge',
+    authorEmblem: 'emerald-lamp',
+    verified: true,
     likes: 29,
+    reactions: {
+      amin: 17,
+      mashaallah: 12,
+      'asma:al_fattah': 11,
+      'asma:al_latif': 14,
+    },
+    replies: [],
     createdAt: '2026-11-06T09:45:00.000Z',
   },
 ];
 
 const memoryWallPosts: FaithWallPost[] = [];
 const memoryLikedIds = new Set<string>();
+const memoryUserReactions = new Map<string, Set<string>>();
+const memoryPostReplies = new Map<string, FaithWallReply[]>();
+const memorySavedPostIds = new Set<string>();
 
 function readLikedSet(): Set<string> {
   if (typeof window !== 'undefined') {
@@ -191,6 +480,99 @@ function saveLikedSet(set: Set<string>) {
   }
 }
 
+function readUserReactionsMap(): Record<string, string[]> {
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = window.localStorage.getItem(WALL_REACTIONS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') return parsed as Record<string, string[]>;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  const out: Record<string, string[]> = {};
+  memoryUserReactions.forEach((set, postId) => {
+    out[postId] = [...set];
+  });
+  return out;
+}
+
+function saveUserReactionsMap(map: Record<string, string[]>) {
+  memoryUserReactions.clear();
+  for (const [postId, list] of Object.entries(map)) {
+    memoryUserReactions.set(postId, new Set(list));
+  }
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(WALL_REACTIONS_KEY, JSON.stringify(map));
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+function readRepliesMap(): Record<string, FaithWallReply[]> {
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = window.localStorage.getItem(WALL_REPLIES_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') return parsed as Record<string, FaithWallReply[]>;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  const out: Record<string, FaithWallReply[]> = {};
+  memoryPostReplies.forEach((list, postId) => {
+    out[postId] = [...list];
+  });
+  return out;
+}
+
+function saveRepliesMap(map: Record<string, FaithWallReply[]>) {
+  memoryPostReplies.clear();
+  for (const [postId, list] of Object.entries(map)) {
+    memoryPostReplies.set(postId, list);
+  }
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(WALL_REPLIES_KEY, JSON.stringify(map));
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+function readSavedPostIds(): Set<string> {
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = window.localStorage.getItem(WALL_SAVED_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return new Set(parsed.map(String));
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return new Set(memorySavedPostIds);
+}
+
+function saveSavedPostIds(set: Set<string>) {
+  memorySavedPostIds.clear();
+  set.forEach(id => memorySavedPostIds.add(id));
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(WALL_SAVED_KEY, JSON.stringify([...set]));
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 function readStoredWallPosts(): FaithWallPost[] {
   if (typeof window !== 'undefined') {
     try {
@@ -208,16 +590,35 @@ function readStoredWallPosts(): FaithWallPost[] {
 
 export function listFaithWallPosts(): FaithWallPost[] {
   const liked = readLikedSet();
+  const reactionsMap = readUserReactionsMap();
+  const repliesMap = readRepliesMap();
+  const savedSet = readSavedPostIds();
   const session = readSeekerSession();
   const userPosts = readStoredWallPosts();
   const seen = new Set(userPosts.map(item => item.id));
   const combined = [...userPosts, ...SEEDED_FAITH_WALL_POSTS.filter(seed => !seen.has(seed.id))];
   return combined.map(post => {
     const isLiked = liked.has(post.id);
+    const userReacted = new Set(reactionsMap[post.id] ?? []);
+    if (isLiked) userReacted.add('amin');
+
+    const baseReactions: Record<string, number> = { ...(post.reactions ?? {}) };
+    if (baseReactions.amin === undefined && typeof post.likes === 'number') {
+      baseReactions.amin = post.likes;
+    }
+    for (const reactionId of userReacted) {
+      baseReactions[reactionId] = (baseReactions[reactionId] ?? 0) + 1;
+    }
+
     const baseLikes = typeof post.likes === 'number' ? post.likes : 1;
     const isCurrentUser = Boolean(session?.user && post.userId && post.userId === session.user.id);
+    const extraReplies = repliesMap[post.id] ?? [];
+    const existingReplyIds = new Set((post.replies ?? []).map(r => r.id));
+    const mergedReplies = [...(post.replies ?? []), ...extraReplies.filter(r => !existingReplyIds.has(r.id))];
+
     return {
       ...post,
+      theme: sanitizeWallTheme(post.theme),
       authorName: isCurrentUser ? session!.user.name : post.authorName || 'Community Seeker',
       authorRole: isCurrentUser ? session!.user.kunyah : post.authorRole || 'Faith Wall Contributor',
       authorEmblem: isCurrentUser ? session!.user.emblem : sanitizeSeekerEmblem(post.authorEmblem),
@@ -226,8 +627,12 @@ export function listFaithWallPosts(): FaithWallPost[] {
         ? session!.user.authProvider ?? (session!.user.provider === 'google' ? 'google' : 'password')
         : post.authorAuthProvider,
       verified: isCurrentUser ? true : Boolean(post.verified || post.id.startsWith('seed-wall-')),
-      liked: isLiked,
-      likes: baseLikes + (isLiked && !post.liked ? 1 : 0),
+      liked: isLiked || userReacted.has('amin'),
+      likes: baseLikes + (userReacted.size > 0 && !post.liked ? userReacted.size : isLiked && !post.liked ? 1 : 0),
+      reactions: baseReactions,
+      userReactions: [...userReacted],
+      replies: mergedReplies,
+      saved: savedSet.has(post.id),
     };
   });
 }
@@ -256,17 +661,109 @@ export function toggleFaithWallLike(postId: string): FaithWallPost[] {
   return listFaithWallPosts();
 }
 
+export function toggleFaithWallReaction(postId: string, reactionId: string): FaithWallPost[] {
+  const map = readUserReactionsMap();
+  const current = new Set(map[postId] ?? []);
+  const liked = readLikedSet();
+
+  if (reactionId === 'amin' && liked.has(postId)) {
+    liked.delete(postId);
+    saveLikedSet(liked);
+    current.delete('amin');
+  } else if (current.has(reactionId)) {
+    current.delete(reactionId);
+  } else {
+    current.add(reactionId);
+  }
+
+  map[postId] = [...current];
+  saveUserReactionsMap(map);
+
+  const session = readSeekerSession();
+  if (typeof fetch === 'function' && session?.token) {
+    void fetch(`/api/wall/posts/${encodeURIComponent(postId)}/react`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.token}`,
+      },
+      body: JSON.stringify({ reactionId }),
+    }).catch(() => undefined);
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(FAITH_WALL_EVENT));
+  }
+  return listFaithWallPosts();
+}
+
+export function toggleFaithWallBookmark(postId: string): FaithWallPost[] {
+  const savedSet = readSavedPostIds();
+  if (savedSet.has(postId)) savedSet.delete(postId);
+  else savedSet.add(postId);
+  saveSavedPostIds(savedSet);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(FAITH_WALL_EVENT));
+  }
+  return listFaithWallPosts();
+}
+
+export async function addFaithWallReply(postId: string, text: string): Promise<FaithWallReply | null> {
+  const cleaned = text.trim().slice(0, 500);
+  if (!cleaned) return null;
+  const session = readSeekerSession();
+  const seeker = session?.user ?? null;
+  const reply: FaithWallReply = {
+    id: `reply-${postId}-${Date.now()}`,
+    postId,
+    userId: seeker?.id,
+    authorName: seeker?.name || 'Community Seeker',
+    authorRole: seeker?.kunyah || 'Seeker of Knowledge',
+    authorEmblem: seeker?.emblem ?? 'rub-el-hizb',
+    authorAvatarUrl: seeker?.avatarUrl ?? null,
+    text: cleaned,
+    createdAt: new Date().toISOString(),
+  };
+
+  const map = readRepliesMap();
+  const existing = map[postId] ?? [];
+  map[postId] = [...existing, reply];
+  saveRepliesMap(map);
+
+  if (typeof fetch === 'function' && session?.token) {
+    try {
+      await fetch(`/api/wall/posts/${encodeURIComponent(postId)}/replies`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.token}`,
+        },
+        body: JSON.stringify(reply),
+      });
+    } catch {
+      /* local reply already saved */
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(FAITH_WALL_EVENT));
+  }
+  return reply;
+}
+
 export async function publishFaithWallPost(input: {
   verse: ShareVerse;
   lang: Lang;
   url: string;
   reflection?: string;
+  theme?: WallPostTheme;
   authorName?: string;
   authorRole?: string;
   cardDataUrl?: string;
 }): Promise<FaithWallPost> {
   const session = readSeekerSession();
   const seeker = session?.user ?? null;
+  const chosenTheme = sanitizeWallTheme(input.theme);
   const post: FaithWallPost = {
     id: `wall-${input.verse.surah}-${input.verse.ayah}-${Date.now()}`,
     userId: seeker?.id,
@@ -278,6 +775,7 @@ export async function publishFaithWallPost(input: {
     reflection: (input.reflection ?? '').trim().slice(0, 600),
     lang: input.lang,
     url: input.url,
+    theme: chosenTheme,
     cardDataUrl: input.cardDataUrl,
     authorName: seeker?.name || (input.authorName ?? '').trim() || 'Community Seeker',
     authorRole: seeker?.kunyah || (input.authorRole ?? '').trim() || 'Faith Wall Contributor',
@@ -287,6 +785,9 @@ export async function publishFaithWallPost(input: {
     verified: Boolean(seeker),
     likes: 1,
     liked: false,
+    reactions: { amin: 1 },
+    userReactions: [],
+    replies: [],
     createdAt: new Date().toISOString(),
   };
 
@@ -310,6 +811,7 @@ export async function publishFaithWallPost(input: {
           arabic: post.arabic,
           translation: post.translation,
           reflection: post.reflection,
+          theme: post.theme,
           authorName: post.authorName,
           authorRole: post.authorRole,
           authorEmblem: post.authorEmblem,
@@ -317,6 +819,7 @@ export async function publishFaithWallPost(input: {
           authorAuthProvider: post.authorAuthProvider,
           verified: post.verified,
           likes: post.likes,
+          reactions: post.reactions,
           lang: post.lang,
           url: post.url,
           createdAt: post.createdAt,
@@ -330,7 +833,11 @@ export async function publishFaithWallPost(input: {
   return post;
 }
 
-export async function updateFaithWallPost(postId: string, reflection: string): Promise<FaithWallPost | null> {
+export async function updateFaithWallPost(
+  postId: string,
+  reflection: string,
+  theme?: WallPostTheme,
+): Promise<FaithWallPost | null> {
   const session = readSeekerSession();
   const existingUserPosts = readStoredWallPosts();
   const idx = existingUserPosts.findIndex(item => item.id === postId);
@@ -342,6 +849,7 @@ export async function updateFaithWallPost(postId: string, reflection: string): P
   const updated: FaithWallPost = {
     ...target,
     reflection: reflection.trim().slice(0, 600),
+    theme: theme ? sanitizeWallTheme(theme) : sanitizeWallTheme(target.theme),
     authorName: session?.user.name || target.authorName,
     authorRole: session?.user.kunyah || target.authorRole,
     authorEmblem: session?.user.emblem || target.authorEmblem,
@@ -362,7 +870,7 @@ export async function updateFaithWallPost(postId: string, reflection: string): P
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.token}`,
         },
-        body: JSON.stringify({ reflection: updated.reflection }),
+        body: JSON.stringify({ reflection: updated.reflection, theme: updated.theme }),
       });
     } catch {
       /* local update already persisted */

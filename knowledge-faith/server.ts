@@ -30,6 +30,7 @@ import { listNames, readName } from './src/server/names.ts';
 import { cancelSharedResearchJob, getSharedResearchJob, startSharedResearchJob } from './src/server/research/jobs.ts';
 import { listCommunityPodcasts, publishCommunityPodcast } from './src/server/research/communityPodcasts.ts';
 import {
+  addReplyToServerWallPost,
   authenticateGoogleCredential,
   buildGoogleOAuthStart,
   clearGoogleOAuthNonceCookie,
@@ -43,6 +44,7 @@ import {
   GOOGLE_CALLBACK_ALIASES,
   listServerWallPosts,
   loginSeekerAccount,
+  reactToServerWallPost,
   readGoogleOAuthNonceCookie,
   registerSeekerAccount,
   requireSeekerAuth,
@@ -719,8 +721,37 @@ app.patch(
   route(async (req, res) => {
     const seeker = getRequestSeeker(req);
     const reflection = typeof req.body?.reflection === 'string' ? req.body.reflection : '';
-    const post = updateServerWallPost(String(req.params.id), reflection, seeker);
+    const post = updateServerWallPost(String(req.params.id), reflection, seeker, req.body?.theme);
     res.status(200).json(post);
+  }),
+);
+
+app.post(
+  '/api/wall/posts/:id/react',
+  wallLimiter,
+  route(async (req, res) => {
+    const reactionId = typeof req.body?.reactionId === 'string' ? req.body.reactionId : 'amin';
+    res.status(200).json(reactToServerWallPost(String(req.params.id), reactionId));
+  }),
+);
+
+app.post(
+  '/api/wall/posts/:id/ameen',
+  wallLimiter,
+  route(async (req, res) => {
+    res.status(200).json(reactToServerWallPost(String(req.params.id), 'amin'));
+  }),
+);
+
+app.post(
+  '/api/wall/posts/:id/replies',
+  requireSeekerAuth,
+  wallLimiter,
+  route(async (req, res) => {
+    const seeker = getRequestSeeker(req);
+    const replyText = typeof req.body?.text === 'string' ? req.body.text : '';
+    const reply = addReplyToServerWallPost(String(req.params.id), replyText, seeker);
+    res.status(201).json(reply);
   }),
 );
 

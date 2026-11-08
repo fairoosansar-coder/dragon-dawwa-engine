@@ -23,6 +23,7 @@ const ALIASES: Record<string, string> = {
   'screen-16': 'spiritual',
   'screen-17': 'hub/scholar',
   podcasts: 'podcast',
+  wall: 'quran/wall',
 };
 
 export function resolveHashPath(raw: string): string {
