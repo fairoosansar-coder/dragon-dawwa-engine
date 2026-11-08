@@ -40,6 +40,7 @@ import {
   extractTokenFromRequest,
   getGoogleAuthConfig,
   getRequestSeeker,
+  GOOGLE_CALLBACK_ALIASES,
   listServerWallPosts,
   loginSeekerAccount,
   readGoogleOAuthNonceCookie,
@@ -592,31 +593,33 @@ app.get(
   '/api/auth/google/start',
   wallLimiter,
   route(async (req, res) => {
-    const started = buildGoogleOAuthStart(req, req.query.returnTo);
+    const started = buildGoogleOAuthStart(req, req.query.returnTo, req.query.callbackPath);
     setGoogleOAuthNonceCookie(res, started.nonce);
     res.redirect(302, started.url);
   }),
 );
 
-app.get(
-  '/api/auth/google/callback',
-  wallLimiter,
-  route(async (req, res) => {
-    const code = typeof req.query.code === 'string' ? req.query.code.trim() : '';
-    const state = typeof req.query.state === 'string' ? req.query.state.trim() : '';
-    if (!code || !state) {
-      clearGoogleOAuthNonceCookie(res);
-      res.redirect(302, '/#/quran/wall?auth_error=missing_code');
-      return;
-    }
-    const cookieNonce = readGoogleOAuthNonceCookie(req);
-    const { token, returnTo } = await exchangeGoogleOAuthCode({ code, state, cookieNonce });
+const handleGoogleOAuthCallback = route(async (req, res) => {
+  const oauthError = typeof req.query.error === 'string' ? req.query.error.trim() : '';
+  const code = typeof req.query.code === 'string' ? req.query.code.trim() : '';
+  const state = typeof req.query.state === 'string' ? req.query.state.trim() : '';
+  if (oauthError || !code || !state) {
     clearGoogleOAuthNonceCookie(res);
-    setSeekerCookie(res, token);
-    const hash = returnTo.startsWith('#') ? returnTo : `#${returnTo}`;
-    res.redirect(302, `/?dd_seeker_handoff=${encodeURIComponent(token)}${hash}`);
-  }),
-);
+    const reason = encodeURIComponent(oauthError || 'missing_code');
+    res.redirect(302, `/?auth_error=${reason}#/quran/wall`);
+    return;
+  }
+  const cookieNonce = readGoogleOAuthNonceCookie(req);
+  const { token, returnTo } = await exchangeGoogleOAuthCode({ code, state, cookieNonce });
+  clearGoogleOAuthNonceCookie(res);
+  setSeekerCookie(res, token);
+  const hash = returnTo.startsWith('#') ? returnTo : `#${returnTo}`;
+  res.redirect(302, `/?dd_seeker_handoff=${encodeURIComponent(token)}${hash}`);
+});
+
+for (const callbackAlias of GOOGLE_CALLBACK_ALIASES) {
+  app.get(callbackAlias, wallLimiter, handleGoogleOAuthCallback);
+}
 
 app.post(
   '/api/auth/google/credential',
