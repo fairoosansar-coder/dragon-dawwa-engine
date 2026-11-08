@@ -24,6 +24,7 @@ const BooksLibrary = lazy(() => import('./views/BooksLibrary.tsx'));
 const ResearchPodcasts = lazy(() => import('./views/ResearchPodcasts.tsx'));
 const UserProfileView = lazy(() => import('./views/UserProfileView.tsx'));
 const AdminDashboard = lazy(() => import('./views/AdminDashboard.tsx'));
+const AboutView = lazy(() => import('./views/AboutView.tsx'));
 const ResearchDesk = lazy(() => import('./views/ResearchDesk.tsx').then(module => ({ default: module.ResearchDesk })));
 
 export interface ViewProps {
@@ -48,6 +49,7 @@ const ROUTES: Route[] = [
   { path: 'podcast', label: 'navPodcast', view: ResearchPodcasts },
   { path: 'profile', label: 'navProfile', view: UserProfileView },
   { path: 'admin', label: 'navAdmin', view: AdminDashboard },
+  { path: 'about', label: 'navAbout', view: AboutView },
 ];
 
 interface Location {
@@ -138,7 +140,9 @@ function Shell() {
       segments={isAuthenticated ? location.segments : []}
     >
       <Suspense fallback={<Loading />}>
-        {!isAuthenticated ? (
+        {location.path === 'about' ? (
+          <AboutView />
+        ) : !isAuthenticated ? (
           <PublicHomeOverview />
         ) : opened && location.path !== 'hadith' ? (
           <ResearchDesk entry={opened.entry} desk={opened.desk} params={location.params} />
@@ -146,17 +150,6 @@ function Shell() {
           <View sub={location.segments[0]} segments={location.segments} params={location.params} />
         )}
       </Suspense>
-      {!focus && (!isAuthenticated || !(location.path === 'quran' && location.segments[0] === 'book')) && (
-        <footer className="mt-10 space-y-1 text-center text-xs text-muted">
-          <p>{t.sourcesNote}</p>
-          {lang !== 'en' && <p>{t.uiNote}</p>}
-          <p className="font-display font-bold tracking-wide text-pine">DRAGON DAWWA</p>
-          <p className="italic">{t.brandSub}</p>
-          <p data-release={buildStamp.sha} data-built-at={buildStamp.builtAt}>
-            {buildStamp.sha.slice(0, 7)} · {buildStamp.builtAt}
-          </p>
-        </footer>
-      )}
     </AppFrame>
   );
 }

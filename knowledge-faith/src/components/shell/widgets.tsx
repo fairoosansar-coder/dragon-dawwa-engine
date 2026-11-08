@@ -51,8 +51,8 @@ function hadithTabId(segment?: string): 'encyclopedia' | 'collections' | 'resear
 /** Sub-view tabs that belong in the desk header, beside the title. */
 export function DeskHeaderTabs({ path, segments, className = '' }: { path: RouteRoot; segments: string[]; className?: string }) {
   const { t } = useApp();
-  const shell = 'flex min-w-0 items-center gap-2 ' + className;
-  const scroller = 'flex min-w-0 flex-1 flex-wrap items-center gap-1 py-0.5 sm:flex-nowrap sm:overflow-x-auto no-scrollbar';
+  const shell = 'flex min-w-0 items-center gap-1.5 ' + className;
+  const scroller = 'flex min-w-0 flex-1 items-center gap-1 overflow-x-auto no-scrollbar whitespace-nowrap py-0.5';
   if (path === 'hadith') {
     const active = hadithTabId(segments[0]);
     const tabs = [
@@ -62,14 +62,14 @@ export function DeskHeaderTabs({ path, segments, className = '' }: { path: Route
     ];
     return (
       <div className={shell}>
-        <div className="hidden h-4 w-px shrink-0 bg-stone-300 sm:block" aria-hidden />
+        <div className="hidden h-3.5 w-px shrink-0 bg-stone-300 md:block" aria-hidden />
         <nav aria-label="Hadith" data-testid="hadith-tabs" className={scroller}>
           {tabs.map(tab => (
             <a
               key={tab.id}
               href={tab.href}
               aria-current={tab.id === active ? 'page' : undefined}
-              className={`inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-full border border-[#0E382B]/10 px-2 py-1 text-[11px] font-medium sm:px-3 sm:text-xs ${tab.id === active ? HADITH_TAB_ACTIVE : HADITH_TAB_IDLE}`}
+              className={`inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-full border border-[#0E382B]/10 px-2 py-0.5 text-[11px] font-medium sm:px-2.5 ${tab.id === active ? HADITH_TAB_ACTIVE : HADITH_TAB_IDLE}`}
             >
               <span>{tab.en}</span>
               <span lang="ta" className={tab.id === active ? 'text-white/80' : 'text-[#0E382B]/70'}>({tab.ta})</span>
@@ -91,14 +91,14 @@ export function DeskHeaderTabs({ path, segments, className = '' }: { path: Route
     ];
     return (
       <div className={shell}>
-        <div className="hidden h-4 w-px shrink-0 bg-stone-300 sm:block" aria-hidden />
+        <div className="hidden h-3.5 w-px shrink-0 bg-stone-300 md:block" aria-hidden />
         <nav aria-label={t.quranTitle} data-testid="quran-tabs" className={scroller}>
           {tabs.map(tab => (
             <a
               key={tab.id}
               href={tab.href}
               aria-current={current === tab.id ? 'page' : undefined}
-              className={`inline-flex shrink-0 whitespace-nowrap items-center rounded-full px-2 py-1 text-[11px] font-medium transition sm:px-2.5 sm:text-xs ${
+              className={`inline-flex shrink-0 whitespace-nowrap items-center rounded-full px-2 py-0.5 text-[11px] font-medium transition sm:px-2.5 ${
                 current === tab.id
                   ? 'bg-[#073C30] text-[#F5EEDC] shadow-2xs'
                   : 'text-stone-700 hover:bg-stone-200/70 hover:text-stone-900'

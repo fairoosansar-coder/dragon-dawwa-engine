@@ -544,12 +544,14 @@ test('curated user profiles, 2-door controlled posting engine, and institutional
   resetSeekerStoreForTests();
   writeSeekerSession(null);
 
-  // 1. Routes support #/profile, #/profile/:id, and #/admin
+  // 1. Routes support #/profile, #/profile/:id, #/admin, and #/about
   assert.equal(parseHash('#/profile').path, 'profile');
   const handleLoc = parseHash('#/profile/ferozansar');
   assert.equal(handleLoc.path, 'profile');
   assert.deepEqual(handleLoc.segments, ['ferozansar']);
   assert.equal(parseHash('#/admin').path, 'admin');
+  assert.equal(parseHash('#/about').path, 'about');
+  assert.equal(isPublicHomeHash('#/about'), true);
 
   // 2. Strict 2-door rule on server: rejecting raw unanchored post
   const adminSeeker = registerSeekerAccount({

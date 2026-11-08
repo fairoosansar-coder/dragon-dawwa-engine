@@ -31,6 +31,7 @@
 html {
   background: var(--color-sand);
   color: var(--color-ink);
+  font-size: 15px;
   overflow-x: clip;
 }
 
@@ -47,8 +48,8 @@ body {
   margin: 0;
   min-height: 100dvh;
   font-family: var(--font-sans);
-  font-size: 0.875rem;
-  line-height: 1.5;
+  font-size: 13.5px;
+  line-height: 1.45;
   letter-spacing: -0.006em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

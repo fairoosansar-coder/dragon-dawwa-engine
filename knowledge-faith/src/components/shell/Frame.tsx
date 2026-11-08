@@ -41,8 +41,8 @@ const NAV: NavItem[] = [
 
 function navLinkClass(place: 'side' | 'dock') {
   return place === 'side'
-    ? 'kf-nav-side flex min-h-10 items-center gap-2.5 rounded-xl border-l-2 px-2.5 py-1.5 text-[13px] font-medium'
-    : 'kf-nav-dock flex min-h-11 w-full flex-col items-center justify-center gap-0.5 border-t-2 px-px py-1 text-center text-[10px] leading-none tracking-tight';
+    ? 'kf-nav-side flex min-h-9 items-center gap-2.5 rounded-xl border-l-2 px-2.5 py-1.5 text-xs font-medium'
+    : 'kf-nav-dock flex h-12 w-full flex-col items-center justify-center gap-0.5 border-t-2 px-px py-1 text-center text-[10px] font-medium leading-none tracking-tight';
 }
 
 export function AppFrame({ path, section, segments = [], children }: { path: RouteRoot; section: string; segments?: string[]; children: ReactNode }) {
@@ -107,7 +107,15 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
               <NavGlyph name="question" />
               {t.sidebarQuestion}
             </a>
-            <ReleaseMark className="px-3 pt-3 text-[10px] leading-snug text-sand/60" />
+            <div className="mt-2 px-3">
+              <a
+                href="#/about"
+                data-sidebar-about-link
+                className="text-[11px] font-medium text-sand/65 transition hover:text-[#F9E7B9] hover:underline"
+              >
+                About & Reference Notes
+              </a>
+            </div>
           </div>
         </aside>
       )}
@@ -122,31 +130,40 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
         )}
         {!focus && (
           <header className="shrink-0 overflow-x-clip border-b border-stone-200/80 bg-sand/95 backdrop-blur-xs">
-            <div className="mx-auto flex max-w-[1280px] min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2 sm:flex-nowrap sm:px-6">
-              <p className="min-w-0 truncate text-sm font-semibold tracking-tight text-[#073C30] sm:shrink-0 sm:text-[15px]">
-                {section}
-              </p>
-              <DeskHeaderTabs path={path} segments={segments} className="order-last basis-full sm:order-none sm:min-w-0 sm:flex-1 sm:basis-auto" />
-              <div className="ml-auto flex shrink-0 items-center gap-2 sm:order-3">
-                {quranSettings && <div id="kf-library-settings" className="hidden lg:block" />}
-                {quranSettings && <div id="kf-library-settings-mobile" className="lg:hidden" />}
-                <SeekerAccountPill variant="header" />
-                <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
-                  <span className="sr-only">{t.language}</span>
-                  <select
-                    aria-label={t.language}
-                    value={lang}
-                    onChange={event => setLang(toLang(event.target.value))}
-                    className="rounded-full border border-stone-300/90 bg-white px-2.5 py-1 text-xs font-medium text-stone-800 shadow-2xs transition hover:border-[#073C30]/40"
-                  >
-                    {LANGS.map(code => (
-                      <option key={code} value={code}>
-                        {LANGUAGE_NAMES[code].english}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+            <div className="mx-auto max-w-[1280px] px-3 sm:px-5">
+              {/* Row 1: Single strictly horizontal bar on both mobile (390px) and desktop (1440px) */}
+              <div className="flex h-11 min-w-0 items-center justify-between gap-2">
+                <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                  <p className="min-w-0 truncate text-[13px] font-semibold tracking-tight text-[#073C30] sm:shrink-0 sm:text-sm">
+                    {section}
+                  </p>
+                  <DeskHeaderTabs path={path} segments={segments} className="hidden min-w-0 flex-1 md:flex" />
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {quranSettings && <div id="kf-library-settings" className="hidden lg:block" />}
+                  {quranSettings && <div id="kf-library-settings-mobile" className="lg:hidden" />}
+                  <SeekerAccountPill variant="header" />
+                  <label className="flex shrink-0 items-center">
+                    <span className="sr-only">{t.language}</span>
+                    <select
+                      aria-label={t.language}
+                      value={lang}
+                      onChange={event => setLang(toLang(event.target.value))}
+                      className="h-7 rounded-full border border-stone-300/90 bg-white px-2 text-[11px] font-medium text-stone-800 shadow-2xs transition hover:border-[#073C30]/40 sm:h-7.5 sm:px-2.5 sm:text-xs"
+                    >
+                      {LANGS.map(code => (
+                        <option key={code} value={code}>
+                          {LANGUAGE_NAMES[code].english}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
               </div>
+              {/* Row 2 on Mobile/Small screens: Sub-tabs when active desk has tabs */}
+              {(path === 'quran' || path === 'hadith') && (
+                <DeskHeaderTabs path={path} segments={segments} className="border-t border-stone-200/60 py-1 md:hidden" />
+              )}
             </div>
           </header>
         )}

@@ -264,32 +264,32 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
   if (sub === 'wall') return <FaithWallFeed />;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <section
         data-knowledge-banner
-        className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/35 bg-gradient-to-r from-[#041B14] via-[#0A2E23] to-[#041B14] shadow-[0_0_25px_rgba(212,175,55,0.08)]"
+        className="relative overflow-hidden rounded-xl border border-[#D4AF37]/35 bg-gradient-to-r from-[#041B14] via-[#0A2E23] to-[#041B14] shadow-2xs"
       >
         <img
           src={adminBannerUrl}
           alt=""
           className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[40%_center] sm:object-center"
         />
-        <div className="relative flex w-[76%] flex-col items-center px-3 py-5 text-center sm:w-[58%] sm:px-6 sm:py-6">
-          <p className="max-w-full text-[10px] font-semibold tracking-[0.18em] text-[#E6C665] sm:text-[11px] sm:tracking-[0.34em]">
+        <div className="relative flex w-[80%] flex-col items-center px-3 py-3.5 text-center sm:w-[60%] sm:px-5 sm:py-4">
+          <p className="max-w-full text-[9px] font-semibold tracking-[0.16em] text-[#E6C665] sm:text-[10px] sm:tracking-[0.28em]">
             ✦ INSTITUTIONAL RESEARCH STUDIO
           </p>
           <p
             dir="rtl"
             lang="ar"
-            className="mt-3 max-w-full font-[family-name:'Amiri_Quran','Scheherazade_New','Amiri','Noto_Naskh_Arabic',serif] text-[1.65rem] font-medium leading-[2.05] tracking-[0.06em] text-[#F9E7B9] drop-shadow-sm sm:mt-3.5 sm:text-4xl sm:leading-[1.85] sm:tracking-[0.12em]"
+            className="mt-1.5 max-w-full font-[family-name:'Amiri_Quran','Scheherazade_New','Amiri','Noto_Naskh_Arabic',serif] text-xl font-medium leading-[1.85] tracking-[0.04em] text-[#F9E7B9] drop-shadow-xs sm:mt-2 sm:text-2xl"
           >
             طَلَبُ الْعِلْمِ فَرِيضَةٌ
           </p>
-          <p className="mt-0.5 text-[11px] tracking-[0.14em] text-stone-400">Seeking knowledge is an obligation</p>
-          <h1 className="mt-2.5 max-w-[14rem] font-serif text-xs font-medium leading-snug text-stone-200 sm:max-w-md sm:text-sm">
+          <p className="mt-0.5 text-[10px] tracking-[0.12em] text-stone-400">Seeking knowledge is an obligation</p>
+          <h1 className="mt-1.5 max-w-md text-xs font-semibold leading-snug text-stone-100 sm:text-sm">
             Explore Deep Foundations, Sources & Evidence
           </h1>
-          <p className="mt-1 max-w-[15rem] text-[11px] leading-snug text-stone-400 sm:max-w-sm">
+          <p className="mt-0.5 max-w-sm text-[11px] leading-snug text-stone-400">
             Multidisciplinary AI synthesis across classical Tafsir, Kutub al-Sittah, Fiqh, and verified chains.
           </p>
         </div>
@@ -306,84 +306,40 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
             onQuestion={setAsked}
             onSubmit={event => void research(event, clarify)}
           />
-          {askError && <div className="mt-3"><ErrorNote message={askError} /></div>}
-          <p className="mt-3 text-xs text-pine sm:text-[13px]">
-            <a className="font-medium underline" href="#/quran/research">Qur’an</a>
-            {' · '}
-            <a className="font-medium underline" href="#/hub/fiqh">Fiqh</a>
-            {' · '}
-            <a className="font-medium underline" href="#/hub/seerah">Seerah</a>
-            {' · '}
-            <a className="font-medium underline" href="#/hadith/research">Hadith</a>
-            {' · '}
-            <a className="font-medium underline" href="#/books/research">Books</a>
-          </p>
+          {askError && <div className="mt-2"><ErrorNote message={askError} /></div>}
         </div>
       </div>
-      <header>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">{t.hubEyebrow}</p>
-        <h1 className="mt-1.5 max-w-3xl font-display text-2xl font-bold leading-snug text-pine sm:text-3xl">{t.hubHeading}</h1>
-      </header>
-
-      <section className="kf-reflect relative overflow-hidden rounded-2xl bg-pine px-5 py-6 text-sand sm:px-6">
-        <div className="relative z-10 max-w-xl sm:max-w-[34rem]">
-        <h3 className="font-display text-xl font-bold leading-snug sm:text-2xl">{t.hubHero}</h3>
-        <p className="mt-2 text-xs leading-relaxed text-sand/85 sm:text-sm">{t.hubHeroBody}</p>
-        <div className="mt-4 flex flex-wrap gap-2.5">
-          <a href="#/quran" className="inline-flex items-center rounded-full bg-moss px-3.5 py-1.5 text-xs font-medium text-white sm:text-[13px]">
-            {t.openQuran}
-          </a>
-          <a href="#/hub/saved" className="inline-flex items-center rounded-full border border-gold px-3.5 py-1.5 text-xs font-medium text-sand lg:hidden sm:text-[13px]">
-            {t.sidebarSaved}
-          </a>
-          <a href="#/podcast" className="inline-flex items-center rounded-full border border-gold px-3.5 py-1.5 text-xs font-medium text-sand sm:text-[13px]">
-            {t.navPodcast}
-          </a>
-        </div>
-        </div>
-        <div className="kf-reflect-art" aria-hidden>
-          <img src="/assets/geometric-carved-arch.jpg" alt="" />
-        </div>
-      </section>
 
       <PrayerStrip />
 
-      <section className="space-y-3">
+      <section className="space-y-2.5">
         <SectionTitle sub={t.pathNote}>{t.pathsTitle}</SectionTitle>
-        <div className="grid gap-3.5 sm:grid-cols-3">
-          <FeatureCard href="#/hub/discover" title={t.discoverTitle} body={t.discoverBody} icon={<StudioMark name="discover" className="h-10 w-10 rounded-xl" />} />
-          <FeatureCard href="#/hub/deepen" title={t.deepenTitle} body={t.deepenBody} icon={<StudioMark name="deepen" className="h-10 w-10 rounded-xl" />} />
-          <FeatureCard href="#/hub/prophet" title={t.prophetTitle} body={t.prophetBody} icon={<StudioMark name="prophet" className="h-10 w-10 rounded-xl" />} />
+        <div className="grid gap-3 sm:grid-cols-3">
+          <FeatureCard href="#/hub/discover" title={t.discoverTitle} body={t.discoverBody} icon={<StudioMark name="discover" className="h-9 w-9 rounded-xl" />} />
+          <FeatureCard href="#/hub/deepen" title={t.deepenTitle} body={t.deepenBody} icon={<StudioMark name="deepen" className="h-9 w-9 rounded-xl" />} />
+          <FeatureCard href="#/hub/prophet" title={t.prophetTitle} body={t.prophetBody} icon={<StudioMark name="prophet" className="h-9 w-9 rounded-xl" />} />
         </div>
       </section>
 
-      {cards.length === 0 ? (
-        <EmptyState>{t.noResults}</EmptyState>
-      ) : (
-        <div className="grid gap-3.5 sm:grid-cols-2">
-          {cards.map(card => (
-            <FeatureCard key={card.href} href={card.href} title={card.title} body={card.body} icon={card.icon} />
-          ))}
-        </div>
-      )}
+      <div className="grid gap-3.5 lg:grid-cols-2">
+        <Card>
+          <SectionTitle>{t.continueReading}</SectionTitle>
+          <p className="font-display text-sm font-bold text-pine sm:text-base">{current ? current.englishName : `${displaySurah(surah)}`}</p>
+          {current && (
+            <p className="mt-0.5 text-xs text-muted">
+              {displaySurah(surah)}:{displayAyah(place.ayah)} · {current.englishNameTranslation} · {current.numberOfAyahs}
+            </p>
+          )}
+          <a href="#/quran/study" className="mt-2.5 inline-flex items-center rounded-full bg-moss px-3 py-1 text-xs font-medium text-white">
+            {t.continueReading}
+          </a>
+        </Card>
 
-      <Card>
-        <SectionTitle>{t.continueReading}</SectionTitle>
-        <p className="font-display text-lg font-bold text-pine sm:text-xl">{current ? current.englishName : `${displaySurah(surah)}`}</p>
-        {current && (
-          <p className="mt-0.5 text-xs text-muted sm:text-[13px]">
-            {displaySurah(surah)}:{displayAyah(place.ayah)} · {current.englishNameTranslation} · {current.numberOfAyahs}
-          </p>
-        )}
-        <a href="#/quran/study" className="mt-3 inline-flex items-center rounded-full bg-moss px-3.5 py-1.5 text-xs font-medium text-white sm:text-[13px]">
-          {t.continueReading}
-        </a>
-      </Card>
-
-      <Card>
-        <SectionTitle>{t.verseOfDay}</SectionTitle>
-        <VerseList refs={[today]} />
-      </Card>
+        <Card>
+          <SectionTitle>{t.verseOfDay}</SectionTitle>
+          <VerseList refs={[today]} />
+        </Card>
+      </div>
 
       <FaithWallFeed compact />
 

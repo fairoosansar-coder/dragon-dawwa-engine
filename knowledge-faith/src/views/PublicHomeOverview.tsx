@@ -26,10 +26,10 @@ const PUBLIC_DESKS: PublicDeskCard[] = [
   {
     id: 'hadith',
     title: 'Prophetic Sunnah (Hadith)',
-    subtitle: 'HadeethEnc & Six Canonical Collections',
+    subtitle: 'Encyclopedia & Six Canonical Collections',
     description: 'Explore verified narrations, chains of transmission (Isnad), narrator biographies (Rijal), and printed scholarly grades.',
     href: '#/hadith',
-    badge: 'KUTUB AL-SITTAH · HADEETHENC',
+    badge: 'KUTUB AL-SITTAH · VERIFIED GRADES',
     mark: 'hadith',
   },
   {
@@ -38,7 +38,7 @@ const PUBLIC_DESKS: PublicDeskCard[] = [
     subtitle: 'Asma al-Husna · Classical Meanings',
     description: 'Contemplate the Beautiful Names of Allah with Arabic calligraphy, transliteration, and documented meanings.',
     href: '#/spiritual/names',
-    badge: '99 NAMES · ALADHAN & TERMINOLOGY',
+    badge: '99 NAMES · CLASSICAL MEANINGS',
     mark: 'dua',
   },
   {
@@ -74,7 +74,7 @@ const PUBLIC_DESKS: PublicDeskCard[] = [
     subtitle: 'Curated Classical & Contemporary Works',
     description: 'Read full-text Islamic books and treatises in English, Tamil, and Sinhala with in-page citations.',
     href: '#/books',
-    badge: 'ISLAMHOUSE LIBRARY · FULL TEXT',
+    badge: 'MULTILINGUAL LIBRARY · FULL TEXT',
     mark: 'books',
   },
   {
@@ -106,14 +106,14 @@ export function PublicHomeOverview() {
   };
 
   return (
-    <div data-public-home className="space-y-6">
+    <div data-public-home className="space-y-4">
       {/* Hero Banner */}
       <section
         data-public-hero
         style={{
           background: 'linear-gradient(135deg, #031812 0%, #0A2E23 52%, #041812 100%)',
         }}
-        className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/50 p-5 text-[#F5EEDC] shadow-[0_8px_28px_rgba(3,24,18,0.18)] sm:p-6"
+        className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/50 p-4 text-[#F5EEDC] shadow-sm sm:p-5"
       >
         <img
           src="/assets/geometric-emerald.jpg"
@@ -125,17 +125,17 @@ export function PublicHomeOverview() {
         {/* Inner Gold Frame */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-2.5 rounded-xl border border-[#D4AF37]/25"
+          className="pointer-events-none absolute inset-2 rounded-xl border border-[#D4AF37]/25"
         />
 
-        <div className="relative z-10 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
-          <div className="max-w-2xl space-y-2.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/60 bg-[#D4AF37]/15 px-3 py-0.5 text-[10px] font-semibold tracking-[0.2em] text-[#D4AF37]">
-                <Sparkles className="h-3 w-3" aria-hidden />
+        <div className="relative z-10 flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+          <div className="max-w-2xl space-y-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="inline-flex items-center gap-1 rounded-full border border-[#D4AF37]/60 bg-[#D4AF37]/15 px-2.5 py-0.5 text-[9px] font-semibold tracking-[0.18em] text-[#D4AF37]">
+                <Sparkles className="h-2.5 w-2.5" aria-hidden />
                 INSTITUTIONAL RESEARCH STUDIO
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full border border-[#D4AF37]/30 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-[#F5EEDC]/85">
+              <span className="inline-flex items-center gap-1 rounded-full border border-[#D4AF37]/30 bg-white/5 px-2 py-0.5 text-[10px] font-medium text-[#F5EEDC]/85">
                 <ShieldCheck className="h-3 w-3 text-[#D4AF37]" aria-hidden />
                 Verified Seeker Access
               </span>
@@ -144,25 +144,25 @@ export function PublicHomeOverview() {
             <p
               dir="rtl"
               lang="ar"
-              className="quran-face text-2xl font-medium leading-[1.9] text-[#F9E7B9] sm:text-3xl"
+              className="quran-face text-xl font-medium leading-[1.85] text-[#F9E7B9] sm:text-2xl"
             >
               طَلَبُ الْعِلْمِ فَرِيضَةٌ
             </p>
 
-            <h1 className="font-display text-xl font-bold leading-snug text-white sm:text-2xl">
+            <h1 className="font-display text-base font-bold leading-snug text-white sm:text-lg">
               Learn from Authentic Sources with Clarity, Verification & Humility
             </h1>
 
-            <p className="text-xs leading-relaxed text-[#F5EEDC]/80 sm:text-sm">
+            <p className="text-xs leading-relaxed text-[#F5EEDC]/80">
               Welcome to <strong className="text-white">Dragon Dawwa</strong>. Sign in once with your Google or Seeker account to unlock the Noble Qur’an Reader, Prophetic Hadith Encyclopedia, 7-Agent Research Desk, Scholarly Roundtable Podcasts, and your Personal Faith Wall.
             </p>
 
-            <div className="flex flex-wrap items-center gap-2.5 pt-1">
+            <div className="flex flex-wrap items-center gap-2 pt-1">
               <button
                 type="button"
                 data-public-hero-signin
                 onClick={() => openModal({ targetRoute: '#/quran', deskLabel: 'Dragon Dawwa Studio' })}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37] bg-[#D4AF37] px-4 py-2 text-xs font-bold text-[#031812] shadow-md transition hover:bg-[#e3c14d] sm:text-[13px]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37] bg-[#D4AF37] px-3.5 py-1.5 text-xs font-bold text-[#031812] shadow-2xs transition hover:bg-[#e3c14d]"
               >
                 <LogIn className="h-3.5 w-3.5" aria-hidden />
                 <span>Sign In to Enter Studio</span>
@@ -172,7 +172,7 @@ export function PublicHomeOverview() {
                 type="button"
                 data-public-hero-quran
                 onClick={() => triggerProtectedRoute('#/quran/book', 'Al-Qur’an Reader & Tafsir')}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/55 bg-[#0A2E23]/90 px-4 py-2 text-xs font-semibold text-[#F5EEDC] transition hover:border-[#D4AF37] hover:bg-[#0f3d2f] sm:text-[13px]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/55 bg-[#0A2E23]/90 px-3.5 py-1.5 text-xs font-semibold text-[#F5EEDC] transition hover:border-[#D4AF37] hover:bg-[#0f3d2f]"
               >
                 <BookOpen className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
                 <span>Open Noble Qur’an</span>
@@ -182,7 +182,7 @@ export function PublicHomeOverview() {
                 type="button"
                 data-public-hero-wall
                 onClick={() => triggerProtectedRoute('#/quran/wall', 'Community Faith Wall')}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/45 bg-[#031812]/80 px-4 py-2 text-xs font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37] sm:text-[13px]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/45 bg-[#031812]/80 px-3.5 py-1.5 text-xs font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37]"
               >
                 <Globe className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
                 <span>Explore Faith Wall</span>
@@ -193,7 +193,7 @@ export function PublicHomeOverview() {
           {/* Daily Wisdom Preview Card (Zero-API Static Preview) */}
           <div
             data-public-daily-wisdom
-            className="w-full shrink-0 rounded-2xl border border-[#D4AF37]/45 bg-[#031812]/90 p-4 lg:w-80"
+            className="w-full shrink-0 rounded-xl border border-[#D4AF37]/45 bg-[#031812]/90 p-3.5 lg:w-76"
           >
             <div className="flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#D4AF37]">
               <span>✦ Daily Qur’anic Wisdom</span>
@@ -203,14 +203,14 @@ export function PublicHomeOverview() {
               lang="ar"
               dir="rtl"
               style={{ textShadow: '0 0 18px rgba(212,175,55,0.2)' }}
-              className="quran-face mt-2.5 text-center text-xl leading-[2] text-white sm:text-2xl"
+              className="quran-face mt-2 text-center text-lg leading-[1.9] text-white sm:text-xl"
             >
               وَقُل رَّبِّ زِدْنِى عِلْمًا
             </p>
-            <p className="mt-1.5 text-center font-display text-xs italic text-[#F3E8C8] sm:text-[13px]">
+            <p className="mt-1 text-center font-display text-xs italic text-[#F3E8C8]">
               “And say: My Lord, increase me in knowledge.”
             </p>
-            <div className="mt-3 flex items-center justify-between border-t border-[#D4AF37]/20 pt-2.5 text-[11px]">
+            <div className="mt-2.5 flex items-center justify-between border-t border-[#D4AF37]/20 pt-2 text-[10px]">
               <span className="text-[#F5EEDC]/70">Audio: Arabic · Tamil · Sinhala · English</span>
               <button
                 type="button"
@@ -228,19 +228,19 @@ export function PublicHomeOverview() {
       <section
         data-public-research-gate
         onClick={() => triggerProtectedRoute('#/hub/research', '7-Agent Research Desk')}
-        className="cursor-pointer rounded-2xl border border-[#073C30]/20 bg-parchment p-4 shadow-sm transition hover:border-[#D4AF37] sm:p-5"
+        className="cursor-pointer rounded-xl border border-[#073C30]/20 bg-parchment p-3.5 shadow-2xs transition hover:border-[#D4AF37] sm:p-4"
       >
-        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-pine">
+        <div className="flex flex-col justify-between gap-2.5 sm:flex-row sm:items-center">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-pine">
               <Compass className="h-3.5 w-3.5 text-[#C6A15A]" aria-hidden />
               <span>Multidisciplinary 7-Agent Research Engine</span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#073C30] px-2 py-0.5 text-[10px] text-[#F9E7B9]">
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#073C30] px-2 py-0.5 text-[9px] text-[#F9E7B9]">
                 <Lock className="h-2.5 w-2.5 text-[#D4AF37]" aria-hidden />
                 Sign-In Required
               </span>
             </div>
-            <p className="text-xs text-muted sm:text-[13px]">
+            <p className="text-xs text-muted">
               Ask any question across Qur’an, Tafsir, Kutub al-Sittah, Fiqh, and Seerah—synthesized only from cited primary texts.
             </p>
           </div>
@@ -251,31 +251,31 @@ export function PublicHomeOverview() {
               event.stopPropagation();
               triggerProtectedRoute('#/hub/research', '7-Agent Research Desk');
             }}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#073C30] px-4 py-2 text-xs font-semibold text-[#F5EEDC] transition hover:bg-[#0A2E23]"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#073C30] px-3.5 py-1.5 text-xs font-semibold text-[#F5EEDC] transition hover:bg-[#0A2E23]"
           >
-            <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+            <Sparkles className="h-3 w-3 text-[#D4AF37]" aria-hidden />
             <span>Sign In to Start Research</span>
           </button>
         </div>
       </section>
 
       {/* Studio Desks Grid */}
-      <section className="space-y-3" data-public-desks-section>
+      <section className="space-y-2.5" data-public-desks-section>
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
               ✦ Explore Dragon Dawwa Desks ({lang.toUpperCase()})
             </p>
-            <h2 className="mt-0.5 font-display text-xl font-bold text-pine sm:text-2xl">
+            <h2 className="mt-0.5 font-display text-sm font-bold text-pine sm:text-base">
               Select Any Desk to Sign In & Enter
             </h2>
           </div>
-          <p className="text-xs text-muted">
+          <p className="text-[11px] text-muted">
             Compulsory Seeker Sign-In protects live scholarly & AI resources from automated abuse.
           </p>
         </div>
 
-        <div data-public-desk-grid className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+        <div data-public-desk-grid className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {PUBLIC_DESKS.map(desk => (
             <a
               key={desk.id}
@@ -285,29 +285,29 @@ export function PublicHomeOverview() {
                 event.preventDefault();
                 triggerProtectedRoute(desk.href, desk.title);
               }}
-              className="group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-pine/15 bg-parchment p-4 text-left shadow-xs transition duration-200 hover:-translate-y-0.5 hover:border-[#C6A15A] hover:shadow-md"
+              className="group relative flex h-full flex-col justify-between overflow-hidden rounded-xl border border-pine/15 bg-parchment p-3.5 text-left shadow-2xs transition duration-200 hover:-translate-y-0.5 hover:border-[#C6A15A] hover:shadow-sm"
             >
               <div>
-                <div className="flex items-start justify-between gap-2.5">
-                  <StudioMark name={desk.mark} className="h-10 w-10 shrink-0 rounded-xl border border-[#C6A15A]/40 shadow-xs" />
-                  <span className="inline-flex items-center gap-1 rounded-full border border-[#073C30]/15 bg-sand px-2 py-0.5 text-[10px] font-semibold tracking-wider text-pine">
+                <div className="flex items-start justify-between gap-2">
+                  <StudioMark name={desk.mark} className="h-8 w-8 shrink-0 rounded-lg border border-[#C6A15A]/40 shadow-2xs" />
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[#073C30]/15 bg-sand px-2 py-0.5 text-[9px] font-semibold tracking-wider text-pine">
                     <Lock className="h-2.5 w-2.5 text-[#C6A15A]" aria-hidden />
                     {desk.badge}
                   </span>
                 </div>
 
-                <h3 className="mt-3 font-display text-base font-bold text-pine group-hover:text-[#073C30] sm:text-lg">
+                <h3 className="mt-2.5 font-display text-sm font-bold text-pine group-hover:text-[#073C30]">
                   {desk.title}
                 </h3>
                 <p className="mt-0.5 text-[11px] font-semibold text-[#0B4B3A]/80">
                   {desk.subtitle}
                 </p>
-                <p className="mt-1.5 text-xs leading-relaxed text-muted">
+                <p className="mt-1 text-xs leading-relaxed text-muted">
                   {desk.description}
                 </p>
               </div>
 
-              <div className="mt-3 flex items-center justify-between border-t border-pine/10 pt-2.5 text-xs font-semibold text-pine">
+              <div className="mt-2.5 flex items-center justify-between border-t border-pine/10 pt-2 text-[11px] font-semibold text-pine">
                 <span className="group-hover:underline">Sign in to open desk</span>
                 <ArrowRight className="h-3.5 w-3.5 text-[#C6A15A] transition-transform group-hover:translate-x-1" aria-hidden />
               </div>
@@ -323,7 +323,7 @@ export function PublicHomeOverview() {
           <div>
             <h3 className="font-display text-sm font-bold text-[#F9E7B9]">Primary Sources Only</h3>
             <p className="mt-1 text-xs leading-relaxed text-[#F5EEDC]/75">
-              Every Qur’an verse, tafsir passage, and hadith grade is retrieved directly from QuranEnc, HadeethEnc, and canonical collections.
+              Every Qur’an verse, tafsir passage, and hadith grade is retrieved directly from verified canonical collections and classical commentaries.
             </p>
           </div>
         </div>

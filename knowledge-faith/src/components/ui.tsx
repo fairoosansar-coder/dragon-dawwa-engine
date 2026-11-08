@@ -37,14 +37,14 @@ export function IconButton({ label, className = '', ...props }: ButtonHTMLAttrib
 }
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-2xl border border-pine/10 bg-parchment p-4 shadow-sm sm:p-5 ${className}`}>{children}</section>;
+  return <section className={`rounded-2xl border border-pine/10 bg-parchment p-3.5 shadow-2xs sm:p-4 ${className}`}>{children}</section>;
 }
 
 export function SectionTitle({ children, sub }: { children: ReactNode; sub?: ReactNode }) {
   return (
-    <div className="mb-3">
-      <h2 className="font-display text-lg font-bold text-pine sm:text-xl">{children}</h2>
-      {sub && <p className="mt-0.5 text-xs text-ink/70 sm:text-[13px]">{sub}</p>}
+    <div className="mb-2.5">
+      <h2 className="font-display text-sm font-bold text-pine sm:text-base">{children}</h2>
+      {sub && <p className="mt-0.5 text-[11px] text-ink/70 sm:text-xs">{sub}</p>}
     </div>
   );
 }

@@ -64,7 +64,7 @@ export const PENDING_ROUTE_STORAGE_KEY = 'dd-seeker-pending-route';
 
 export function isPublicHomeHash(rawHash: string): boolean {
   const clean = rawHash.replace(/^#\/?/, '').split('?')[0].replace(/\/+$/, '').trim();
-  return clean === '' || clean === 'hub' || clean === 'screen-13';
+  return clean === '' || clean === 'hub' || clean === 'screen-13' || clean === 'about';
 }
 
 export function deskLabelForHash(rawHash: string): string {

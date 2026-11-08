@@ -18,6 +18,7 @@ const en = {
   navStudio: 'Podcasts & Voice',
   navProfile: 'Seeker Profile',
   navAdmin: 'Admin Cockpit',
+  navAbout: 'About & Reference Notes',
   language: 'Content language',
   verseOfDay: 'Verse of the day',
   askTitle: 'Ask a question',

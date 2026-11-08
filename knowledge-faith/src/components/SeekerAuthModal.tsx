@@ -151,22 +151,27 @@ export function SeekerAccountPill({ variant = 'sidebar' }: { variant?: 'sidebar'
   const { user, openModal } = useSeekerAuth();
 
   if (variant === 'header') {
+    const shortName = user?.name
+      ? user.name.length > 16
+        ? user.name.split(/\s+/).slice(0, 2).join(' ')
+        : user.name
+      : 'Sign in';
     return (
       <button
         type="button"
         data-header-account-pill
         onClick={() => openModal()}
         title={user ? `${user.name} · Account & Profile` : 'Sign in'}
-        className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#D4AF37]/50 bg-[#073C30] px-2.5 py-1 text-xs font-medium text-[#F5EEDC] shadow-2xs transition hover:border-[#D4AF37] hover:bg-[#0A2E23]"
+        className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-[#D4AF37]/50 bg-[#073C30] px-2 text-[11px] font-medium text-[#F5EEDC] shadow-2xs transition hover:border-[#D4AF37] hover:bg-[#0A2E23] sm:h-7.5 sm:px-2.5 sm:text-xs"
       >
-        <span className="inline-flex h-4.5 w-4.5 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#D4AF37]/45 bg-[#031812]">
+        <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#D4AF37]/45 bg-[#031812]">
           {user ? (
-            <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={12} />
+            <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={11} />
           ) : (
-            <LogIn className="h-3 w-3 text-[#D4AF37]" aria-hidden />
+            <LogIn className="h-2.5 w-2.5 text-[#D4AF37]" aria-hidden />
           )}
         </span>
-        <span className="max-w-[8.5rem] truncate">{user ? user.name : 'Sign in'}</span>
+        <span className="max-w-[6.25rem] truncate sm:max-w-[9rem]">{shortName}</span>
       </button>
     );
   }
