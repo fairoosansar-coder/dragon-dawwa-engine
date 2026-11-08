@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 export type SeekerEmblem = 'rub-el-hizb' | 'crescent-star' | 'octagon-rosette' | 'emerald-lamp';
 export type SeekerAuthProvider = 'email' | 'google' | 'apple' | 'guest';
+export type SeekerAuthMethod = 'google' | 'password' | 'studio';
 
 export interface SeekerUser {
   id: string;
@@ -11,21 +12,43 @@ export interface SeekerUser {
   bio: string;
   emblem: SeekerEmblem;
   provider: SeekerAuthProvider;
+  authProvider?: SeekerAuthMethod;
+  googleSub?: string | null;
+  avatarUrl?: string | null;
   verified: boolean;
   createdAt: string;
 }
+
+export type PublicSeekerProfile = SeekerUser;
 
 export interface SeekerSession {
   token: string;
   user: SeekerUser;
 }
 
+export interface GoogleAuthClientConfig {
+  enabled: boolean;
+  clientId: string | null;
+  hasClientSecret: boolean;
+  oauthRedirectPath: string;
+}
+
 export const SEEKER_AUTH_EVENT = 'kf-seeker-auth-changed';
 export const SEEKER_MODAL_EVENT = 'kf-seeker-modal-open';
-const SESSION_STORAGE_KEY = 'kf-seeker-session';
+export const SESSION_STORAGE_KEY = 'kf-seeker-session';
+export const SESSION_TOKEN_KEY = 'dd-seeker-session-token';
+
+const DEFAULT_GOOGLE_CONFIG: GoogleAuthClientConfig = {
+  enabled: false,
+  clientId: null,
+  hasClientSecret: false,
+  oauthRedirectPath: '/api/auth/google/start',
+};
 
 let memorySession: SeekerSession | null = null;
+let memoryGoogleConfig: GoogleAuthClientConfig = DEFAULT_GOOGLE_CONFIG;
 let modalRequestedOpen = false;
+let sessionHydrated = false;
 
 export const SEEKER_EMBLEMS: Array<{ id: SeekerEmblem; label: string; subtitle: string }> = [
   { id: 'rub-el-hizb', label: 'Rub el Hizb', subtitle: 'Eight-pointed Mushaf star' },
@@ -46,13 +69,81 @@ export function sanitizeSeekerEmblem(value: unknown): SeekerEmblem {
   return 'rub-el-hizb';
 }
 
+function decodeTokenUserFallback(token: string): SeekerUser | null {
+  const parts = token.trim().split('.');
+  if (parts.length < 2) return null;
+  try {
+    const base64 = parts[0].replace(/-/g, '+').replace(/_/g, '/');
+    const json = typeof atob === 'function' ? atob(base64) : Buffer.from(parts[0], 'base64url').toString('utf8');
+    const decoded = JSON.parse(json) as Record<string, unknown>;
+    const id = typeof decoded.sub === 'string' ? decoded.sub : '';
+    const email = typeof decoded.email === 'string' ? decoded.email : '';
+    if (!id || !email) return null;
+    const provider: SeekerAuthProvider =
+      decoded.provider === 'google' || decoded.provider === 'apple' || decoded.provider === 'guest'
+        ? decoded.provider
+        : 'email';
+    const authProvider: SeekerAuthMethod =
+      decoded.authProvider === 'google' || decoded.authProvider === 'password' || decoded.authProvider === 'studio'
+        ? decoded.authProvider
+        : provider === 'google'
+          ? 'google'
+          : provider === 'email'
+            ? 'password'
+            : 'studio';
+    return {
+      id,
+      email,
+      name: typeof decoded.name === 'string' && decoded.name ? decoded.name : 'Community Seeker',
+      kunyah: typeof decoded.kunyah === 'string' && decoded.kunyah ? decoded.kunyah : 'Seeker of Knowledge',
+      bio: typeof decoded.bio === 'string' ? decoded.bio : '',
+      emblem: sanitizeSeekerEmblem(decoded.emblem),
+      provider,
+      authProvider,
+      googleSub: typeof decoded.googleSub === 'string' ? decoded.googleSub : null,
+      avatarUrl: typeof decoded.avatarUrl === 'string' && decoded.avatarUrl ? decoded.avatarUrl : null,
+      verified: decoded.verified !== false,
+      createdAt: typeof decoded.createdAt === 'string' ? decoded.createdAt : new Date().toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function consumeOAuthHandoffFromLocation(): SeekerSession | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const url = new URL(window.location.href);
+    const handoffToken = url.searchParams.get('dd_seeker_handoff');
+    if (!handoffToken) return null;
+    const user = decodeTokenUserFallback(handoffToken);
+    url.searchParams.delete('dd_seeker_handoff');
+    const cleanUrl = `${url.pathname}${url.search}${url.hash}`;
+    window.history.replaceState(null, '', cleanUrl);
+    if (user) {
+      const session: SeekerSession = { token: handoffToken, user };
+      writeSeekerSession(session);
+      return session;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
 export function readSeekerSession(): SeekerSession | null {
   if (typeof window !== 'undefined') {
+    const handoff = consumeOAuthHandoffFromLocation();
+    if (handoff) return handoff;
     try {
       const raw = window.localStorage.getItem(SESSION_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<SeekerSession>;
         if (parsed && typeof parsed.token === 'string' && parsed.user && typeof parsed.user.id === 'string') {
+          const provider: SeekerAuthProvider = parsed.user.provider || 'email';
+          const authProvider: SeekerAuthMethod =
+            parsed.user.authProvider ||
+            (provider === 'google' ? 'google' : provider === 'email' ? 'password' : 'studio');
           return {
             token: parsed.token,
             user: {
@@ -62,12 +153,20 @@ export function readSeekerSession(): SeekerSession | null {
               kunyah: parsed.user.kunyah || 'Seeker of Knowledge',
               bio: parsed.user.bio || '',
               emblem: sanitizeSeekerEmblem(parsed.user.emblem),
-              provider: parsed.user.provider || 'email',
+              provider,
+              authProvider,
+              googleSub: parsed.user.googleSub ?? null,
+              avatarUrl: parsed.user.avatarUrl ?? null,
               verified: parsed.user.verified !== false,
               createdAt: parsed.user.createdAt || new Date().toISOString(),
             },
           };
         }
+      }
+      const tokenOnly = window.localStorage.getItem(SESSION_TOKEN_KEY);
+      if (tokenOnly) {
+        const decoded = decodeTokenUserFallback(tokenOnly);
+        if (decoded) return { token: tokenOnly, user: decoded };
       }
     } catch {
       /* ignore */
@@ -82,14 +181,61 @@ export function writeSeekerSession(session: SeekerSession | null): void {
     try {
       if (session) {
         window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+        window.localStorage.setItem(SESSION_TOKEN_KEY, session.token);
       } else {
         window.localStorage.removeItem(SESSION_STORAGE_KEY);
+        window.localStorage.removeItem(SESSION_TOKEN_KEY);
       }
     } catch {
       /* keep in memory */
     }
     window.dispatchEvent(new Event(SEEKER_AUTH_EVENT));
   }
+}
+
+export function readGoogleAuthConfig(): GoogleAuthClientConfig {
+  return memoryGoogleConfig;
+}
+
+export async function refreshSeekerSessionAndConfig(): Promise<{
+  session: SeekerSession | null;
+  googleAuth: GoogleAuthClientConfig;
+}> {
+  const local = readSeekerSession();
+  if (typeof fetch !== 'function') {
+    return { session: local, googleAuth: memoryGoogleConfig };
+  }
+  try {
+    const headers: Record<string, string> = {};
+    if (local?.token) headers.Authorization = `Bearer ${local.token}`;
+    const response = await fetch('/api/auth/session', { headers });
+    if (response.ok) {
+      const body = (await response.json()) as {
+        authenticated?: boolean;
+        user?: SeekerUser | null;
+        googleAuth?: Partial<GoogleAuthClientConfig>;
+      };
+      if (body.googleAuth) {
+        memoryGoogleConfig = {
+          enabled: Boolean(body.googleAuth.enabled),
+          clientId: body.googleAuth.clientId ?? null,
+          hasClientSecret: Boolean(body.googleAuth.hasClientSecret),
+          oauthRedirectPath: body.googleAuth.oauthRedirectPath || '/api/auth/google/start',
+        };
+      }
+      if (body.authenticated && body.user && local?.token) {
+        const next: SeekerSession = { token: local.token, user: body.user };
+        writeSeekerSession(next);
+        return { session: next, googleAuth: memoryGoogleConfig };
+      }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event(SEEKER_AUTH_EVENT));
+      }
+    }
+  } catch {
+    /* ignore offline error */
+  }
+  return { session: local, googleAuth: memoryGoogleConfig };
 }
 
 export function openSeekerAuthModal(): void {
@@ -113,12 +259,17 @@ function buildLocalFallbackSession(input: {
   bio?: string;
   emblem?: SeekerEmblem;
   provider?: SeekerAuthProvider;
+  avatarUrl?: string | null;
 }): SeekerSession {
   const provider = input.provider ?? 'email';
+  const authProvider: SeekerAuthMethod =
+    provider === 'google' ? 'google' : provider === 'email' ? 'password' : 'studio';
   const email = (input.email ?? '').trim().toLowerCase() || `${provider}.seeker@dragondawwa.com`;
   const defaultName = email.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   const name = (input.name ?? '').trim() || defaultName || 'Community Seeker';
-  const kunyah = (input.kunyah ?? '').trim() || 'Seeker of Knowledge';
+  const kunyah =
+    (input.kunyah ?? '').trim() ||
+    (provider === 'google' ? 'Verified Google Seeker' : 'Seeker of Knowledge');
   const bio = (input.bio ?? '').trim();
   const emblem = sanitizeSeekerEmblem(input.emblem);
   const id = `seeker-${email.replace(/[^a-z0-9]/g, '').slice(0, 18) || 'local'}`;
@@ -130,10 +281,39 @@ function buildLocalFallbackSession(input: {
     bio,
     emblem,
     provider,
+    authProvider,
+    avatarUrl: input.avatarUrl ?? null,
     verified: true,
     createdAt: new Date().toISOString(),
   };
   return { token: `local-token-${id}`, user };
+}
+
+export async function signInWithGoogleCredential(
+  credential: string,
+  preferredLanguage?: 'en' | 'ta' | 'si',
+): Promise<SeekerSession> {
+  const response = await fetch('/api/auth/google/credential', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ credential, preferredLanguage }),
+  });
+  const body = (await response.json().catch(() => ({}))) as {
+    token?: string;
+    user?: SeekerUser;
+    error?: string;
+  };
+  if (!response.ok || !body.token || !body.user) {
+    throw new Error(body.error || 'Google Sign-In could not be verified.');
+  }
+  const session: SeekerSession = { token: body.token, user: body.user };
+  writeSeekerSession(session);
+  return session;
+}
+
+export function buildGoogleOAuthRedirectUrl(returnTo?: string): string {
+  const target = returnTo || (typeof window !== 'undefined' ? window.location.hash || '#/quran/wall' : '#/quran/wall');
+  return `/api/auth/google/start?returnTo=${encodeURIComponent(target)}`;
 }
 
 export async function loginOrRegisterSeeker(input: {
@@ -145,6 +325,7 @@ export async function loginOrRegisterSeeker(input: {
   bio?: string;
   emblem?: SeekerEmblem;
   provider?: SeekerAuthProvider;
+  avatarUrl?: string | null;
 }): Promise<SeekerSession> {
   const endpoint = input.mode === 'register' ? '/api/auth/register' : '/api/auth/login';
   const provider = input.provider ?? 'email';
@@ -161,6 +342,7 @@ export async function loginOrRegisterSeeker(input: {
           bio: input.bio,
           emblem: input.emblem,
           provider,
+          avatarUrl: input.avatarUrl,
         }),
       });
       const body = (await response.json().catch(() => ({}))) as {
@@ -192,6 +374,7 @@ export async function updateSeekerProfile(input: {
   kunyah: string;
   bio?: string;
   emblem?: SeekerEmblem;
+  avatarUrl?: string | null;
 }): Promise<SeekerSession | null> {
   const current = readSeekerSession();
   if (!current) return null;
@@ -226,6 +409,7 @@ export async function updateSeekerProfile(input: {
       kunyah: input.kunyah.trim() || current.user.kunyah,
       bio: input.bio !== undefined ? input.bio.trim() : current.user.bio,
       emblem: input.emblem ? sanitizeSeekerEmblem(input.emblem) : current.user.emblem,
+      avatarUrl: input.avatarUrl !== undefined ? input.avatarUrl : current.user.avatarUrl,
     },
   };
   writeSeekerSession(updated);
@@ -249,14 +433,27 @@ export async function signOutSeeker(): Promise<void> {
 
 export function useSeekerAuth() {
   const [session, setSession] = useState<SeekerSession | null>(() => readSeekerSession());
+  const [googleAuth, setGoogleAuth] = useState<GoogleAuthClientConfig>(() => readGoogleAuthConfig());
   const [modalOpen, setModalOpen] = useState<boolean>(() => modalRequestedOpen);
 
   useEffect(() => {
-    const syncAuth = () => setSession(readSeekerSession());
+    const syncAuth = () => {
+      setSession(readSeekerSession());
+      setGoogleAuth(readGoogleAuthConfig());
+    };
     const syncModal = () => setModalOpen(modalRequestedOpen);
     window.addEventListener(SEEKER_AUTH_EVENT, syncAuth);
     window.addEventListener('storage', syncAuth);
     window.addEventListener(SEEKER_MODAL_EVENT, syncModal);
+
+    if (!sessionHydrated) {
+      sessionHydrated = true;
+      void refreshSeekerSessionAndConfig().then(({ session: s, googleAuth: g }) => {
+        setSession(s);
+        setGoogleAuth(g);
+      });
+    }
+
     return () => {
       window.removeEventListener(SEEKER_AUTH_EVENT, syncAuth);
       window.removeEventListener('storage', syncAuth);
@@ -271,10 +468,12 @@ export function useSeekerAuth() {
     session,
     user: session?.user ?? null,
     token: session?.token ?? null,
+    googleAuth,
     modalOpen,
     openModal,
     closeModal,
     loginOrRegister: loginOrRegisterSeeker,
+    signInWithGoogleCredential,
     updateProfile: updateSeekerProfile,
     signOut: signOutSeeker,
   };
