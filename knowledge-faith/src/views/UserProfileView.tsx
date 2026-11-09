@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import type { ViewProps } from '../App.tsx';
+import { ProfileSettingsPanel } from '../components/ProfileSettingsPanel.tsx';
 import { SeekerAvatar } from '../components/SeekerAuthModal.tsx';
 import { ReflectionModal, type PresetVerseOption } from '../components/wall/ReflectionModal.tsx';
 import { WallPostCard } from '../components/wall/WallPostCard.tsx';
@@ -46,7 +47,7 @@ const BANNER_PRESETS = [
 export function UserProfileView({ sub }: ViewProps) {
   const { user, updateProfile, openModal: openAuthModal } = useSeekerAuth();
   const [tick, setTick] = useState(0);
-  const [portfolioTab, setPortfolioTab] = useState<'all' | 'reflections' | 'podcasts'>('all');
+  const [portfolioTab, setPortfolioTab] = useState<'all' | 'reflections' | 'podcasts' | 'settings'>('all');
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingBannerOpen, setEditingBannerOpen] = useState(false);
   const [customBannerDraft, setCustomBannerDraft] = useState('');
@@ -219,14 +220,6 @@ export function UserProfileView({ sub }: ViewProps) {
         </a>
 
         <div className="flex items-center gap-1.5">
-          <a
-            href="#/admin"
-            data-profile-open-admin
-            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 shadow-2xs transition hover:bg-stone-50"
-          >
-            <ShieldCheck className="h-3.5 w-3.5 text-[#C6A15A]" aria-hidden />
-            <span>Admin Cockpit</span>
-          </a>
           {portfolio.isSelf && (
             <button
               type="button"
@@ -466,12 +459,13 @@ export function UserProfileView({ sub }: ViewProps) {
             data-profile-portfolio-tabs
             className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-stone-200/80 bg-white px-3 py-2 shadow-2xs"
           >
-            <div role="tablist" aria-label="Portfolio filter" className="inline-flex items-center rounded-xl bg-stone-100 p-0.5">
+            <div role="tablist" aria-label="Portfolio filter" className="inline-flex flex-wrap items-center rounded-xl bg-stone-100 p-0.5">
               {(
                 [
                   { id: 'all', label: `All Contributions (${portfolio.approvedPosts.length})` },
                   { id: 'reflections', label: `Ayah Reflections (${portfolio.reflectionsCount})` },
                   { id: 'podcasts', label: `Podcasts (${portfolio.podcastsCount})` },
+                  { id: 'settings', label: 'Settings & Preferences' },
                 ] as const
               ).map(tab => {
                 const active = portfolioTab === tab.id;
@@ -496,12 +490,14 @@ export function UserProfileView({ sub }: ViewProps) {
             </div>
 
             <span className="px-2 text-[11px] font-medium text-stone-500">
-              Showing verified approved portfolio items
+              {portfolioTab === 'settings' ? 'Personalize language, theme & font scale' : 'Showing verified approved portfolio items'}
             </span>
           </div>
 
-          {/* Portfolio Feed Stream */}
-          {filteredPosts.length === 0 ? (
+          {/* Portfolio Feed Stream or Settings View */}
+          {portfolioTab === 'settings' ? (
+            <ProfileSettingsPanel />
+          ) : filteredPosts.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-8 text-center">
               <Sparkles className="mx-auto h-6 w-6 text-[#C6A15A]" aria-hidden />
               <p className="mt-2 font-display text-base font-bold text-stone-900">
@@ -560,6 +556,8 @@ export function UserProfileView({ sub }: ViewProps) {
 
         {/* Right Portfolio Rail */}
         <aside className="space-y-4">
+          <ProfileSettingsPanel />
+
           <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-2xs">
             <h3 className="text-xs font-semibold text-stone-900">
               Scholarly Portfolio Summary

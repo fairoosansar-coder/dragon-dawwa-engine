@@ -8,35 +8,55 @@ import { useAudioState } from '../../lib/audio.ts';
 import { buildStamp } from '../../buildStamp.ts';
 import { BrandLockup } from './Brand.tsx';
 import { NavGlyph, type NavIconName } from './navIcons.tsx';
-import { AudioMiniPlayer, DeskHeaderTabs } from './widgets.tsx';
+import { AudioMiniPlayer, DeskHeaderTabs, isKnowledgeDomainPath } from './widgets.tsx';
 import { SeekerAccountPill, SeekerAuthModal } from '../SeekerAuthModal.tsx';
 import { isPublicHomeHash, requestAuthenticatedNavigation, useSeekerAuth } from '../../lib/seekerAuth.ts';
 
 interface NavItem {
-  path: RouteRoot;
+  id: 'knowledge' | 'wall' | 'podcast' | 'saved' | 'profile';
   href: string;
-  short: keyof Strings;
-  side?: keyof Strings;
+  label: string;
   mark: NavIconName;
-}
-
-function ReleaseMark({ className }: { className: string }) {
-  const short = buildStamp.sha.slice(0, 7);
-  const label = `${short} · ${buildStamp.builtAt}`;
-  return (
-    <p className={className} data-release={buildStamp.sha} data-built-at={buildStamp.builtAt} title={`Release ${buildStamp.sha} built ${buildStamp.builtAt}`}>
-      {label}
-    </p>
-  );
+  isActive: (path: RouteRoot, segments: string[]) => boolean;
 }
 
 const NAV: NavItem[] = [
-  { path: 'hub', href: '#/hub', short: 'navKnowledge', mark: 'knowledge' },
-  { path: 'quran', href: '#/quran', short: 'navQuranShort', mark: 'quran' },
-  { path: 'hadith', href: '#/hadith', short: 'navHadithShort', mark: 'hadith' },
-  { path: 'books', href: '#/books', short: 'navBooks', mark: 'books' },
-  { path: 'spiritual', href: '#/spiritual', short: 'navWorship', side: 'navWorship', mark: 'worship' },
-  { path: 'podcast', href: '#/podcast', short: 'navPodcast', mark: 'podcast' },
+  {
+    id: 'knowledge',
+    href: '#/hub',
+    label: 'Knowledge',
+    mark: 'knowledge',
+    isActive: (path, segments) => isKnowledgeDomainPath(path, segments),
+  },
+  {
+    id: 'wall',
+    href: '#/quran/wall',
+    label: 'Faith Wall',
+    mark: 'wall',
+    isActive: (path, segments) =>
+      (path === 'quran' && segments[0] === 'wall') || (path === 'hub' && segments[0] === 'wall'),
+  },
+  {
+    id: 'podcast',
+    href: '#/podcast',
+    label: 'Podcast',
+    mark: 'podcast',
+    isActive: path => path === 'podcast' || path === 'studio',
+  },
+  {
+    id: 'saved',
+    href: '#/hub/saved',
+    label: 'Saved',
+    mark: 'saved',
+    isActive: (path, segments) => path === 'hub' && segments[0] === 'saved',
+  },
+  {
+    id: 'profile',
+    href: '#/profile',
+    label: 'Profile',
+    mark: 'profile',
+    isActive: path => path === 'profile',
+  },
 ];
 
 function navLinkClass(place: 'side' | 'dock') {
@@ -73,32 +93,24 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
           </div>
           <nav aria-label="Main" className="mt-4 flex-1 space-y-1 px-3">
             {NAV.map(item => {
-              const active = item.path === path;
-              const label = t[item.side ?? item.short];
+              const active = item.isActive(path, segments);
               return (
                 <a
-                  key={item.path}
+                  key={item.id}
                   href={item.href}
+                  data-primary-nav={item.id}
                   aria-current={active ? 'page' : undefined}
-                  onClick={event => handleNavClick(event, item.href, label)}
+                  onClick={event => handleNavClick(event, item.href, item.label)}
                   className={navLinkClass('side')}
                 >
                   <NavGlyph name={item.mark} />
-                  {label}
+                  {item.label}
                 </a>
               );
             })}
           </nav>
           <div className="mt-auto border-t border-[#C6A15A]/35 px-3 py-4">
             <SeekerAccountPill variant="sidebar" />
-            <a
-              href="#/hub/saved"
-              onClick={event => handleNavClick(event, '#/hub/saved', t.sidebarSaved)}
-              className={`${navLinkClass('side')} text-[#F5EEDC]`}
-            >
-              <NavGlyph name="saved" />
-              {t.sidebarSaved}
-            </a>
             <a
               href="#/hub/scholar"
               onClick={event => handleNavClick(event, '#/hub/scholar', t.sidebarQuestion)}
@@ -129,7 +141,7 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
           </div>
         )}
         {!focus && (
-          <header className="shrink-0 overflow-x-clip border-b border-stone-200/80 bg-sand/95 backdrop-blur-xs">
+          <header className="relative z-40 shrink-0 border-b border-stone-200/80 bg-sand/95 backdrop-blur-xs">
             <div className="mx-auto max-w-[1280px] px-3 sm:px-5">
               {/* Row 1: Single strictly horizontal bar on both mobile (390px) and desktop (1440px) */}
               <div className="flex h-11 min-w-0 items-center justify-between gap-2">
@@ -143,25 +155,10 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
                   {quranSettings && <div id="kf-library-settings" className="hidden lg:block" />}
                   {quranSettings && <div id="kf-library-settings-mobile" className="lg:hidden" />}
                   <SeekerAccountPill variant="header" />
-                  <label className="flex shrink-0 items-center">
-                    <span className="sr-only">{t.language}</span>
-                    <select
-                      aria-label={t.language}
-                      value={lang}
-                      onChange={event => setLang(toLang(event.target.value))}
-                      className="h-7 rounded-full border border-stone-300/90 bg-white px-2 text-[11px] font-medium text-stone-800 shadow-2xs transition hover:border-[#073C30]/40 sm:h-7.5 sm:px-2.5 sm:text-xs"
-                    >
-                      {LANGS.map(code => (
-                        <option key={code} value={code}>
-                          {LANGUAGE_NAMES[code].english}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
                 </div>
               </div>
-              {/* Row 2 on Mobile/Small screens: Sub-tabs when active desk has tabs */}
-              {(path === 'quran' || path === 'hadith') && (
+              {/* Row 2 on Mobile/Small screens: Knowledge desk switcher & sub-tabs */}
+              {isKnowledgeDomainPath(path, segments) && (
                 <DeskHeaderTabs path={path} segments={segments} className="border-t border-stone-200/60 py-1 md:hidden" />
               )}
             </div>
@@ -180,20 +177,20 @@ export function AppFrame({ path, section, segments = [], children }: { path: Rou
         {player && !(path === 'quran' && (segments[0] === 'book' || segments[0] === 'study')) && <AudioMiniPlayer safe={focus} />}
         {!focus && !(path === 'quran' && segments[0] === 'book') && (
           <nav aria-label="Sections" className="shrink-0 border-t border-gold/40 bg-pine pb-[env(safe-area-inset-bottom)] lg:hidden">
-          <ul className="grid grid-cols-6">
+          <ul className="grid grid-cols-5">
             {NAV.map(item => {
-              const active = item.path === path;
-              const label = t[item.short];
+              const active = item.isActive(path, segments);
               return (
-                <li key={item.path} className="min-w-0">
+                <li key={item.id} className="min-w-0">
                   <a
                     href={item.href}
+                    data-dock-nav={item.id}
                     aria-current={active ? 'page' : undefined}
-                    onClick={event => handleNavClick(event, item.href, label)}
+                    onClick={event => handleNavClick(event, item.href, item.label)}
                     className={navLinkClass('dock')}
                   >
                     <NavGlyph name={item.mark} />
-                    <span className="max-w-full truncate">{label}</span>
+                    <span className="max-w-full truncate">{item.label}</span>
                   </a>
                 </li>
               );

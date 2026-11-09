@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Check, Copy, HelpCircle, LogIn, LogOut, ShieldCheck, Sparkles, User, X } from 'lucide-react';
+import { Check, ChevronDown, Copy, HelpCircle, LogIn, LogOut, Settings, ShieldCheck, Sparkles, User, X } from 'lucide-react';
 import { RubElHizb } from '../engine/ds/ornaments.tsx';
+import { ProfileSettingsPanel } from './ProfileSettingsPanel.tsx';
 import {
   buildGoogleOAuthRedirectUrl,
   ensureGoogleGisLoaded,
@@ -149,6 +150,29 @@ export function SeekerAvatar({
 
 export function SeekerAccountPill({ variant = 'sidebar' }: { variant?: 'sidebar' | 'header' }) {
   const { user, openModal } = useSeekerAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    const handleHashChange = () => setMenuOpen(false);
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('hashchange', handleHashChange);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, [menuOpen]);
 
   if (variant === 'header') {
     const shortName = user?.name
@@ -157,22 +181,96 @@ export function SeekerAccountPill({ variant = 'sidebar' }: { variant?: 'sidebar'
         : user.name
       : 'Sign in';
     return (
-      <button
-        type="button"
-        data-header-account-pill
-        onClick={() => openModal()}
-        title={user ? `${user.name} · Account & Profile` : 'Sign in'}
-        className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-[#D4AF37]/50 bg-[#073C30] px-2 text-[11px] font-medium text-[#F5EEDC] shadow-2xs transition hover:border-[#D4AF37] hover:bg-[#0A2E23] sm:h-7.5 sm:px-2.5 sm:text-xs"
-      >
-        <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#D4AF37]/45 bg-[#031812]">
-          {user ? (
-            <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={11} />
-          ) : (
-            <LogIn className="h-2.5 w-2.5 text-[#D4AF37]" aria-hidden />
-          )}
-        </span>
-        <span className="max-w-[6.25rem] truncate sm:max-w-[9rem]">{shortName}</span>
-      </button>
+      <div ref={menuRef} className="relative shrink-0">
+        <button
+          type="button"
+          data-header-account-pill
+          aria-expanded={menuOpen}
+          aria-haspopup="dialog"
+          onClick={() => setMenuOpen(open => !open)}
+          title={user ? `${user.name} · Profile & Display Settings` : 'Sign in & Display Settings'}
+          className="inline-flex h-7.5 shrink-0 items-center gap-1.5 rounded-full border border-[#D4AF37]/50 bg-[#073C30] px-2.5 text-[11px] font-medium text-[#F5EEDC] shadow-2xs transition hover:border-[#D4AF37] hover:bg-[#0A2E23] sm:text-xs"
+        >
+          <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#D4AF37]/45 bg-[#031812]">
+            {user ? (
+              <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={11} />
+            ) : (
+              <LogIn className="h-2.5 w-2.5 text-[#D4AF37]" aria-hidden />
+            )}
+          </span>
+          <span className="max-w-[6.75rem] truncate sm:max-w-[9.5rem]">{shortName}</span>
+          <Settings className="h-3 w-3 shrink-0 text-[#D4AF37]/90" aria-hidden />
+          <ChevronDown className="h-3 w-3 shrink-0 text-[#F5EEDC]/70" aria-hidden />
+        </button>
+
+        {menuOpen && (
+          <div
+            role="dialog"
+            aria-label="Profile and Display Settings"
+            data-profile-settings-popover
+            className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-1.5rem)] rounded-2xl border border-stone-200 bg-white p-3.5 text-stone-900 shadow-xl ring-1 ring-black/5"
+          >
+            {/* Identity Header */}
+            <div className="flex items-center justify-between gap-2 border-b border-stone-100 pb-3">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#073C30] text-[#F5EEDC] ring-2 ring-emerald-600/30">
+                  {user ? (
+                    <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={18} />
+                  ) : (
+                    <User className="h-4 w-4 text-[#D4AF37]" aria-hidden />
+                  )}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-bold text-stone-900">
+                    {user ? user.name : 'Guest Seeker'}
+                  </p>
+                  <p className="truncate text-[11px] text-stone-500">
+                    {user ? user.kunyah : 'Sign in to sync your profile'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMenuOpen(false)}
+                aria-label="Close settings menu"
+                className="inline-flex h-6 w-6 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 hover:text-stone-700"
+              >
+                <X className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            </div>
+
+            {/* Quick Profile / Account Actions */}
+            <div className="mt-2.5 grid grid-cols-2 gap-1.5 border-b border-stone-100 pb-3">
+              <a
+                href="#/profile"
+                data-popover-open-profile
+                onClick={() => setMenuOpen(false)}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs font-semibold text-stone-800 transition hover:border-emerald-700/40 hover:bg-emerald-50/50"
+              >
+                <User className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+                <span>My Profile</span>
+              </a>
+              <button
+                type="button"
+                data-popover-open-account
+                onClick={() => {
+                  setMenuOpen(false);
+                  openModal();
+                }}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs font-semibold text-stone-800 transition hover:border-emerald-700/40 hover:bg-emerald-50/50"
+              >
+                <Settings className="h-3.5 w-3.5 text-[#C6A15A]" aria-hidden />
+                <span>{user ? 'Edit Identity' : 'Sign In'}</span>
+              </button>
+            </div>
+
+            {/* Language, Theme & Font Size Controls */}
+            <div className="mt-3">
+              <ProfileSettingsPanel compact />
+            </div>
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -204,24 +302,14 @@ export function SeekerAccountPill({ variant = 'sidebar' }: { variant?: 'sidebar'
         </div>
       </button>
       {user && (
-        <div className="grid grid-cols-2 gap-1.5">
-          <a
-            href="#/profile"
-            data-sidebar-profile-link
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#C6A15A]/35 bg-[#04241C]/90 px-2.5 py-1.5 text-[11px] font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37] hover:bg-[#0A2E23]"
-          >
-            <User className="h-3 w-3 text-[#D4AF37]" aria-hidden />
-            <span>My Profile</span>
-          </a>
-          <a
-            href="#/admin"
-            data-sidebar-admin-link
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#C6A15A]/35 bg-[#04241C]/90 px-2.5 py-1.5 text-[11px] font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37] hover:bg-[#0A2E23]"
-          >
-            <ShieldCheck className="h-3 w-3 text-[#D4AF37]" aria-hidden />
-            <span>Admin</span>
-          </a>
-        </div>
+        <a
+          href="#/profile"
+          data-sidebar-profile-link
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#C6A15A]/35 bg-[#04241C]/90 px-2.5 py-1.5 text-[11px] font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37] hover:bg-[#0A2E23]"
+        >
+          <User className="h-3 w-3 text-[#D4AF37]" aria-hidden />
+          <span>My Profile & Settings</span>
+        </a>
       )}
     </div>
   );
@@ -644,15 +732,7 @@ export function SeekerAuthModal() {
                   className="inline-flex items-center gap-1.5 rounded-xl border border-[#D4AF37]/50 bg-[#0A2E23] px-3.5 py-2 text-xs font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37]"
                 >
                   <User className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-                  <span>My Profile</span>
-                </a>
-                <a
-                  href="#/admin"
-                  onClick={closeModal}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-[#D4AF37]/50 bg-[#0A2E23] px-3.5 py-2 text-xs font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37]"
-                >
-                  <ShieldCheck className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-                  <span>Admin Cockpit</span>
+                  <span>My Profile & Settings</span>
                 </a>
                 <a
                   href="#/quran/wall"

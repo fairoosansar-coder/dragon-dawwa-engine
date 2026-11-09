@@ -468,19 +468,7 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
             >
               <span className="inline-flex items-center gap-2">
                 <User className="h-3.5 w-3.5 text-[#073C30]" aria-hidden />
-                <span>My Profile Portfolio</span>
-              </span>
-              <span className="text-[11px] text-stone-400">→</span>
-            </a>
-
-            <a
-              href="#/admin"
-              data-wall-open-admin
-              className="mt-0.5 flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-stone-700 transition hover:bg-stone-50 hover:text-stone-900"
-            >
-              <span className="inline-flex items-center gap-2">
-                <ShieldCheck className="h-3.5 w-3.5 text-[#C6A15A]" aria-hidden />
-                <span>Admin Cockpit</span>
+                <span>My Profile & Settings</span>
               </span>
               <span className="text-[11px] text-stone-400">→</span>
             </a>

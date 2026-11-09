@@ -24,6 +24,9 @@ const ALIASES: Record<string, string> = {
   'screen-17': 'hub/scholar',
   podcasts: 'podcast',
   wall: 'quran/wall',
+  saved: 'hub/saved',
+  worship: 'spiritual',
+  names: 'spiritual/names',
 };
 
 export function resolveHashPath(raw: string): string {
@@ -38,7 +41,16 @@ export function parseHash(hash: string): { path: RouteRoot; segments: string[]; 
   const queryAt = hash.indexOf('?');
   const pathPart = queryAt === -1 ? hash : hash.slice(0, queryAt);
   const params = new URLSearchParams(queryAt === -1 ? '' : hash.slice(queryAt + 1));
-  const parts = resolveHashPath(pathPart).split('/').filter(Boolean);
+  const cleanHash = resolveHashPath(pathPart);
+  if (!cleanHash && typeof window !== 'undefined') {
+    const host = window.location.hostname.toLowerCase();
+    const pathname = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
+    if (host.startsWith('admin.') || pathname === 'admin' || pathname.startsWith('admin/')) {
+      const subParts = pathname.replace(/^admin\/?/, '').split('/').filter(Boolean);
+      return { path: 'admin', segments: subParts, params };
+    }
+  }
+  const parts = cleanHash.split('/').filter(Boolean);
   const path = parts[0] ?? 'hub';
   if (!ROUTE_ROOTS.includes(path as RouteRoot)) return { path: 'hub', segments: [], params };
   return { path: path as RouteRoot, segments: parts.slice(1), params };

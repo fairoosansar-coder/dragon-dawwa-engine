@@ -1439,10 +1439,7 @@ export function resolveUserProfilePortfolio(targetIdOrHandle?: string | null): U
     );
     const approvedPosts = userPosts.filter(p => p.status === 'approved');
     const pendingPosts = userPosts.filter(p => p.status === 'pending');
-    const roleLabel =
-      currentUser.role === 'admin' || /feroz|fairoos/i.test(currentUser.name)
-        ? 'Admin · Community Researcher'
-        : currentUser.kunyah || 'Verified Seeker';
+    const roleLabel = currentUser.kunyah || 'Community Researcher';
 
     return {
       id: currentUser.id,
