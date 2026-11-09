@@ -267,31 +267,37 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
     <div className="space-y-4">
       <section
         data-knowledge-banner
-        className="relative overflow-hidden rounded-xl border border-[#D4AF37]/35 bg-gradient-to-r from-[#041B14] via-[#0A2E23] to-[#041B14] shadow-2xs"
+        className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/35 bg-gradient-to-r from-[#041B14] via-[#0A2E23] to-[#041B14] shadow-[0_0_25px_rgba(212,175,55,0.08)]"
       >
         <img
           src={adminBannerUrl}
           alt=""
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[40%_center] sm:object-center"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-15 mix-blend-overlay"
         />
-        <div className="relative flex w-[80%] flex-col items-center px-3 py-3.5 text-center sm:w-[60%] sm:px-5 sm:py-4">
-          <p className="max-w-full text-[9px] font-semibold tracking-[0.16em] text-[#E6C665] sm:text-[10px] sm:tracking-[0.28em]">
-            ✦ INSTITUTIONAL RESEARCH STUDIO
-          </p>
-          <p
-            dir="rtl"
-            lang="ar"
-            className="mt-1.5 max-w-full font-[family-name:'Amiri_Quran','Scheherazade_New','Amiri','Noto_Naskh_Arabic',serif] text-xl font-medium leading-[1.85] tracking-[0.04em] text-[#F9E7B9] drop-shadow-xs sm:mt-2 sm:text-2xl"
-          >
-            طَلَبُ الْعِلْمِ فَرِيضَةٌ
-          </p>
-          <p className="mt-0.5 text-[10px] tracking-[0.12em] text-stone-400">Seeking knowledge is an obligation</p>
-          <h1 className="mt-1.5 max-w-md text-xs font-semibold leading-snug text-stone-100 sm:text-sm">
-            Explore Deep Foundations, Sources & Evidence
-          </h1>
-          <p className="mt-0.5 max-w-sm text-[11px] leading-snug text-stone-400">
-            Multidisciplinary AI synthesis across classical Tafsir, Kutub al-Sittah, Fiqh, and verified chains.
-          </p>
+        <div className="relative flex min-h-[116px] flex-col justify-between gap-3 px-4 py-3.5 sm:max-h-[128px] sm:flex-row sm:items-center sm:px-6 sm:py-4">
+          <div className="min-w-0 max-w-xl text-left">
+            <p className="text-[11px] font-semibold tracking-widest text-[#E6C665]">
+              ✦ INSTITUTIONAL RESEARCH STUDIO
+            </p>
+            <h1 className="mt-1 font-serif text-lg font-bold tracking-tight text-white sm:text-xl">
+              Explore Deep Foundations, Sources & Evidence
+            </h1>
+            <p className="mt-0.5 text-xs leading-snug text-stone-300">
+              Multidisciplinary AI synthesis across classical Tafsir, Kutub al-Sittah, Fiqh, and verified chains.
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-col items-start sm:items-end sm:text-right">
+            <p
+              dir="rtl"
+              lang="ar"
+              className="font-serif text-xl font-medium leading-snug text-white drop-shadow-sm sm:text-2xl"
+            >
+              طَلَبُ الْعِلْمِ فَرِيضَةٌ
+            </p>
+            <p className="mt-0.5 text-[11px] text-stone-400">
+              “Seeking knowledge is an obligation”
+            </p>
+          </div>
         </div>
       </section>
       <div data-research-frame>

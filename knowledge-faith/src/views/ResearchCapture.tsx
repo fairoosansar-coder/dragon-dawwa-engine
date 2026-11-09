@@ -284,191 +284,207 @@ export function ResearchCapture({
     />
   );
 
-  if (variant === 'omni') {
-    const ready = value.trim().length >= 3;
-    return (
-      <div className="rounded-xl border border-stone-200/90 bg-white shadow-2xs">
-        <label className="sr-only" htmlFor="research-question">
-          Ask any question across Qur&apos;an, Hadith, Fiqh, or classical sciences
-        </label>
-        <textarea
-          id="research-question"
-          data-research-question
-          value={value}
-          onChange={event => onChange(event.target.value)}
-          rows={2}
-          maxLength={4000}
-          disabled={disabled}
-          placeholder="Ask any question across Qur'an, Hadith, Fiqh, or classical sciences..."
-          className="min-h-[60px] w-full resize-none bg-transparent px-3.5 pb-1.5 pt-2.5 text-xs leading-relaxed text-stone-800 outline-none placeholder:text-stone-400 sm:text-[13px]"
-        />
-        <div className="flex flex-wrap items-center justify-between gap-1.5 border-t border-stone-100 px-2.5 py-1.5">
-          <div className="flex items-center gap-1">
-            <div className="relative" ref={attachRef}>
-              <button
-                type="button"
-                data-research-capture="attach"
-                aria-expanded={attachOpen}
-                aria-haspopup="menu"
-                disabled={disabled}
-                onClick={() => setAttachOpen(open => !open)}
-                className="inline-flex h-7 items-center gap-1 rounded-lg px-2 text-[11px] font-medium text-stone-600 hover:bg-stone-50 disabled:opacity-50 sm:text-xs"
-              >
-                <Paperclip className="h-3.5 w-3.5" aria-hidden />
-                <span>Attach / OCR</span>
-              </button>
-              {attachOpen && (
-                <div role="menu" className="absolute bottom-full left-0 z-20 mb-1.5 w-48 overflow-hidden rounded-xl border border-stone-200 bg-white py-1 shadow-lg">
-                  <button type="button" role="menuitem" data-research-capture="photo" className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs text-stone-700 hover:bg-stone-50" onClick={() => chooseCapture('camera')}>
-                    <Camera className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
-                    Take Photo
-                  </button>
-                  <button type="button" role="menuitem" data-research-capture="upload-photo" className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs text-stone-700 hover:bg-stone-50" onClick={() => chooseCapture('upload_photo')}>
-                    <ImageIcon className="h-3.5 w-3.5 text-stone-500" aria-hidden />
-                    Upload Photo
-                  </button>
-                  <button type="button" role="menuitem" data-research-capture="upload-file" className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs text-stone-700 hover:bg-stone-50" onClick={() => chooseCapture('upload_file')}>
-                    <FileText className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
-                    Upload File / PDF
-                  </button>
-                </div>
-              )}
-            </div>
-            <button
-              type="button"
-              data-research-capture="mic"
-              onClick={pressMic}
-              disabled={!recording && (disabled || transcribing)}
-              aria-label={recording ? 'Stop dictation' : 'Start dictation'}
-              title={recording ? 'Stop dictation' : 'Dictate the question'}
-              className={`inline-flex h-7 w-7 items-center justify-center rounded-lg ${
-                recording ? 'bg-emerald-50 text-emerald-600' : 'text-stone-400 hover:bg-stone-50 hover:text-stone-600'
-              }`}
-            >
-              {transcribing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : recording ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
-            </button>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              data-testid="content-language-chip"
-              title="Content language used for research"
-              onClick={() => setLang(lang === 'en' ? 'ta' : lang === 'ta' ? 'si' : 'en')}
-              className="h-7 rounded-lg border border-stone-200 bg-stone-50 px-2 text-[11px] font-semibold tracking-wide text-stone-600"
-            >
-              {languageChip(lang)} · {languageLabel(lang)}
-            </button>
-            <button
-              type="button"
-              onClick={() => onChange('')}
-              disabled={disabled || !value}
-              className="h-7 rounded-lg px-2 text-[11px] font-medium text-stone-500 hover:text-stone-800 disabled:opacity-40"
-            >
-              Clear
-            </button>
-            <button
-              type="submit"
-              data-testid="run-research-btn"
-              disabled={disabled || !ready}
-              className="inline-flex h-7.5 items-center justify-center gap-1 rounded-lg border border-emerald-600/30 bg-[#0A3D2E] px-2.5 text-[11px] font-semibold tracking-wide text-white shadow-2xs hover:bg-[#0E4D3B] disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:text-xs"
-            >
-              <span aria-hidden>✨</span>
-              <span>{disabled ? 'Researching…' : 'Run 7-Agent Research'}</span>
-              {!disabled && <span aria-hidden>→</span>}
-            </button>
-          </div>
-        </div>
-        {(recording || transcribing || feedback || preview) && (
-          <p className="px-3.5 pb-2 text-[11px] text-stone-500">
-            {preview ? `${preview.label}: ${preview.excerpt}` : feedback}
-          </p>
-        )}
-        {uploadModal}
-      </div>
-    );
-  }
+  const [isnadOpen, setIsnadOpen] = useState(false);
+  const [isnadChain, setIsnadChain] = useState('');
+  const ready = value.trim().length >= 3;
+  const darkSurface = variant === 'studio';
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-800/90 bg-[var(--surface-modal)] p-3 shadow-inner sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-400">
-            <span className="inline-block h-2 w-2 animate-ping rounded-full bg-emerald-400" />
-            Optical Input & OCR:
-          </span>
-          <span className="hidden text-[11px] text-slate-400 sm:inline">Upload book photos, capture live manuscripts, or scan files</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" data-research-capture="photo" disabled={disabled} onClick={() => open('camera')} className={`${ribbonButton} border-amber-500/40 bg-amber-500/15 text-amber-300 hover:border-amber-400 hover:bg-amber-500/25`} title="Take photo of a page">
-            <Camera className="h-3.5 w-3.5 text-amber-400" />
-            <span>Take Photo</span>
-          </button>
-          <button type="button" data-research-capture="upload-photo" disabled={disabled} onClick={() => open('upload_photo')} className={`${ribbonButton} border-slate-700 bg-slate-900/90 text-slate-300 hover:border-slate-600 hover:bg-slate-800 hover:text-white`} title="Upload a photo">
-            <ImageIcon className="h-3.5 w-3.5 text-slate-400" />
-            <span>Upload Photo</span>
-          </button>
-          <button type="button" data-research-capture="upload-file" disabled={disabled} onClick={() => open('upload_file')} className={`${ribbonButton} border-slate-700 bg-slate-900/90 text-slate-300 hover:border-slate-600 hover:bg-slate-800 hover:text-white`} title="Upload a document or PDF">
-            <FileText className="h-3.5 w-3.5 text-slate-400" />
-            <span>Upload File / PDF</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-300">
-        <span>{feedback ?? 'Speak a question, or a passage, in your own words.'}</span>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setDictationLang(current => (current === 'ar-SA' ? dictationCode(lang) : 'ar-SA'))}
-            className="rounded-lg border border-slate-700 px-1.5 py-0.5 font-mono text-[10px] text-slate-300"
-          >
-            {dictationLang === 'ar-SA' ? 'Dictation: Arabic' : `Dictation: ${languageLabel(lang)}`}
-          </button>
-          <button
-            type="button"
-            onClick={() => setEngine(current => (current === 'webspeech' ? 'ai_gemini' : 'webspeech'))}
-            className="rounded-lg border border-slate-800 bg-slate-900/90 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-400"
-          >
-            {engine === 'webspeech' ? 'Web Speech' : 'Gemini AI'}
-          </button>
-        </div>
-      </div>
-
-      <div className="relative">
-        <textarea
-          id="research-question"
-          data-research-question
-          value={value}
-          onChange={event => onChange(event.target.value)}
-          rows={5}
-          maxLength={4000}
-          disabled={disabled}
-          placeholder="What is your question, or what passage are you looking at?"
-          className={`w-full rounded-2xl border bg-[var(--surface-inset)] px-4 py-3 pr-16 text-base leading-relaxed text-slate-100 placeholder:text-slate-500 ${
-            recording ? 'border-rose-500 ring-2 ring-rose-500/30' : 'border-[var(--gold-border)]'
-          }`}
-        />
+    <div
+      data-omni-console={variant}
+      className={`rounded-2xl border p-3.5 shadow-sm sm:p-4 ${
+        darkSurface
+          ? 'border-stone-800 bg-stone-900 text-stone-100'
+          : 'border-stone-200 bg-white text-stone-900'
+      }`}
+    >
+      {/* Collapsible Isnad Accordion */}
+      <div className="mb-2">
         <button
           type="button"
-          data-research-capture="mic"
-          onClick={pressMic}
-          disabled={!recording && (disabled || transcribing)}
-          aria-label={recording ? 'Stop dictation' : 'Start dictation'}
-          title={recording ? 'Stop dictation' : 'Dictate the question'}
-          className={`absolute bottom-3 right-3 flex h-10 w-10 items-center justify-center rounded-xl border ${
-            recording ? 'animate-pulse border-rose-500 bg-rose-600 text-white' : 'border-slate-700 bg-slate-800/90 text-slate-300 hover:border-amber-500/50 hover:text-amber-400'
+          data-omni-isnad-toggle
+          aria-expanded={isnadOpen}
+          onClick={() => setIsnadOpen(open => !open)}
+          className={`inline-flex items-center gap-1 text-[11px] font-semibold transition ${
+            darkSurface ? 'text-amber-300 hover:text-amber-200' : 'text-emerald-800 hover:text-emerald-950'
           }`}
         >
-          {transcribing ? <Loader2 className="h-4 w-4 animate-spin" /> : recording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          <span>{isnadOpen ? '− Hide narrator chain / Isnad' : '+ Add specific narrator chain / Isnad (Optional)'}</span>
         </button>
+        {isnadOpen && (
+          <input
+            type="text"
+            data-omni-isnad-input
+            value={isnadChain}
+            onChange={event => setIsnadChain(event.target.value)}
+            onBlur={() => {
+              if (isnadChain.trim() && !value.includes(isnadChain.trim())) {
+                appendText(`Isnad: ${isnadChain.trim()}`);
+              }
+            }}
+            placeholder="e.g. Qutaybah → Yahya ibn Hamza → Thawran ibn Yazid"
+            className={`mt-1.5 w-full rounded-xl border px-3 py-1.5 font-mono text-xs focus:outline-none ${
+              darkSurface
+                ? 'border-stone-700 bg-stone-950/80 text-stone-200 placeholder:text-stone-500 focus:border-amber-500'
+                : 'border-stone-200 bg-stone-50 text-stone-800 placeholder:text-stone-400 focus:border-emerald-700'
+            }`}
+          />
+        )}
       </div>
-      {preview && (
-        <p data-testid="research-extract-preview" className="inline-flex max-w-full items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs text-amber-200">
-          <span className="shrink-0 font-semibold">{preview.label}</span>
-          <span className="truncate">{preview.excerpt}</span>
+
+      <label className="sr-only" htmlFor="research-question">
+        Ask any question across Qur&apos;an, Hadith, Fiqh, or classical sciences
+      </label>
+      <textarea
+        id="research-question"
+        data-research-question
+        value={value}
+        onChange={event => onChange(event.target.value)}
+        rows={2}
+        maxLength={4000}
+        disabled={disabled}
+        placeholder="Ask any question across Qur'an, Hadith, Fiqh, or classical sciences..."
+        className={`min-h-[60px] w-full resize-none bg-transparent pb-2 pt-0.5 text-xs leading-relaxed outline-none sm:text-[13px] ${
+          darkSurface
+            ? 'text-stone-100 placeholder:text-stone-500'
+            : 'text-stone-800 placeholder:text-stone-400'
+        }`}
+      />
+
+      {/* Integrated Bottom Action Dock (Single Row) */}
+      <div
+        className={`flex flex-wrap items-center justify-between gap-2 border-t pt-2.5 ${
+          darkSurface ? 'border-stone-800' : 'border-stone-100'
+        }`}
+      >
+        <div className="flex items-center gap-1.5">
+          <div className="relative" ref={attachRef}>
+            <button
+              type="button"
+              data-research-capture="attach"
+              aria-expanded={attachOpen}
+              aria-haspopup="menu"
+              disabled={disabled}
+              onClick={() => setAttachOpen(open => !open)}
+              className={`inline-flex h-8 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-medium transition disabled:opacity-50 ${
+                darkSurface
+                  ? 'border-stone-700 bg-stone-800/80 text-stone-200 hover:bg-stone-800'
+                  : 'border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100'
+              }`}
+            >
+              <Paperclip className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
+              <span>Attach / OCR</span>
+            </button>
+            {attachOpen && (
+              <div
+                role="menu"
+                className="absolute bottom-full left-0 z-20 mb-1.5 w-48 overflow-hidden rounded-xl border border-stone-200 bg-white py-1 text-stone-800 shadow-lg"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-research-capture="photo"
+                  className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs text-stone-700 hover:bg-stone-50"
+                  onClick={() => chooseCapture('camera')}
+                >
+                  <Camera className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+                  Take Photo
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-research-capture="upload-photo"
+                  className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs text-stone-700 hover:bg-stone-50"
+                  onClick={() => chooseCapture('upload_photo')}
+                >
+                  <ImageIcon className="h-3.5 w-3.5 text-stone-500" aria-hidden />
+                  Upload Photo
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-research-capture="upload-file"
+                  className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs text-stone-700 hover:bg-stone-50"
+                  onClick={() => chooseCapture('upload_file')}
+                >
+                  <FileText className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+                  Upload File / PDF
+                </button>
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            data-research-capture="mic"
+            onClick={pressMic}
+            disabled={!recording && (disabled || transcribing)}
+            aria-label={recording ? 'Stop dictation' : 'Start dictation'}
+            title={recording ? 'Stop dictation' : 'Dictate the question'}
+            className={`inline-flex h-8 w-8 items-center justify-center rounded-xl border transition ${
+              recording
+                ? 'animate-pulse border-emerald-500 bg-emerald-600 text-white shadow-sm'
+                : darkSurface
+                  ? 'border-stone-700 bg-stone-800/80 text-stone-400 hover:text-stone-200'
+                  : 'border-stone-200 bg-stone-50 text-stone-500 hover:bg-stone-100 hover:text-stone-700'
+            }`}
+          >
+            {transcribing ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : recording ? (
+              <MicOff className="h-3.5 w-3.5" />
+            ) : (
+              <Mic className="h-3.5 w-3.5" />
+            )}
+          </button>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            data-testid="content-language-chip"
+            title="Content language used for research"
+            onClick={() => setLang(lang === 'en' ? 'ta' : lang === 'ta' ? 'si' : 'en')}
+            className={`h-8 rounded-xl border px-2.5 text-[11px] font-semibold tracking-wide ${
+              darkSurface
+                ? 'border-stone-700 bg-stone-800 text-stone-200'
+                : 'border-stone-200 bg-stone-50 text-stone-700'
+            }`}
+          >
+            {languageChip(lang)} · {languageLabel(lang)}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onChange('');
+              setIsnadChain('');
+            }}
+            disabled={disabled || !value}
+            className={`h-8 rounded-xl px-2.5 text-xs font-medium transition disabled:opacity-40 ${
+              darkSurface ? 'text-stone-400 hover:text-white' : 'text-stone-500 hover:text-stone-800'
+            }`}
+          >
+            Clear
+          </button>
+          <button
+            type="submit"
+            data-testid="run-research-btn"
+            disabled={disabled || !ready}
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-emerald-600/30 bg-[#0A3D2E] px-4 py-2 text-xs font-semibold tracking-wide text-white shadow-md transition-all hover:bg-[#0E4D3B] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <span aria-hidden>✨</span>
+            <span>{disabled ? 'Researching…' : 'Run 7-Agent Research →'}</span>
+          </button>
+        </div>
+      </div>
+
+      {(recording || transcribing || feedback || preview) && (
+        <p
+          data-testid="research-extract-preview"
+          className="mt-2 text-[11px] text-stone-500"
+        >
+          {preview ? `${preview.label}: ${preview.excerpt}` : feedback}
         </p>
       )}
-
       {uploadModal}
     </div>
   );
