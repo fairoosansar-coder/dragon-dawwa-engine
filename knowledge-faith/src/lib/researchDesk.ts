@@ -78,6 +78,7 @@ export async function beginResearch(input: {
   clarified?: boolean;
   priorQuestion?: string | null;
   force?: boolean;
+  domainContext?: string | null;
 }): Promise<StartedResearch> {
   return postJson<StartedResearch>('/api/research/jobs', {
     question: input.question,
@@ -90,6 +91,7 @@ export async function beginResearch(input: {
     priorQuestion: input.priorQuestion ?? null,
     force: input.force === true,
     hostName: getPodcastHostLabel(),
+    domainContext: input.domainContext ?? null,
   });
 }
 
