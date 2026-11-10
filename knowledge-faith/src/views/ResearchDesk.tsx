@@ -250,15 +250,17 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
           arabic={frame.arabic}
           subtitle={frame.subtitle}
           actions={
-            <>
-              <PodcastHostChip tone="plate" />
-              <ResearchActionRow
-                onFullReport={() => document.getElementById('research-full-report')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                onRoundtable={() => {
-                  if (job && offersPodcast) window.location.hash = `#/podcast?job=${job.id}&lang=${lang}`;
-                }}
-              />
-            </>
+            liveModel && finished ? (
+              <>
+                <PodcastHostChip tone="plate" />
+                <ResearchActionRow
+                  onFullReport={() => document.getElementById('research-full-report')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                  onRoundtable={() => {
+                    if (job && offersPodcast) window.location.hash = `#/podcast?job=${job.id}&lang=${lang}`;
+                  }}
+                />
+              </>
+            ) : null
           }
         >
           <DomainResearchForm

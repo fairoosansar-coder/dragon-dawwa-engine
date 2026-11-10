@@ -38,15 +38,15 @@ export function DomainResearchForm({
         if (asked.length < 3) return;
         onSubmit(event, asked);
       }}
-      className="space-y-4"
+      className="space-y-3"
     >
       {starters.length > 0 && (
-        <div className="rounded-2xl border border-slate-800 bg-[var(--surface-raised)] p-4 shadow-lg" data-research-starters={desk}>
-          <span className="mb-3 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-500">
+        <div className="rounded-2xl border border-slate-800 bg-[var(--surface-raised)] p-3.5 shadow-lg" data-research-starters={desk}>
+          <span className="mb-2.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-500">
             <span className="inline-block animate-pulse" aria-hidden>⚡</span>
             Starter questions
           </span>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
             {starters.map(starter => (
               <button
                 key={starter.id}
@@ -54,10 +54,10 @@ export function DomainResearchForm({
                 data-testid={`research-starter-${starter.id}`}
                 disabled={running}
                 onClick={() => onStarter?.(starter.question)}
-                className="cursor-pointer rounded-xl border border-slate-800 bg-[var(--surface-raised)] p-3.5 text-left transition-all hover:border-slate-700 hover:bg-[var(--surface-hover)] disabled:cursor-wait"
+                className="cursor-pointer rounded-xl border border-slate-800 bg-[var(--surface-raised)] p-3 text-left transition-all hover:border-slate-700 hover:bg-[var(--surface-hover)] disabled:cursor-wait"
               >
                 <h4 className="text-xs font-bold text-slate-200">{starter.title}</h4>
-                <p className="mt-1 truncate text-[11px] text-slate-400">{starter.detail}</p>
+                <p className="mt-0.5 truncate text-[11px] text-slate-400">{starter.detail}</p>
               </button>
             ))}
           </div>
@@ -69,14 +69,9 @@ export function DomainResearchForm({
         </label>
         <ResearchCapture value={question} onChange={onQuestion} disabled={running} variant={variant} />
       </div>
-      {clarify && <p className={`text-sm font-medium ${variant === 'omni' ? 'text-stone-600' : 'text-[var(--text-body)]'}`}>{clarifyText}</p>}
+      {clarify && <p className={`text-xs font-medium ${variant === 'omni' ? 'text-stone-600' : 'text-[var(--text-body)]'}`}>{clarifyText}</p>}
       {desk === 'fiqh' && (
-        <p className="text-sm leading-relaxed text-[var(--text-body)]/80">This asks the sources about a practice. It does not issue a ruling.</p>
-      )}
-      {variant !== 'omni' && (
-        <Button type="submit" disabled={running || asked.length < 3} className="w-full py-3 sm:w-auto">
-          Research
-        </Button>
+        <p className="text-xs leading-relaxed text-[var(--text-body)]/80">This asks the sources about a practice. It does not issue a ruling.</p>
       )}
     </form>
   );

@@ -563,20 +563,35 @@ export function HadithSearchForm({
         </div>
       </div>
 
-      {/* HADITH DEEP SEARCH & TRANSMISSION AUDIT FORM */}
-      <div className="relative rounded-3xl border border-slate-800 bg-[var(--surface-raised)] p-4 shadow-2xl sm:p-5">
-        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
-          <div className="absolute top-0 right-1/4 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl" />
-        </div>
+      {/* HADITH DEEP SEARCH & TRANSMISSION AUDIT OMNI-CONSOLE */}
+      <div
+        data-hadith-omni-console
+        className="relative rounded-2xl border border-stone-800 bg-stone-900 p-4 shadow-sm"
+      >
+        <form onSubmit={handleSubmit} className="relative z-10 space-y-2.5">
+          {/* Collapsible Isnad Accordion above primary input */}
+          <div>
+            <button
+              type="button"
+              aria-expanded={isnadOpen}
+              aria-controls="hadith-isnad"
+              onClick={() => setIsnadOpen(open => !open)}
+              className="text-left text-xs font-semibold text-amber-300 hover:text-amber-200"
+            >
+              {isnadOpen ? '− Hide narrator chain / Isnad' : '+ Add specific narrator chain / Isnad (Optional)'}
+            </button>
+            {isnadOpen && (
+              <input
+                id="hadith-isnad"
+                type="text"
+                value={isnad}
+                onChange={event => setIsnad(event.target.value)}
+                placeholder="e.g. Qutaybah → Yahya ibn Hamza → Thawran ibn Yazid"
+                className="mt-1.5 w-full rounded-xl border border-stone-700/80 bg-[var(--surface-inset)] px-3 py-1.5 font-mono text-xs text-slate-200 placeholder-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+              />
+            )}
+          </div>
 
-        <div className="relative z-10 mb-4">
-          <h2 className="text-xl font-bold text-white sm:text-2xl">Hadith 7-Agent Research</h2>
-          <p className="mt-1 text-xs leading-relaxed text-slate-400">
-            Retrieves HadeethEnc records (Agent 7) and feeds them into Takhrij, Isnad, Rijal, Shawahid, Scholars & Synthesis.
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="relative z-10 space-y-3">
           <label htmlFor="hadith-matn" className="sr-only">Hadith matn</label>
           <div
             onDragOver={event => event.preventDefault()}
@@ -588,41 +603,19 @@ export function HadithSearchForm({
             <textarea
               id="hadith-matn"
               ref={matnRef}
-              rows={3}
+              rows={2}
               value={hadithMatn}
               onChange={event => setHadithMatn(event.target.value)}
-              placeholder={dictationLang === 'ar-SA' ? 'اكتب أو اضغط على الميكروفون للتحدث بالمتن أو ألصق نص الحديث...' : 'Type, speak, or paste the hadith matn...'}
-              className={`max-h-72 min-h-[5.5rem] w-full resize-none overflow-y-auto rounded-2xl border bg-[var(--surface-inset)] p-4 text-sm leading-relaxed text-slate-100 placeholder-slate-500 focus:outline-none ${
+              placeholder="Ask any question across Qur'an, Hadith, Fiqh, or classical sciences..."
+              className={`max-h-60 min-h-[4.25rem] w-full resize-none overflow-y-auto rounded-xl border bg-[var(--surface-inset)] p-3 text-xs leading-relaxed text-slate-100 placeholder-slate-500 focus:outline-none sm:text-[13px] ${
                 isRecording
-                  ? 'border-rose-500 bg-rose-950/10 ring-2 ring-rose-500/30'
+                  ? 'border-emerald-500 bg-emerald-950/15 ring-2 ring-emerald-500/30'
                   : isTranscribing
                     ? 'border-amber-500 ring-2 ring-amber-500/30'
                     : 'border-slate-700/80 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50'
               }`}
               required
             />
-          </div>
-
-          <div>
-            <button
-              type="button"
-              aria-expanded={isnadOpen}
-              aria-controls="hadith-isnad"
-              onClick={() => setIsnadOpen(open => !open)}
-              className="min-h-11 text-left text-xs font-semibold text-amber-300 hover:text-amber-200"
-            >
-              {isnadOpen ? '− Hide Isnad / Sanad' : '+ Add specific Isnad / Sanad (Optional)'}
-            </button>
-            {isnadOpen && (
-              <input
-                id="hadith-isnad"
-                type="text"
-                value={isnad}
-                onChange={event => setIsnad(event.target.value)}
-                placeholder="e.g. Qutaybah → Yahya ibn Hamza → Thawran ibn Yazid"
-                className="mt-2 w-full rounded-xl border border-slate-700/80 bg-[var(--surface-inset)] px-3 py-2 font-mono text-xs text-slate-200 placeholder-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/50 sm:text-sm"
-              />
-            )}
           </div>
 
           {/* FUZZY INTENT-NORMALIZATION BANNER (IF MATCH FOUND) */}
@@ -691,60 +684,60 @@ export function HadithSearchForm({
             </div>
           )}
 
-          <div className="flex flex-col gap-3 border-t border-slate-800 pt-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-2.5">
+            <div className="flex min-w-0 items-center gap-1.5">
               <div ref={attachRef} className="relative">
                 <button
                   type="button"
-                  aria-label="Attach"
+                  aria-label="Attach / OCR"
                   aria-haspopup="menu"
                   aria-expanded={attachOpen}
                   title="Attach a photo or PDF"
                   onClick={() => setAttachOpen(open => !open)}
-                  className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/15 px-3 text-xs font-semibold text-amber-300 hover:bg-amber-500/25"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-stone-700 bg-stone-800/90 px-2.5 text-xs font-semibold text-stone-200 hover:bg-stone-800"
                 >
-                  <Paperclip className="h-4 w-4 shrink-0" />
-                  <span>Attach</span>
+                  <Paperclip className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                  <span>Attach / OCR</span>
                 </button>
                 {attachOpen && (
-                  <div role="menu" className="absolute bottom-full left-0 z-20 mb-2 w-52 overflow-hidden rounded-xl border border-slate-700 bg-[var(--surface-modal)] shadow-xl">
+                  <div role="menu" className="absolute bottom-full left-0 z-20 mb-2 w-48 overflow-hidden rounded-xl border border-slate-700 bg-[var(--surface-modal)] shadow-xl">
                     <button
                       type="button"
                       role="menuitem"
                       aria-label="Take Photo"
-                      className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-xs font-semibold text-slate-200 hover:bg-slate-800"
+                      className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs font-semibold text-slate-200 hover:bg-slate-800"
                       onClick={() => {
                         setAttachOpen(false);
                         handleOpenMediaModal('camera');
                       }}
                     >
-                      <Camera className="h-4 w-4 text-amber-400" />
+                      <Camera className="h-3.5 w-3.5 text-amber-400" />
                       Take Photo
                     </button>
                     <button
                       type="button"
                       role="menuitem"
                       aria-label="Upload Photo"
-                      className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-xs font-semibold text-slate-200 hover:bg-slate-800"
+                      className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs font-semibold text-slate-200 hover:bg-slate-800"
                       onClick={() => {
                         setAttachOpen(false);
                         handleOpenMediaModal('upload_photo');
                       }}
                     >
-                      <ImageIcon className="h-4 w-4 text-slate-300" />
+                      <ImageIcon className="h-3.5 w-3.5 text-slate-300" />
                       Upload Photo
                     </button>
                     <button
                       type="button"
                       role="menuitem"
                       aria-label="Upload File / PDF"
-                      className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-xs font-semibold text-slate-200 hover:bg-slate-800"
+                      className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs font-semibold text-slate-200 hover:bg-slate-800"
                       onClick={() => {
                         setAttachOpen(false);
                         handleOpenMediaModal('upload_file');
                       }}
                     >
-                      <FileText className="h-4 w-4 text-emerald-300" />
+                      <FileText className="h-3.5 w-3.5 text-emerald-300" />
                       Upload File / PDF
                     </button>
                   </div>
@@ -764,29 +757,28 @@ export function HadithSearchForm({
                 disabled={isTranscribing}
                 aria-label="Toggle voice Hadith search"
                 title={isRecording ? 'Click to stop listening' : isTranscribing ? 'Transcribing audio...' : 'Speak the hadith matn'}
-                className={`inline-flex min-h-11 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold ${
+                className={`inline-flex h-8 w-8 items-center justify-center rounded-xl border transition ${
                   isRecording
-                    ? 'border-rose-500 bg-rose-600 text-white'
+                    ? 'animate-pulse border-emerald-500 bg-emerald-600 text-white'
                     : isTranscribing
                       ? 'cursor-wait border-amber-500/50 bg-amber-600/40 text-amber-200'
-                      : 'border-slate-700 bg-slate-800/90 text-slate-300 hover:border-amber-500/50 hover:text-amber-300'
+                      : 'border-slate-700 bg-slate-800/90 text-slate-400 hover:border-amber-500/50 hover:text-amber-300'
                 }`}
               >
                 {isTranscribing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : isRecording ? (
-                  <MicOff className="h-4 w-4" />
+                  <MicOff className="h-3.5 w-3.5" />
                 ) : (
-                  <Mic className="h-4 w-4" />
+                  <Mic className="h-3.5 w-3.5" />
                 )}
-                <span>Voice</span>
               </button>
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2">
               <span
                 data-testid="content-language-chip"
-                className="rounded-lg border border-[#c4a46a] bg-[#f6efe2] px-2 py-1 text-[10px] font-bold tracking-wide text-[#0c3d2e]"
+                className="inline-flex h-8 items-center rounded-xl border border-[#c4a46a] bg-[#f6efe2] px-2.5 text-[11px] font-bold tracking-wide text-[#0c3d2e]"
                 title="Content language used for research, the transcript, and narration"
               >
                 {languageChip(currentLanguage)} · {languageLabel(currentLanguage)}
@@ -794,7 +786,7 @@ export function HadithSearchForm({
               <button
                 type="button"
                 onClick={handleClearInputs}
-                className="min-h-11 rounded-xl border border-slate-700/80 bg-slate-900 px-3 text-xs font-medium text-slate-300 hover:text-white"
+                className="h-8 rounded-xl px-2.5 text-xs font-medium text-slate-400 hover:text-white"
               >
                 Clear
               </button>
@@ -802,18 +794,17 @@ export function HadithSearchForm({
                 type="submit"
                 data-testid="run-research-btn"
                 disabled={isAnalyzing || !hadithMatn.trim()}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-emerald-500 px-4 text-sm font-bold text-[var(--on-gold)] shadow-xl shadow-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-emerald-600/30 bg-[#0A3D2E] px-4 py-2 text-xs font-semibold text-white shadow-md transition-all hover:bg-[#0E4D3B] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isAnalyzing ? (
                   <>
-                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
                     <span>Researching…</span>
                   </>
                 ) : (
                   <>
-                    <Sparkles className="h-4 w-4 fill-slate-950" />
-                    <span>Run Research</span>
-                    <ArrowRight className="h-4 w-4" />
+                    <span aria-hidden>✨</span>
+                    <span>Run 7-Agent Research →</span>
                   </>
                 )}
               </button>

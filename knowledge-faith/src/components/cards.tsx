@@ -120,7 +120,7 @@ export function VerseCard({
           </p>
         </details>
       ) : null}
-      {cite && (
+      {cite && !compact && (
         <div className="mt-1 space-y-1 text-xs text-ink/50">
           <p>
             {verse.translationTitle || verse.translator}

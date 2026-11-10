@@ -48,70 +48,124 @@ function hadithTabId(segment?: string): 'encyclopedia' | 'collections' | 'resear
   return 'encyclopedia';
 }
 
+const KNOWLEDGE_DESKS: Array<{ path: RouteRoot; href: string; label: string }> = [
+  { path: 'hub', href: '#/hub', label: 'Hub' },
+  { path: 'quran', href: '#/quran', label: 'Qur’an' },
+  { path: 'hadith', href: '#/hadith', label: 'Hadith' },
+  { path: 'books', href: '#/books', label: 'Books' },
+  { path: 'spiritual', href: '#/spiritual', label: 'Worship' },
+];
+
+export function isKnowledgeDomainPath(path: RouteRoot, segments: string[] = []): boolean {
+  if (path === 'quran' && segments[0] === 'wall') return false;
+  if (path === 'hub' && (segments[0] === 'saved' || segments[0] === 'wall')) return false;
+  return path === 'hub' || path === 'quran' || path === 'hadith' || path === 'books' || path === 'spiritual';
+}
+
 /** Sub-view tabs that belong in the desk header, beside the title. */
 export function DeskHeaderTabs({ path, segments, className = '' }: { path: RouteRoot; segments: string[]; className?: string }) {
   const { t } = useApp();
   const shell = 'flex min-w-0 items-center gap-1.5 ' + className;
   const scroller = 'flex min-w-0 flex-1 items-center gap-1 overflow-x-auto no-scrollbar whitespace-nowrap py-0.5';
-  if (path === 'hadith') {
-    const active = hadithTabId(segments[0]);
-    const tabs = [
-      { id: 'encyclopedia' as const, href: '#/hadith', en: 'Encyclopedia', ta: 'களஞ்சியம்' },
-      { id: 'collections' as const, href: '#/hadith/collections', en: 'Canonical Collections', ta: 'நூல்கள்' },
-      { id: 'research' as const, href: '#/hadith/research', en: 'Research a Hadith', ta: 'ஆய்வுக்கூடம்' },
-    ];
-    return (
-      <div className={shell}>
-        <div className="hidden h-3.5 w-px shrink-0 bg-stone-300 md:block" aria-hidden />
-        <nav aria-label="Hadith" data-testid="hadith-tabs" className={scroller}>
-          {tabs.map(tab => (
-            <a
-              key={tab.id}
-              href={tab.href}
-              aria-current={tab.id === active ? 'page' : undefined}
-              className={`inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-full border border-[#0E382B]/10 px-2 py-0.5 text-[11px] font-medium sm:px-2.5 ${tab.id === active ? HADITH_TAB_ACTIVE : HADITH_TAB_IDLE}`}
-            >
-              <span>{tab.en}</span>
-              <span lang="ta" className={tab.id === active ? 'text-white/80' : 'text-[#0E382B]/70'}>({tab.ta})</span>
-            </a>
-          ))}
-        </nav>
-      </div>
-    );
+
+  if (!isKnowledgeDomainPath(path, segments)) {
+    return null;
   }
-  if (path === 'quran') {
-    const current = quranSectionId(segments[0]);
-    const tabs: { id: QuranSectionId; href: string; label: string }[] = [
-      { id: 'home', href: '#/quran', label: t.quranHome },
-      { id: 'read', href: '#/quran/book', label: t.quranRead },
-      { id: 'search', href: '#/quran/search', label: t.quranSearch },
-      { id: 'study', href: '#/quran/study', label: t.quranAyahStudy },
-      { id: 'mine', href: '#/quran/bookmarks', label: t.quranMine },
-      { id: 'wall', href: '#/quran/wall', label: t.quranFaithWall },
-    ];
-    return (
-      <div className={shell}>
-        <div className="hidden h-3.5 w-px shrink-0 bg-stone-300 md:block" aria-hidden />
-        <nav aria-label={t.quranTitle} data-testid="quran-tabs" className={scroller}>
-          {tabs.map(tab => (
-            <a
-              key={tab.id}
-              href={tab.href}
-              aria-current={current === tab.id ? 'page' : undefined}
-              className={`inline-flex shrink-0 whitespace-nowrap items-center rounded-full px-2 py-0.5 text-[11px] font-medium transition sm:px-2.5 ${
-                current === tab.id
-                  ? 'bg-[#073C30] text-[#F5EEDC] shadow-2xs'
-                  : 'text-stone-700 hover:bg-stone-200/70 hover:text-stone-900'
-              }`}
-            >
-              {tab.label}
-            </a>
-          ))}
+
+  const quranCurrent = path === 'quran' ? quranSectionId(segments[0]) : null;
+  const quranSubTabs: { id: QuranSectionId; href: string; label: string }[] = [
+    { id: 'home', href: '#/quran', label: t.quranHome },
+    { id: 'read', href: '#/quran/book', label: t.quranRead },
+    { id: 'search', href: '#/quran/search', label: t.quranSearch },
+    { id: 'study', href: '#/quran/study', label: t.quranAyahStudy },
+    { id: 'mine', href: '#/quran/bookmarks', label: t.quranMine },
+  ];
+
+  const hadithActive = path === 'hadith' ? hadithTabId(segments[0]) : null;
+  const hadithSubTabs = [
+    { id: 'encyclopedia' as const, href: '#/hadith', en: 'Encyclopedia', ta: 'களஞ்சியம்' },
+    { id: 'collections' as const, href: '#/hadith/collections', en: 'Canonical Collections', ta: 'நூல்கள்' },
+    { id: 'research' as const, href: '#/hadith/research', en: 'Research a Hadith', ta: 'ஆய்வுக்கூடம்' },
+  ];
+
+  return (
+    <div className={shell}>
+      <div className="hidden h-3.5 w-px shrink-0 bg-stone-300 md:block" aria-hidden />
+      <div className={scroller}>
+        {/* Consolidated Knowledge Desk Switcher (Hub · Qur'an · Hadith · Books · Worship) */}
+        <nav
+          aria-label="Knowledge Desks"
+          data-testid="knowledge-desk-switcher"
+          className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-stone-200/90 bg-white/80 p-0.5 shadow-2xs"
+        >
+          {KNOWLEDGE_DESKS.map(desk => {
+            const active = desk.path === path;
+            return (
+              <a
+                key={desk.path}
+                href={desk.href}
+                data-knowledge-desk-tab={desk.path}
+                aria-current={active ? 'page' : undefined}
+                className={`inline-flex shrink-0 whitespace-nowrap items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition ${
+                  active
+                    ? 'bg-[#073C30] text-[#F5EEDC] shadow-2xs'
+                    : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
+                }`}
+              >
+                {desk.label}
+              </a>
+            );
+          })}
         </nav>
+
+        {/* Contextual Sub-Tabs when inside Qur'an or Hadith */}
+        {path === 'quran' && (
+          <>
+            <span className="mx-1 h-3.5 w-px shrink-0 bg-stone-300" aria-hidden />
+            <nav aria-label={t.quranTitle} data-testid="quran-tabs" className="inline-flex shrink-0 items-center gap-1">
+              {quranSubTabs.map(tab => (
+                <a
+                  key={tab.id}
+                  href={tab.href}
+                  aria-current={quranCurrent === tab.id ? 'page' : undefined}
+                  className={`inline-flex shrink-0 whitespace-nowrap items-center rounded-full px-2 py-0.5 text-[11px] font-medium transition ${
+                    quranCurrent === tab.id
+                      ? 'bg-emerald-900/15 font-semibold text-[#073C30]'
+                      : 'text-stone-600 hover:bg-stone-200/60 hover:text-stone-900'
+                  }`}
+                >
+                  {tab.label}
+                </a>
+              ))}
+            </nav>
+          </>
+        )}
+
+        {path === 'hadith' && (
+          <>
+            <span className="mx-1 h-3.5 w-px shrink-0 bg-stone-300" aria-hidden />
+            <nav aria-label="Hadith" data-testid="hadith-tabs" className="inline-flex shrink-0 items-center gap-1">
+              {hadithSubTabs.map(tab => (
+                <a
+                  key={tab.id}
+                  href={tab.href}
+                  aria-current={tab.id === hadithActive ? 'page' : undefined}
+                  className={`inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-full border border-[#0E382B]/10 px-2 py-0.5 text-[11px] font-medium ${
+                    tab.id === hadithActive ? HADITH_TAB_ACTIVE : HADITH_TAB_IDLE
+                  }`}
+                >
+                  <span>{tab.en}</span>
+                  <span lang="ta" className={tab.id === hadithActive ? 'text-white/80' : 'text-[#0E382B]/70'}>
+                    ({tab.ta})
+                  </span>
+                </a>
+              ))}
+            </nav>
+          </>
+        )}
       </div>
-    );
-  }
-  return null;
+    </div>
+  );
 }
 
 export function SearchField({ className = '', placeholder }: { className?: string; placeholder?: string }) {

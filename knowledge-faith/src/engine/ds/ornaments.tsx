@@ -82,24 +82,47 @@ export interface ArchBannerProps {
   children?: React.ReactNode;
   compact?: boolean;
 }
-export const ArchBanner: React.FC<ArchBannerProps> = ({ bismillah = true, title, subtitle, arabic, children, compact }) => (
-  <div data-research-arch className="relative w-full overflow-hidden rounded-[1.35rem] border border-[#E6C665]/60">
+export const ArchBanner: React.FC<ArchBannerProps> = ({ title, subtitle, arabic, children }) => (
+  <div
+    data-research-arch
+    className="relative w-full overflow-hidden rounded-2xl border border-[#D4AF37]/35 bg-gradient-to-r from-[#041B14] via-[#0A2E23] to-[#041B14] shadow-[0_0_25px_rgba(212,175,55,0.08)]"
+  >
     <img
       src="/assets/geometric-carved-arch.jpg"
       alt=""
-      className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
+      className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-15 mix-blend-overlay"
     />
-    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(4,25,16,0.62)_0%,rgba(4,25,16,0.38)_58%,rgba(4,25,16,0.22)_100%)]" />
-    <div className={`relative flex flex-col items-center text-center px-5 md:px-10 ${compact ? 'py-6 md:py-7 gap-2' : 'py-7 md:py-9 gap-2 md:gap-3'}`}>
-      {bismillah && (
-        <div className="font-arabic text-[1.45rem] leading-snug text-[#F9E7B9] [text-shadow:0_1px_2px_rgba(4,25,16,0.9)] md:text-[1.85rem]" dir="rtl" lang="ar">
-          بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ
+    <div className="relative flex min-h-[116px] flex-col justify-between gap-3 px-4 py-3.5 sm:max-h-[128px] sm:flex-row sm:items-center sm:px-6 sm:py-4">
+      <div className="min-w-0 max-w-xl text-left">
+        <p className="text-[11px] font-semibold tracking-widest text-[#E6C665]">
+          ✦ INSTITUTIONAL RESEARCH STUDIO
+        </p>
+        <h2 className="mt-1 font-serif text-lg font-bold tracking-tight text-white sm:text-xl">
+          {title}
+        </h2>
+        {subtitle && (
+          <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-stone-300">
+            {subtitle}
+          </p>
+        )}
+      </div>
+      <div className="flex shrink-0 flex-col items-start sm:items-end sm:text-right">
+        <div
+          className="font-serif text-xl leading-snug text-white drop-shadow-sm sm:text-2xl"
+          dir="rtl"
+          lang="ar"
+        >
+          {arabic || 'طَلَبُ الْعِلْمِ فَرِيضَةٌ'}
         </div>
-      )}
-      <h2 className={`font-display font-semibold text-[#F6F1E4] [text-shadow:0_1px_2px_rgba(4,25,16,0.85)] ${compact ? 'text-[1.45rem] leading-tight md:text-[1.75rem]' : 'text-[1.65rem] leading-tight md:text-[2.15rem]'}`}>{title}</h2>
-      {arabic && <div className="font-kufi text-xl text-[#F6E4B4] [text-shadow:0_1px_2px_rgba(4,25,16,0.85)]" dir="rtl" lang="ar">{arabic}</div>}
-      {subtitle && <p className="max-w-xl text-sm leading-6 text-[#F4E6C4] [text-shadow:0_1px_2px_rgba(4,25,16,0.8)]">{subtitle}</p>}
-      {children && <div className="pt-2 flex flex-wrap justify-center gap-3">{children}</div>}
+        <span className="mt-0.5 text-[11px] text-stone-400">
+          “Seeking knowledge is an obligation”
+        </span>
+      </div>
     </div>
+    {children && (
+      <div className="relative flex flex-wrap items-center justify-end gap-2 border-t border-[#D4AF37]/20 bg-[#03150F]/60 px-4 py-2 sm:px-6">
+        {children}
+      </div>
+    )}
   </div>
 );
