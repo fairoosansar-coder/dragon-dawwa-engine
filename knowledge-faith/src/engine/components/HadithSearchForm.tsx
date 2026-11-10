@@ -520,18 +520,18 @@ export function HadithSearchForm({
   return (
     <div className="space-y-6">
       {/* TOP ROW: BENCHMARK DOSSIERS / RECENT SEARCHES */}
-      <div className="bg-[var(--surface-raised)] border border-slate-800 rounded-2xl p-4 shadow-lg">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-          <span className="text-xs font-bold uppercase tracking-wider text-amber-500 flex items-center gap-1.5">
-            <span className="inline-block animate-pulse">⚡</span>
+      <div className="rounded-2xl border border-stone-200 bg-white p-4 text-stone-900 shadow-2xs">
+        <div className="mb-3 flex flex-col justify-between gap-1.5 sm:flex-row sm:items-center">
+          <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-800">
+            <span className="inline-block">⚡</span>
             Sample Hadith Benchmark Dossiers (Click to Load)
           </span>
-          <span className="text-xs text-slate-400">
-            Pre-indexed narrations with 7-agent verification & HadeethEnc source retrieval
+          <span className="text-xs text-stone-600">
+            Pre-indexed narrations with 7-agent verification & source retrieval
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
           {BENCHMARK_CORPUS.map((item) => {
             const loc = getLocalizedBenchmark(item, currentLanguage);
             return (
@@ -540,23 +540,23 @@ export function HadithSearchForm({
                 type="button"
                 data-testid={`benchmark-card-${item.id}`}
                 onClick={() => handleSelectBenchmark(item)}
-                className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
+                className={`cursor-pointer rounded-xl border p-3 text-left transition-all ${
                   activeBenchmark === item.id
-                    ? "border-amber-500/80 bg-amber-500/15 shadow-md shadow-amber-950/40 ring-1 ring-amber-500/30"
-                    : "border-slate-800 bg-[var(--surface-raised)] hover:border-slate-700 hover:bg-[var(--surface-hover)]"
+                    ? "border-amber-500 bg-amber-50/80 shadow-2xs ring-1 ring-amber-500/40"
+                    : "border-stone-200 bg-stone-50/70 hover:border-stone-300 hover:bg-white"
                 }`}
               >
-                <div className="flex justify-between items-start mb-1.5 gap-2">
-                  <h4 className="text-xs font-bold text-slate-200 line-clamp-1">{loc.title}</h4>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold shrink-0 ${
-                    item.scoreType === 'success' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                    item.scoreType === 'warning' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                    'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                <div className="mb-1 flex items-start justify-between gap-2">
+                  <h4 style={{ color: '#1C1917' }} className="line-clamp-1 text-xs font-bold text-stone-900">{loc.title}</h4>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] font-bold ${
+                    item.scoreType === 'success' ? 'border border-emerald-600/30 bg-emerald-50 text-emerald-900' :
+                    item.scoreType === 'warning' ? 'border border-amber-500/40 bg-amber-100/80 text-amber-950' :
+                    'border border-rose-500/30 bg-rose-50 text-rose-900'
                   }`}>
                     {item.score}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 truncate">{loc.tag}</p>
+                <p style={{ color: '#57534E' }} className="truncate text-[11px] text-stone-600">{loc.tag}</p>
               </button>
             );
           })}
@@ -566,7 +566,8 @@ export function HadithSearchForm({
       {/* HADITH DEEP SEARCH & TRANSMISSION AUDIT OMNI-CONSOLE */}
       <div
         data-hadith-omni-console
-        className="relative rounded-2xl border border-stone-800 bg-stone-900 p-4 shadow-sm"
+        style={{ backgroundColor: '#FFFFFF', color: '#1C1917' }}
+        className="relative rounded-2xl border border-stone-200 bg-white p-4 text-stone-900 shadow-sm"
       >
         <form onSubmit={handleSubmit} className="relative z-10 space-y-2.5">
           {/* Collapsible Isnad Accordion above primary input */}
@@ -576,7 +577,8 @@ export function HadithSearchForm({
               aria-expanded={isnadOpen}
               aria-controls="hadith-isnad"
               onClick={() => setIsnadOpen(open => !open)}
-              className="text-left text-xs font-semibold text-amber-300 hover:text-amber-200"
+              style={{ color: '#065F46' }}
+              className="text-left text-xs font-semibold text-emerald-800 hover:text-emerald-950"
             >
               {isnadOpen ? '− Hide narrator chain / Isnad' : '+ Add specific narrator chain / Isnad (Optional)'}
             </button>
@@ -587,7 +589,8 @@ export function HadithSearchForm({
                 value={isnad}
                 onChange={event => setIsnad(event.target.value)}
                 placeholder="e.g. Qutaybah → Yahya ibn Hamza → Thawran ibn Yazid"
-                className="mt-1.5 w-full rounded-xl border border-stone-700/80 bg-[var(--surface-inset)] px-3 py-1.5 font-mono text-xs text-slate-200 placeholder-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+                style={{ backgroundColor: '#FAF9F6', color: '#1C1917' }}
+                className="mt-1.5 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-1.5 font-mono text-xs text-stone-900 placeholder-stone-400 focus:border-emerald-700 focus:outline-none"
               />
             )}
           </div>
@@ -607,12 +610,13 @@ export function HadithSearchForm({
               value={hadithMatn}
               onChange={event => setHadithMatn(event.target.value)}
               placeholder="Ask any question across Qur'an, Hadith, Fiqh, or classical sciences..."
-              className={`max-h-60 min-h-[4.25rem] w-full resize-none overflow-y-auto rounded-xl border bg-[var(--surface-inset)] p-3 text-xs leading-relaxed text-slate-100 placeholder-slate-500 focus:outline-none sm:text-[13px] ${
+              style={{ backgroundColor: '#FAF9F6', color: '#1C1917' }}
+              className={`max-h-60 min-h-[4.25rem] w-full resize-none overflow-y-auto rounded-xl border bg-stone-50/70 p-3 text-xs leading-relaxed text-stone-900 placeholder-stone-400 focus:outline-none sm:text-[13px] ${
                 isRecording
-                  ? 'border-emerald-500 bg-emerald-950/15 ring-2 ring-emerald-500/30'
+                  ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500/30'
                   : isTranscribing
                     ? 'border-amber-500 ring-2 ring-amber-500/30'
-                    : 'border-slate-700/80 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50'
+                    : 'border-stone-200 focus:border-emerald-700 focus:bg-white'
               }`}
               required
             />
@@ -620,34 +624,38 @@ export function HadithSearchForm({
 
           {/* FUZZY INTENT-NORMALIZATION BANNER (IF MATCH FOUND) */}
           {normalizationData && (
-            <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-500/40 text-xs text-amber-200 shadow-xl space-y-2 animate-fadeIn">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2 font-semibold text-amber-300">
-                  <Wand2 className="w-4 h-4 text-amber-400 shrink-0" />
+            <div
+              style={{ backgroundColor: '#FFFBEB', color: '#451A03' }}
+              className="space-y-2 rounded-2xl border border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-950 shadow-2xs"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div style={{ color: '#78350F' }} className="flex items-center gap-2 font-semibold text-amber-900">
+                  <Wand2 className="h-4 w-4 shrink-0 text-amber-700" />
                   <span>Fuzzy Intent Normalized: Canonical Match Identified ({Math.round(normalizationData.fuzzy_similarity_ratio * 100)}% match)</span>
                 </div>
                 <button
                   type="button"
                   onClick={handleApplyCanonicalCorrection}
-                  className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-semibold border border-amber-500/50 transition-all cursor-pointer flex items-center gap-1.5"
+                  style={{ backgroundColor: '#073C30', color: '#FFFFFF' }}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-[#073C30] px-2.5 py-1 text-xs font-semibold text-[#FFFFFF] transition-all hover:bg-[#0A2E23]"
                 >
-                  <Sparkles className="w-3 h-3 text-amber-400" />
-                  Apply Canonical Text
+                  <Sparkles className="h-3 w-3 text-[#D4AF37]" />
+                  <span style={{ color: '#FFFFFF' }}>Apply Canonical Text</span>
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] pt-1 border-t border-amber-500/20">
+              <div className="grid grid-cols-1 gap-2 border-t border-amber-200 pt-2 text-[11px] md:grid-cols-2">
                 <div className="space-y-0.5">
-                  <span className="text-amber-400/80 uppercase font-mono text-[10px]">Canonical Arabic:</span>
-                  <p className="font-arabic text-xs text-amber-100 text-right dir-rtl leading-relaxed font-semibold">
+                  <span style={{ color: '#78350F' }} className="font-mono text-[10px] font-semibold uppercase text-amber-900">Canonical Arabic:</span>
+                  <p style={{ color: '#1C1917' }} className="dir-rtl text-right font-arabic text-sm font-semibold leading-relaxed text-stone-900">
                     {normalizationData.canonical_arabic}
                   </p>
                 </div>
                 <div className="space-y-0.5">
-                  <span className="text-amber-400/80 uppercase font-mono text-[10px]">Canonical Source & Isnad:</span>
-                  <p className="text-slate-300">
-                    <span className="text-emerald-400 font-medium">{normalizationData.canonical_primary_source}</span>
-                    <span className="block text-slate-400 text-[10px] font-mono truncate">{normalizationData.canonical_isnad}</span>
+                  <span style={{ color: '#78350F' }} className="font-mono text-[10px] font-semibold uppercase text-amber-900">Canonical Source & Isnad:</span>
+                  <p style={{ color: '#292524' }} className="text-stone-800">
+                    <span style={{ color: '#065F46' }} className="font-semibold text-emerald-800">{normalizationData.canonical_primary_source}</span>
+                    <span style={{ color: '#57534E' }} className="block truncate font-mono text-[10px] text-stone-600">{normalizationData.canonical_isnad}</span>
                   </p>
                 </div>
               </div>
@@ -655,36 +663,40 @@ export function HadithSearchForm({
           )}
 
           {isAnalyzing && (
-            <p role="status" className="text-amber-300">
-              Research is running. The six-agent check often takes one to two minutes.
+            <p role="status" style={{ color: '#065F46' }} className="text-xs font-semibold text-emerald-800">
+              Research is running. The seven-agent check often takes one to two minutes.
             </p>
           )}
           {/* ERROR / STATUS NOTIFICATION IF ANY */}
           {analysisError && (
-            <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-600/50 text-xs text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
-              <div className="flex items-start gap-2.5">
-                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-semibold text-amber-300">System Notice: </span>
+            <div
+              style={{ backgroundColor: '#FFFBEB', color: '#451A03' }}
+              className="flex flex-col justify-between gap-3 rounded-xl border border-amber-400 bg-amber-50 p-3.5 text-xs text-amber-950 shadow-2xs sm:flex-row sm:items-center"
+            >
+              <div className="flex items-start gap-2">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                <div style={{ color: '#451A03' }}>
+                  <span className="font-bold text-amber-950">System Notice: </span>
                   <span>{analysisError}</span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+              <div className="flex shrink-0 items-center gap-2 self-end sm:self-center">
                 <button
                   type="button"
                   onClick={() => onRunEngine(hadithMatn, isnad)}
                   disabled={isAnalyzing}
-                  className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-[var(--on-gold)] font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                  style={{ backgroundColor: '#0A3D2E', color: '#FFFFFF' }}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-[#0A3D2E] px-3 py-1.5 text-xs font-bold text-[#FFFFFF] shadow-2xs transition-all hover:bg-[#0E4D3B] disabled:opacity-50"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isAnalyzing ? 'animate-spin' : ''}`} />
-                  Retry
+                  <RefreshCw className={`h-3.5 w-3.5 ${isAnalyzing ? 'animate-spin' : ''}`} />
+                  <span style={{ color: '#FFFFFF' }}>Retry</span>
                 </button>
               </div>
             </div>
           )}
 
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 pt-2.5">
             <div className="flex min-w-0 items-center gap-1.5">
               <div ref={attachRef} className="relative">
                 <button
@@ -694,50 +706,51 @@ export function HadithSearchForm({
                   aria-expanded={attachOpen}
                   title="Attach a photo or PDF"
                   onClick={() => setAttachOpen(open => !open)}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-stone-700 bg-stone-800/90 px-2.5 text-xs font-semibold text-stone-200 hover:bg-stone-800"
+                  style={{ backgroundColor: '#FAF9F6', color: '#292524' }}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-2.5 text-xs font-semibold text-stone-800 hover:bg-stone-100"
                 >
-                  <Paperclip className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
-                  <span>Attach / OCR</span>
+                  <Paperclip className="h-3.5 w-3.5 shrink-0 text-emerald-700" />
+                  <span style={{ color: '#292524' }}>Attach / OCR</span>
                 </button>
                 {attachOpen && (
-                  <div role="menu" className="absolute bottom-full left-0 z-20 mb-2 w-48 overflow-hidden rounded-xl border border-slate-700 bg-[var(--surface-modal)] shadow-xl">
+                  <div role="menu" className="absolute bottom-full left-0 z-20 mb-2 w-48 overflow-hidden rounded-xl border border-stone-200 bg-white py-1 text-stone-800 shadow-xl">
                     <button
                       type="button"
                       role="menuitem"
                       aria-label="Take Photo"
-                      className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs font-semibold text-slate-200 hover:bg-slate-800"
+                      className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50"
                       onClick={() => {
                         setAttachOpen(false);
                         handleOpenMediaModal('camera');
                       }}
                     >
-                      <Camera className="h-3.5 w-3.5 text-amber-400" />
+                      <Camera className="h-3.5 w-3.5 text-emerald-700" />
                       Take Photo
                     </button>
                     <button
                       type="button"
                       role="menuitem"
                       aria-label="Upload Photo"
-                      className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs font-semibold text-slate-200 hover:bg-slate-800"
+                      className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50"
                       onClick={() => {
                         setAttachOpen(false);
                         handleOpenMediaModal('upload_photo');
                       }}
                     >
-                      <ImageIcon className="h-3.5 w-3.5 text-slate-300" />
+                      <ImageIcon className="h-3.5 w-3.5 text-stone-500" />
                       Upload Photo
                     </button>
                     <button
                       type="button"
                       role="menuitem"
                       aria-label="Upload File / PDF"
-                      className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs font-semibold text-slate-200 hover:bg-slate-800"
+                      className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50"
                       onClick={() => {
                         setAttachOpen(false);
                         handleOpenMediaModal('upload_file');
                       }}
                     >
-                      <FileText className="h-3.5 w-3.5 text-emerald-300" />
+                      <FileText className="h-3.5 w-3.5 text-emerald-700" />
                       Upload File / PDF
                     </button>
                   </div>
@@ -761,8 +774,8 @@ export function HadithSearchForm({
                   isRecording
                     ? 'animate-pulse border-emerald-500 bg-emerald-600 text-white'
                     : isTranscribing
-                      ? 'cursor-wait border-amber-500/50 bg-amber-600/40 text-amber-200'
-                      : 'border-slate-700 bg-slate-800/90 text-slate-400 hover:border-amber-500/50 hover:text-amber-300'
+                      ? 'cursor-wait border-amber-500/50 bg-amber-100 text-amber-900'
+                      : 'border-stone-200 bg-stone-50 text-stone-600 hover:bg-stone-100 hover:text-stone-900'
                 }`}
               >
                 {isTranscribing ? (
@@ -778,6 +791,7 @@ export function HadithSearchForm({
             <div className="flex flex-wrap items-center justify-end gap-2">
               <span
                 data-testid="content-language-chip"
+                style={{ backgroundColor: '#F6EFE2', color: '#0C3D2E' }}
                 className="inline-flex h-8 items-center rounded-xl border border-[#c4a46a] bg-[#f6efe2] px-2.5 text-[11px] font-bold tracking-wide text-[#0c3d2e]"
                 title="Content language used for research, the transcript, and narration"
               >
@@ -786,7 +800,8 @@ export function HadithSearchForm({
               <button
                 type="button"
                 onClick={handleClearInputs}
-                className="h-8 rounded-xl px-2.5 text-xs font-medium text-slate-400 hover:text-white"
+                style={{ color: '#44403C' }}
+                className="h-8 rounded-xl px-2.5 text-xs font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900"
               >
                 Clear
               </button>
@@ -794,17 +809,18 @@ export function HadithSearchForm({
                 type="submit"
                 data-testid="run-research-btn"
                 disabled={isAnalyzing || !hadithMatn.trim()}
-                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-emerald-600/30 bg-[#0A3D2E] px-4 py-2 text-xs font-semibold text-white shadow-md transition-all hover:bg-[#0E4D3B] disabled:cursor-not-allowed disabled:opacity-50"
+                style={{ backgroundColor: '#0A3D2E', color: '#FFFFFF' }}
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-emerald-600/30 bg-[#0A3D2E] px-4 py-2 text-xs font-semibold text-[#FFFFFF] shadow-md transition-all hover:bg-[#0E4D3B] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isAnalyzing ? (
                   <>
-                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                    <span>Researching…</span>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" style={{ color: '#FFFFFF' }} />
+                    <span style={{ color: '#FFFFFF' }}>Researching…</span>
                   </>
                 ) : (
                   <>
                     <span aria-hidden>✨</span>
-                    <span>Run 7-Agent Research →</span>
+                    <span style={{ color: '#FFFFFF' }}>Run 7-Agent Research →</span>
                   </>
                 )}
               </button>
