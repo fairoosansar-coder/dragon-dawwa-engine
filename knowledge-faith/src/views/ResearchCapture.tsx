@@ -287,16 +287,13 @@ export function ResearchCapture({
   const [isnadOpen, setIsnadOpen] = useState(false);
   const [isnadChain, setIsnadChain] = useState('');
   const ready = value.trim().length >= 3;
-  const darkSurface = variant === 'studio';
+  const darkSurface = false;
 
   return (
     <div
       data-omni-console={variant}
-      className={`rounded-2xl border p-3.5 shadow-sm sm:p-4 ${
-        darkSurface
-          ? 'border-stone-800 bg-stone-900 text-stone-100'
-          : 'border-stone-200 bg-white text-stone-900'
-      }`}
+      style={{ backgroundColor: '#FFFFFF', color: '#1C1917' }}
+      className="rounded-2xl border border-stone-200 bg-white p-3.5 text-stone-900 shadow-sm sm:p-4"
     >
       {/* Collapsible Isnad Accordion */}
       <div className="mb-2">
@@ -469,10 +466,11 @@ export function ResearchCapture({
             type="submit"
             data-testid="run-research-btn"
             disabled={disabled || !ready}
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-emerald-600/30 bg-[#0A3D2E] px-4 py-2 text-xs font-semibold tracking-wide text-white shadow-md transition-all hover:bg-[#0E4D3B] disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ backgroundColor: '#0A3D2E', color: '#FFFFFF' }}
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-emerald-600/30 bg-[#0A3D2E] px-4 py-2 text-xs font-semibold tracking-wide text-[#FFFFFF] shadow-md transition-all hover:bg-[#0E4D3B] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span aria-hidden>✨</span>
-            <span>{disabled ? 'Researching…' : 'Run 7-Agent Research →'}</span>
+            <span style={{ color: '#FFFFFF' }}>{disabled ? 'Researching…' : 'Run 7-Agent Research →'}</span>
           </button>
         </div>
       </div>

@@ -41,9 +41,9 @@ export function DomainResearchForm({
       className="space-y-3"
     >
       {starters.length > 0 && (
-        <div className="rounded-2xl border border-slate-800 bg-[var(--surface-raised)] p-3.5 shadow-lg" data-research-starters={desk}>
-          <span className="mb-2.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-500">
-            <span className="inline-block animate-pulse" aria-hidden>⚡</span>
+        <div className="rounded-2xl border border-stone-200 bg-white p-3.5 shadow-2xs" data-research-starters={desk}>
+          <span className="mb-2.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-800">
+            <span className="inline-block" aria-hidden>⚡</span>
             Starter questions
           </span>
           <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
@@ -54,10 +54,10 @@ export function DomainResearchForm({
                 data-testid={`research-starter-${starter.id}`}
                 disabled={running}
                 onClick={() => onStarter?.(starter.question)}
-                className="cursor-pointer rounded-xl border border-slate-800 bg-[var(--surface-raised)] p-3 text-left transition-all hover:border-slate-700 hover:bg-[var(--surface-hover)] disabled:cursor-wait"
+                className="cursor-pointer rounded-xl border border-stone-200 bg-stone-50/80 p-3 text-left transition-all hover:border-emerald-700/40 hover:bg-emerald-50/40 disabled:cursor-wait"
               >
-                <h4 className="text-xs font-bold text-slate-200">{starter.title}</h4>
-                <p className="mt-0.5 truncate text-[11px] text-slate-400">{starter.detail}</p>
+                <h4 className="text-xs font-bold text-stone-900">{starter.title}</h4>
+                <p className="mt-0.5 truncate text-[11px] text-stone-600">{starter.detail}</p>
               </button>
             ))}
           </div>

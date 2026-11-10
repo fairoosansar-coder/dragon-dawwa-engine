@@ -107,19 +107,34 @@ export default function DossierWorkbench() {
       actions={showReport ? <DossierActions /> : null}
       after={
         <>
-      {d.reportOrigin === 'example' && <p className="rounded-2xl bg-amber-100 px-4 py-3 text-sm text-amber-950">{t.dossierExample}</p>}
-      {d.reportOrigin === 'idle' && <p className="rounded-2xl bg-parchment px-4 py-3 text-sm text-ink/80">{t.dossierIdle}</p>}
+      {d.reportOrigin === 'example' && (
+        <p style={{ backgroundColor: '#FEF3C7', color: '#451A03' }} className="rounded-2xl border border-amber-300 bg-amber-100 px-4 py-3 text-xs font-medium text-amber-950">
+          {t.dossierExample}
+        </p>
+      )}
+      {d.reportOrigin === 'idle' && (
+        <p style={{ backgroundColor: '#F6EFE2', color: '#1C1917' }} className="rounded-2xl border border-[#d4bc86] bg-[#f6efe2] px-4 py-3 text-xs font-medium text-stone-900">
+          {t.dossierIdle}
+        </p>
+      )}
       {d.reportOrigin === 'researching' && (
-        <p role="status" data-testid="research-language-status" className="rounded-2xl border border-[#c4a46a] bg-[#f6efe2] px-4 py-3 text-sm text-[#1c1915]">
+        <p role="status" data-testid="research-language-status" style={{ backgroundColor: '#F6EFE2', color: '#1C1915' }} className="rounded-2xl border border-[#c4a46a] bg-[#f6efe2] px-4 py-3 text-xs font-medium text-[#1c1915]">
           Research is running in {languageLabel(d.lang)}. The previous episode is stopped and will not replace this one.
         </p>
       )}
       {d.reportOrigin === 'failed' && (
-        <div data-testid="research-language-failed" className="rounded-2xl border border-amber-700/40 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          <p>{d.error || `Research in ${languageLabel(d.lang)} did not finish.`}</p>
+        <div
+          data-testid="research-language-failed"
+          style={{ backgroundColor: '#FFFBEB', color: '#451A03' }}
+          className="rounded-2xl border border-amber-400 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-950 shadow-2xs"
+        >
+          <p style={{ color: '#451A03' }} className="font-semibold text-amber-950">
+            {d.error || `Research in ${languageLabel(d.lang)} did not finish.`}
+          </p>
           <button
             type="button"
-            className="mt-3 rounded-xl bg-[#0f6b4c] px-4 py-2 text-xs font-bold text-white"
+            style={{ backgroundColor: '#0A3D2E', color: '#FFFFFF' }}
+            className="mt-2.5 rounded-xl bg-[#0A3D2E] px-4 py-1.5 text-xs font-bold text-[#FFFFFF] shadow-2xs hover:bg-[#0E4D3B]"
             onClick={() => void d.run(d.matn, d.isnad, d.lang)}
           >
             Retry

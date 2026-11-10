@@ -85,7 +85,8 @@ export interface ArchBannerProps {
 export const ArchBanner: React.FC<ArchBannerProps> = ({ title, subtitle, arabic, children }) => (
   <div
     data-research-arch
-    className="relative w-full overflow-hidden rounded-2xl border border-[#D4AF37]/35 bg-gradient-to-r from-[#041B14] via-[#0A2E23] to-[#041B14] shadow-[0_0_25px_rgba(212,175,55,0.08)]"
+    style={{ color: '#FFFFFF' }}
+    className="relative w-full overflow-hidden rounded-2xl border border-[#D4AF37]/35 bg-gradient-to-r from-[#041B14] via-[#0A2E23] to-[#041B14] text-[#FFFFFF] shadow-[0_0_25px_rgba(212,175,55,0.08)]"
   >
     <img
       src="/assets/geometric-carved-arch.jpg"
@@ -94,27 +95,28 @@ export const ArchBanner: React.FC<ArchBannerProps> = ({ title, subtitle, arabic,
     />
     <div className="relative flex min-h-[116px] flex-col justify-between gap-3 px-4 py-3.5 sm:max-h-[128px] sm:flex-row sm:items-center sm:px-6 sm:py-4">
       <div className="min-w-0 max-w-xl text-left">
-        <p className="text-[11px] font-semibold tracking-widest text-[#E6C665]">
+        <p style={{ color: '#E6C665' }} className="text-[11px] font-semibold tracking-widest text-[#E6C665]">
           ✦ INSTITUTIONAL RESEARCH STUDIO
         </p>
-        <h2 className="mt-1 font-serif text-lg font-bold tracking-tight text-white sm:text-xl">
+        <h2 style={{ color: '#FFFFFF' }} className="mt-1 font-serif text-lg font-bold tracking-tight text-[#FFFFFF] sm:text-xl">
           {title}
         </h2>
         {subtitle && (
-          <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-stone-300">
+          <p style={{ color: '#D6D3D1' }} className="mt-0.5 line-clamp-2 text-xs leading-snug text-stone-300">
             {subtitle}
           </p>
         )}
       </div>
       <div className="flex shrink-0 flex-col items-start sm:items-end sm:text-right">
         <div
-          className="font-serif text-xl leading-snug text-white drop-shadow-sm sm:text-2xl"
+          style={{ color: '#F9E7B9' }}
+          className="font-serif text-xl leading-snug text-[#F9E7B9] drop-shadow-sm sm:text-2xl"
           dir="rtl"
           lang="ar"
         >
           {arabic || 'طَلَبُ الْعِلْمِ فَرِيضَةٌ'}
         </div>
-        <span className="mt-0.5 text-[11px] text-stone-400">
+        <span style={{ color: '#D6D3D1' }} className="mt-0.5 text-[11px] text-stone-300">
           “Seeking knowledge is an obligation”
         </span>
       </div>

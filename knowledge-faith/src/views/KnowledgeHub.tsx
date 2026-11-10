@@ -267,7 +267,8 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
     <div className="space-y-4">
       <section
         data-knowledge-banner
-        className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/35 bg-gradient-to-r from-[#041B14] via-[#0A2E23] to-[#041B14] shadow-[0_0_25px_rgba(212,175,55,0.08)]"
+        style={{ color: '#FFFFFF' }}
+        className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/35 bg-gradient-to-r from-[#041B14] via-[#0A2E23] to-[#041B14] text-[#FFFFFF] shadow-[0_0_25px_rgba(212,175,55,0.08)]"
       >
         <img
           src={adminBannerUrl}
@@ -276,13 +277,13 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
         />
         <div className="relative flex min-h-[116px] flex-col justify-between gap-3 px-4 py-3.5 sm:max-h-[128px] sm:flex-row sm:items-center sm:px-6 sm:py-4">
           <div className="min-w-0 max-w-xl text-left">
-            <p className="text-[11px] font-semibold tracking-widest text-[#E6C665]">
+            <p style={{ color: '#E6C665' }} className="text-[11px] font-semibold tracking-widest text-[#E6C665]">
               ✦ INSTITUTIONAL RESEARCH STUDIO
             </p>
-            <h1 className="mt-1 font-serif text-lg font-bold tracking-tight text-white sm:text-xl">
+            <h1 style={{ color: '#FFFFFF' }} className="mt-1 font-serif text-lg font-bold tracking-tight text-[#FFFFFF] sm:text-xl">
               Explore Deep Foundations, Sources & Evidence
             </h1>
-            <p className="mt-0.5 text-xs leading-snug text-stone-300">
+            <p style={{ color: '#D6D3D1' }} className="mt-0.5 text-xs leading-snug text-stone-300">
               Multidisciplinary AI synthesis across classical Tafsir, Kutub al-Sittah, Fiqh, and verified chains.
             </p>
           </div>
@@ -290,11 +291,12 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
             <p
               dir="rtl"
               lang="ar"
-              className="font-serif text-xl font-medium leading-snug text-white drop-shadow-sm sm:text-2xl"
+              style={{ color: '#F9E7B9' }}
+              className="font-serif text-xl font-medium leading-snug text-[#F9E7B9] drop-shadow-sm sm:text-2xl"
             >
               طَلَبُ الْعِلْمِ فَرِيضَةٌ
             </p>
-            <p className="mt-0.5 text-[11px] text-stone-400">
+            <p style={{ color: '#D6D3D1' }} className="mt-0.5 text-[11px] text-stone-300">
               “Seeking knowledge is an obligation”
             </p>
           </div>
