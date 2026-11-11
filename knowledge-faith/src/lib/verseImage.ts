@@ -431,9 +431,13 @@ export async function renderVerseImage(
     [36, 22],
     [32, 20],
     [28, 18],
+    [24, 16],
+    [21, 14],
+    [18, 13],
+    [16, 12],
   ];
 
-  let chosen = measureLayout(probe, verse.arabic, quotedTranslation, meaningFamily, 28, 18);
+  let chosen = measureLayout(probe, verse.arabic, quotedTranslation, meaningFamily, 16, 12);
   for (const [arSize, trSize] of sizeSteps) {
     const candidate = measureLayout(probe, verse.arabic, quotedTranslation, meaningFamily, arSize, trSize);
     if (candidate.totalHeight <= availableHeight) {
@@ -462,14 +466,18 @@ export async function renderVerseImage(
 
   // For very long verses (e.g. 2:282), paginate cleanly across 1200x675 HD cards
   const cards: HTMLCanvasElement[] = [];
-  const maxLinesPerCard = 6;
+  const arLineH = chosen.arabicSize + chosen.arabicGap;
+  const trLineH = chosen.meaningSize + chosen.meaningGap;
+  const halfAvail = Math.floor((availableHeight - 28) / 2);
+  const maxArLines = Math.max(2, Math.floor(halfAvail / arLineH));
+  const maxTrLines = Math.max(2, Math.floor(halfAvail / trLineH));
   const arChunks: string[][] = [];
-  for (let i = 0; i < chosen.arabicLines.length; i += maxLinesPerCard) {
-    arChunks.push(chosen.arabicLines.slice(i, i + maxLinesPerCard));
+  for (let i = 0; i < chosen.arabicLines.length; i += maxArLines) {
+    arChunks.push(chosen.arabicLines.slice(i, i + maxArLines));
   }
   const trChunks: string[][] = [];
-  for (let i = 0; i < chosen.meaningLines.length; i += maxLinesPerCard) {
-    trChunks.push(chosen.meaningLines.slice(i, i + maxLinesPerCard));
+  for (let i = 0; i < chosen.meaningLines.length; i += maxTrLines) {
+    trChunks.push(chosen.meaningLines.slice(i, i + maxTrLines));
   }
   const totalPages = Math.max(arChunks.length, trChunks.length, 1);
   if (totalPages > 20) {

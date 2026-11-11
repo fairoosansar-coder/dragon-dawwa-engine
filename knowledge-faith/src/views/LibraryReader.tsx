@@ -328,23 +328,6 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
             </div>
           )}
 
-          {data.blocks.some(block => block.kind === 'heading') &&
-            data.blocks.filter(block => block.kind === 'heading').length <= 12 && (
-            <nav aria-label="Chapters" className="flex flex-wrap gap-2">
-              {data.blocks
-                .filter(block => block.kind === 'heading')
-                .map(block => (
-                  <a
-                    key={block.id}
-                    href={`#block-${block.id}`}
-                    className="rounded-xl border border-pine/20 bg-white px-3 py-1.5 text-xs font-semibold text-pine shadow-2xs hover:bg-emerald-50/60"
-                  >
-                    {block.text}
-                  </a>
-                ))}
-            </nav>
-          )}
-
           {/* Editorial Reading Sheet (Clean Aligned Cards — Never Pill Chips) */}
           {blocks.some(block => block.kind !== 'heading') && (
             <div
