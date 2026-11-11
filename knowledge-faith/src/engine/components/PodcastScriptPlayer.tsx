@@ -823,10 +823,14 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
       parts.push(
         <span
           key={match.index}
-          className={`font-semibold px-1.5 py-0.5 rounded text-[13px] sm:text-[14px] transition-colors inline-block ${
+          style={{
+            backgroundColor: isAnchor ? '#FEF3C7' : '#E8F2EC',
+            color: isAnchor ? '#78350F' : '#073C30',
+          }}
+          className={`inline-block rounded border px-1.5 py-0.5 text-[13px] font-bold transition-colors sm:text-[14px] ${
             isAnchor
-              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-sm'
-              : 'bg-cyan-500/15 text-cyan-200 border border-cyan-500/40 shadow-sm'
+              ? 'border-amber-400 bg-amber-100 text-[#78350F]'
+              : 'border-emerald-700/30 bg-[#E8F2EC] text-[#073C30]'
           }`}
           title={isAnchor ? 'Addressing Anchor Brother Feroz' : `Addressing ${matchedName}`}
         >
@@ -934,18 +938,27 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
           {/* Studio Broadcast Header */}
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-950/90 border border-red-600/70 text-red-400 text-xs font-mono font-bold shadow-md shadow-red-950/50">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
-                LIVE BROADCAST
+              <span
+                style={{ backgroundColor: '#991B1B', color: '#FFFFFF' }}
+                className="inline-flex items-center gap-2 rounded-full border border-red-800 bg-[#991B1B] px-3 py-1 font-mono text-xs font-bold text-[#FFFFFF] shadow-sm"
+              >
+                <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-300"></span>
+                <span style={{ color: '#FFFFFF' }}>LIVE BROADCAST</span>
               </span>
 
-              <span className="text-xs font-mono text-slate-400 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">
+              <span
+                style={{ backgroundColor: '#073C30', color: '#F5EEDC' }}
+                className="rounded-lg border border-[#073C30] bg-[#073C30] px-2.5 py-1 font-mono text-xs font-semibold text-[#F5EEDC]"
+              >
                 Prime Dragon Audio Labs • Studio A
               </span>
 
-              <span className="text-xs font-mono text-emerald-400 bg-emerald-950/70 px-2.5 py-1 rounded-lg border border-emerald-800/50 flex items-center gap-1.5 font-bold shadow-sm">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                Gemini Multilingual Voice Model (3.8 Flash TTS)
+              <span
+                style={{ backgroundColor: '#E8F2EC', color: '#073C30' }}
+                className="flex items-center gap-1.5 rounded-lg border border-[#073C30]/25 bg-[#E8F2EC] px-2.5 py-1 font-mono text-xs font-bold text-[#073C30] shadow-2xs"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-[#073C30]" />
+                <span style={{ color: '#073C30' }}>Gemini Multilingual Voice Model (3.8 Flash TTS)</span>
               </span>
             </div>
 
@@ -954,7 +967,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
               <span>Dragon Dawwa Live: Roundtable Studio</span>
             </h3>
 
-            <p className="text-xs sm:text-sm text-slate-300 max-w-3xl leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-200 font-medium max-w-3xl leading-relaxed">
               Multi-person studio roundtable debate with Host Brother Feroz and all 5 specialist scholarly agents examining prophetic transmission across Kutub al-Sittah.
             </p>
           </div>
@@ -964,26 +977,36 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('podcast')}
+              style={
+                activeTab === 'podcast'
+                  ? { backgroundColor: '#073C30', color: '#FFFFFF' }
+                  : undefined
+              }
               className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
                 activeTab === 'podcast'
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50 shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-[#073C30] text-[#FFFFFF] border border-[#073C30] shadow-md'
+                  : 'text-slate-300 hover:text-white'
               }`}
             >
-              <Disc3 className={`w-4 h-4 ${isPlaying ? 'animate-spin text-amber-400' : ''}`} />
-              Radio Studio Broadcast
+              <Disc3 className={`w-4 h-4 ${isPlaying ? 'animate-spin text-amber-300' : ''}`} />
+              <span style={activeTab === 'podcast' ? { color: '#FFFFFF' } : undefined}>Radio Studio Broadcast</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('report')}
+              style={
+                activeTab === 'report'
+                  ? { backgroundColor: '#073C30', color: '#FFFFFF' }
+                  : undefined
+              }
               className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
                 activeTab === 'report'
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-[#073C30] text-[#FFFFFF] border border-[#073C30] shadow-md'
+                  : 'text-slate-300 hover:text-white'
               }`}
             >
               <FileText className="w-4 h-4" />
-              Technical Dossier
+              <span style={activeTab === 'report' ? { color: '#FFFFFF' } : undefined}>Technical Dossier</span>
             </button>
           </div>
         </div>
@@ -991,16 +1014,16 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
         {/* Studio Panelists Showcase */}
         {activeTab === 'podcast' && (
           <div className="pt-6 space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-400">
-              <span className="font-semibold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-300">
+              <span className="font-bold uppercase tracking-wider text-white flex items-center gap-1.5">
                 <Mic className="w-3.5 h-3.5 text-amber-400" />
                 Gemini Voice Cast (Puck, Fenrir, Kore, Orus, Zephyr)
               </span>
 
               {/* Realtime Waveform Visualizer */}
-              <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
+              <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-700">
                 <Activity className="w-3.5 h-3.5 text-amber-400" />
-                <span className="text-[11px] font-mono text-slate-400">Audio Stream:</span>
+                <span className="text-[11px] font-mono font-semibold text-slate-200">Audio Stream:</span>
                 <canvas 
                   ref={canvasRef} 
                   width={140} 
@@ -1032,17 +1055,20 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                     className={`p-3 rounded-2xl border text-center transition-all flex flex-col justify-between ${
                       p.isAnchor
                         ? isCurrentSpeaker
-                          ? `${p.bg} border-amber-400 ring-2 ring-amber-400/80 scale-105 shadow-2xl`
-                          : 'bg-gradient-to-b from-amber-950/30 to-slate-900/80 border-amber-500/40 hover:border-amber-400 shadow-md'
+                          ? `${p.bg} border-amber-500 ring-2 ring-amber-500/80 scale-105 shadow-2xl`
+                          : 'bg-slate-900 border-amber-500/60 hover:border-amber-500 shadow-sm'
                         : isCurrentSpeaker
-                        ? `${p.bg} ${p.border} ring-2 ring-amber-400/60 scale-105 shadow-xl`
-                        : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
+                        ? `${p.bg} ${p.border} ring-2 ring-amber-500/60 scale-105 shadow-xl`
+                        : 'bg-slate-900 border-slate-700 hover:border-slate-600 shadow-2xs'
                     }`}
                   >
                     <div>
                       {p.isAnchor && (
                         <div className="mb-1">
-                          <span className="text-[9px] font-mono font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/50 tracking-wider shadow-sm">
+                          <span
+                            style={{ backgroundColor: '#FEF3C7', color: '#78350F' }}
+                            className="text-[9px] font-mono font-black uppercase px-2 py-0.5 rounded-full bg-amber-100 text-[#78350F] border border-amber-400 tracking-wider shadow-2xs"
+                          >
                             🎙️ Anchor
                           </span>
                         </div>
@@ -1051,17 +1077,21 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                         <span className={p.color}>{p.avatar}</span>
                       </div>
                       <div className="text-xs font-bold text-white truncate">{p.name.split('(')[0].trim()}</div>
-                      <div className="text-[10px] font-medium text-slate-300 truncate mt-0.5">{p.role.split('(')[0].trim()}</div>
+                      <div className="text-[10px] font-semibold text-slate-200 truncate mt-0.5">{p.role.split('(')[0].trim()}</div>
                       
                       {pId === 'Sheikh Imran al-Hasani' ? (
-                        <div className="mt-1 space-y-0.5">
-                          <label className="text-[9px] font-mono text-purple-300 block text-left px-0.5">
+                        <div className="mt-1.5 space-y-0.5">
+                          <label
+                            style={{ color: '#073C30' }}
+                            className="text-[10px] font-mono font-bold text-[#073C30] block text-left px-0.5"
+                          >
                             Voice:
                           </label>
                           <select
                             value={imranVoice}
                             onChange={(e) => handleImranVoiceChange(e.target.value)}
-                            className="w-full text-[10px] font-mono font-bold bg-purple-950/90 text-amber-300 py-1 px-1 rounded-md border border-purple-500/60 hover:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer shadow-inner"
+                            style={{ backgroundColor: '#E8F2EC', color: '#073C30' }}
+                            className="w-full text-[10px] font-mono font-bold bg-[#E8F2EC] text-[#073C30] py-1 px-1.5 rounded-lg border border-[#073C30]/35 hover:border-[#073C30] focus:outline-none focus:ring-1 focus:ring-[#073C30] cursor-pointer shadow-2xs"
                             title="Switch Sheikh Imran al-Hasani's voice profile"
                           >
                             <option value="Orus">✨ Orus (Orator)</option>
@@ -1072,7 +1102,10 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                           </select>
                         </div>
                       ) : (
-                        <div className="text-[10px] text-amber-300 font-mono font-semibold truncate mt-1 bg-slate-950/80 py-0.5 px-1.5 rounded border border-slate-800">
+                        <div
+                          style={{ backgroundColor: '#F4EFE4', color: '#073C30' }}
+                          className="text-[10px] text-[#073C30] font-mono font-bold truncate mt-1.5 bg-[#F4EFE4] py-0.5 px-1.5 rounded-lg border border-[#D4AF37]/70"
+                        >
                           ✨ {p.geminiVoice}
                         </div>
                       )}
@@ -1082,18 +1115,19 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                       type="button"
                       onClick={() => handleTestPersonaVoice(pId)}
                       disabled={isTestingThisVoice}
-                      className="mt-2.5 py-1 px-1.5 rounded-lg bg-slate-950 hover:bg-slate-800 text-[10px] font-mono text-amber-300 border border-slate-800 hover:border-amber-500/50 flex items-center justify-center gap-1 transition-all cursor-pointer"
+                      style={{ backgroundColor: '#073C30', color: '#FFFFFF' }}
+                      className="mt-2.5 py-1.5 px-2 rounded-lg bg-[#073C30] hover:bg-[#0A2E23] text-[10px] font-mono font-semibold text-[#FFFFFF] border border-[#073C30] flex items-center justify-center gap-1 transition-all cursor-pointer shadow-2xs"
                       title={`Preview voice of ${p.name}`}
                     >
                       {isTestingThisVoice ? (
                         <>
-                          <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
-                          <span>Speaking...</span>
+                          <Loader2 className="w-3 h-3 animate-spin text-[#E5C158]" />
+                          <span style={{ color: '#FFFFFF' }}>Speaking...</span>
                         </>
                       ) : (
                         <>
-                          <Volume2 className="w-3 h-3 text-amber-400" />
-                          <span>Hear Voice</span>
+                          <Volume2 className="w-3 h-3 text-[#E5C158]" />
+                          <span style={{ color: '#FFFFFF' }}>Hear Voice</span>
                         </>
                       )}
                     </button>
@@ -1103,33 +1137,34 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
             </div>
 
             {/* Master Playback & Mixing Controls Bar */}
-            <div className="mt-4 p-4 rounded-2xl bg-[var(--surface-raised)] border border-slate-800/90 flex flex-wrap items-center justify-between gap-4 shadow-md">
+            <div className="mt-4 p-4 rounded-2xl bg-[var(--surface-raised)] border border-slate-700 flex flex-wrap items-center justify-between gap-4 shadow-md">
               <div className="flex flex-wrap items-center gap-2.5">
                 <button
                   type="button"
                   data-testid="podcast-primary-action"
                   onClick={handleTogglePlay}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-[var(--on-gold)] font-extrabold text-xs flex items-center gap-2 shadow-xl shadow-amber-500/20 transition-all cursor-pointer"
+                  style={{ backgroundColor: '#073C30', color: '#FFFFFF' }}
+                  className="px-5 py-2.5 rounded-xl bg-[#073C30] hover:bg-[#0A2E23] text-[#FFFFFF] font-extrabold text-xs flex items-center gap-2 shadow-md border border-[#D4AF37]/40 transition-all cursor-pointer"
                 >
                   {isPlaying ? (
                     <>
-                      <Pause className="w-4 h-4 fill-slate-950" />
-                      Pause
+                      <Pause className="w-4 h-4 fill-current text-[#E5C158]" />
+                      <span style={{ color: '#FFFFFF' }}>Pause</span>
                     </>
                   ) : currentItemIndex >= 0 ? (
                     <>
-                      <Play className="w-4 h-4 fill-slate-950" />
-                      Resume
+                      <Play className="w-4 h-4 fill-current text-[#E5C158]" />
+                      <span style={{ color: '#FFFFFF' }}>Resume</span>
                     </>
                   ) : audioReady || Object.keys(savedClips ?? {}).length > 0 ? (
                     <>
-                      <Play className="w-4 h-4 fill-slate-950" />
-                      Play
+                      <Play className="w-4 h-4 fill-current text-[#E5C158]" />
+                      <span style={{ color: '#FFFFFF' }}>Play</span>
                     </>
                   ) : (
                     <>
-                      <Play className="w-4 h-4 fill-slate-950" />
-                      Generate Podcast
+                      <Play className="w-4 h-4 fill-current text-[#E5C158]" />
+                      <span style={{ color: '#FFFFFF' }}>Generate Podcast</span>
                     </>
                   )}
                 </button>
@@ -1139,7 +1174,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                   type="button"
                   onClick={handlePrevLine}
                   disabled={currentItemIndex <= 0}
-                  className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 transition-colors border border-slate-700 cursor-pointer"
+                  className="p-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:opacity-35 disabled:cursor-not-allowed text-slate-100 transition-colors border border-slate-700 cursor-pointer"
                   title="Previous Line (⏮)"
                 >
                   <SkipBack className="w-4 h-4" />
@@ -1149,7 +1184,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                   type="button"
                   onClick={handleNextLine}
                   disabled={currentItemIndex >= dialogueItems.length - 1}
-                  className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 transition-colors border border-slate-700 cursor-pointer"
+                  className="p-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:opacity-35 disabled:cursor-not-allowed text-slate-100 transition-colors border border-slate-700 cursor-pointer"
                   title="Skip to Next Line / Scholar (⏭)"
                 >
                   <SkipForward className="w-4 h-4" />
@@ -1158,7 +1193,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700 cursor-pointer"
+                  className="p-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-100 transition-colors border border-slate-700 cursor-pointer"
                   title="Restart Broadcast from Beginning"
                 >
                   <RotateCcw className="w-4 h-4" />
@@ -1168,26 +1203,23 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                 <button
                   type="button"
                   disabled
-                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold border flex items-center gap-1.5 transition-all cursor-pointer ${
-                    useGeminiVoice
-                      ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-300 shadow-md shadow-emerald-950/40 ring-1 ring-emerald-500/30'
-                      : 'bg-slate-900 border-slate-800 text-slate-400'
-                  }`}
+                  style={{ backgroundColor: '#E8F2EC', color: '#073C30' }}
+                  className="px-3 py-1.5 rounded-xl text-xs font-mono font-bold border border-[#073C30]/35 bg-[#E8F2EC] text-[#073C30] flex items-center gap-1.5 shadow-2xs"
                   title="Gemini voice only"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Voice: Gemini</span>
+                  <Sparkles className="w-3.5 h-3.5 text-[#073C30]" />
+                  <span style={{ color: '#073C30' }}>Voice: Gemini</span>
                 </button>
 
                 {/* Sound FX Toggle */}
                 <button
                   type="button"
                   onClick={() => setSoundFxEnabled(!soundFxEnabled)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-mono border flex items-center gap-1.5 transition-colors cursor-pointer ${
-                    soundFxEnabled
-                      ? 'bg-amber-950/50 border-amber-600/50 text-amber-300'
-                      : 'bg-slate-900 border-slate-800 text-slate-500'
-                  }`}
+                  style={{
+                    backgroundColor: soundFxEnabled ? '#FEF3C7' : '#F4EFE4',
+                    color: soundFxEnabled ? '#78350F' : '#3F524A',
+                  }}
+                  className="px-3 py-1.5 rounded-xl text-xs font-mono font-bold border border-amber-500/50 flex items-center gap-1.5 transition-colors cursor-pointer"
                   title="Toggle Procedural Audio Cues"
                 >
                   <Music className="w-3.5 h-3.5" />
@@ -1195,12 +1227,12 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                 </button>
 
                 {/* Speed Toggle */}
-                <div className="flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-xs font-mono text-slate-400">
+                <div className="flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-700 text-xs font-mono font-semibold text-slate-200">
                   <span>Speed:</span>
                   <button
                     type="button"
                     onClick={() => setSpeechRate(speechRate === 1.0 ? 1.25 : speechRate === 1.25 ? 0.9 : 1.0)}
-                    className="text-amber-400 font-bold hover:underline"
+                    className="text-amber-300 font-bold hover:underline"
                   >
                     {speechRate}x
                   </button>
@@ -1208,9 +1240,9 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
               </div>
 
               {/* Status and Action Buttons */}
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2.5">
                 {isSynthesizing && (
-                  <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-mono animate-pulse">
+                  <div className="flex items-center gap-1.5 text-xs text-emerald-300 font-mono font-bold animate-pulse">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     <span>{useGeminiVoice ? 'Gemini audio streaming…' : 'Speaking…'}</span>
                   </div>
@@ -1219,12 +1251,12 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                 <button
                   type="button"
                   onClick={handleCopyScript}
-                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-100 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
                 >
                   {copied ? (
                     <>
                       <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="text-emerald-400">Copied</span>
+                      <span className="text-emerald-300">Copied</span>
                     </>
                   ) : (
                     <>
@@ -1237,10 +1269,10 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                 <button
                   type="button"
                   onClick={handleDownloadTranscript}
-                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-100 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
                   title="Download Raw Dialogue Text"
                 >
-                  <Download className="w-3.5 h-3.5 text-cyan-400" />
+                  <Download className="w-3.5 h-3.5 text-cyan-300" />
                   <span>Download .TXT</span>
                 </button>
 
@@ -1249,7 +1281,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                   data-testid="download-episode-wav"
                   onClick={() => void handleDownloadEpisode()}
                   disabled={downloadProgress !== null}
-                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-60 text-slate-300 text-xs font-medium border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:opacity-60 text-slate-100 text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
                   title="Download the full episode as one WAV file"
                 >
                   {downloadProgress !== null ? (
@@ -1264,17 +1296,18 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                   <button
                     type="button"
                     onClick={onShare}
-                    className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-emerald-500/20 hover:from-amber-500/30 hover:to-emerald-500/30 text-amber-300 hover:text-amber-200 text-xs font-semibold border border-amber-500/40 hover:border-amber-400 flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-amber-500/10"
+                    style={{ backgroundColor: '#073C30', color: '#FFFFFF' }}
+                    className="px-3.5 py-2 rounded-xl bg-[#073C30] hover:bg-[#0A2E23] text-[#FFFFFF] text-xs font-semibold border border-[#D4AF37]/50 flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
                     title="Share episode and script via Web Share API"
                   >
-                    <Share2 className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Share Episode</span>
+                    <Share2 className="w-3.5 h-3.5 text-[#E5C158]" />
+                    <span style={{ color: '#FFFFFF' }}>Share Episode</span>
                   </button>
                 )}
               </div>
               {downloadProgress !== null && (
                 <div className="basis-full" data-testid="episode-wav-progress">
-                  <div className="mb-1 flex items-center justify-between text-[11px] font-mono text-amber-300">
+                  <div className="mb-1 flex items-center justify-between text-[11px] font-mono font-bold text-amber-300">
                     <span>Preparing .WAV</span>
                     <span>{downloadProgress}%</span>
                   </div>
@@ -1294,42 +1327,42 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
 
             {/* Procedural Sound FX Soundboard Preview */}
             <div className="pt-2 flex flex-wrap items-center gap-2 text-xs">
-              <span className="text-[11px] font-mono text-slate-500 uppercase tracking-wider flex items-center gap-1">
+              <span className="text-[11px] font-mono font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1">
                 <Sliders className="w-3 h-3 text-amber-400" />
                 Studio Soundboard FX Test:
               </span>
               <button
                 type="button"
                 onClick={() => handleTestFx('intro_music')}
-                className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-slate-300 flex items-center gap-1 cursor-pointer"
+                className="px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono font-semibold text-slate-100 flex items-center gap-1 cursor-pointer shadow-2xs"
               >
                 <Music className="w-3.5 h-3.5 text-amber-400" /> Intro Theme
               </button>
               <button
                 type="button"
                 onClick={() => handleTestFx('soft_chime')}
-                className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-slate-300 flex items-center gap-1 cursor-pointer"
+                className="px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono font-semibold text-slate-100 flex items-center gap-1 cursor-pointer shadow-2xs"
               >
                 <Bell className="w-3.5 h-3.5 text-emerald-400" /> Bell Chime
               </button>
               <button
                 type="button"
                 onClick={() => handleTestFx('dramatic_drum')}
-                className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-slate-300 flex items-center gap-1 cursor-pointer"
+                className="px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono font-semibold text-slate-100 flex items-center gap-1 cursor-pointer shadow-2xs"
               >
                 <Disc3 className="w-3.5 h-3.5 text-rose-400" /> Sub Drum Thud
               </button>
               <button
                 type="button"
                 onClick={() => handleTestFx('paper_rustle')}
-                className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-slate-300 flex items-center gap-1 cursor-pointer"
+                className="px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono font-semibold text-slate-100 flex items-center gap-1 cursor-pointer shadow-2xs"
               >
                 <Layers className="w-3.5 h-3.5 text-cyan-400" /> Paper Rustle
               </button>
               <button
                 type="button"
                 onClick={() => handleTestFx('outro_music')}
-                className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono text-slate-300 flex items-center gap-1 cursor-pointer"
+                className="px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-700 text-[11px] font-mono font-semibold text-slate-100 flex items-center gap-1 cursor-pointer shadow-2xs"
               >
                 <Music className="w-3.5 h-3.5 text-purple-400" /> Outro Theme
               </button>
@@ -1352,11 +1385,11 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                   key={idx}
                   className={`my-3 p-3.5 rounded-2xl border text-center transition-all ${
                     isCurrent
-                      ? 'bg-amber-950/70 border-amber-500/80 shadow-lg shadow-amber-950/60 scale-[1.01]'
-                      : 'bg-[var(--surface-modal)]/70 border-dashed border-amber-500/25 hover:border-amber-500/40'
+                      ? 'bg-amber-950/90 border-amber-500 shadow-lg scale-[1.01]'
+                      : 'bg-[var(--surface-raised)] border-dashed border-amber-500/50 hover:border-amber-500'
                   }`}
                 >
-                  <div className="inline-flex items-center gap-2 text-xs font-mono font-bold text-amber-300 tracking-wider uppercase">
+                  <div className="inline-flex items-center gap-2 text-xs font-mono font-bold text-amber-200 tracking-wider uppercase">
                     <Music className={`w-3.5 h-3.5 text-amber-400 ${isCurrent ? 'animate-bounce' : ''}`} />
                     <span>{item.cueDetail || item.text}</span>
                     <Sparkles className="w-3.5 h-3.5 text-amber-400" />
@@ -1384,13 +1417,13 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                 className={`p-5 rounded-2xl border transition-all duration-300 ${
                   isCurrent
                     ? `${pMeta.bg} ${pMeta.border} shadow-2xl scale-[1.01] ring-2 ring-amber-400/50`
-                    : 'bg-[var(--surface-panel)]/90 border-slate-800/80 hover:border-slate-700'
+                    : 'bg-[var(--surface-panel)] border-slate-800 hover:border-slate-700 shadow-2xs'
                 }`}
               >
                 <div className="flex items-start gap-4">
                   {/* Persona Avatar */}
                   <div
-                    className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-sm shrink-0 border shadow-md ${
+                    className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-sm shrink-0 border shadow-sm ${
                       pMeta.bg
                     } ${pMeta.border} ${pMeta.color} ${pMeta.isAnchor ? 'ring-1 ring-amber-400/50' : ''}`}
                   >
@@ -1406,50 +1439,52 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                         </span>
 
                         {pMeta.isAnchor ? (
-                          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1 shadow-sm">
-                            <Radio className="w-2.5 h-2.5 text-amber-400" /> Executive Anchor
+                          <span
+                            style={{ backgroundColor: '#FEF3C7', color: '#78350F' }}
+                            className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-100 text-[#78350F] border border-amber-400 flex items-center gap-1 shadow-2xs"
+                          >
+                            <Radio className="w-2.5 h-2.5 text-amber-700" /> Executive Anchor
                           </span>
                         ) : (
-                          <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">
+                          <span className="text-[10px] font-semibold text-slate-300 font-mono hidden sm:inline">
                             ({pMeta.role})
                           </span>
                         )}
 
                         {item.addressedTo && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-900/90 text-slate-300 border border-slate-700/80 flex items-center gap-1 shadow-sm">
-                            <Mic className="w-2.5 h-2.5 text-amber-400" /> Addressing: <span className="font-bold text-amber-300">{item.addressedTo}</span>
+                          <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-slate-900 text-slate-200 border border-slate-700 flex items-center gap-1 shadow-2xs">
+                            <Mic className="w-2.5 h-2.5 text-amber-400" /> Addressing: <span className="font-bold text-amber-200">{item.addressedTo}</span>
                           </span>
                         )}
 
-                        <span className="text-[9px] text-amber-300/80 font-mono bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
+                        <span
+                          style={{ backgroundColor: '#F4EFE4', color: '#073C30' }}
+                          className="text-[10px] text-[#073C30] font-mono font-bold bg-[#F4EFE4] px-2 py-0.5 rounded-md border border-[#D4AF37]/70"
+                        >
                           ✨ {pMeta.geminiVoice}
                         </span>
                       </div>
 
                       <div className="flex items-center gap-2">
                         {isCurrent && (
-                          <span className={`text-[10px] font-mono px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 animate-pulse font-bold shadow-md ${
-                            pMeta.isAnchor 
-                              ? 'bg-amber-950 text-amber-300 border-amber-500/50 shadow-amber-950/60'
-                              : 'bg-red-950 text-red-300 border-red-500/40 shadow-red-950/60'
-                          }`}>
-                            <Volume2 className="w-3 h-3 text-amber-400" />
-                            {pMeta.isAnchor ? 'ANCHOR ON AIR' : 'ON MIC'}
+                          <span
+                            style={{ backgroundColor: '#991B1B', color: '#FFFFFF' }}
+                            className="text-[10px] font-mono px-2.5 py-0.5 rounded-full border border-red-800 bg-[#991B1B] text-[#FFFFFF] flex items-center gap-1.5 animate-pulse font-bold shadow-sm"
+                          >
+                            <Volume2 className="w-3 h-3 text-amber-300" />
+                            <span style={{ color: '#FFFFFF' }}>{pMeta.isAnchor ? 'ANCHOR ON AIR' : 'ON MIC'}</span>
                           </span>
                         )}
 
                         <button
                           type="button"
                           onClick={() => handlePlayFromLine(idx)}
-                          className={`px-2 py-0.5 rounded-lg text-[10px] font-mono flex items-center gap-1 border transition-all cursor-pointer ${
-                            isCurrent
-                              ? 'bg-amber-400 text-[var(--on-gold)] border-amber-400 font-bold shadow-md shadow-amber-400/20'
-                              : 'bg-slate-900/90 text-slate-300 border-slate-700/80 hover:bg-amber-500/20 hover:text-amber-300 hover:border-amber-500/50'
-                          }`}
+                          style={{ backgroundColor: '#073C30', color: '#FFFFFF' }}
+                          className="px-2.5 py-1 rounded-lg text-[10px] font-mono font-semibold flex items-center gap-1 border border-[#073C30] bg-[#073C30] text-[#FFFFFF] hover:bg-[#0A2E23] transition-all cursor-pointer shadow-2xs"
                           title="Play speech from this line"
                         >
-                          <Play className="w-2.5 h-2.5 fill-current" />
-                          <span>{isCurrent ? 'Playing' : 'Play Line'}</span>
+                          <Play className="w-2.5 h-2.5 fill-current text-[#E5C158]" />
+                          <span style={{ color: '#FFFFFF' }}>{isCurrent ? 'Playing' : 'Play Line'}</span>
                         </button>
                       </div>
                     </div>

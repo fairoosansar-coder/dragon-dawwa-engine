@@ -150,14 +150,17 @@ export default function DossierWorkbench() {
         <StarDivider label="تحقيق الحديث" />
 
         {/* Unified 7-Agent Journey Callout Bar */}
-        <div className="rounded-2xl border border-teal-500/35 bg-gradient-to-r from-slate-900/95 via-teal-950/30 to-slate-900/95 p-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-[var(--surface-panel)] p-4 shadow-sm">
           <div className="flex flex-wrap items-center gap-2.5 text-xs">
-            <span className="inline-flex items-center gap-1.5 rounded-lg border border-teal-500/40 bg-teal-950/80 px-2.5 py-1 font-mono font-bold text-teal-300">
-              <Library className="h-3.5 w-3.5 text-teal-400" />
-              7-Agent Research Ready
+            <span
+              style={{ backgroundColor: '#E8F2EC', color: '#073C30' }}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[#073C30]/30 bg-[#E8F2EC] px-2.5 py-1 font-mono font-bold text-[#073C30]"
+            >
+              <Library className="h-3.5 w-3.5 text-[#073C30]" />
+              <span style={{ color: '#073C30' }}>7-Agent Research Ready</span>
             </span>
-            <span className="text-slate-300">
-              HadeethEnc retrieved{' '}
+            <span className="font-medium text-slate-200">
+              Retrieved{' '}
               <strong className="text-white">{agent7?.retrieved_records.length ?? 0}</strong> source record(s) and fed them into Agents 1–6 & the Roundtable.
             </span>
           </div>
@@ -166,17 +169,19 @@ export default function DossierWorkbench() {
               type="button"
               data-testid="banner-source-research-btn"
               onClick={() => d.setStep('source_research')}
-              className="rounded-xl border border-teal-500/40 bg-teal-950/60 px-3 py-1.5 text-xs font-semibold text-teal-200 hover:bg-teal-900/60 cursor-pointer"
+              style={{ backgroundColor: '#F4EFE4', color: '#073C30' }}
+              className="cursor-pointer rounded-xl border border-[#D4AF37]/60 bg-[#F4EFE4] px-3 py-1.5 text-xs font-bold text-[#073C30] hover:bg-[#EFE7D6]"
             >
-              Inspect Agent 7 (HadeethEnc)
+              Inspect Agent 7
             </button>
             <button
               type="button"
               data-testid="banner-open-full-report-btn"
               onClick={openFullReport}
-              className="rounded-xl bg-amber-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-amber-400 cursor-pointer"
+              style={{ backgroundColor: '#073C30', color: '#FFFFFF' }}
+              className="cursor-pointer rounded-xl bg-[#073C30] px-3.5 py-1.5 text-xs font-bold text-[#FFFFFF] hover:bg-[#0A2E23]"
             >
-              Open Full Report
+              <span style={{ color: '#FFFFFF' }}>Open Full Report</span>
             </button>
           </div>
         </div>
