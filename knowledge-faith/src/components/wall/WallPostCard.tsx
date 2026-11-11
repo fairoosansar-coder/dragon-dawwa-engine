@@ -21,6 +21,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { pauseAudio, playAudio, useAudioState } from '../../lib/audio.ts';
+import { HadithVoiceBar } from '../HadithVoiceBar.tsx';
 import { SeekerAvatar } from '../SeekerAuthModal.tsx';
 import { ThemeSwatches } from './ReflectionModal.tsx';
 import {
@@ -637,6 +638,20 @@ export function WallPostCard({
           <span className="truncate">{BRAND_FOOTER_LEFT}</span>
           <span className="shrink-0">{BRAND_FOOTER_RIGHT}</span>
         </div>
+
+        {post.hadithCollection && (
+          <div className="relative z-10 mt-2.5">
+            <HadithVoiceBar
+              hadithKey={`wall-${post.id}`}
+              arabicText={post.arabic}
+              translationText={post.translation}
+              explanationText={post.reflection}
+              lang={post.lang}
+              variant="dark"
+              compact
+            />
+          </div>
+        )}
       </div>
       )}
 

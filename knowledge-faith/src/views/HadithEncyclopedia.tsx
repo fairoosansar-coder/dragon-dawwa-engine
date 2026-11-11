@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { HadithMediaUploadModal } from '../engine/components/HadithMediaUploadModal.tsx';
-import { browserSpeechAvailable, cancelBrowserSpeech } from '../engine/utils/browserVoice.ts';
+import { HadithVoiceBar, type ActiveHadithSpeechPart } from '../components/HadithVoiceBar.tsx';
 import { dictationCode } from '../engine/utils/contentLanguage.ts';
 import { getJson, useRemote } from '../lib/api.ts';
 import { useShell } from '../lib/shell.tsx';
@@ -48,15 +48,6 @@ const DOMAIN_ICONS: Record<string, LucideIcon> = {
   '6': Megaphone,
   '7': Compass,
 };
-
-function speakPassage(text: string, lang: Lang): boolean {
-  if (!browserSpeechAvailable()) return false;
-  cancelBrowserSpeech();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = lang === 'ta' ? 'ta-IN' : lang === 'si' ? 'si-LK' : 'en-US';
-  window.speechSynthesis.speak(utterance);
-  return true;
-}
 
 function EncyclopediaSearch({
   value,
@@ -262,15 +253,9 @@ function FeaturedWisdom() {
   const fallback = useRemote<EncyclopediaHadith>(fallbackId ? `/api/hadeeth/${fallbackId}?lang=${lang}` : null);
   const fallbackMatch = fallback.data && fallback.data.id === fallbackId && isBrotherhoodRecord(fallback.data) ? fallback.data : null;
   const hadith = directMatch ?? fallbackMatch;
-  const [listenNote, setListenNote] = useState<string | null>(null);
+  const [activeSpeechPart, setActiveSpeechPart] = useState<ActiveHadithSpeechPart>(null);
   const grade = hadith ? sahihBadge(hadith.grade) : null;
   const narrator = hadith ? narratorFromRecord(hadith) : null;
-
-  function listen() {
-    if (!hadith?.text) return;
-    const spoken = speakPassage(hadith.text, hadith.lang);
-    setListenNote(spoken ? null : 'This browser cannot speak the translation.');
-  }
 
   return (
     <section data-testid="featured-wisdom" className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#0E382B] via-[#146044] to-[#071f18] p-5 text-[#FBF9F5] shadow-lg sm:p-8">
@@ -291,16 +276,42 @@ function FeaturedWisdom() {
             <span className="text-[#FBF9F5]/70">HadeethEnc {hadith.id}</span>
           </div>
           {hadith.arabic ? (
-            <p lang="ar" dir="rtl" className="arabic text-2xl text-[#FBF9F5] sm:text-3xl">{hadith.arabic}</p>
+            <p
+              lang="ar"
+              dir="rtl"
+              data-active-speech={activeSpeechPart === 'arabic' ? 'true' : undefined}
+              className={`arabic rounded-2xl p-2 text-2xl text-[#FBF9F5] transition sm:text-3xl ${
+                activeSpeechPart === 'arabic' ? 'bg-[#E7C98A]/18 ring-1 ring-[#E7C98A]/60' : ''
+              }`}
+            >
+              {hadith.arabic}
+            </p>
           ) : (
             <p className="text-sm text-[#FBF9F5]/75">HadeethEnc did not include the Arabic for this hadith.</p>
           )}
-          <p lang={hadith.lang} className="text-base leading-relaxed text-[#FBF9F5] sm:text-lg">{hadith.text}</p>
+          <p
+            lang={hadith.lang}
+            data-active-speech={activeSpeechPart === 'translation' ? 'true' : undefined}
+            className={`rounded-2xl p-2 text-base leading-relaxed text-[#FBF9F5] transition sm:text-lg ${
+              activeSpeechPart === 'translation' ? 'bg-[#E7C98A]/18 ring-1 ring-[#E7C98A]/60' : ''
+            }`}
+          >
+            {hadith.text}
+          </p>
           {narrator && <p className="text-sm text-[#E7C98A]">Narrator: {narrator}</p>}
+
+          {/* ElevenLabs v4 Voice Bar (Arabic Matn + Translation + Sequential Play) */}
+          <HadithVoiceBar
+            hadithKey={`featured-${hadith.id}`}
+            arabicText={hadith.arabic}
+            translationText={hadith.text}
+            explanationText={hadith.explanation}
+            lang={hadith.lang}
+            variant="dark"
+            onActivePartChange={setActiveSpeechPart}
+          />
+
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            <button type="button" onClick={listen} className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#FBF9F5] px-4 text-sm font-semibold text-[#0E382B]">
-              கேட்கவும்
-            </button>
             <a href={researchStudioHref(hadith.text)} className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#FBF9F5]/40 px-4 text-sm font-semibold text-[#FBF9F5]">
               விளக்கம் & ஆய்வு
             </a>
@@ -311,7 +322,6 @@ function FeaturedWisdom() {
               Generate Podcast Episode
             </a>
           </div>
-          {listenNote && <p className="text-xs text-[#FBF9F5]/80">{listenNote}</p>}
         </div>
       )}
     </section>
