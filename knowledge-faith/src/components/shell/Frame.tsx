@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Bookmark,
   BookOpen,
+  ChevronUp,
   Compass,
   Globe,
   HelpCircle,
@@ -9,17 +10,21 @@ import {
   Library,
   LogIn,
   ScrollText,
+  Settings,
   ShieldCheck,
   Sparkles,
   User,
+  X,
 } from 'lucide-react';
+import { LANGUAGE_NAMES } from '../../shared/sources.ts';
 import type { RouteRoot } from '../../lib/route.ts';
 import { useShell } from '../../lib/shell.tsx';
-import { useApp } from '../../lib/store.tsx';
+import { UI_FONT_SCALES, UI_THEMES, useApp } from '../../lib/store.tsx';
 import { useAudioState } from '../../lib/audio.ts';
 import { BrandLockup } from './Brand.tsx';
 import { NavGlyph, type NavIconName } from './navIcons.tsx';
 import { AudioMiniPlayer, DeskHeaderTabs, isKnowledgeDomainPath } from './widgets.tsx';
+import { ProfileSettingsPanel } from '../ProfileSettingsPanel.tsx';
 import { SeekerAccountPill, SeekerAuthModal, SeekerAvatar } from '../SeekerAuthModal.tsx';
 import {
   isPublicHomeHash,
@@ -98,7 +103,7 @@ export function AppFrame({
   segments?: string[];
   children: ReactNode;
 }) {
-  const { t } = useApp();
+  const { t, lang, uiTheme, fontScale } = useApp();
   const { focus, setFocus } = useShell();
   const { user, isAuthenticated, openModal } = useSeekerAuth();
   const audio = useAudioState();
@@ -110,6 +115,8 @@ export function AppFrame({
   const [hashStr, setHashStr] = useState(() =>
     typeof window === 'undefined' ? '#/quran/wall' : window.location.hash || '#/quran/wall',
   );
+  const [footerSettingsOpen, setFooterSettingsOpen] = useState(false);
+  const footerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const sync = () => {
@@ -131,6 +138,15 @@ export function AppFrame({
       window.removeEventListener('storage', sync);
     };
   }, []);
+
+  useEffect(() => {
+    if (!footerSettingsOpen) return;
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setFooterSettingsOpen(false);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [footerSettingsOpen]);
 
   const posts = useMemo(() => listFaithWallPosts(), [wallTick, user]);
   const portfolio = useMemo(() => resolveUserProfilePortfolio('me'), [wallTick, user]);
@@ -166,268 +182,406 @@ export function AppFrame({
         Skip to content
       </a>
 
-      {/* TABLE 1 (Left Column on Desktop LG+): Brand + User Profile Summary Card (1, 2) + Faith Wall & Shortcuts Navigation (3) */}
+      {/* TABLE 1 (Left Column on Desktop LG+): Brand + User Profile Summary Card (1, 2) + Faith Wall & Shortcuts Navigation (3) + Sticky Bottom Settings Footer */}
       {!focus && (
         <aside
           data-left-social-rail
-          className="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col overflow-y-auto no-scrollbar border-r border-stone-200/80 bg-sand/95 px-3.5 pb-16 pt-4 text-stone-900 lg:flex"
+          className="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col border-r border-stone-200/80 bg-sand/95 text-stone-900 lg:flex"
         >
-          <div className="px-1 pb-3">
-            <BrandLockup tone="ivory" />
-          </div>
-
-          {/* 1 & 2: User Profile Summary Card */}
-          <div
-            data-sidebar-profile-card
-            className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xs"
-          >
-            <div className="relative h-16 w-full bg-[#073C30]">
-              <img
-                src={portfolio.bannerUrl || '/assets/banner-art.jpg'}
-                alt=""
-                className="h-full w-full object-cover opacity-85"
-              />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+          {/* Scrollable Top & Middle Area */}
+          <div className="flex-1 overflow-y-auto no-scrollbar px-3.5 pb-3 pt-4">
+            <div className="px-1 pb-3">
+              <BrandLockup tone="ivory" />
             </div>
 
-            <div className="px-4 pb-3.5">
-              {/* Avatar row with relative z-10 so the circular avatar sits cleanly above the banner */}
-              <div className="relative z-10 -mt-7 flex items-end justify-between">
-                <a
-                  href="#/profile"
-                  onClick={event => handleNavClick(event, '#/profile', 'Seeker Profile')}
-                  className="relative z-10 inline-flex h-13 w-13 items-center justify-center overflow-hidden rounded-full bg-stone-900 text-[#F5EEDC] shadow-md ring-3 ring-white"
-                >
-                  <SeekerAvatar
-                    avatarUrl={portfolio.avatarUrl}
-                    name={portfolio.name}
-                    emblem={portfolio.emblem}
-                    size={24}
-                  />
-                </a>
-                {isAuthenticated ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-800/15 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-900">
-                    <ShieldCheck className="h-3 w-3 text-emerald-600" aria-hidden />
-                    <span>Verified</span>
-                  </span>
-                ) : (
+            {/* 1 & 2: User Profile Summary Card */}
+            <div
+              data-sidebar-profile-card
+              className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xs"
+            >
+              <div className="relative h-16 w-full bg-[#073C30]">
+                <img
+                  src={portfolio.bannerUrl || '/assets/banner-art.jpg'}
+                  alt=""
+                  className="h-full w-full object-cover opacity-85"
+                />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+              </div>
+
+              <div className="px-4 pb-3.5">
+                {/* Avatar row with relative z-10 so the circular avatar sits cleanly above the banner */}
+                <div className="relative z-10 -mt-7 flex items-end justify-between">
+                  <a
+                    href="#/profile"
+                    onClick={event => handleNavClick(event, '#/profile', 'Seeker Profile')}
+                    className="relative z-10 inline-flex h-13 w-13 items-center justify-center overflow-hidden rounded-full bg-stone-900 text-[#F5EEDC] shadow-md ring-3 ring-white"
+                  >
+                    <SeekerAvatar
+                      avatarUrl={portfolio.avatarUrl}
+                      name={portfolio.name}
+                      emblem={portfolio.emblem}
+                      size={24}
+                    />
+                  </a>
+                  {isAuthenticated ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-800/15 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-900">
+                      <ShieldCheck className="h-3 w-3 text-emerald-600" aria-hidden />
+                      <span>Verified</span>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => openModal({ targetRoute: '#/quran/wall', deskLabel: 'Community Faith Wall' })}
+                      className="inline-flex items-center gap-1 rounded-full bg-[#073C30] px-2.5 py-1 text-[10px] font-semibold text-[#F5EEDC] shadow-2xs hover:bg-[#0A2E23]"
+                    >
+                      <LogIn className="h-2.5 w-2.5 text-[#D4AF37]" aria-hidden />
+                      <span>Sign In</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="mt-2">
+                  <a
+                    href="#/profile"
+                    onClick={event => handleNavClick(event, '#/profile', 'Seeker Profile')}
+                    className="block truncate text-sm font-semibold text-stone-900 hover:text-[#073C30] hover:underline"
+                  >
+                    {portfolio.name}
+                  </a>
+                  <p className="truncate font-mono text-[11px] text-stone-500">
+                    {portfolio.handle}
+                  </p>
+                  <p className="mt-0.5 line-clamp-1 text-xs text-stone-600">
+                    {portfolio.roleBadge}
+                  </p>
+                </div>
+
+                <div className="mt-2.5 grid grid-cols-2 gap-2 border-t border-stone-100 pt-2.5 text-center">
+                  <a
+                    href="#/profile"
+                    onClick={event => handleNavClick(event, '#/profile', 'Seeker Profile')}
+                    className="rounded-xl border border-stone-200/80 bg-stone-50/80 px-2 py-1.5 transition hover:border-stone-300"
+                  >
+                    <p className="text-xs font-bold text-stone-900">{portfolio.reflectionsCount}</p>
+                    <p className="text-[10px] text-stone-500">Reflections</p>
+                  </a>
+                  <a
+                    href="#/profile"
+                    onClick={event => handleNavClick(event, '#/profile', 'Seeker Profile')}
+                    className="rounded-xl border border-stone-200/80 bg-stone-50/80 px-2 py-1.5 transition hover:border-stone-300"
+                  >
+                    <p className="text-xs font-bold text-stone-900">{portfolio.podcastsCount}</p>
+                    <p className="text-[10px] text-stone-500">Podcasts</p>
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* 3: Faith Wall & Personal Navigation Card */}
+            <nav
+              aria-label="Faith Wall navigation"
+              data-sidebar-wall-nav
+              className="mt-3 rounded-2xl border border-stone-200/80 bg-white p-2 shadow-2xs"
+            >
+              <a
+                href="#/quran/wall"
+                data-sidebar-wall-tab="community"
+                onClick={event => handleNavClick(event, '#/quran/wall', 'Community Faith Wall')}
+                className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-medium transition ${
+                  activeWallTab === 'community'
+                    ? 'bg-emerald-50/90 font-semibold text-emerald-950'
+                    : 'text-stone-700 hover:bg-stone-50'
+                }`}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Globe className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+                  <span>Community Feed</span>
+                </span>
+                <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-600">
+                  {posts.length}
+                </span>
+              </a>
+
+              <a
+                href="#/quran/wall?view=mine"
+                data-sidebar-wall-tab="mine"
+                onClick={event => handleNavClick(event, '#/quran/wall?view=mine', 'My Personal Wall')}
+                className={`mt-0.5 flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-medium transition ${
+                  activeWallTab === 'mine'
+                    ? 'bg-emerald-50/90 font-semibold text-emerald-950'
+                    : 'text-stone-700 hover:bg-stone-50'
+                }`}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <User className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+                  <span>My Personal Wall</span>
+                </span>
+                <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-600">
+                  {myPostsCount}
+                </span>
+              </a>
+
+              <a
+                href="#/quran/wall?view=saved"
+                data-sidebar-wall-tab="saved"
+                onClick={event => handleNavClick(event, '#/quran/wall?view=saved', 'Saved Bookmarks')}
+                className={`mt-0.5 flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-medium transition ${
+                  activeWallTab === 'saved'
+                    ? 'bg-emerald-50/90 font-semibold text-emerald-950'
+                    : 'text-stone-700 hover:bg-stone-50'
+                }`}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Bookmark className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+                  <span>Saved Bookmarks</span>
+                </span>
+                <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-600">
+                  {savedPostsCount}
+                </span>
+              </a>
+
+              <div className="my-1.5 border-t border-stone-100" />
+
+              <a
+                href="#/profile"
+                data-wall-open-profile
+                onClick={event => handleNavClick(event, '#/profile', 'My Profile & Settings')}
+                className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition ${
+                  path === 'profile'
+                    ? 'bg-emerald-50/90 font-semibold text-emerald-950'
+                    : 'text-stone-700 hover:bg-stone-50 hover:text-stone-900'
+                }`}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <User className="h-3.5 w-3.5 text-[#073C30]" aria-hidden />
+                  <span>My Profile & Settings</span>
+                </span>
+                <span className="text-[11px] text-stone-400">→</span>
+              </a>
+            </nav>
+
+            {/* Study & Research Shortcuts Card */}
+            <nav
+              aria-label="Study shortcuts"
+              className="mt-3 rounded-2xl border border-stone-200/80 bg-white p-2 shadow-2xs"
+            >
+              <p className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-stone-400">
+                Study & Research Desks
+              </p>
+              <a
+                href="#/hub"
+                onClick={event => handleNavClick(event, '#/hub', 'Knowledge Hub')}
+                className={`flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-medium transition ${
+                  path === 'hub' && segments.length === 0
+                    ? 'bg-emerald-50/90 font-semibold text-emerald-950'
+                    : 'text-stone-700 hover:bg-stone-50'
+                }`}
+              >
+                <Compass className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+                <span>Knowledge Hub</span>
+              </a>
+              <a
+                href="#/quran"
+                onClick={event => handleNavClick(event, '#/quran', 'The Holy Qur’an')}
+                className={`mt-0.5 flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-medium transition ${
+                  path === 'quran' && segments[0] !== 'wall'
+                    ? 'bg-emerald-50/90 font-semibold text-emerald-950'
+                    : 'text-stone-700 hover:bg-stone-50'
+                }`}
+              >
+                <BookOpen className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+                <span>The Holy Qur’an</span>
+              </a>
+              <a
+                href="#/hadith"
+                onClick={event => handleNavClick(event, '#/hadith', 'Hadith Library')}
+                className={`mt-0.5 flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-medium transition ${
+                  path === 'hadith'
+                    ? 'bg-emerald-50/90 font-semibold text-emerald-950'
+                    : 'text-stone-700 hover:bg-stone-50'
+                }`}
+              >
+                <ScrollText className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+                <span>Hadith Library</span>
+              </a>
+              <a
+                href="#/books"
+                onClick={event => handleNavClick(event, '#/books', 'Islamic Books')}
+                className={`mt-0.5 flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-medium transition ${
+                  path === 'books'
+                    ? 'bg-emerald-50/90 font-semibold text-emerald-950'
+                    : 'text-stone-700 hover:bg-stone-50'
+                }`}
+              >
+                <Library className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+                <span>Islamic Books</span>
+              </a>
+              <a
+                href="#/spiritual"
+                onClick={event => handleNavClick(event, '#/spiritual', 'Worship & Five Pillars')}
+                className={`mt-0.5 flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-medium transition ${
+                  path === 'spiritual'
+                    ? 'bg-emerald-50/90 font-semibold text-emerald-950'
+                    : 'text-stone-700 hover:bg-stone-50'
+                }`}
+              >
+                <Sparkles className="h-3.5 w-3.5 text-[#C6A15A]" aria-hidden />
+                <span>Worship & Prayer</span>
+              </a>
+              <a
+                href="#/hub/scholar"
+                onClick={event => handleNavClick(event, '#/hub/scholar', t.sidebarQuestion)}
+                className="mt-0.5 flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-medium text-stone-700 transition hover:bg-stone-50"
+              >
+                <HelpCircle className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+                <span>{t.sidebarQuestion}</span>
+              </a>
+              <a
+                href="#/about"
+                data-sidebar-about-link
+                className="mt-0.5 flex items-center gap-2 rounded-xl px-3 py-1.5 text-[11px] font-medium text-stone-500 transition hover:bg-stone-50 hover:text-stone-800"
+              >
+                <Info className="h-3.5 w-3.5 text-stone-400" aria-hidden />
+                <span>About & Reference Notes</span>
+              </a>
+            </nav>
+          </div>
+
+          {/* 1ST TABLE BOTTOM FOOTER: Dedicated Settings & Platform Customization Button + Anchored Drawer */}
+          <div
+            ref={footerRef}
+            data-left-rail-footer
+            className="relative mt-auto shrink-0 border-t border-stone-200/90 bg-white/95 p-3 backdrop-blur-xs"
+          >
+            {footerSettingsOpen && (
+              <div
+                role="dialog"
+                aria-label="Platform Customization Settings"
+                data-left-footer-settings-drawer
+                className="absolute bottom-full left-2.5 right-2.5 z-50 mb-2 rounded-2xl border border-stone-200 bg-white p-3.5 text-stone-900 shadow-2xl ring-1 ring-black/10"
+              >
+                <div className="mb-2.5 flex items-center justify-between border-b border-stone-100 pb-2">
+                  <div className="flex items-center gap-1.5">
+                    <Settings className="h-3.5 w-3.5 text-[#073C30]" aria-hidden />
+                    <span className="text-xs font-bold text-stone-900">
+                      Platform Customization
+                    </span>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => openModal({ targetRoute: '#/quran/wall', deskLabel: 'Community Faith Wall' })}
-                    className="inline-flex items-center gap-1 rounded-full bg-[#073C30] px-2.5 py-1 text-[10px] font-semibold text-[#F5EEDC] shadow-2xs hover:bg-[#0A2E23]"
+                    onClick={() => setFooterSettingsOpen(false)}
+                    aria-label="Close customization settings"
+                    className="inline-flex h-6 w-6 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 hover:text-stone-700"
                   >
-                    <LogIn className="h-2.5 w-2.5 text-[#D4AF37]" aria-hidden />
-                    <span>Sign In</span>
+                    <X className="h-3.5 w-3.5" aria-hidden />
                   </button>
-                )}
+                </div>
+
+                <ProfileSettingsPanel compact />
+
+                <div className="mt-3 flex items-center justify-between border-t border-stone-100 pt-2.5 text-[11px]">
+                  <a
+                    href="#/profile"
+                    onClick={() => setFooterSettingsOpen(false)}
+                    className="font-semibold text-emerald-800 hover:underline"
+                  >
+                    My Profile & Account →
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFooterSettingsOpen(false);
+                      openModal();
+                    }}
+                    className="font-medium text-stone-600 hover:text-stone-900"
+                  >
+                    {isAuthenticated ? 'Edit Identity' : 'Sign In'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              data-testid="left-footer-settings-btn"
+              aria-expanded={footerSettingsOpen}
+              onClick={() => setFooterSettingsOpen(open => !open)}
+              className="flex w-full items-center justify-between gap-2 rounded-xl border border-stone-200 bg-stone-50/90 px-3 py-2 text-left shadow-2xs transition hover:border-[#073C30]/40 hover:bg-emerald-50/40"
+            >
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#073C30] text-[#D4AF37] shadow-2xs">
+                  <Settings className="h-4 w-4" aria-hidden />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-bold text-stone-900">
+                    Settings & Customize
+                  </p>
+                  <p className="truncate text-[10px] text-stone-500">
+                    Language · Colour · Font Size
+                  </p>
+                </div>
               </div>
 
-              <div className="mt-2">
-                <a
-                  href="#/profile"
-                  onClick={event => handleNavClick(event, '#/profile', 'Seeker Profile')}
-                  className="block truncate text-sm font-semibold text-stone-900 hover:text-[#073C30] hover:underline"
-                >
-                  {portfolio.name}
-                </a>
-                <p className="truncate font-mono text-[11px] text-stone-500">
-                  {portfolio.handle}
-                </p>
-                <p className="mt-0.5 line-clamp-1 text-xs text-stone-600">
-                  {portfolio.roleBadge}
-                </p>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <span className="rounded-md border border-stone-200 bg-white px-1.5 py-0.5 font-mono text-[10px] font-semibold text-emerald-900">
+                  {LANGUAGE_NAMES[lang].native}
+                </span>
+                <span
+                  aria-hidden
+                  title={UI_THEMES[uiTheme].label}
+                  style={{ background: UI_THEMES[uiTheme].swatch }}
+                  className="inline-block h-3.5 w-3.5 rounded-full border border-black/20"
+                />
+                <ChevronUp
+                  className={`h-3.5 w-3.5 text-stone-400 transition-transform ${
+                    footerSettingsOpen ? 'rotate-180 text-stone-700' : ''
+                  }`}
+                  aria-hidden
+                />
               </div>
-
-              <div className="mt-2.5 grid grid-cols-2 gap-2 border-t border-stone-100 pt-2.5 text-center">
-                <a
-                  href="#/profile"
-                  onClick={event => handleNavClick(event, '#/profile', 'Seeker Profile')}
-                  className="rounded-xl border border-stone-200/80 bg-stone-50/80 px-2 py-1.5 transition hover:border-stone-300"
-                >
-                  <p className="text-xs font-bold text-stone-900">{portfolio.reflectionsCount}</p>
-                  <p className="text-[10px] text-stone-500">Reflections</p>
-                </a>
-                <a
-                  href="#/profile"
-                  onClick={event => handleNavClick(event, '#/profile', 'Seeker Profile')}
-                  className="rounded-xl border border-stone-200/80 bg-stone-50/80 px-2 py-1.5 transition hover:border-stone-300"
-                >
-                  <p className="text-xs font-bold text-stone-900">{portfolio.podcastsCount}</p>
-                  <p className="text-[10px] text-stone-500">Podcasts</p>
-                </a>
-              </div>
-            </div>
+            </button>
           </div>
-
-          {/* 3: Faith Wall & Personal Navigation Card */}
-          <nav
-            aria-label="Faith Wall navigation"
-            data-sidebar-wall-nav
-            className="mt-3 rounded-2xl border border-stone-200/80 bg-white p-2 shadow-2xs"
-          >
-            <a
-              href="#/quran/wall"
-              data-sidebar-wall-tab="community"
-              onClick={event => handleNavClick(event, '#/quran/wall', 'Community Faith Wall')}
-              className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-medium transition ${
-                activeWallTab === 'community'
-                  ? 'bg-emerald-50/90 font-semibold text-emerald-950'
-                  : 'text-stone-700 hover:bg-stone-50'
-              }`}
-            >
-              <span className="inline-flex items-center gap-2">
-                <Globe className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
-                <span>Community Feed</span>
-              </span>
-              <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-600">
-                {posts.length}
-              </span>
-            </a>
-
-            <a
-              href="#/quran/wall?view=mine"
-              data-sidebar-wall-tab="mine"
-              onClick={event => handleNavClick(event, '#/quran/wall?view=mine', 'My Personal Wall')}
-              className={`mt-0.5 flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-medium transition ${
-                activeWallTab === 'mine'
-                  ? 'bg-emerald-50/90 font-semibold text-emerald-950'
-                  : 'text-stone-700 hover:bg-stone-50'
-              }`}
-            >
-              <span className="inline-flex items-center gap-2">
-                <User className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
-                <span>My Personal Wall</span>
-              </span>
-              <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-600">
-                {myPostsCount}
-              </span>
-            </a>
-
-            <a
-              href="#/quran/wall?view=saved"
-              data-sidebar-wall-tab="saved"
-              onClick={event => handleNavClick(event, '#/quran/wall?view=saved', 'Saved Bookmarks')}
-              className={`mt-0.5 flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-medium transition ${
-                activeWallTab === 'saved'
-                  ? 'bg-emerald-50/90 font-semibold text-emerald-950'
-                  : 'text-stone-700 hover:bg-stone-50'
-              }`}
-            >
-              <span className="inline-flex items-center gap-2">
-                <Bookmark className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
-                <span>Saved Bookmarks</span>
-              </span>
-              <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-600">
-                {savedPostsCount}
-              </span>
-            </a>
-
-            <div className="my-1.5 border-t border-stone-100" />
-
-            <a
-              href="#/profile"
-              data-wall-open-profile
-              onClick={event => handleNavClick(event, '#/profile', 'My Profile & Settings')}
-              className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition ${
-                path === 'profile'
-                  ? 'bg-emerald-50/90 font-semibold text-emerald-950'
-                  : 'text-stone-700 hover:bg-stone-50 hover:text-stone-900'
-              }`}
-            >
-              <span className="inline-flex items-center gap-2">
-                <User className="h-3.5 w-3.5 text-[#073C30]" aria-hidden />
-                <span>My Profile & Settings</span>
-              </span>
-              <span className="text-[11px] text-stone-400">→</span>
-            </a>
-          </nav>
-
-          {/* Study & Research Shortcuts Card */}
-          <nav
-            aria-label="Study shortcuts"
-            className="mt-3 rounded-2xl border border-stone-200/80 bg-white p-2 shadow-2xs"
-          >
-            <p className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-stone-400">
-              Study & Research Desks
-            </p>
-            <a
-              href="#/hub"
-              onClick={event => handleNavClick(event, '#/hub', 'Knowledge Hub')}
-              className={`flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-medium transition ${
-                path === 'hub' && segments.length === 0
-                  ? 'bg-emerald-50/90 font-semibold text-emerald-950'
-                  : 'text-stone-700 hover:bg-stone-50'
-              }`}
-            >
-              <Compass className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
-              <span>Knowledge Hub</span>
-            </a>
-            <a
-              href="#/quran"
-              onClick={event => handleNavClick(event, '#/quran', 'The Holy Qur’an')}
-              className={`mt-0.5 flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-medium transition ${
-                path === 'quran' && segments[0] !== 'wall'
-                  ? 'bg-emerald-50/90 font-semibold text-emerald-950'
-                  : 'text-stone-700 hover:bg-stone-50'
-              }`}
-            >
-              <BookOpen className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
-              <span>The Holy Qur’an</span>
-            </a>
-            <a
-              href="#/hadith"
-              onClick={event => handleNavClick(event, '#/hadith', 'Hadith Library')}
-              className={`mt-0.5 flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-medium transition ${
-                path === 'hadith'
-                  ? 'bg-emerald-50/90 font-semibold text-emerald-950'
-                  : 'text-stone-700 hover:bg-stone-50'
-              }`}
-            >
-              <ScrollText className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
-              <span>Hadith Library</span>
-            </a>
-            <a
-              href="#/books"
-              onClick={event => handleNavClick(event, '#/books', 'Islamic Books')}
-              className={`mt-0.5 flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-medium transition ${
-                path === 'books'
-                  ? 'bg-emerald-50/90 font-semibold text-emerald-950'
-                  : 'text-stone-700 hover:bg-stone-50'
-              }`}
-            >
-              <Library className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
-              <span>Islamic Books</span>
-            </a>
-            <a
-              href="#/spiritual"
-              onClick={event => handleNavClick(event, '#/spiritual', 'Worship & Five Pillars')}
-              className={`mt-0.5 flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-medium transition ${
-                path === 'spiritual'
-                  ? 'bg-emerald-50/90 font-semibold text-emerald-950'
-                  : 'text-stone-700 hover:bg-stone-50'
-              }`}
-            >
-              <Sparkles className="h-3.5 w-3.5 text-[#C6A15A]" aria-hidden />
-              <span>Worship & Prayer</span>
-            </a>
-            <a
-              href="#/hub/scholar"
-              onClick={event => handleNavClick(event, '#/hub/scholar', t.sidebarQuestion)}
-              className="mt-0.5 flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-medium text-stone-700 transition hover:bg-stone-50"
-            >
-              <HelpCircle className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
-              <span>{t.sidebarQuestion}</span>
-            </a>
-            <a
-              href="#/about"
-              data-sidebar-about-link
-              className="mt-0.5 flex items-center gap-2 rounded-xl px-3 py-1.5 text-[11px] font-medium text-stone-500 transition hover:bg-stone-50 hover:text-stone-800"
-            >
-              <Info className="h-3.5 w-3.5 text-stone-400" aria-hidden />
-              <span>About & Reference Notes</span>
-            </a>
-          </nav>
         </aside>
+      )}
+
+      {/* Mobile Customization Bottom Sheet when opened on <1024px viewports */}
+      {footerSettingsOpen && (
+        <div
+          role="dialog"
+          aria-label="Mobile Platform Customization"
+          data-mobile-footer-settings-sheet
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 backdrop-blur-xs lg:hidden"
+          onClick={() => setFooterSettingsOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-stone-200 bg-white p-4 text-stone-900 shadow-2xl"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between border-b border-stone-100 pb-2.5">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#073C30] text-[#D4AF37]">
+                  <Settings className="h-3.5 w-3.5" aria-hidden />
+                </span>
+                <div>
+                  <p className="text-xs font-bold text-stone-900">Platform Customization</p>
+                  <p className="text-[10px] text-stone-500">
+                    {LANGUAGE_NAMES[lang].english} · {UI_THEMES[uiTheme].label} · {UI_FONT_SCALES[fontScale].badge}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFooterSettingsOpen(false)}
+                aria-label="Close settings"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 hover:text-stone-700"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+
+            <ProfileSettingsPanel compact />
+          </div>
+        </div>
       )}
 
       <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${focus ? '' : 'lg:pl-72'}`}>
@@ -452,6 +606,21 @@ export function AppFrame({
                 <div className="flex shrink-0 items-center gap-1.5">
                   {quranSettings && <div id="kf-library-settings" className="hidden lg:block" />}
                   {quranSettings && <div id="kf-library-settings-mobile" className="lg:hidden" />}
+                  <button
+                    type="button"
+                    data-mobile-customize-btn
+                    onClick={() => setFooterSettingsOpen(open => !open)}
+                    title="Settings · Language, Colour & Font Size"
+                    className="inline-flex h-7.5 items-center gap-1 rounded-full border border-stone-300 bg-white px-2 text-[11px] font-semibold text-stone-800 shadow-2xs transition hover:border-[#073C30]/40 lg:hidden"
+                  >
+                    <Settings className="h-3 w-3 text-[#073C30]" aria-hidden />
+                    <span>{LANGUAGE_NAMES[lang].native}</span>
+                    <span
+                      aria-hidden
+                      style={{ background: UI_THEMES[uiTheme].swatch }}
+                      className="inline-block h-2.5 w-2.5 rounded-full border border-black/20"
+                    />
+                  </button>
                   <SeekerAccountPill variant="header" />
                 </div>
               </div>
