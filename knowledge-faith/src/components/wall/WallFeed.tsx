@@ -2,17 +2,22 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Bookmark,
   BookOpen,
+  Check,
   Edit3,
   Globe,
   Headphones,
+  Heart,
   LogIn,
-  Mic,
+  Pause,
+  Play,
   Plus,
+  ScrollText,
   Search,
   ShieldCheck,
   Sparkles,
   User,
 } from 'lucide-react';
+import { pauseAudio, playAudio, useAudioState } from '../../lib/audio.ts';
 import { SeekerAvatar } from '../SeekerAuthModal.tsx';
 import { ReflectionModal, type PresetVerseOption } from './ReflectionModal.tsx';
 import { WallPostCard } from './WallPostCard.tsx';
@@ -28,14 +33,17 @@ import {
   FAITH_WALL_EVENT,
   listFaithWallPosts,
   publishFaithWallPost,
+  readCommunityCircle,
   readingLinkHash,
-  resolveUserProfilePortfolio,
   sanitizeWallTheme,
+  toggleCommunityCirclePart,
   toggleFaithWallBookmark,
   toggleFaithWallReaction,
+  toggleSunnahJoin,
   updateFaithWallPost,
   type CompletedPodcastOption,
   type FaithWallPost,
+  type GoodDeedCategory,
   type WallPostTheme,
   type WallPostType,
 } from '../../lib/verseShare.ts';
@@ -79,10 +87,57 @@ const FEATURED_CONTRIBUTORS = [
   },
 ] as const;
 
+const GOOD_DEED_PRESETS: Record<
+  GoodDeedCategory,
+  {
+    label: string;
+    title: string;
+    surah: number;
+    ayah: number;
+    surahName: string;
+    arabic: string;
+    translation: string;
+    defaultNote: string;
+  }
+> = {
+  charity: {
+    label: 'Charity',
+    title: 'Quiet Daily Sadaqah & Helping Someone in Need',
+    surah: 2,
+    ayah: 261,
+    surahName: 'Al-Baqara',
+    arabic: 'مَّثَلُ ٱلَّذِينَ يُنفِقُونَ أَمْوَٰلَهُمْ فِى سَبِيلِ ٱللَّهِ كَمَثَلِ حَبَّةٍ أَنۢبَتَتْ سَبْعَ سَنَابِلَ',
+    translation: 'The example of those who spend their wealth in the way of Allah is like a seed which grows seven spikes.',
+    defaultNote: 'Gave a quiet daily Sadaqah today—may Allah accept and bless every giver.',
+  },
+  dhikr: {
+    label: 'Dhikr',
+    title: 'Read Surah Al-Kahf on Friday & Morning Adhkar',
+    surah: 18,
+    ayah: 10,
+    surahName: 'Al-Kahf',
+    arabic: 'رَبَّنَآ ءَاتِنَا مِن لَّدُنكَ رَحْمَةً وَهَيِّئْ لَنَا مِنْ أَمْرِنَا رَشَدًا',
+    translation: 'Our Lord, grant us from Yourself mercy and prepare for us from our affair right guidance.',
+    defaultNote: 'Completed my morning Adhkar and Surah Al-Kahf recitation—join this Sunnah today!',
+  },
+  kindness: {
+    label: 'Kindness',
+    title: 'Good Word, Forgiveness & Kindness to Family and Neighbors',
+    surah: 16,
+    ayah: 90,
+    surahName: 'An-Nahl',
+    arabic: 'إِنَّ ٱللَّهَ يَأْمُرُ بِٱلْعَدْلِ وَٱلْإِحْسَٰنِ وَإِيتَآئِ ذِى ٱلْقُرْبَىٰ',
+    translation: 'Indeed, Allah orders justice and good conduct and giving to relatives.',
+    defaultNote: 'Reached out to family and shared a kind word today for the sake of Allah.',
+  },
+};
+
 export function WallFeed({ compact = false }: { compact?: boolean }) {
-  const { saved } = useApp();
+  const { saved, lang } = useApp();
   const { user, openModal: openAuthModal } = useSeekerAuth();
+  const audio = useAudioState();
   const [posts, setPosts] = useState<FaithWallPost[]>(() => listFaithWallPosts());
+  const [circle, setCircle] = useState(() => readCommunityCircle());
   const [wallView, setWallView] = useState<'community' | 'mine' | 'saved'>(() => {
     if (typeof window !== 'undefined') {
       if (window.location.hash.includes('view=mine') || window.location.hash.includes('tab=mine')) return 'mine';
@@ -94,12 +149,22 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerDoor, setComposerDoor] = useState<'reflection' | 'podcast' | null>(null);
+  const [goodDeedOpen, setGoodDeedOpen] = useState(false);
+  const [goodDeedAnonymous, setGoodDeedAnonymous] = useState(true);
+  const [goodDeedCategory, setGoodDeedCategory] = useState<GoodDeedCategory>('dhikr');
+  const [goodDeedNote, setGoodDeedNote] = useState('');
   const [toast, setToast] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
+  const oneMinAudioId = 'daily-benefit-60s-audio';
+  const oneMinPlaying = audio.id === oneMinAudioId && (audio.status === 'playing' || audio.status === 'loading');
+
   useEffect(() => {
-    const sync = () => setPosts(listFaithWallPosts());
+    const sync = () => {
+      setPosts(listFaithWallPosts());
+      setCircle(readCommunityCircle());
+    };
     const syncHashView = () => {
       if (typeof window === 'undefined') return;
       const h = window.location.hash;
@@ -150,7 +215,8 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
         post.translation.toLowerCase().includes(q) ||
         post.reflection.toLowerCase().includes(q) ||
         (post.authorName ?? '').toLowerCase().includes(q) ||
-        (post.podcastTitle ?? '').toLowerCase().includes(q)
+        (post.podcastTitle ?? '').toLowerCase().includes(q) ||
+        (post.deedTitle ?? '').toLowerCase().includes(q)
       );
     });
   }, [posts, myPosts, savedPosts, compact, wallView, langFilter, searchQuery]);
@@ -159,6 +225,10 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
 
   const handleReact = (postId: string, reactionId: string) => {
     setPosts(toggleFaithWallReaction(postId, reactionId));
+  };
+
+  const handleJoinSunnah = (postId: string) => {
+    setPosts(toggleSunnahJoin(postId));
   };
 
   const handleToggleSave = (postId: string) => {
@@ -269,6 +339,43 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
     window.setTimeout(() => setToast(null), 3200);
   };
 
+  const handlePublishGoodDeed = async () => {
+    const spec = GOOD_DEED_PRESETS[goodDeedCategory];
+    const hash = readingLinkHash({
+      surah: spec.surah,
+      ayah: spec.ayah,
+      lang: 'en',
+      edition: 'english_rwwad',
+      mode: 'book',
+    });
+    await publishFaithWallPost({
+      type: 'good_deed',
+      isAnonymous: goodDeedAnonymous,
+      deedCategory: goodDeedCategory,
+      deedTitle: spec.title,
+      verse: {
+        surah: spec.surah,
+        ayah: spec.ayah,
+        surahName: spec.surahName,
+        arabic: spec.arabic,
+        translation: spec.translation,
+      },
+      lang: 'en',
+      url: hash,
+      reflection: goodDeedNote.trim() || spec.defaultNote,
+      theme: 'emerald',
+    });
+    setPosts(listFaithWallPosts());
+    setGoodDeedOpen(false);
+    setGoodDeedNote('');
+    setToast(
+      goodDeedAnonymous
+        ? 'Shared your Sunnah pledge anonymously! May Allah accept.'
+        : 'Shared your Good Deed pledge to the Community Faith Wall!',
+    );
+    window.setTimeout(() => setToast(null), 3200);
+  };
+
   const handleSaveEdit = async (postId: string, reflection: string, theme: WallPostTheme) => {
     await updateFaithWallPost(postId, reflection, theme);
     setPosts(listFaithWallPosts());
@@ -318,6 +425,7 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
               post={post}
               owned={isOwnedByUser(post)}
               onReact={handleReact}
+              onJoinSunnah={handleJoinSunnah}
               onToggleSave={handleToggleSave}
               onAddReply={handleAddReply}
               onExportCard={item => void handleExportCard(item)}
@@ -339,14 +447,113 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
       className="mx-auto w-full max-w-[1120px]"
     >
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_285px] xl:grid-cols-[minmax(0,1fr)_300px]">
-        {/* TABLE 2 (Center Feed Column): Unified Social Composer & Filter Card + Post Stream */}
+        {/* TABLE 2 (Center Feed Column): 1-Tap Daily Benefit Stories Row + 3-Pill Share Bar + Post Stream */}
         <div data-faith-wall-center className="min-w-0 space-y-4">
-          {/* Unified Social Composer & Filter Header Card */}
+          {/* 1. Top of Center Feed: 4 Simple Daily Benefit Cards (Stories Row) */}
+          <div
+            data-testid="daily-benefit-stories"
+            className="grid grid-cols-2 gap-2.5 sm:grid-cols-4"
+          >
+            {/* Card 1: Daily Ayah */}
+            <a
+              href={`#/quran/book?surah=94&ayah=5&lang=${lang}`}
+              data-testid="daily-story-ayah"
+              className="group flex flex-col justify-between rounded-2xl border border-[#D4AF37]/45 bg-white p-3 text-left shadow-2xs transition hover:-translate-y-0.5 hover:border-[#073C30]"
+            >
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#F4EFE4] text-[#073C30]">
+                <BookOpen className="h-4 w-4" aria-hidden />
+              </span>
+              <div className="mt-2">
+                <p className="text-xs font-bold text-stone-900 group-hover:text-[#073C30]">
+                  Daily Ayah
+                </p>
+                <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-stone-600">
+                  Surah Ash-Sharh 94:5 · With hardship comes ease
+                </p>
+              </div>
+            </a>
+
+            {/* Card 2: Hadith of the Day */}
+            <a
+              href="#/hadith"
+              data-testid="daily-story-hadith"
+              className="group flex flex-col justify-between rounded-2xl border border-[#D4AF37]/45 bg-white p-3 text-left shadow-2xs transition hover:-translate-y-0.5 hover:border-[#073C30]"
+            >
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#F4EFE4] text-[#073C30]">
+                <ScrollText className="h-4 w-4" aria-hidden />
+              </span>
+              <div className="mt-2">
+                <p className="text-xs font-bold text-stone-900 group-hover:text-[#073C30]">
+                  Hadith of the Day
+                </p>
+                <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-stone-600">
+                  Consistent deeds are most beloved to Allah
+                </p>
+              </div>
+            </a>
+
+            {/* Card 3: 1-Min Audio */}
+            <button
+              type="button"
+              data-testid="daily-story-audio"
+              onClick={() => {
+                if (oneMinPlaying) pauseAudio();
+                else {
+                  void playAudio(
+                    oneMinAudioId,
+                    'https://cdn.islamic.network/quran/audio/128/ar.alafasy/594.mp3',
+                  );
+                }
+              }}
+              className="group flex flex-col justify-between rounded-2xl border border-[#D4AF37]/45 bg-white p-3 text-left shadow-2xs transition hover:-translate-y-0.5 hover:border-[#073C30] cursor-pointer"
+            >
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#073C30] text-[#D4AF37]">
+                {oneMinPlaying ? (
+                  <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
+                ) : (
+                  <Play className="h-3.5 w-3.5 fill-current" aria-hidden />
+                )}
+              </span>
+              <div className="mt-2">
+                <p className="text-xs font-bold text-stone-900 group-hover:text-[#073C30]">
+                  1-Min Audio
+                </p>
+                <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-stone-600">
+                  {oneMinPlaying ? 'Playing 60s reflection…' : '60s Studio Reflection'}
+                </p>
+              </div>
+            </button>
+
+            {/* Card 4: Sunnah Today */}
+            <button
+              type="button"
+              data-testid="daily-story-sunnah"
+              onClick={() => {
+                setGoodDeedCategory('dhikr');
+                setGoodDeedOpen(true);
+              }}
+              className="group flex flex-col justify-between rounded-2xl border border-[#D4AF37]/45 bg-white p-3 text-left shadow-2xs transition hover:-translate-y-0.5 hover:border-[#073C30] cursor-pointer"
+            >
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#E8F2EC] text-[#073C30]">
+                <Sparkles className="h-4 w-4 text-[#073C30]" aria-hidden />
+              </span>
+              <div className="mt-2">
+                <p className="text-xs font-bold text-stone-900 group-hover:text-[#073C30]">
+                  Sunnah Today
+                </p>
+                <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-stone-600">
+                  Read Surah Al-Kahf & Morning Adhkar
+                </p>
+              </div>
+            </button>
+          </div>
+
+          {/* 2. Unified Social Composer & 3-Pill Share Bar (Ayah Card · Good Deed · Podcast) */}
           <header
             data-faith-wall-hero
             className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-2xs"
           >
-            {/* Top Row: Avatar + Interactive Social Prompt Trigger + 2-Door Quick Actions */}
+            {/* Top Row: Avatar + Interactive Social Prompt Trigger + Share CTA */}
             <div className="flex items-center gap-3">
               <a
                 href="#/profile"
@@ -365,17 +572,14 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
                 onClick={() => {
                   setComposerDoor('reflection');
                   setComposerOpen(true);
+                  setGoodDeedOpen(false);
                 }}
-                className="flex min-w-0 flex-1 items-center justify-between rounded-full border border-stone-200 bg-stone-50/90 px-4 py-2 text-left text-xs text-stone-500 transition hover:border-stone-300 hover:bg-stone-100/80 sm:text-[13px]"
+                className="flex min-w-0 flex-1 items-center justify-between rounded-full border border-stone-200 bg-stone-50/90 px-4 py-2 text-left text-xs text-stone-600 transition hover:border-stone-300 hover:bg-stone-100/80 sm:text-[13px]"
               >
                 <span className="truncate">
                   {wallView === 'mine'
-                    ? 'Share a verse reflection or podcast to your personal wall…'
-                    : 'Share a Qur’an reflection or completed research podcast…'}
-                </span>
-                <span className="ml-2 hidden shrink-0 items-center gap-1 text-[11px] font-medium text-emerald-800 sm:inline-flex">
-                  <Sparkles className="h-3 w-3 text-[#C6A15A]" aria-hidden />
-                  <span>2-Door Studio</span>
+                    ? 'Share a verse reflection, good deed, or podcast…'
+                    : 'Share a Qur’an reflection, Sunnah good deed, or podcast…'}
                 </span>
               </button>
 
@@ -383,7 +587,10 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
                 type="button"
                 data-faith-wall-open-composer
                 data-open-reflection-modal
-                onClick={() => setComposerOpen(open => !open)}
+                onClick={() => {
+                  setGoodDeedOpen(false);
+                  setComposerOpen(open => !open);
+                }}
                 className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#073C30] px-3.5 py-2 text-xs font-semibold text-[#F5EEDC] shadow-2xs transition hover:bg-[#0A2E23]"
               >
                 <Plus className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
@@ -391,7 +598,147 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
               </button>
             </div>
 
-            {/* Inline Composer Drawer when opened */}
+            {/* Simple 3-Pill Share Bar: Ayah Card · Good Deed · Podcast */}
+            <div
+              data-testid="composer-three-pill-bar"
+              className="mt-3 grid grid-cols-3 gap-2"
+            >
+              <button
+                type="button"
+                data-testid="composer-ayah-card-btn"
+                onClick={() => {
+                  setGoodDeedOpen(false);
+                  setComposerDoor('reflection');
+                  setComposerOpen(true);
+                }}
+                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#D4AF37]/55 bg-[#FAF7F0] px-3 py-1.5 text-xs font-semibold text-stone-900 transition hover:border-[#073C30] hover:bg-emerald-50/50 cursor-pointer"
+              >
+                <BookOpen className="h-3.5 w-3.5 text-[#073C30]" aria-hidden />
+                <span>Ayah Card</span>
+              </button>
+
+              <button
+                type="button"
+                data-testid="composer-good-deed-btn"
+                aria-expanded={goodDeedOpen}
+                onClick={() => {
+                  setComposerOpen(false);
+                  setGoodDeedOpen(open => !open);
+                }}
+                className={`inline-flex items-center justify-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                  goodDeedOpen
+                    ? 'border-[#073C30] bg-[#073C30] text-[#FFFFFF]'
+                    : 'border-[#D4AF37]/55 bg-[#FAF7F0] text-stone-900 hover:border-[#073C30] hover:bg-emerald-50/50'
+                }`}
+              >
+                <Heart className={`h-3.5 w-3.5 ${goodDeedOpen ? 'text-[#D4AF37]' : 'text-[#073C30]'}`} aria-hidden />
+                <span>Good Deed</span>
+              </button>
+
+              <button
+                type="button"
+                data-testid="composer-podcast-btn"
+                onClick={() => {
+                  setGoodDeedOpen(false);
+                  setComposerDoor('podcast');
+                  setComposerOpen(true);
+                }}
+                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#D4AF37]/55 bg-[#FAF7F0] px-3 py-1.5 text-xs font-semibold text-stone-900 transition hover:border-[#073C30] hover:bg-emerald-50/50 cursor-pointer"
+              >
+                <Headphones className="h-3.5 w-3.5 text-[#073C30]" aria-hidden />
+                <span>Podcast</span>
+              </button>
+            </div>
+
+            {/* Ultra-Simple 1-Tap Good Deed Composer Drawer (Anonymous Toggle + 3 Category Chips) */}
+            {goodDeedOpen && (
+              <div
+                data-testid="good-deed-composer-drawer"
+                className="mt-3 space-y-3 rounded-2xl border border-[#073C30]/20 bg-[#FAF7F0] p-3.5 text-stone-900"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-bold text-stone-900">
+                      Share a Good Deed or Sunnah Pledge
+                    </p>
+                    <p className="text-[11px] text-stone-600">
+                      Inspire others to join a Sunnah without showing off.
+                    </p>
+                  </div>
+
+                  {/* Single Anonymous Seeker Toggle Switch */}
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={goodDeedAnonymous}
+                    data-testid="good-deed-anonymous-toggle"
+                    onClick={() => setGoodDeedAnonymous(v => !v)}
+                    className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-2.5 py-1 text-xs font-semibold text-stone-800 shadow-2xs cursor-pointer"
+                  >
+                    <span>Anonymous</span>
+                    <span
+                      className={`inline-flex h-5 w-9 items-center rounded-full p-0.5 transition ${
+                        goodDeedAnonymous ? 'bg-[#073C30] justify-end' : 'bg-stone-300 justify-start'
+                      }`}
+                    >
+                      <span className="h-4 w-4 rounded-full bg-white shadow-2xs" />
+                    </span>
+                  </button>
+                </div>
+
+                {/* 3 Quick Category Chips: Charity · Dhikr · Kindness */}
+                <div className="grid grid-cols-3 gap-2">
+                  {(['charity', 'dhikr', 'kindness'] as const).map(cat => {
+                    const spec = GOOD_DEED_PRESETS[cat];
+                    const active = goodDeedCategory === cat;
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        data-testid={`good-deed-cat-${cat}`}
+                        aria-pressed={active}
+                        onClick={() => setGoodDeedCategory(cat)}
+                        style={
+                          active
+                            ? { backgroundColor: '#073C30', color: '#FFFFFF' }
+                            : undefined
+                        }
+                        className={`rounded-xl border px-3 py-2 text-xs font-semibold transition cursor-pointer ${
+                          active
+                            ? 'border-[#073C30] bg-[#073C30] text-[#FFFFFF] shadow-2xs'
+                            : 'border-stone-200 bg-white text-stone-800 hover:border-[#073C30]/40'
+                        }`}
+                      >
+                        {spec.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <input
+                    type="text"
+                    maxLength={240}
+                    value={goodDeedNote}
+                    onChange={event => setGoodDeedNote(event.target.value)}
+                    placeholder={GOOD_DEED_PRESETS[goodDeedCategory].defaultNote}
+                    className="flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs text-stone-900 placeholder:text-stone-400 focus:border-[#073C30] focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    data-testid="publish-good-deed-btn"
+                    onClick={() => void handlePublishGoodDeed()}
+                    style={{ backgroundColor: '#073C30', color: '#FFFFFF' }}
+                    className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#073C30] px-4 py-2 text-xs font-bold text-[#FFFFFF] shadow-sm transition hover:bg-[#0A2E23] cursor-pointer"
+                  >
+                    <Plus className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                    <span>Post Good Deed</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Inline 2-Door Composer Drawer when opened */}
             {composerOpen && (
               <div className="mt-3.5">
                 <ReflectionModal
@@ -630,6 +977,7 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
                 post={post}
                 owned={isOwnedByUser(post)}
                 onReact={handleReact}
+                onJoinSunnah={handleJoinSunnah}
                 onToggleSave={handleToggleSave}
                 onAddReply={handleAddReply}
                 onExportCard={item => void handleExportCard(item)}
@@ -643,12 +991,90 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
           </div>
         </div>
 
-        {/* RIGHT RAIL: Asma-ul-Husna Spotlight, Active Scholars & 2-Door Studio Card (Desktop LG+) */}
+        {/* TABLE 3 (Right Rail on Desktop LG+): Weekly Community Reading Circle + Asma-ul-Husna + Verified Contributors */}
         <aside
           data-faith-wall-right-rail
           className="hidden space-y-4 lg:block"
         >
-          {/* 1. Contextual Asma-ul-Husna Spotlight */}
+          {/* 1. Weekly Community Reading Circle Card */}
+          <div
+            data-testid="weekly-community-circle"
+            className="rounded-2xl border border-[#D4AF37]/50 bg-white p-4 text-center shadow-2xs"
+          >
+            <span className="mx-auto inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#F4EFE4] text-[#073C30]">
+              <Sparkles className="h-4 w-4 text-[#073C30]" aria-hidden />
+            </span>
+
+            <h3 className="mt-2 text-xs font-bold uppercase tracking-wider text-stone-900">
+              Community Reading Circle
+            </h3>
+            <p className="mt-0.5 text-sm font-bold text-[#073C30]">
+              Jumu’ah Kahf & Salawat Circle
+            </p>
+
+            {/* Circular Donut Progress Ring */}
+            <div className="relative mx-auto my-3 flex h-28 w-28 items-center justify-center">
+              <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  fill="none"
+                  stroke="#EFE7D6"
+                  strokeWidth="8"
+                />
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  fill="none"
+                  stroke="#C6A15A"
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  strokeDasharray={`${Math.round(2.51 * circle.percent)} 251`}
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-lg font-extrabold text-stone-900">
+                  {circle.percent}%
+                </span>
+                <span className="text-[10px] font-semibold text-stone-500">
+                  complete
+                </span>
+              </div>
+            </div>
+
+            <p className="text-[11px] font-medium text-stone-600">
+              <strong className="text-stone-900">{circle.completedCount}</strong> of{' '}
+              <strong className="text-stone-900">{circle.targetCount}</strong> Seekers completed today
+            </p>
+
+            <button
+              type="button"
+              data-testid="complete-circle-part-btn"
+              aria-pressed={circle.userCompleted}
+              onClick={() => setCircle(toggleCommunityCirclePart())}
+              style={{
+                backgroundColor: circle.userCompleted ? '#E8F2EC' : '#073C30',
+                color: circle.userCompleted ? '#073C30' : '#FFFFFF',
+              }}
+              className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#073C30]/30 px-3 py-2 text-xs font-bold shadow-2xs transition cursor-pointer"
+            >
+              {circle.userCompleted ? (
+                <>
+                  <Check className="h-3.5 w-3.5 text-[#073C30]" aria-hidden />
+                  <span>Completed My Part · Alḥamdulillāh</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                  <span>I Completed My Part</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* 2. Contextual Asma-ul-Husna Spotlight */}
           <div
             data-wall-right-asma
             className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-2xs"
@@ -698,7 +1124,7 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
             </div>
           </div>
 
-          {/* 2. Featured Community Scholars & Contributors */}
+          {/* 3. Featured Community Scholars & Contributors */}
           <div
             data-wall-right-contributors
             className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-2xs"
@@ -740,43 +1166,6 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
                 </li>
               ))}
             </ul>
-          </div>
-
-          {/* 3. Controlled 2-Door Studio Quick Launch */}
-          <div
-            data-wall-right-guidelines
-            className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-2xs"
-          >
-            <p className="text-xs font-semibold text-stone-900">
-              Controlled 2-Door Publishing
-            </p>
-            <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
-              Every post on the Faith Wall is anchored to a verified Qur’an/Hadith text or a completed Research Podcast episode.
-            </p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setComposerDoor('reflection');
-                  setComposerOpen(true);
-                }}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-2.5 py-2 text-[11px] font-semibold text-stone-800 transition hover:border-emerald-700/40 hover:bg-emerald-50/50"
-              >
-                <BookOpen className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
-                <span>Ayah Card</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setComposerDoor('podcast');
-                  setComposerOpen(true);
-                }}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-2.5 py-2 text-[11px] font-semibold text-stone-800 transition hover:border-emerald-700/40 hover:bg-emerald-50/50"
-              >
-                <Headphones className="h-3.5 w-3.5 text-[#C6A15A]" aria-hidden />
-                <span>Podcast</span>
-              </button>
-            </div>
           </div>
         </aside>
       </div>

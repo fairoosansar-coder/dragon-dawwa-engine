@@ -295,8 +295,9 @@ export function verseShareText(verse: ShareVerse): string {
   return parts.join('\n\n');
 }
 
-export type WallPostType = 'reflection' | 'podcast';
+export type WallPostType = 'reflection' | 'podcast' | 'good_deed';
 export type WallPostStatus = 'pending' | 'approved' | 'rejected';
+export type GoodDeedCategory = 'charity' | 'dhikr' | 'kindness';
 
 export interface FaithWallPost {
   id: string;
@@ -305,6 +306,11 @@ export interface FaithWallPost {
   status?: WallPostStatus;
   isPinned?: boolean;
   isOfficialBroadcast?: boolean;
+  isAnonymous?: boolean;
+  deedCategory?: GoodDeedCategory;
+  deedTitle?: string;
+  joinedCount?: number;
+  userJoined?: boolean;
   surah: number;
   ayah: number;
   surahName: string;
@@ -441,8 +447,42 @@ const WALL_LIKES_KEY = 'kf-public-faith-wall-likes';
 const WALL_REACTIONS_KEY = 'kf-public-faith-wall-reactions';
 const WALL_REPLIES_KEY = 'kf-public-faith-wall-replies';
 const WALL_SAVED_KEY = 'kf-public-faith-wall-saved';
+const WALL_JOINED_SUNNAH_KEY = 'kf-public-faith-wall-joined-sunnah';
+const COMMUNITY_CIRCLE_KEY = 'kf-weekly-community-circle';
+const WALL_NOTIFICATIONS_KEY = 'kf-wall-notifications';
 
 export const SEEDED_FAITH_WALL_POSTS: FaithWallPost[] = [
+  {
+    id: 'seed-wall-sunnah-kahf',
+    type: 'good_deed',
+    status: 'approved',
+    isAnonymous: true,
+    deedCategory: 'dhikr',
+    deedTitle: 'Read Surah Al-Kahf on Friday & Morning Adhkar',
+    joinedCount: 48,
+    surah: 18,
+    ayah: 10,
+    surahName: 'Al-Kahf',
+    arabic: 'رَبَّنَآ ءَاتِنَا مِن لَّدُنكَ رَحْمَةً وَهَيِّئْ لَنَا مِنْ أَمْرِنَا رَشَدًا',
+    translation: 'Our Lord, grant us from Yourself mercy and prepare for us from our affair right guidance.',
+    reflection: 'Completed my morning Adhkar and the opening verses of Surah Al-Kahf. Sharing anonymously to encourage our circle—join this Sunnah today!',
+    lang: 'en',
+    theme: 'emerald',
+    url: '#/quran/book?surah=18&ayah=10&lang=en&edition=english_rwwad',
+    authorName: 'Anonymous Seeker',
+    authorHandle: '@anonymous',
+    authorRole: 'Sincere Sunnah Pledge',
+    authorEmblem: 'emerald-lamp',
+    verified: true,
+    likes: 19,
+    reactions: {
+      amin: 19,
+      alhamdulillah: 14,
+      mashaallah: 11,
+    },
+    replies: [],
+    createdAt: '2026-11-06T20:15:00.000Z',
+  },
   {
     id: 'seed-wall-2-255-en',
     surah: 2,
@@ -904,6 +944,160 @@ function saveSavedPostIds(set: Set<string>) {
   }
 }
 
+const memoryJoinedSunnahIds = new Set<string>();
+let memoryCircleCompleted = false;
+let memoryNotificationsRead = false;
+
+function readJoinedSunnahSet(): Set<string> {
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = window.localStorage.getItem(WALL_JOINED_SUNNAH_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return new Set(parsed.map(String));
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return new Set(memoryJoinedSunnahIds);
+}
+
+function saveJoinedSunnahSet(set: Set<string>) {
+  memoryJoinedSunnahIds.clear();
+  set.forEach(id => memoryJoinedSunnahIds.add(id));
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(WALL_JOINED_SUNNAH_KEY, JSON.stringify([...set]));
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+export function toggleSunnahJoin(postId: string): FaithWallPost[] {
+  const joined = readJoinedSunnahSet();
+  if (joined.has(postId)) joined.delete(postId);
+  else joined.add(postId);
+  saveJoinedSunnahSet(joined);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(FAITH_WALL_EVENT));
+  }
+  return listFaithWallPosts();
+}
+
+export interface CommunityCircleState {
+  id: string;
+  completedCount: number;
+  targetCount: number;
+  percent: number;
+  userCompleted: boolean;
+}
+
+export function readCommunityCircle(): CommunityCircleState {
+  let userCompleted = memoryCircleCompleted;
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = window.localStorage.getItem(COMMUNITY_CIRCLE_KEY);
+      if (raw === 'true') userCompleted = true;
+      else if (raw === 'false') userCompleted = false;
+    } catch {
+      /* ignore */
+    }
+  }
+  const baseCount = 39;
+  const targetCount = 50;
+  const completedCount = userCompleted ? baseCount + 1 : baseCount;
+  const percent = Math.min(100, Math.round((completedCount / targetCount) * 100));
+  return {
+    id: 'jumuah-kahf-circle',
+    completedCount,
+    targetCount,
+    percent,
+    userCompleted,
+  };
+}
+
+export function toggleCommunityCirclePart(): CommunityCircleState {
+  const current = readCommunityCircle();
+  const next = !current.userCompleted;
+  memoryCircleCompleted = next;
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(COMMUNITY_CIRCLE_KEY, String(next));
+    } catch {
+      /* ignore */
+    }
+    window.dispatchEvent(new Event(FAITH_WALL_EVENT));
+  }
+  return readCommunityCircle();
+}
+
+export interface WallNotificationItem {
+  id: string;
+  actor: string;
+  action: string;
+  target: string;
+  href: string;
+  timeAgo: string;
+  unread: boolean;
+}
+
+export function listWallNotifications(): WallNotificationItem[] {
+  let allRead = memoryNotificationsRead;
+  if (typeof window !== 'undefined') {
+    try {
+      if (window.localStorage.getItem(WALL_NOTIFICATIONS_KEY) === 'read') {
+        allRead = true;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return [
+    {
+      id: 'notif-1',
+      actor: 'Ustadh Tariq M. & 18 Seekers',
+      action: 'joined the Friday Sunnah pledge',
+      target: 'Read Surah Al-Kahf on Friday',
+      href: '#/quran/wall',
+      timeAgo: '12m ago',
+      unread: !allRead,
+    },
+    {
+      id: 'notif-2',
+      actor: 'Dr. Layla al-Qasimi',
+      action: 'said Āmīn & replied on',
+      target: 'Surah Al-Baqara 2:255',
+      href: '#/quran/wall',
+      timeAgo: '1h ago',
+      unread: !allRead,
+    },
+    {
+      id: 'notif-3',
+      actor: 'Jumu’ah Kahf Circle',
+      action: 'reached 78% of this week’s goal',
+      target: '39 / 50 Seekers completed',
+      href: '#/quran/wall',
+      timeAgo: '3h ago',
+      unread: false,
+    },
+  ];
+}
+
+export function markAllWallNotificationsRead(): WallNotificationItem[] {
+  memoryNotificationsRead = true;
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(WALL_NOTIFICATIONS_KEY, 'read');
+    } catch {
+      /* ignore */
+    }
+    window.dispatchEvent(new Event(FAITH_WALL_EVENT));
+  }
+  return listWallNotifications();
+}
+
 function readStoredWallPosts(): FaithWallPost[] {
   if (typeof window !== 'undefined') {
     try {
@@ -924,6 +1118,7 @@ export function listAllFaithWallPosts(includeAllStatuses = false): FaithWallPost
   const reactionsMap = readUserReactionsMap();
   const repliesMap = readRepliesMap();
   const savedSet = readSavedPostIds();
+  const joinedSet = readJoinedSunnahSet();
   const modMap = readModerationMap();
   const session = readSeekerSession();
   const userPosts = readStoredWallPosts();
@@ -932,6 +1127,7 @@ export function listAllFaithWallPosts(includeAllStatuses = false): FaithWallPost
   const combined = [...userPosts, ...allSeeds.filter(seed => !seen.has(seed.id))];
   const hydrated = combined.map(post => {
     const isLiked = liked.has(post.id);
+    const isJoined = joinedSet.has(post.id);
     const userReacted = new Set(reactionsMap[post.id] ?? []);
     if (isLiked) userReacted.add('amin');
 
@@ -944,6 +1140,7 @@ export function listAllFaithWallPosts(includeAllStatuses = false): FaithWallPost
     }
 
     const baseLikes = typeof post.likes === 'number' ? post.likes : 1;
+    const baseJoined = typeof post.joinedCount === 'number' ? post.joinedCount : post.type === 'good_deed' ? 12 : 8;
     const isCurrentUser = Boolean(session?.user && post.userId && post.userId === session.user.id);
     const extraReplies = repliesMap[post.id] ?? [];
     const existingReplyIds = new Set((post.replies ?? []).map(r => r.id));
@@ -951,27 +1148,36 @@ export function listAllFaithWallPosts(includeAllStatuses = false): FaithWallPost
     const modOverride = modMap[post.id];
     const effectiveStatus: WallPostStatus = modOverride?.status ?? post.status ?? 'approved';
     const effectivePinned = modOverride?.isPinned !== undefined ? modOverride.isPinned : Boolean(post.isPinned);
-    const authorName = post.isOfficialBroadcast
-      ? post.authorName || 'Dragon Dawwa Editorial Board'
-      : isCurrentUser
-        ? session!.user.name
-        : post.authorName || 'Community Seeker';
+    const isAnon = Boolean(post.isAnonymous);
+    const authorName = isAnon
+      ? 'Anonymous Seeker'
+      : post.isOfficialBroadcast
+        ? post.authorName || 'Dragon Dawwa Editorial Board'
+        : isCurrentUser
+          ? session!.user.name
+          : post.authorName || 'Community Seeker';
 
     return {
       ...post,
       type: post.type ?? 'reflection',
       status: effectiveStatus,
       isPinned: effectivePinned,
+      isAnonymous: isAnon,
+      joinedCount: baseJoined + (isJoined ? 1 : 0),
+      userJoined: isJoined,
       theme: sanitizeWallTheme(post.theme),
       authorName,
-      authorHandle:
-        post.authorHandle ||
-        `@${authorName.toLowerCase().replace(/[^a-z0-9]+/g, '') || 'seeker'}`,
-      authorRole: post.isOfficialBroadcast
-        ? '✦ Official Institutional Broadcast'
-        : isCurrentUser
-          ? session!.user.kunyah
-          : post.authorRole || 'Faith Wall Contributor',
+      authorHandle: isAnon
+        ? '@anonymous'
+        : post.authorHandle ||
+          `@${authorName.toLowerCase().replace(/[^a-z0-9]+/g, '') || 'seeker'}`,
+      authorRole: isAnon
+        ? 'Sincere Sunnah Pledge'
+        : post.isOfficialBroadcast
+          ? '✦ Official Institutional Broadcast'
+          : isCurrentUser
+            ? session!.user.kunyah
+            : post.authorRole || 'Faith Wall Contributor',
       authorEmblem: isCurrentUser ? session!.user.emblem : sanitizeSeekerEmblem(post.authorEmblem),
       authorAvatarUrl: isCurrentUser ? session!.user.avatarUrl ?? post.authorAvatarUrl ?? null : post.authorAvatarUrl ?? null,
       authorAuthProvider: isCurrentUser
@@ -1161,6 +1367,9 @@ export async function publishFaithWallPost(input: {
   status?: WallPostStatus;
   isPinned?: boolean;
   isOfficialBroadcast?: boolean;
+  isAnonymous?: boolean;
+  deedCategory?: GoodDeedCategory;
+  deedTitle?: string;
   podcastId?: string;
   podcastTitle?: string;
   podcastAudioUrl?: string;
@@ -1176,7 +1385,8 @@ export async function publishFaithWallPost(input: {
   const session = readSeekerSession();
   const seeker = session?.user ?? null;
   const chosenTheme = sanitizeWallTheme(input.theme);
-  const postType: WallPostType = input.type === 'podcast' ? 'podcast' : 'reflection';
+  const postType: WallPostType =
+    input.type === 'podcast' ? 'podcast' : input.type === 'good_deed' ? 'good_deed' : 'reflection';
   if (postType === 'podcast' && !input.podcastId && !input.podcastTitle) {
     throw new Error('Sharing a podcast requires selecting a completed Research Podcast episode.');
   }
@@ -1188,26 +1398,36 @@ export async function publishFaithWallPost(input: {
   }
   const settings = readAdminSettings();
   const isOfficial = Boolean(input.isOfficialBroadcast);
+  const isAnon = Boolean(input.isAnonymous);
   const status: WallPostStatus =
     isOfficial || input.status === 'approved'
       ? 'approved'
       : input.status === 'pending' || settings.moderationMode === 'review'
         ? 'pending'
         : 'approved';
-  const authorName = isOfficial
-    ? input.authorName || 'Dragon Dawwa Editorial Board'
-    : seeker?.name || (input.authorName ?? '').trim() || 'Community Seeker';
+  const authorName = isAnon
+    ? 'Anonymous Seeker'
+    : isOfficial
+      ? input.authorName || 'Dragon Dawwa Editorial Board'
+      : seeker?.name || (input.authorName ?? '').trim() || 'Community Seeker';
 
   const post: FaithWallPost = {
     id:
       postType === 'podcast'
         ? `wall-pod-${Date.now()}`
-        : `wall-${input.verse.surah}-${input.verse.ayah}-${Date.now()}`,
-    userId: seeker?.id,
+        : postType === 'good_deed'
+          ? `wall-deed-${Date.now()}`
+          : `wall-${input.verse.surah}-${input.verse.ayah}-${Date.now()}`,
+    userId: isAnon ? undefined : seeker?.id,
     type: postType,
     status,
     isPinned: Boolean(input.isPinned || isOfficial),
     isOfficialBroadcast: isOfficial,
+    isAnonymous: isAnon,
+    deedCategory: input.deedCategory,
+    deedTitle: input.deedTitle,
+    joinedCount: postType === 'good_deed' ? 1 : 0,
+    userJoined: postType === 'good_deed',
     surah: input.verse.surah,
     ayah: input.verse.ayah,
     surahName: input.verse.surahName,
@@ -1227,10 +1447,14 @@ export async function publishFaithWallPost(input: {
     hadithGrade: input.hadithGrade,
     cardDataUrl: input.cardDataUrl,
     authorName,
-    authorHandle: `@${authorName.toLowerCase().replace(/[^a-z0-9]+/g, '') || 'seeker'}`,
-    authorRole: isOfficial
-      ? '✦ Official Institutional Broadcast'
-      : seeker?.kunyah || (input.authorRole ?? '').trim() || 'Faith Wall Contributor',
+    authorHandle: isAnon
+      ? '@anonymous'
+      : `@${authorName.toLowerCase().replace(/[^a-z0-9]+/g, '') || 'seeker'}`,
+    authorRole: isAnon
+      ? 'Sincere Sunnah Pledge'
+      : isOfficial
+        ? '✦ Official Institutional Broadcast'
+        : seeker?.kunyah || (input.authorRole ?? '').trim() || 'Faith Wall Contributor',
     authorEmblem: seeker?.emblem ?? 'rub-el-hizb',
     authorAvatarUrl: seeker?.avatarUrl ?? null,
     authorAuthProvider: seeker?.authProvider ?? (seeker?.provider === 'google' ? 'google' : undefined),
