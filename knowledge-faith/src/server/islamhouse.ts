@@ -11,6 +11,7 @@ import {
   type LibraryItem,
   type LibraryPage,
 } from '../shared/islamhouse.ts';
+import { getCuratedChaptersForPath } from './curatedKnowledgePaths.ts';
 import { fetchJson, UpstreamError } from './http.ts';
 
 /** Published in IslamHouse’s own API examples. Override with ISLAMHOUSE_API_KEY. Never send this to the browser. */
@@ -82,20 +83,30 @@ export async function loadKnowledgeShelf(pathId: string, lang: Lang, page: numbe
   const children = node?.children ?? [];
   const requested = category && /^\d{1,12}$/.test(category) ? Number(category) : path.categoryId;
   if (requested !== path.categoryId && !children.some(child => child.id === requested)) throw new UpstreamError('Unknown category', 404);
-  const url = `https://api3.islamhouse.com/v3/${apiKey()}/main/get-category-items/${requested}/showall/en/${lang}/${safePage}/12/json`;
-  const body = await fetchJson<unknown>(url, ISLAMHOUSE_TTL_MS);
-  const parsed = parseLibraryPage(body, 'prayer', lang, safePage);
-  if (!parsed) throw new UpstreamError('IslamHouse returned an unreadable list', 502);
+
+  let parsed: LibraryPage | null = null;
+  try {
+    const url = `https://api3.islamhouse.com/v3/${apiKey()}/main/get-category-items/${requested}/showall/en/${lang}/${safePage}/12/json`;
+    const body = await fetchJson<unknown>(url, ISLAMHOUSE_TTL_MS);
+    parsed = parseLibraryPage(body, 'prayer', lang, safePage);
+  } catch {
+    parsed = null;
+  }
+
+  const upstreamItems = (parsed?.items ?? []).filter(item => !item.language || item.language === lang);
+  const curatedFallback = getCuratedChaptersForPath(path.id, lang);
+  const finalItems = upstreamItems.length > 0 ? upstreamItems : curatedFallback;
+
   return {
     id: path.id,
     title: path.title,
     sourceTitle: path.sourceTitle,
     categoryId: requested,
     lang,
-    page: parsed.page,
-    pages: parsed.pages,
-    total: parsed.total,
-    items: parsed.items,
+    page: parsed?.page ?? 1,
+    pages: upstreamItems.length > 0 ? (parsed?.pages ?? 1) : 1,
+    total: upstreamItems.length > 0 ? (parsed?.total ?? upstreamItems.length) : finalItems.length,
+    items: finalItems,
     categories: children,
   };
 }

@@ -1,13 +1,18 @@
-import { useEffect, useState } from 'react';
-import { Headphones, Loader2, Pause, Play, Sparkles, Volume2 } from 'lucide-react';
+import { useEffect } from 'react';
 import {
-  base64ToObjectUrl,
-  pauseAudio,
-  playAudio,
-  resumeAudio,
-  setAudioPlaybackRate,
-  useAudioState,
-} from '../lib/audio.ts';
+  BookOpen,
+  Headphones,
+  Loader2,
+  Pause,
+  Play,
+  SkipBack,
+  SkipForward,
+  Sparkles,
+  Square,
+  Volume2,
+} from 'lucide-react';
+import { setAudioPlaybackRate } from '../lib/audio.ts';
+import { splitTextIntoSpeechLines, useLineByLineTts } from '../lib/lineByLineTts.ts';
 import { useStored } from '../lib/store.tsx';
 import {
   HADITH_PLAYBACK_SPEEDS,
@@ -15,140 +20,81 @@ import {
   resolveHadithVoiceProfile,
   type HadithPlaybackSpeed,
   type HadithSpeechLang,
-  type HadithTtsResponse,
   type HadithVoiceProfileId,
 } from '../shared/hadithVoices.ts';
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
 
-const clientAudioUrlCache = new Map<string, string>();
-
-async function requestHadithAudioUrl(
-  text: string,
-  lang: HadithSpeechLang,
-  voiceProfile: HadithVoiceProfileId,
-  speed: HadithPlaybackSpeed,
-): Promise<string | null> {
-  const clean = text.trim().slice(0, 2600);
-  if (!clean) return null;
-  const cacheKey = `${voiceProfile}|${lang}|${speed}|${clean}`;
-  const existing = clientAudioUrlCache.get(cacheKey);
-  if (existing) return existing;
-
-  try {
-    const res = await fetch('/api/tts/hadith', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: clean,
-        lang,
-        voiceProfile,
-        speed,
-        modelId: 'eleven_v4',
-      }),
-    });
-    if (!res.ok) return null;
-    const payload = (await res.json()) as HadithTtsResponse;
-    if (!payload?.audioBase64) return null;
-    const url = base64ToObjectUrl(payload.audioBase64, payload.mimeType || 'audio/mpeg');
-    clientAudioUrlCache.set(cacheKey, url);
-    return url;
-  } catch {
-    return null;
-  }
-}
-
-function speakWithBrowserFallback(
-  text: string,
-  lang: HadithSpeechLang,
-  speed: HadithPlaybackSpeed,
-  onDone?: () => void,
-): boolean {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return false;
-  try {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang =
-      lang === 'ar'
-        ? 'ar-SA'
-        : lang === 'ta'
-          ? 'ta-IN'
-          : lang === 'si'
-            ? 'si-LK'
-            : 'en-US';
-    utterance.rate = speed;
-    if (onDone) {
-      utterance.onend = () => onDone();
-      utterance.onerror = () => onDone();
-    }
-    window.speechSynthesis.speak(utterance);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export type ActiveHadithSpeechPart = 'arabic' | 'translation' | null;
+export type ActiveHadithSpeechPart = 'arabic' | 'translation' | 'explanation' | 'lessons' | null;
 
 export function HadithVoiceBar({
   hadithKey,
   arabicText,
   translationText,
   explanationText,
+  lessonsList,
   lang,
   variant = 'light',
   compact = false,
   onActivePartChange,
+  onActiveLineChange,
 }: {
   hadithKey: string;
   arabicText?: string | null;
   translationText?: string | null;
   explanationText?: string | null;
+  lessonsList?: string[] | null;
   lang: Lang;
   variant?: 'light' | 'dark';
   compact?: boolean;
   onActivePartChange?: (part: ActiveHadithSpeechPart) => void;
+  onActiveLineChange?: (info: {
+    part: ActiveHadithSpeechPart;
+    lineIndex: number;
+    lineText: string | null;
+  }) => void;
 }) {
-  const audio = useAudioState();
   const [voiceProfile, setVoiceProfile] = useStored<HadithVoiceProfileId>(
     'kf-hadith-voice-profile',
     'tariq',
   );
   const [speed, setSpeed] = useStored<HadithPlaybackSpeed>('kf-hadith-voice-speed', 1);
-  const [loadingTarget, setLoadingTarget] = useState<'arabic' | 'translation' | 'both' | null>(null);
 
-  const arabicAudioId = `hadith-v4-ar-${hadithKey}`;
-  const translationAudioId = `hadith-v4-tr-${hadithKey}`;
-  const bothArabicAudioId = `hadith-v4-both-ar-${hadithKey}`;
-  const bothTranslationAudioId = `hadith-v4-both-tr-${hadithKey}`;
+  const sessionPrefix = `hadith-v4:${hadithKey}:`;
+  const arSessionId = `${sessionPrefix}arabic`;
+  const trSessionId = `${sessionPrefix}translation`;
+  const exSessionId = `${sessionPrefix}explanation`;
+  const lsSessionId = `${sessionPrefix}lessons`;
+  const bothSessionId = `${sessionPrefix}both`;
 
-  const isArabicPlaying =
-    (audio.id === arabicAudioId || audio.id === bothArabicAudioId) &&
-    (audio.status === 'playing' || audio.status === 'loading');
-  const isArabicPaused =
-    (audio.id === arabicAudioId || audio.id === bothArabicAudioId) && audio.status === 'paused';
+  const lineTts = useLineByLineTts(sessionPrefix);
 
-  const isTranslationPlaying =
-    (audio.id === translationAudioId || audio.id === bothTranslationAudioId) &&
-    (audio.status === 'playing' || audio.status === 'loading');
-  const isTranslationPaused =
-    (audio.id === translationAudioId || audio.id === bothTranslationAudioId) &&
-    audio.status === 'paused';
-
-  const isBothPlaying =
-    (audio.id === bothArabicAudioId || audio.id === bothTranslationAudioId) &&
-    (audio.status === 'playing' || audio.status === 'loading');
+  const activePart: ActiveHadithSpeechPart = !lineTts.active
+    ? null
+    : lineTts.sessionId === arSessionId
+      ? 'arabic'
+      : lineTts.sessionId === trSessionId
+        ? 'translation'
+        : lineTts.sessionId === exSessionId
+          ? 'explanation'
+          : lineTts.sessionId === lsSessionId
+            ? 'lessons'
+            : lineTts.sessionId === bothSessionId
+              ? 'translation'
+              : null;
 
   useEffect(() => {
-    if (!onActivePartChange) return;
-    if (isArabicPlaying) onActivePartChange('arabic');
-    else if (isTranslationPlaying) onActivePartChange('translation');
-    else onActivePartChange(null);
-  }, [isArabicPlaying, isTranslationPlaying, onActivePartChange]);
+    onActivePartChange?.(activePart);
+    onActiveLineChange?.({
+      part: activePart,
+      lineIndex: lineTts.currentIndex,
+      lineText: lineTts.currentLineText,
+    });
+  }, [activePart, lineTts.currentIndex, lineTts.currentLineText, onActivePartChange, onActiveLineChange]);
 
   const arabicClean = (arabicText ?? '').trim();
-  const translationCombined = [translationText?.trim(), explanationText?.trim()]
-    .filter(Boolean)
-    .join('. ');
+  const translationClean = (translationText ?? '').trim();
+  const explanationClean = (explanationText ?? '').trim();
+  const lessonsClean = (lessonsList ?? []).map(s => s.trim()).filter(Boolean).join('\n');
 
   const profile = resolveHadithVoiceProfile(voiceProfile);
   const langName = LANGUAGE_NAMES[lang]?.native ?? 'English';
@@ -158,97 +104,91 @@ export function HadithVoiceBar({
     setAudioPlaybackRate(nextSpeed);
   };
 
-  const handlePlayArabic = async () => {
-    if (!arabicClean) return;
-    if (audio.id === arabicAudioId && audio.status === 'playing') {
-      pauseAudio();
+  const togglePart = async (
+    targetSessionId: string,
+    textToRead: string,
+    speechLang: HadithSpeechLang,
+    onComplete?: () => void,
+  ) => {
+    if (!textToRead.trim()) return;
+    if (lineTts.sessionId === targetSessionId && lineTts.status === 'playing') {
+      lineTts.pause();
       return;
     }
-    if (audio.id === arabicAudioId && audio.status === 'paused') {
-      setAudioPlaybackRate(speed);
-      resumeAudio();
+    if (lineTts.sessionId === targetSessionId && lineTts.status === 'paused') {
+      await lineTts.jumpToLine(Math.max(0, lineTts.currentIndex));
       return;
     }
-    setLoadingTarget('arabic');
     setAudioPlaybackRate(speed);
-    const url = await requestHadithAudioUrl(arabicClean, 'ar', profile.id, speed);
-    setLoadingTarget(null);
-    if (url) {
-      await playAudio(arabicAudioId, url);
-    } else {
-      speakWithBrowserFallback(arabicClean, 'ar', speed);
-    }
+    await lineTts.start({
+      sessionId: targetSessionId,
+      lines: splitTextIntoSpeechLines(textToRead),
+      lang: speechLang,
+      voiceProfile: profile.id,
+      speed,
+      onComplete,
+    });
   };
 
-  const handlePlayTranslation = async () => {
-    if (!translationCombined) return;
-    if (audio.id === translationAudioId && audio.status === 'playing') {
-      pauseAudio();
-      return;
-    }
-    if (audio.id === translationAudioId && audio.status === 'paused') {
-      setAudioPlaybackRate(speed);
-      resumeAudio();
-      return;
-    }
-    setLoadingTarget('translation');
-    setAudioPlaybackRate(speed);
-    const url = await requestHadithAudioUrl(translationCombined, lang, profile.id, speed);
-    setLoadingTarget(null);
-    if (url) {
-      await playAudio(translationAudioId, url);
-    } else {
-      speakWithBrowserFallback(translationCombined, lang, speed);
-    }
-  };
+  const handlePlayArabic = () => void togglePart(arSessionId, arabicClean, 'ar');
+
+  const handlePlayTranslation = () => void togglePart(trSessionId, translationClean, lang);
+
+  const handlePlayExplanation = () => void togglePart(exSessionId, explanationClean, lang);
+
+  const handlePlayLessons = () => void togglePart(lsSessionId, lessonsClean, lang);
 
   const handlePlayBoth = async () => {
-    if (isBothPlaying) {
-      pauseAudio();
+    if (
+      (lineTts.sessionId === bothSessionId || lineTts.sessionId === `${bothSessionId}-ar`) &&
+      lineTts.status === 'playing'
+    ) {
+      lineTts.pause();
       return;
     }
-    if (!arabicClean && translationCombined) {
-      await handlePlayTranslation();
-      return;
-    }
-    if (arabicClean && !translationCombined) {
-      await handlePlayArabic();
-      return;
-    }
-    if (!arabicClean && !translationCombined) return;
-
-    setLoadingTarget('both');
-    setAudioPlaybackRate(speed);
-    const [arUrl, trUrl] = await Promise.all([
-      requestHadithAudioUrl(arabicClean, 'ar', profile.id, speed),
-      requestHadithAudioUrl(translationCombined, lang, profile.id, speed),
-    ]);
-    setLoadingTarget(null);
-
-    if (arUrl && trUrl) {
-      await playAudio(bothArabicAudioId, arUrl, () => {
-        setAudioPlaybackRate(speed);
-        void playAudio(bothTranslationAudioId, trUrl);
+    const fullTargetText = [translationClean, explanationClean, lessonsClean]
+      .filter(Boolean)
+      .join('\n');
+    if (arabicClean && fullTargetText) {
+      setAudioPlaybackRate(speed);
+      await lineTts.start({
+        sessionId: `${bothSessionId}-ar`,
+        lines: splitTextIntoSpeechLines(arabicClean),
+        lang: 'ar',
+        voiceProfile: profile.id,
+        speed,
+        onComplete: () => {
+          void lineTts.start({
+            sessionId: bothSessionId,
+            lines: splitTextIntoSpeechLines(fullTargetText),
+            lang,
+            voiceProfile: profile.id,
+            speed,
+          });
+        },
       });
-    } else if (arUrl) {
-      await playAudio(bothArabicAudioId, arUrl, () => {
-        speakWithBrowserFallback(translationCombined, lang, speed);
-      });
-    } else {
-      speakWithBrowserFallback(arabicClean, 'ar', speed, () => {
-        speakWithBrowserFallback(translationCombined, lang, speed);
-      });
+    } else if (fullTargetText) {
+      await togglePart(bothSessionId, fullTargetText, lang);
+    } else if (arabicClean) {
+      await togglePart(arSessionId, arabicClean, 'ar');
     }
   };
 
   const isDark = variant === 'dark';
+  const isArPlaying = lineTts.sessionId === arSessionId && lineTts.status === 'playing';
+  const isTrPlaying = lineTts.sessionId === trSessionId && lineTts.status === 'playing';
+  const isExPlaying = lineTts.sessionId === exSessionId && lineTts.status === 'playing';
+  const isLsPlaying = lineTts.sessionId === lsSessionId && lineTts.status === 'playing';
+  const isBothPlaying =
+    (lineTts.sessionId === bothSessionId || lineTts.sessionId === `${bothSessionId}-ar`) &&
+    lineTts.status === 'playing';
 
   return (
     <div
       data-testid="hadith-voice-selector"
       data-hadith-voice-bar={hadithKey}
       style={{
-        backgroundColor: isDark ? 'rgba(4, 27, 20, 0.86)' : '#F8F5EC',
+        backgroundColor: isDark ? 'rgba(4, 27, 20, 0.88)' : '#F8F5EC',
         color: isDark ? '#FBF9F5' : '#1C1917',
       }}
       className={`rounded-2xl border p-3 transition ${
@@ -263,12 +203,12 @@ export function HadithVoiceBar({
           <span
             style={{
               backgroundColor: isDark ? 'rgba(231, 201, 138, 0.18)' : '#073C30',
-              color: isDark ? '#F9E7B9' : '#F9E7B9',
+              color: '#F9E7B9',
             }}
             className="inline-flex items-center gap-1 rounded-full border border-[#D4AF37]/45 px-2.5 py-0.5 text-[11px] font-bold tracking-wide"
           >
             <Sparkles className="h-3 w-3 text-[#D4AF37]" aria-hidden />
-            <span>ElevenLabs v4 Voice</span>
+            <span>ElevenLabs v4 Voice · Line-by-Line</span>
           </span>
 
           {!compact && (
@@ -331,85 +271,113 @@ export function HadithVoiceBar({
         </div>
       </div>
 
-      {/* Bottom Row: 1-Tap Action Buttons (Read Arabic · Read Translation · Arabic + Translation) */}
+      {/* Action Buttons Row */}
       <div className="mt-2.5 flex flex-wrap items-center gap-2">
         {arabicClean && (
           <button
             type="button"
             data-testid="hadith-play-arabic-btn"
-            aria-pressed={isArabicPlaying}
-            onClick={() => void handlePlayArabic()}
+            aria-pressed={isArPlaying}
+            onClick={handlePlayArabic}
             style={{
-              backgroundColor: isArabicPlaying
-                ? '#D4AF37'
-                : isDark
-                  ? '#FBF9F5'
-                  : '#073C30',
-              color: isArabicPlaying
-                ? '#041B14'
-                : isDark
-                  ? '#073C30'
-                  : '#FFFFFF',
+              backgroundColor: isArPlaying ? '#D4AF37' : isDark ? '#FBF9F5' : '#073C30',
+              color: isArPlaying ? '#041B14' : isDark ? '#073C30' : '#FFFFFF',
             }}
             className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold shadow-2xs transition cursor-pointer hover:opacity-95"
           >
-            {loadingTarget === 'arabic' ? (
+            {lineTts.sessionId === arSessionId && lineTts.status === 'loading' ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-            ) : isArabicPlaying ? (
+            ) : isArPlaying ? (
               <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
             ) : (
               <Play className="h-3.5 w-3.5 fill-current" aria-hidden />
             )}
-            <span>
-              {isArabicPlaying
-                ? 'Pause Arabic (عربي)'
-                : isArabicPaused
-                  ? 'Resume Arabic (عربي)'
-                  : 'Read Arabic (عربي)'}
-            </span>
+            <span>{isArPlaying ? 'Pause Arabic (عربي)' : 'Read Arabic (عربي)'}</span>
           </button>
         )}
 
-        {translationCombined && (
+        {translationClean && (
           <button
             type="button"
             data-testid="hadith-play-translation-btn"
-            aria-pressed={isTranslationPlaying}
-            onClick={() => void handlePlayTranslation()}
+            aria-pressed={isTrPlaying}
+            onClick={handlePlayTranslation}
             style={{
-              backgroundColor: isTranslationPlaying
-                ? '#D4AF37'
-                : isDark
-                  ? '#0E4D3B'
-                  : '#FFFFFF',
-              color: isTranslationPlaying
-                ? '#041B14'
-                : isDark
-                  ? '#FFFFFF'
-                  : '#073C30',
+              backgroundColor: isTrPlaying ? '#D4AF37' : isDark ? '#0E4D3B' : '#FFFFFF',
+              color: isTrPlaying ? '#041B14' : isDark ? '#FFFFFF' : '#073C30',
             }}
             className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-bold shadow-2xs transition cursor-pointer ${
               isDark ? 'border-[#E7C98A]/50' : 'border-[#073C30]/35'
             }`}
           >
-            {loadingTarget === 'translation' ? (
+            {lineTts.sessionId === trSessionId && lineTts.status === 'loading' ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-            ) : isTranslationPlaying ? (
+            ) : isTrPlaying ? (
               <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
             ) : (
               <Volume2 className="h-3.5 w-3.5" aria-hidden />
             )}
             <span>
-              {isTranslationPlaying
-                ? `Pause ${langName}`
-                : isTranslationPaused
-                  ? `Resume ${langName}`
-                  : `Read Translation (${langName})`}
+              {isTrPlaying ? `Pause ${langName}` : `Read Translation (${langName})`}
             </span>
           </button>
         )}
 
-        {arabicClean && translationCombined && (
+        {explanationClean && (
+          <button
+            type="button"
+            data-testid="hadith-play-explanation-btn"
+            aria-pressed={isExPlaying}
+            onClick={handlePlayExplanation}
+            style={{
+              backgroundColor: isExPlaying ? '#D4AF37' : isDark ? '#0E4D3B' : '#FFFFFF',
+              color: isExPlaying ? '#041B14' : isDark ? '#FFFFFF' : '#073C30',
+            }}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-bold shadow-2xs transition cursor-pointer ${
+              isDark ? 'border-[#E7C98A]/50' : 'border-[#073C30]/35'
+            }`}
+          >
+            {lineTts.sessionId === exSessionId && lineTts.status === 'loading' ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+            ) : isExPlaying ? (
+              <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
+            ) : (
+              <BookOpen className="h-3.5 w-3.5" aria-hidden />
+            )}
+            <span>
+              {isExPlaying ? `Pause Explanation` : `Read Explanation (${langName})`}
+            </span>
+          </button>
+        )}
+
+        {lessonsClean && (
+          <button
+            type="button"
+            data-testid="hadith-play-lessons-btn"
+            aria-pressed={isLsPlaying}
+            onClick={handlePlayLessons}
+            style={{
+              backgroundColor: isLsPlaying ? '#D4AF37' : isDark ? '#0E4D3B' : '#FFFFFF',
+              color: isLsPlaying ? '#041B14' : isDark ? '#FFFFFF' : '#073C30',
+            }}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-bold shadow-2xs transition cursor-pointer ${
+              isDark ? 'border-[#E7C98A]/50' : 'border-[#073C30]/35'
+            }`}
+          >
+            {lineTts.sessionId === lsSessionId && lineTts.status === 'loading' ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+            ) : isLsPlaying ? (
+              <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5" aria-hidden />
+            )}
+            <span>
+              {isLsPlaying ? `Pause Lessons` : `Read Lessons (${langName})`}
+            </span>
+          </button>
+        )}
+
+        {arabicClean && (translationClean || explanationClean) && (
           <button
             type="button"
             data-testid="hadith-play-both-btn"
@@ -429,19 +397,75 @@ export function HadithVoiceBar({
             }}
             className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/50 px-3.5 py-1.5 text-xs font-bold transition cursor-pointer hover:border-[#D4AF37]"
           >
-            {loadingTarget === 'both' ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-            ) : isBothPlaying ? (
+            {isBothPlaying ? (
               <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
             ) : (
               <Headphones className="h-3.5 w-3.5" aria-hidden />
             )}
             <span>
-              {isBothPlaying ? 'Playing Arabic + Translation…' : 'Arabic + Translation'}
+              {isBothPlaying ? 'Playing Full Hadith…' : 'Arabic + Translation'}
             </span>
           </button>
         )}
       </div>
+
+      {/* Active Line-by-Line Progress Strip */}
+      {lineTts.active && (
+        <div
+          data-testid="line-tts-progress-strip"
+          style={{
+            backgroundColor: isDark ? 'rgba(3, 24, 18, 0.85)' : '#FFFFFF',
+            color: isDark ? '#F9E7B9' : '#073C30',
+          }}
+          className="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#D4AF37]/40 px-3 py-1.5 text-xs"
+        >
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <span className="inline-flex h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-500" />
+            <span className="font-mono text-[11px] font-bold">
+              Reading Line {lineTts.currentIndex + 1} of {lineTts.lines.length}
+            </span>
+            {lineTts.nextLineReady && (
+              <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                Next line ready
+              </span>
+            )}
+            {lineTts.currentLineText && (
+              <span className="hidden truncate text-[11px] opacity-80 sm:inline">
+                — “{lineTts.currentLineText}”
+              </span>
+            )}
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              aria-label="Previous line"
+              disabled={lineTts.currentIndex <= 0}
+              onClick={() => void lineTts.jumpToLine(lineTts.currentIndex - 1)}
+              className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-stone-300/60 disabled:opacity-40 cursor-pointer"
+            >
+              <SkipBack className="h-3 w-3" aria-hidden />
+            </button>
+            <button
+              type="button"
+              aria-label="Next line"
+              disabled={lineTts.currentIndex + 1 >= lineTts.lines.length}
+              onClick={() => void lineTts.jumpToLine(lineTts.currentIndex + 1)}
+              className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-stone-300/60 disabled:opacity-40 cursor-pointer"
+            >
+              <SkipForward className="h-3 w-3" aria-hidden />
+            </button>
+            <button
+              type="button"
+              aria-label="Stop reading"
+              onClick={() => lineTts.stop()}
+              className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-red-300/60 text-red-600 cursor-pointer"
+            >
+              <Square className="h-3 w-3 fill-current" aria-hidden />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

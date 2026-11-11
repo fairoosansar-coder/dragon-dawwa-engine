@@ -1,14 +1,16 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { Pause, Volume2 } from 'lucide-react';
 import type { ViewProps } from '../App.tsx';
 import { HadithVoiceBar, type ActiveHadithSpeechPart } from '../components/HadithVoiceBar.tsx';
 import { RecordShare } from '../components/RecordShare.tsx';
+import { splitTextIntoSpeechLines, useLineByLineTts } from '../lib/lineByLineTts.ts';
 import { researchStudioHref } from './hadithEncyclopediaCopy.ts';
 import { EmptyState } from '../components/shell/widgets.tsx';
 import { Card, ErrorNote, Loading, SectionTitle, SelectionWash } from '../components/ui.tsx';
 import { useRemote } from '../lib/api.ts';
 import { useShell } from '../lib/shell.tsx';
 import { useApp } from '../lib/store.tsx';
-import type { Lang } from '../shared/sources.ts';
+import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
 import { hadeethShareText, textBeyondIntro, type EncyclopediaHadith, type HadeethCategory, type HadeethListPage, type HadeethSearchHit } from '../shared/hadeethenc.ts';
 import type { ShareVerse } from '../lib/verseShare.ts';
 
@@ -22,10 +24,27 @@ function useLocationHash(): string {
   return hash;
 }
 
-function DetailsBlock({ title, children }: { title: string; children: ReactNode }) {
+function DetailsBlock({
+  title,
+  defaultOpen = false,
+  action,
+  children,
+}: {
+  title: string;
+  defaultOpen?: boolean;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
   return (
-    <details className="rounded-2xl border border-pine/10 bg-parchment px-4 py-3">
-      <summary className="flex min-h-11 cursor-pointer list-none items-center text-sm font-semibold text-pine [&::-webkit-details-marker]:hidden">{title}</summary>
+    <details open={defaultOpen} className="rounded-2xl border border-pine/10 bg-parchment px-4 py-3">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold text-pine [&::-webkit-details-marker]:hidden">
+        <span>{title}</span>
+        {action && (
+          <span onClick={e => e.stopPropagation()} className="shrink-0">
+            {action}
+          </span>
+        )}
+      </summary>
       <div className="mt-3 space-y-3 text-sm leading-relaxed">{children}</div>
     </details>
   );
@@ -57,6 +76,29 @@ function HadithReading({ id }: { id: string }) {
   const remote = useRemote<EncyclopediaHadith>(`/api/hadeeth/${id}?lang=${lang}`);
   const hadith = remote.data && remote.data.id === id && remote.data.lang === lang ? remote.data : null;
 
+  const hadithVoiceKey = hadith ? `hadeeth-${hadith.id}-${hadith.lang}` : `hadeeth-${id}`;
+  const sessionPrefix = `hadith-v4:${hadithVoiceKey}:`;
+  const exSessionId = `${sessionPrefix}explanation`;
+  const lsSessionId = `${sessionPrefix}lessons`;
+  const lineTts = useLineByLineTts(sessionPrefix);
+  const langLabel = LANGUAGE_NAMES[lang]?.native ?? 'English';
+
+  const explanationLines = hadith?.explanation ? splitTextIntoSpeechLines(hadith.explanation) : [];
+  const lessonsLines = hadith?.lessons ?? [];
+
+  const toggleSectionTts = (targetSessionId: string, lines: string[]) => {
+    if (!lines.length) return;
+    if (lineTts.sessionId === targetSessionId && lineTts.status === 'playing') {
+      lineTts.pause();
+      return;
+    }
+    void lineTts.start({
+      sessionId: targetSessionId,
+      lines,
+      lang: hadith?.lang ?? lang,
+    });
+  };
+
   return (
     <Card>
       {remote.loading && !hadith && <Loading />}
@@ -75,10 +117,11 @@ function HadithReading({ id }: { id: string }) {
             {hadith.title}
           </h2>
           <HadithVoiceBar
-            hadithKey={`hadeeth-${hadith.id}-${hadith.lang}`}
+            hadithKey={hadithVoiceKey}
             arabicText={[textBeyondIntro(hadith.arabicIntro, hadith.arabic) ? hadith.arabicIntro : '', hadith.arabic].filter(Boolean).join('\n')}
             translationText={[textBeyondIntro(hadith.intro, hadith.text) ? hadith.intro : '', hadith.text].filter(Boolean).join('\n')}
             explanationText={hadith.explanation}
+            lessonsList={hadith.lessons}
             lang={hadith.lang}
             variant="light"
             onActivePartChange={setActiveSpeechPart}
@@ -108,40 +151,171 @@ function HadithReading({ id }: { id: string }) {
             {textBeyondIntro(hadith.intro, hadith.text) && <p className="whitespace-pre-wrap">{hadith.intro}</p>}
             <p className="whitespace-pre-wrap">{hadith.text}</p>
           </div>
-          <DetailsBlock title={t.explanation}>
-            {hadith.explanation ? (
-              <p lang={hadith.lang} className="whitespace-pre-wrap">
-                {hadith.explanation}
-              </p>
+          <DetailsBlock
+            title={t.explanation}
+            defaultOpen
+            action={
+              explanationLines.length > 0 ? (
+                <button
+                  type="button"
+                  data-testid="section-listen-explanation-btn"
+                  onClick={() => toggleSectionTts(exSessionId, explanationLines)}
+                  style={{
+                    backgroundColor:
+                      lineTts.sessionId === exSessionId && lineTts.status === 'playing'
+                        ? '#D4AF37'
+                        : '#073C30',
+                    color:
+                      lineTts.sessionId === exSessionId && lineTts.status === 'playing'
+                        ? '#041B14'
+                        : '#FFFFFF',
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold shadow-2xs cursor-pointer"
+                >
+                  {lineTts.sessionId === exSessionId && lineTts.status === 'playing' ? (
+                    <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
+                  ) : (
+                    <Volume2 className="h-3.5 w-3.5" aria-hidden />
+                  )}
+                  <span>
+                    {lineTts.sessionId === exSessionId && lineTts.status === 'playing'
+                      ? 'Pause'
+                      : `Listen (${langLabel})`}
+                  </span>
+                </button>
+              ) : null
+            }
+          >
+            {explanationLines.length > 0 ? (
+              <div lang={hadith.lang} className="space-y-2">
+                {explanationLines.map((line, idx) => {
+                  const isLineActive =
+                    lineTts.sessionId === exSessionId &&
+                    lineTts.status !== 'idle' &&
+                    lineTts.currentIndex === idx;
+                  return (
+                    <p
+                      key={idx}
+                      data-tts-line-index={idx}
+                      data-tts-line-active={isLineActive ? 'true' : undefined}
+                      onClick={() => {
+                        void lineTts.start({
+                          sessionId: exSessionId,
+                          lines: explanationLines,
+                          startIndex: idx,
+                          lang: hadith.lang,
+                        });
+                      }}
+                      className={`cursor-pointer rounded-xl px-3 py-1.5 transition ${
+                        isLineActive
+                          ? 'border-l-4 border-[#D4AF37] bg-amber-50/90 font-medium text-stone-950 shadow-2xs'
+                          : 'hover:bg-white/70'
+                      }`}
+                    >
+                      {line}
+                    </p>
+                  );
+                })}
+              </div>
             ) : (
               <p className="text-muted">{t.explanationEmpty}</p>
             )}
             {hadith.explanationArabic && (
-              <p lang="ar" dir="rtl" className="arabic whitespace-pre-wrap text-xl">
-                {hadith.explanationArabic}
-              </p>
+              <details className="mt-2 rounded-xl border border-stone-200 bg-white/80 px-3 py-2">
+                <summary className="cursor-pointer text-xs font-semibold text-emerald-900">
+                  Show Arabic Commentary Reference (الشرح بالعربية)
+                </summary>
+                <p lang="ar" dir="rtl" className="arabic mt-2 whitespace-pre-wrap text-xl">
+                  {hadith.explanationArabic}
+                </p>
+              </details>
             )}
           </DetailsBlock>
-          <DetailsBlock title={t.lessons}>
-            {hadith.lessons.length ? (
-              <ul className="list-disc space-y-2 pl-5" lang={hadith.lang}>
-                {hadith.lessons.map(lesson => (
-                  <li key={lesson} className="whitespace-pre-wrap">
-                    {lesson}
-                  </li>
-                ))}
-              </ul>
+          <DetailsBlock
+            title={t.lessons}
+            defaultOpen
+            action={
+              lessonsLines.length > 0 ? (
+                <button
+                  type="button"
+                  data-testid="section-listen-lessons-btn"
+                  onClick={() => toggleSectionTts(lsSessionId, lessonsLines)}
+                  style={{
+                    backgroundColor:
+                      lineTts.sessionId === lsSessionId && lineTts.status === 'playing'
+                        ? '#D4AF37'
+                        : '#073C30',
+                    color:
+                      lineTts.sessionId === lsSessionId && lineTts.status === 'playing'
+                        ? '#041B14'
+                        : '#FFFFFF',
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold shadow-2xs cursor-pointer"
+                >
+                  {lineTts.sessionId === lsSessionId && lineTts.status === 'playing' ? (
+                    <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
+                  ) : (
+                    <Volume2 className="h-3.5 w-3.5" aria-hidden />
+                  )}
+                  <span>
+                    {lineTts.sessionId === lsSessionId && lineTts.status === 'playing'
+                      ? 'Pause'
+                      : `Listen (${langLabel})`}
+                  </span>
+                </button>
+              ) : null
+            }
+          >
+            {lessonsLines.length > 0 ? (
+              <ol className="space-y-2" lang={hadith.lang}>
+                {lessonsLines.map((lesson, idx) => {
+                  const isLineActive =
+                    lineTts.sessionId === lsSessionId &&
+                    lineTts.status !== 'idle' &&
+                    lineTts.currentIndex === idx;
+                  return (
+                    <li
+                      key={lesson}
+                      data-tts-line-index={idx}
+                      data-tts-line-active={isLineActive ? 'true' : undefined}
+                      onClick={() => {
+                        void lineTts.start({
+                          sessionId: lsSessionId,
+                          lines: lessonsLines,
+                          startIndex: idx,
+                          lang: hadith.lang,
+                        });
+                      }}
+                      className={`flex cursor-pointer items-start gap-2.5 rounded-xl px-3 py-2 transition ${
+                        isLineActive
+                          ? 'border-l-4 border-[#D4AF37] bg-amber-50/90 font-medium text-stone-950 shadow-2xs'
+                          : 'bg-white/60 hover:bg-white'
+                      }`}
+                    >
+                      <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#073C30] font-mono text-[10px] font-bold text-[#F9E7B9]">
+                        {idx + 1}
+                      </span>
+                      <span className="whitespace-pre-wrap">{lesson}</span>
+                    </li>
+                  );
+                })}
+              </ol>
             ) : (
               <p className="text-muted">{t.lessonsEmpty}</p>
             )}
             {hadith.lessonsArabic.length > 0 && (
-              <ul lang="ar" dir="rtl" className="arabic list-disc space-y-2 pr-5 text-xl">
-                {hadith.lessonsArabic.map(lesson => (
-                  <li key={lesson} className="whitespace-pre-wrap">
-                    {lesson}
-                  </li>
-                ))}
-              </ul>
+              <details className="mt-2 rounded-xl border border-stone-200 bg-white/80 px-3 py-2">
+                <summary className="cursor-pointer text-xs font-semibold text-emerald-900">
+                  Show Arabic Lessons Reference (الفوائد بالعربية)
+                </summary>
+                <ul lang="ar" dir="rtl" className="arabic mt-2 list-disc space-y-2 pr-5 text-xl">
+                  {hadith.lessonsArabic.map(lesson => (
+                    <li key={lesson} className="whitespace-pre-wrap">
+                      {lesson}
+                    </li>
+                  ))}
+                </ul>
+              </details>
             )}
           </DetailsBlock>
           <DetailsBlock title={t.sourcesSection}>

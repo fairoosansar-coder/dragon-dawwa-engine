@@ -87,7 +87,7 @@ function mergeReading(arabic: ArabicPayload, meaning: MeaningPayload | null, lan
 
 type ReadMode = 'study' | 'book';
 
-export default function QuranReader({ sub }: ViewProps) {
+export default function QuranReader({ sub, segments = [] }: ViewProps) {
   const [place, setPlace] = useReadingPlace();
   const surah = place.surah;
   const [ayah, setAyah] = useState(place.ayah);
@@ -114,6 +114,17 @@ export default function QuranReader({ sub }: ViewProps) {
     const next = clampSurah(number);
     setPlace(prev => (prev.surah === next ? prev : { ...prev, surah: next }));
   }, [setPlace]);
+
+  useEffect(() => {
+    const segSurah = Number(segments[1]);
+    const segAyah = Number(segments[2]);
+    if (Number.isInteger(segSurah) && segSurah >= 1 && segSurah <= 114) {
+      setSurah(segSurah);
+    }
+    if (Number.isInteger(segAyah) && segAyah >= 1 && segAyah <= 286) {
+      setAyah(segAyah);
+    }
+  }, [segments, setSurah]);
 
   useEffect(() => {
     const link = pendingLink.link;

@@ -87,6 +87,7 @@ import { resolveDomainConfig } from './src/server/research/agentConfig.ts';
 import { randomUUID } from 'node:crypto';
 import { getResearchJob, seedResearchJob, startResearchJob } from './src/engine/server/researchJobs.ts';
 import { synthesizeRoundtableVoice } from './src/engine/server/geminiTtsService.ts';
+import { loadLocalizedAyahStudy } from './src/server/ayahStudyService.ts';
 import { getHadithTtsStatus, synthesizeHadithVoice } from './src/server/elevenlabsTts.ts';
 import { extractHadithFromMedia } from './src/engine/server/hadithOcrService.ts';
 import { transcribeAudioWithGemini } from './src/engine/server/geminiAudioTranscribe.ts';
@@ -241,6 +242,20 @@ function mcpEditionType(value: unknown): McpEditionType {
   if (value === 'quran' || value === 'tafsir' || value === 'translation') return value;
   throw new UpstreamError('That edition list cannot be requested.', 400);
 }
+
+const localizedAyahStudyHandler = route(async (req, res) => {
+  const surah = Number(req.params.surah ?? req.query.surah ?? 1);
+  const ayah = Number(req.params.ayah ?? req.query.ayah ?? 1);
+  if (!Number.isInteger(surah) || surah < 1 || surah > 114 || !Number.isInteger(ayah) || ayah < 1 || ayah > 286) {
+    throw new UpstreamError('Invalid surah or ayah reference.', 400);
+  }
+  const lang = toLang(req.query.lang);
+  const edition = typeof req.query.edition === 'string' && req.query.edition.trim() ? req.query.edition.trim() : undefined;
+  res.json(await loadLocalizedAyahStudy(surah, ayah, lang, edition));
+});
+
+app.get('/api/ummah/quran/study/:surah/:ayah', localizedAyahStudyHandler);
+app.get('/api/quran/tafsir/translate', localizedAyahStudyHandler);
 
 app.get(
   '/api/quran/mcp/editions',

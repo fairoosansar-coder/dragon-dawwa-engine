@@ -257,6 +257,9 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
     }
   }
 
+  if (sub === 'item' && /^\d{1,12}$/.test(segments[1] ?? '')) {
+    return <LibraryReader itemId={Number(segments[1])} backHref="#/hub" />;
+  }
   if ((sub === 'discover' || sub === 'deepen' || sub === 'prophet') && segments[1] === 'item' && /^\d{1,12}$/.test(segments[2] ?? '')) {
     return <LibraryReader itemId={Number(segments[2])} backHref={`#/hub/${sub}`} />;
   }
