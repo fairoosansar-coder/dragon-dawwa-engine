@@ -161,7 +161,7 @@ export function PublicHomeOverview() {
               <button
                 type="button"
                 data-public-hero-signin
-                onClick={() => openModal({ targetRoute: '#/quran', deskLabel: 'Dragon Dawwa Studio' })}
+                onClick={() => openModal({ targetRoute: '#/quran/wall', deskLabel: 'Community Faith Wall' })}
                 className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37] bg-[#D4AF37] px-3.5 py-1.5 text-xs font-bold text-[#031812] shadow-2xs transition hover:bg-[#e3c14d]"
               >
                 <LogIn className="h-3.5 w-3.5" aria-hidden />

@@ -107,11 +107,19 @@ function Shell() {
   const opened = openedResearchDesk(location.path, location.segments);
   const sectionTitle = opened?.desk === 'fiqh' ? 'Fiqh' : opened?.desk === 'seerah' ? 'Seerah' : location.path === 'quran' ? t.quranTitle : t[route.label];
   const routeKey = `${location.path}/${location.segments.join('/')}?${location.params.toString()}`;
-  const rawHash = typeof window === 'undefined' ? '#/hub' : window.location.hash || '#/hub';
+  const rawHash = typeof window === 'undefined' ? '#/hub' : window.location.hash || '';
   const onPublicHome = isPublicHomeHash(rawHash);
 
   useEffect(() => {
-    if (!isAuthenticated && !isPublicHomeHash(rawHash)) {
+    if (isAuthenticated && typeof window !== 'undefined') {
+      const h = window.location.hash.trim();
+      if (h === '' || h === '#' || h === '#/') {
+        window.history.replaceState(null, '', '#/quran/wall');
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+        return;
+      }
+    }
+    if (!isAuthenticated && !isPublicHomeHash(rawHash || '#/hub')) {
       const target = rawHash;
       const label = deskLabelForHash(target);
       openSeekerAuthModal({ targetRoute: target, deskLabel: label });
