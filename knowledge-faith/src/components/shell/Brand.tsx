@@ -3,7 +3,7 @@ import { useApp } from '../../lib/store.tsx';
 /** Gold ring seal. The letters sit in the circle, as on the desk sidebar. */
 function CarvedSeal() {
   return (
-    <span className="relative flex h-11 w-11 shrink-0 items-center justify-center" aria-hidden>
+    <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#073C30]" aria-hidden>
       <svg viewBox="0 0 48 48" className="absolute inset-0 h-full w-full">
         <circle cx="24" cy="24" r="21.4" fill="none" stroke="#C6A15A" strokeWidth="1.5" />
         <circle cx="24" cy="24" r="18.15" fill="none" stroke="#E6D3A1" strokeWidth="0.6" />
@@ -20,7 +20,7 @@ export function BrandLockup({ tone = 'ivory' }: { tone?: 'emerald' | 'ivory' }) 
   const { t } = useApp();
   const onEmerald = tone === 'emerald';
   return (
-    <a href="#/hub" className="flex min-w-0 items-center gap-2.5 rounded-xl">
+    <a href="#/quran/wall" className="flex min-w-0 items-center gap-2.5 rounded-xl">
       <CarvedSeal />
       <span className="min-w-0 leading-tight">
         <span

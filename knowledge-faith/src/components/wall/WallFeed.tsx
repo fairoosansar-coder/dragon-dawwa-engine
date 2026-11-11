@@ -85,8 +85,8 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
   const [posts, setPosts] = useState<FaithWallPost[]>(() => listFaithWallPosts());
   const [wallView, setWallView] = useState<'community' | 'mine' | 'saved'>(() => {
     if (typeof window !== 'undefined') {
-      if (window.location.hash.includes('view=mine')) return 'mine';
-      if (window.location.hash.includes('view=saved')) return 'saved';
+      if (window.location.hash.includes('view=mine') || window.location.hash.includes('tab=mine')) return 'mine';
+      if (window.location.hash.includes('view=saved') || window.location.hash.includes('tab=saved')) return 'saved';
     }
     return 'community';
   });
@@ -100,17 +100,24 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
 
   useEffect(() => {
     const sync = () => setPosts(listFaithWallPosts());
+    const syncHashView = () => {
+      if (typeof window === 'undefined') return;
+      const h = window.location.hash;
+      if (h.includes('view=mine') || h.includes('tab=mine')) setWallView('mine');
+      else if (h.includes('view=saved') || h.includes('tab=saved')) setWallView('saved');
+      else if (h.startsWith('#/quran/wall') || h.startsWith('#/hub/wall')) setWallView('community');
+    };
     window.addEventListener(FAITH_WALL_EVENT, sync);
     window.addEventListener(SEEKER_AUTH_EVENT, sync);
+    window.addEventListener('hashchange', syncHashView);
     window.addEventListener('storage', sync);
     return () => {
       window.removeEventListener(FAITH_WALL_EVENT, sync);
       window.removeEventListener(SEEKER_AUTH_EVENT, sync);
+      window.removeEventListener('hashchange', syncHashView);
       window.removeEventListener('storage', sync);
     };
   }, []);
-
-  const portfolio = useMemo(() => resolveUserProfilePortfolio('me'), [posts, user]);
 
   const isOwnedByUser = (post: FaithWallPost): boolean => {
     if (!user) return false;
@@ -329,153 +336,10 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
   return (
     <section
       data-faith-wall
-      className="mx-auto w-full max-w-[1240px]"
+      className="mx-auto w-full max-w-[1120px]"
     >
-      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[245px_minmax(0,1fr)_285px]">
-        {/* LEFT RAIL: Seeker Identity Card & Social Navigation (Desktop XL) */}
-        <aside
-          data-faith-wall-left-rail
-          className="hidden space-y-4 xl:block"
-        >
-          <div className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xs">
-            <div className="relative h-16 w-full bg-[#073C30]">
-              <img
-                src={portfolio.bannerUrl || '/assets/banner-art.jpg'}
-                alt=""
-                className="h-full w-full object-cover opacity-80"
-              />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-            </div>
-
-            <div className="px-4 pb-4">
-              <div className="-mt-7 flex items-end justify-between">
-                <a
-                  href="#/profile"
-                  className="inline-flex h-13 w-13 items-center justify-center overflow-hidden rounded-full bg-stone-900 text-[#F5EEDC] shadow-md ring-3 ring-white"
-                >
-                  <SeekerAvatar
-                    avatarUrl={portfolio.avatarUrl}
-                    name={portfolio.name}
-                    emblem={portfolio.emblem}
-                    size={24}
-                  />
-                </a>
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-800/15 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-900">
-                  <ShieldCheck className="h-3 w-3 text-emerald-600" aria-hidden />
-                  <span>Verified</span>
-                </span>
-              </div>
-
-              <div className="mt-2.5">
-                <a
-                  href="#/profile"
-                  className="block truncate text-sm font-semibold text-stone-900 hover:text-[#073C30] hover:underline"
-                >
-                  {portfolio.name}
-                </a>
-                <p className="truncate font-mono text-[11px] text-stone-500">
-                  {portfolio.handle}
-                </p>
-                <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-stone-600">
-                  {portfolio.roleBadge}
-                </p>
-              </div>
-
-              <div className="mt-3 grid grid-cols-2 gap-2 border-t border-stone-100 pt-3 text-center">
-                <a
-                  href="#/profile"
-                  className="rounded-xl border border-stone-200/80 bg-stone-50/80 px-2 py-1.5 transition hover:border-stone-300"
-                >
-                  <p className="text-xs font-bold text-stone-900">{portfolio.reflectionsCount}</p>
-                  <p className="text-[10px] text-stone-500">Reflections</p>
-                </a>
-                <a
-                  href="#/profile"
-                  className="rounded-xl border border-stone-200/80 bg-stone-50/80 px-2 py-1.5 transition hover:border-stone-300"
-                >
-                  <p className="text-xs font-bold text-stone-900">{portfolio.podcastsCount}</p>
-                  <p className="text-[10px] text-stone-500">Podcasts</p>
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {/* Feed & Studio Quick Navigation */}
-          <nav
-            aria-label="Faith Wall navigation"
-            className="rounded-2xl border border-stone-200/80 bg-white p-2 shadow-2xs"
-          >
-            <button
-              type="button"
-              onClick={() => setWallView('community')}
-              className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-medium transition ${
-                wallView === 'community'
-                  ? 'bg-emerald-50/80 font-semibold text-emerald-950'
-                  : 'text-stone-700 hover:bg-stone-50'
-              }`}
-            >
-              <span className="inline-flex items-center gap-2">
-                <Globe className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
-                <span>Community Feed</span>
-              </span>
-              <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-600">
-                {posts.length}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setWallView('mine')}
-              className={`mt-0.5 flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-medium transition ${
-                wallView === 'mine'
-                  ? 'bg-emerald-50/80 font-semibold text-emerald-950'
-                  : 'text-stone-700 hover:bg-stone-50'
-              }`}
-            >
-              <span className="inline-flex items-center gap-2">
-                <User className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
-                <span>My Personal Wall</span>
-              </span>
-              <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-600">
-                {myPosts.length}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setWallView('saved')}
-              className={`mt-0.5 flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-medium transition ${
-                wallView === 'saved'
-                  ? 'bg-emerald-50/80 font-semibold text-emerald-950'
-                  : 'text-stone-700 hover:bg-stone-50'
-              }`}
-            >
-              <span className="inline-flex items-center gap-2">
-                <Bookmark className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
-                <span>Saved Bookmarks</span>
-              </span>
-              <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-600">
-                {savedPosts.length}
-              </span>
-            </button>
-
-            <div className="my-1.5 border-t border-stone-100" />
-
-            <a
-              href="#/profile"
-              data-wall-open-profile
-              className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-stone-700 transition hover:bg-stone-50 hover:text-stone-900"
-            >
-              <span className="inline-flex items-center gap-2">
-                <User className="h-3.5 w-3.5 text-[#073C30]" aria-hidden />
-                <span>My Profile & Settings</span>
-              </span>
-              <span className="text-[11px] text-stone-400">→</span>
-            </a>
-          </nav>
-        </aside>
-
-        {/* CENTER FEED COLUMN: Unified Social Composer & Filter Card + Post Stream */}
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_285px] xl:grid-cols-[minmax(0,1fr)_300px]">
+        {/* TABLE 2 (Center Feed Column): Unified Social Composer & Filter Card + Post Stream */}
         <div data-faith-wall-center className="min-w-0 space-y-4">
           {/* Unified Social Composer & Filter Header Card */}
           <header

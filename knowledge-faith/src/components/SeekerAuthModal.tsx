@@ -384,6 +384,10 @@ export function SeekerAuthModal() {
             void signInWithGoogleCredential(response.credential)
               .then(() => {
                 setStatusNote('Signed in with Google to your Personal Faith Wall.');
+                closeModal();
+                if (typeof window !== 'undefined' && !window.location.hash.includes('wall')) {
+                  window.location.hash = '#/quran/wall';
+                }
               })
               .catch((err: unknown) => {
                 setError(err instanceof Error ? err.message : 'Google Sign-In failed.');
@@ -472,6 +476,9 @@ export function SeekerAuthModal() {
       });
       setStatusNote('Signed in to your Personal Faith Wall session.');
       closeModal();
+      if (typeof window !== 'undefined' && !window.location.hash.includes('wall')) {
+        window.location.hash = '#/quran/wall';
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not sign in.');
     } finally {
@@ -527,6 +534,9 @@ export function SeekerAuthModal() {
           : 'Welcome back to your Personal Faith Wall!',
       );
       closeModal();
+      if (typeof window !== 'undefined' && !window.location.hash.includes('wall')) {
+        window.location.hash = '#/quran/wall';
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Authentication failed.');
     } finally {

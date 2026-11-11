@@ -614,13 +614,19 @@ export function useSeekerAuth() {
       setGoogleAuth(readGoogleAuthConfig());
       if (current?.user) {
         const dest = consumePendingRoute();
-        if (dest && typeof window !== 'undefined') {
-          modalRequestedOpen = false;
-          setModalOpen(false);
-          setPendingRouteState(null);
-          setPendingDeskState(null);
-          if (window.location.hash !== dest) {
-            window.location.hash = dest;
+        if (typeof window !== 'undefined') {
+          if (dest) {
+            modalRequestedOpen = false;
+            setModalOpen(false);
+            setPendingRouteState(null);
+            setPendingDeskState(null);
+            if (window.location.hash !== dest) {
+              window.location.hash = dest;
+            }
+          } else if (modalRequestedOpen) {
+            modalRequestedOpen = false;
+            setModalOpen(false);
+            window.location.hash = '#/quran/wall';
           }
         }
       }
