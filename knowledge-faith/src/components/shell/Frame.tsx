@@ -565,7 +565,7 @@ export function AppFrame({
                 <div>
                   <p className="text-xs font-bold text-stone-900">Platform Customization</p>
                   <p className="text-[10px] text-stone-500">
-                    {LANGUAGE_NAMES[lang].english} · {UI_THEMES[uiTheme].label} · {UI_FONT_SCALES[fontScale].badge}
+                    {LANGUAGE_NAMES[lang].english} · {UI_THEMES[uiTheme].label}
                   </p>
                 </div>
               </div>
