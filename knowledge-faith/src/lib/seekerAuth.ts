@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { resolveHashPath, ROUTE_ROOTS, type RouteRoot } from './route.ts';
 
 export type SeekerEmblem = 'rub-el-hizb' | 'crescent-star' | 'octagon-rosette' | 'emerald-lamp';
 export type SeekerAuthProvider = 'email' | 'google' | 'apple' | 'guest';
@@ -67,6 +68,19 @@ export function isPublicHomeHash(rawHash: string): boolean {
   return clean === '' || clean === 'hub' || clean === 'screen-13' || clean === 'about';
 }
 
+/** Accept only local application routes; navigation never grants access to a route. */
+export function isValidRequestedDestination(hash: string | null | undefined): hash is string {
+  if (!hash || !/^#\/[a-z0-9-]+(?:[/?]|$)/i.test(hash) || /[\\\s\x00-\x1f]/.test(hash)) return false;
+  if (isPublicHomeHash(hash)) return false;
+  const path = resolveHashPath(hash);
+  return ROUTE_ROOTS.includes(path.split('/')[0] as RouteRoot);
+}
+
+export function postLoginDestination(pending: string | null, current: string): string {
+  if (isValidRequestedDestination(pending)) return pending;
+  return isValidRequestedDestination(current) ? current : '#/quran/wall';
+}
+
 export function deskLabelForHash(rawHash: string): string {
   const clean = rawHash.replace(/^#\/?/, '').split('?')[0].replace(/\/+$/, '').toLowerCase();
   if (!clean || clean === 'hub') return 'Knowledge Studio';
@@ -88,11 +102,11 @@ export function deskLabelForHash(rawHash: string): string {
 }
 
 export function readPendingRoute(): string | null {
-  if (pendingRouteTarget) return pendingRouteTarget;
+  if (isValidRequestedDestination(pendingRouteTarget)) return pendingRouteTarget;
   if (typeof window !== 'undefined') {
     try {
       const stored = window.sessionStorage.getItem(PENDING_ROUTE_STORAGE_KEY);
-      if (stored && stored.startsWith('#/')) return stored;
+      if (isValidRequestedDestination(stored)) return stored;
     } catch {
       /* ignore */
     }
@@ -114,7 +128,7 @@ export function setPendingRoute(route: string | null, label?: string | null): vo
         ? `#${route}`
         : `#/${route}`
     : null;
-  pendingRouteTarget = normalized && !isPublicHomeHash(normalized) ? normalized : null;
+  pendingRouteTarget = isValidRequestedDestination(normalized) ? normalized : null;
   pendingDeskLabel = label ?? (pendingRouteTarget ? deskLabelForHash(pendingRouteTarget) : null);
   if (typeof window !== 'undefined') {
     try {
@@ -433,9 +447,7 @@ export async function signInWithGoogleCredential(
 export function buildGoogleOAuthRedirectUrl(returnTo?: string, callbackPath?: string): string {
   const pending = readPendingRoute();
   const target =
-    returnTo ||
-    pending ||
-    (typeof window !== 'undefined' ? window.location.hash || '#/quran/wall' : '#/quran/wall');
+    postLoginDestination(pending, returnTo ?? (typeof window !== 'undefined' ? window.location.hash : ''));
   const params = new URLSearchParams({ returnTo: target });
   if (callbackPath) params.set('callbackPath', callbackPath);
   return `/api/auth/google/start?${params.toString()}`;
@@ -626,7 +638,7 @@ export function useSeekerAuth() {
           } else if (modalRequestedOpen) {
             modalRequestedOpen = false;
             setModalOpen(false);
-            window.location.hash = '#/quran/wall';
+            window.location.hash = postLoginDestination(null, window.location.hash);
           }
         }
       }
@@ -678,3 +690,4 @@ export function useSeekerAuth() {
     signOut: signOutSeeker,
   };
 }
+
