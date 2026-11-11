@@ -119,8 +119,9 @@ export function UserProfileView({ sub }: ViewProps) {
     reflection: string;
     authorName: string;
     theme: WallPostTheme;
+    isAnonymous?: boolean;
   }) => {
-    const { type, preset, podcast, reflection, authorName, theme } = input;
+    const { type, preset, podcast, reflection, authorName, theme, isAnonymous } = input;
     const hash =
       type === 'podcast'
         ? '#/podcast'
@@ -133,6 +134,7 @@ export function UserProfileView({ sub }: ViewProps) {
           });
     const created = await publishFaithWallPost({
       type: type ?? 'reflection',
+      isAnonymous: Boolean(isAnonymous),
       verse: {
         surah: preset.surah,
         ayah: preset.ayah,
@@ -152,8 +154,8 @@ export function UserProfileView({ sub }: ViewProps) {
       hadithCollection: preset.hadithCollection,
       hadithNumber: preset.hadithNumber,
       hadithGrade: preset.hadithGrade,
-      authorName: user ? user.name : authorName,
-      authorRole: user ? user.kunyah : undefined,
+      authorName: isAnonymous ? 'Anonymous Seeker' : user ? user.name : authorName,
+      authorRole: isAnonymous ? 'Sincere Sunnah Pledge' : user ? user.kunyah : undefined,
     });
     setComposerOpen(false);
     setTick(n => n + 1);

@@ -211,6 +211,7 @@ export function ReflectionModal({
     reflection: string;
     authorName: string;
     theme: WallPostTheme;
+    isAnonymous?: boolean;
   }) => Promise<void> | void;
   inline?: boolean;
   initialDoor?: 'reflection' | 'podcast' | null;
@@ -221,6 +222,7 @@ export function ReflectionModal({
   const [podcasts] = useState<CompletedPodcastOption[]>(() => loadAvailablePodcasts());
   const [selectedPodcastId, setSelectedPodcastId] = useState(SEEDED_COMPLETED_PODCASTS[0].id);
   const [authorName, setAuthorName] = useState('');
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const [reflection, setReflection] = useState('');
   const [theme, setTheme] = useState<WallPostTheme>('emerald');
   const [busy, setBusy] = useState(false);
@@ -266,16 +268,18 @@ export function ReflectionModal({
           },
           podcast: selectedPodcast,
           reflection: reflection.slice(0, 500),
-          authorName,
+          authorName: isAnonymous ? 'Anonymous Seeker' : authorName,
           theme,
+          isAnonymous,
         });
       } else {
         await onPublish({
           type: 'reflection',
           preset,
           reflection: reflection.slice(0, 500),
-          authorName,
+          authorName: isAnonymous ? 'Anonymous Seeker' : authorName,
           theme,
+          isAnonymous,
         });
       }
       setReflection('');
@@ -394,10 +398,41 @@ export function ReflectionModal({
               </select>
             </label>
 
-            {user ? (
-              <div className="flex flex-col justify-end">
-                <span className="text-xs font-semibold text-stone-700">Verified Author Identity</span>
-                <div className="mt-1.5 flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-900">
+            <div className="flex flex-col justify-end gap-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-stone-700">
+                  {isAnonymous ? 'Anonymous Identity' : user ? 'Verified Author Identity' : 'Your Name or Kunyah'}
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={isAnonymous}
+                  data-testid="reflection-anonymous-toggle"
+                  onClick={() => setIsAnonymous(v => !v)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-stone-700"
+                >
+                  <span>Post Anonymously</span>
+                  <span
+                    className={`inline-flex h-4 w-7 items-center rounded-full p-0.5 transition ${
+                      isAnonymous ? 'bg-[#073C30] justify-end' : 'bg-stone-300 justify-start'
+                    }`}
+                  >
+                    <span className="h-3 w-3 rounded-full bg-white shadow-2xs" />
+                  </span>
+                </button>
+              </div>
+              {isAnonymous ? (
+                <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-900">
+                  <span className="flex items-center gap-2 truncate font-semibold">
+                    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#073C30] text-[#F5EEDC]">
+                      <SeekerAvatar avatarUrl={undefined} name="Anonymous Seeker" emblem="emerald-lamp" size={14} />
+                    </span>
+                    <span>Anonymous Seeker</span>
+                    <span className="font-mono text-stone-500">@anonymous</span>
+                  </span>
+                </div>
+              ) : user ? (
+                <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-900">
                   <span className="flex items-center gap-2 truncate font-semibold">
                     <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#073C30] text-[#F5EEDC]">
                       <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={14} />
@@ -407,19 +442,16 @@ export function ReflectionModal({
                   </span>
                   <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
                 </div>
-              </div>
-            ) : (
-              <label className="block text-xs font-semibold text-stone-700">
-                Your Name or Kunyah
+              ) : (
                 <input
                   type="text"
                   value={authorName}
                   onChange={event => setAuthorName(event.target.value)}
                   placeholder="e.g. Seeker of Knowledge"
-                  className="mt-1.5 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs text-stone-900 placeholder:text-stone-400 focus:border-[#073C30] focus:outline-none"
+                  className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs text-stone-900 placeholder:text-stone-400 focus:border-[#073C30] focus:outline-none"
                 />
-              </label>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Step 2: Choose Visual Card Theme + Live 16:9 Preview */}

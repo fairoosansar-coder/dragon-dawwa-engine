@@ -100,10 +100,21 @@ export function WallPostCard({
       });
   const quoted = formatQuotedTranslation(post.translation);
   const timestamp = formatPostTimestamp(post.createdAt);
-  const profileSlug = encodeURIComponent(
-    (post.userId || post.authorHandle || post.authorName || 'me').replace(/^@/, ''),
-  );
-  const profileHref = `#/profile/${profileSlug}`;
+  const isAnon = Boolean(post.isAnonymous);
+  const displayAuthorName = isAnon ? 'Anonymous Seeker' : post.authorName || 'Community Seeker';
+  const displayAuthorHandle = isAnon
+    ? '@anonymous'
+    : post.authorHandle || `@${displayAuthorName.toLowerCase().replace(/[^a-z0-9]+/g, '') || 'seeker'}`;
+  const displayAuthorRole = isAnon ? 'Sincere Sunnah Pledge' : post.authorRole || 'Faith Wall Contributor';
+  const displayAvatarUrl = isAnon ? undefined : post.authorAvatarUrl ?? post.authorAvatar ?? null;
+  const displayEmblem = isAnon ? 'emerald-lamp' : post.authorEmblem;
+  const canManage = owned && !isAnon;
+  const profileSlug = isAnon
+    ? ''
+    : encodeURIComponent(
+        (post.userId || post.authorHandle || post.authorName || 'me').replace(/^@/, ''),
+      );
+  const profileHref = isAnon ? undefined : `#/profile/${profileSlug}`;
   const podcastAudioId = `wall-pod-audio-${post.id}`;
   const podcastPlaying = audio.id === podcastAudioId && (audio.status === 'playing' || audio.status === 'loading');
 
@@ -213,44 +224,76 @@ export function WallPostCard({
         className="flex items-start justify-between gap-3"
       >
         <div className="flex min-w-0 items-center gap-3">
-          {/* Clickable User Avatar with Subtle Emerald Ring */}
-          <a
-            href={profileHref}
-            data-post-avatar
-            title={`View ${post.authorName || 'Seeker'}’s profile`}
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#073C30] text-[#F5EEDC] ring-2 ring-emerald-600/35 transition hover:ring-emerald-600"
-          >
-            <SeekerAvatar
-              avatarUrl={post.authorAvatarUrl}
-              name={post.authorName}
-              emblem={post.authorEmblem}
-              size={18}
-            />
-          </a>
+          {/* User Avatar with Subtle Emerald Ring (non-linking neutral emblem when anonymous) */}
+          {isAnon ? (
+            <span
+              data-post-avatar
+              title="Anonymous Seeker"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#073C30] text-[#F5EEDC] ring-2 ring-emerald-600/35"
+            >
+              <SeekerAvatar
+                avatarUrl={undefined}
+                name="Anonymous Seeker"
+                emblem="emerald-lamp"
+                size={18}
+              />
+            </span>
+          ) : (
+            <a
+              href={profileHref}
+              data-post-avatar
+              title={`View ${displayAuthorName}’s profile`}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#073C30] text-[#F5EEDC] ring-2 ring-emerald-600/35 transition hover:ring-emerald-600"
+            >
+              <SeekerAvatar
+                avatarUrl={displayAvatarUrl}
+                name={displayAuthorName}
+                emblem={displayEmblem}
+                size={18}
+              />
+            </a>
+          )}
 
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-1.5">
-              <a
-                href={profileHref}
-                data-post-author-name
-                data-post-author-link
-                className="truncate text-sm font-semibold text-stone-900 hover:text-[#073C30] hover:underline"
-              >
-                {post.authorName || 'Community Seeker'}
-              </a>
+              {isAnon ? (
+                <>
+                  <span
+                    data-post-author-name
+                    className="truncate text-sm font-semibold text-stone-900"
+                  >
+                    Anonymous Seeker
+                  </span>
+                  <span
+                    data-post-author-handle
+                    className="font-mono text-xs text-stone-500"
+                  >
+                    {displayAuthorHandle}
+                  </span>
+                </>
+              ) : (
+                <a
+                  href={profileHref}
+                  data-post-author-name
+                  data-post-author-link
+                  className="truncate text-sm font-semibold text-stone-900 hover:text-[#073C30] hover:underline"
+                >
+                  {displayAuthorName}
+                </a>
+              )}
               <span
                 data-post-author-role
                 className="inline-flex items-center gap-1 rounded-full border border-emerald-800/15 bg-emerald-50/80 px-2 py-0.5 text-[11px] font-medium text-emerald-900"
               >
-                {post.verified && (
+                {!isAnon && post.verified && (
                   <ShieldCheck
                     className="h-3 w-3 shrink-0 text-emerald-600"
                     aria-label={post.authorAuthProvider === 'google' ? 'Verified Google Seeker' : 'Verified Seeker'}
                   />
                 )}
-                <span>{post.authorRole || 'Faith Wall Contributor'}</span>
+                <span>{displayAuthorRole}</span>
               </span>
-              {owned && (
+              {canManage && (
                 <span className="rounded-full bg-amber-100/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-900">
                   You
                 </span>
@@ -286,7 +329,7 @@ export function WallPostCard({
             {LANGUAGE_NAMES[post.lang]?.english ?? 'English'}
           </span>
 
-          {owned && (
+          {canManage && (
             <>
               <button
                 type="button"

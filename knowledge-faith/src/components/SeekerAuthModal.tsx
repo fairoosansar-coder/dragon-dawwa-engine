@@ -7,7 +7,6 @@ import {
   ensureGoogleGisLoaded,
   SEEKER_EMBLEMS,
   useSeekerAuth,
-  type SeekerAuthProvider,
   type SeekerEmblem,
 } from '../lib/seekerAuth.ts';
 import { listFaithWallPosts } from '../lib/verseShare.ts';
@@ -210,7 +209,6 @@ export function SeekerAccountPill({ variant = 'sidebar' }: { variant?: 'sidebar'
             data-profile-settings-popover
             className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-1.5rem)] rounded-2xl border border-stone-200 bg-white p-3.5 text-stone-900 shadow-xl ring-1 ring-black/5"
           >
-            {/* Identity Header */}
             <div className="flex items-center justify-between gap-2 border-b border-stone-100 pb-3">
               <div className="flex min-w-0 items-center gap-2.5">
                 <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#073C30] text-[#F5EEDC] ring-2 ring-emerald-600/30">
@@ -222,10 +220,10 @@ export function SeekerAccountPill({ variant = 'sidebar' }: { variant?: 'sidebar'
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-xs font-bold text-stone-900">
-                    {user ? user.name : 'Guest Seeker'}
+                    {user ? user.name : 'Sign In Required'}
                   </p>
                   <p className="truncate text-[11px] text-stone-500">
-                    {user ? user.kunyah : 'Sign in to sync your profile'}
+                    {user ? user.kunyah : 'Sign in with credentials or Google'}
                   </p>
                 </div>
               </div>
@@ -239,7 +237,6 @@ export function SeekerAccountPill({ variant = 'sidebar' }: { variant?: 'sidebar'
               </button>
             </div>
 
-            {/* Quick Profile / Account Actions */}
             <div className="mt-2.5 grid grid-cols-2 gap-1.5 border-b border-stone-100 pb-3">
               <a
                 href="#/profile"
@@ -264,7 +261,6 @@ export function SeekerAccountPill({ variant = 'sidebar' }: { variant?: 'sidebar'
               </button>
             </div>
 
-            {/* Language, Theme & Font Size Controls */}
             <div className="mt-3">
               <ProfileSettingsPanel compact />
             </div>
@@ -280,24 +276,24 @@ export function SeekerAccountPill({ variant = 'sidebar' }: { variant?: 'sidebar'
         type="button"
         data-seeker-account-pill
         onClick={() => openModal()}
-        className="flex w-full items-center gap-2.5 rounded-2xl border border-[#C6A15A]/45 bg-[#04241C] px-3 py-2.5 text-left text-[#F5EEDC] shadow-sm transition hover:border-[#D4AF37] hover:bg-[#0A2E23]"
+        className="flex w-full items-center gap-2.5 rounded-2xl border border-[#E6DEC8] bg-white px-3 py-2.5 text-left text-[#18221D] shadow-2xs transition hover:border-[#0F5132]"
       >
-        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#D4AF37]/45 bg-[#073C30]">
+        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#E6DEC8] bg-[#FAF7F0]">
           {user ? (
             <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={user.emblem} size={18} />
           ) : (
-            <User className="h-4 w-4 text-[#D4AF37]" aria-hidden />
+            <User className="h-4 w-4 text-[#0F5132]" aria-hidden />
           )}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <p className="truncate text-xs font-semibold text-[#F9E7B9]">
-              {user ? user.name : 'Sign in · My Wall'}
+            <p className="truncate text-xs font-semibold text-[#18221D]">
+              {user ? user.name : 'Sign In · My Account'}
             </p>
-            {user?.verified && <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[#D4AF37]" aria-hidden />}
+            {user?.verified && <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[#0F5132]" aria-hidden />}
           </div>
-          <p className="truncate text-[11px] text-[#F5EEDC]/70">
-            {user ? user.kunyah : 'Personal Faith Wall & Session'}
+          <p className="truncate text-[11px] text-stone-500">
+            {user ? user.kunyah : 'Credentials or Google Auth'}
           </p>
         </div>
       </button>
@@ -305,9 +301,9 @@ export function SeekerAccountPill({ variant = 'sidebar' }: { variant?: 'sidebar'
         <a
           href="#/profile"
           data-sidebar-profile-link
-          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#C6A15A]/35 bg-[#04241C]/90 px-2.5 py-1.5 text-[11px] font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37] hover:bg-[#0A2E23]"
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#E6DEC8] bg-[#FAF7F0] px-2.5 py-1.5 text-[11px] font-semibold text-[#0F5132] transition hover:border-[#0F5132] hover:bg-white"
         >
-          <User className="h-3 w-3 text-[#D4AF37]" aria-hidden />
+          <User className="h-3 w-3 text-[#0F5132]" aria-hidden />
           <span>My Profile & Settings</span>
         </a>
       )}
@@ -315,7 +311,13 @@ export function SeekerAccountPill({ variant = 'sidebar' }: { variant?: 'sidebar'
   );
 }
 
-export function SeekerAuthModal() {
+export function SeekerAuthCard({
+  inline = false,
+  onClose,
+}: {
+  inline?: boolean;
+  onClose?: () => void;
+}) {
   const {
     user,
     googleAuth,
@@ -327,8 +329,10 @@ export function SeekerAuthModal() {
     updateProfile,
     signOut,
   } = useSeekerAuth();
+
   const [tab, setTab] = useState<'signin' | 'register'>('signin');
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
+  const [contact, setContact] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [kunyah, setKunyah] = useState('Seeker of Knowledge');
@@ -341,6 +345,8 @@ export function SeekerAuthModal() {
   const [copiedUri, setCopiedUri] = useState<string | null>(null);
   const gisContainerRef = useRef<HTMLDivElement | null>(null);
 
+  const dismiss = onClose ?? closeModal;
+
   useEffect(() => {
     if (user) {
       setName(user.name);
@@ -352,20 +358,19 @@ export function SeekerAuthModal() {
     setStatusNote(null);
     if (typeof window !== 'undefined' && window.location.href.includes('auth_error=')) {
       setShowOAuthSetupHelp(true);
+      try {
+        const authErr = new URL(window.location.href).searchParams.get('auth_error');
+        if (authErr) {
+          setError(`Google Sign-In could not be completed (${authErr}). Please try again.`);
+        }
+      } catch {
+        setError('Google Sign-In could not be completed. Please try again.');
+      }
     }
-  }, [user, modalOpen]);
+  }, [user, modalOpen, inline]);
 
   useEffect(() => {
-    if (!modalOpen) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeModal();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [modalOpen, closeModal]);
-
-  useEffect(() => {
-    if (!modalOpen || user || !googleAuth.enabled || !googleAuth.clientId) return;
+    if (user || !googleAuth.enabled || !googleAuth.clientId) return;
     let active = true;
     void ensureGoogleGisLoaded().then(loaded => {
       if (!active || !loaded) return;
@@ -378,13 +383,16 @@ export function SeekerAuthModal() {
           ux_mode: 'popup',
           itp_support: true,
           callback: response => {
-            if (!response.credential) return;
+            if (!response.credential) {
+              setError('Google Sign-In did not return a valid credential.');
+              return;
+            }
             setBusy(true);
             setError(null);
             void signInWithGoogleCredential(response.credential)
               .then(() => {
-                setStatusNote('Signed in with Google to your Personal Faith Wall.');
-                closeModal();
+                setStatusNote('Signed in with Google.');
+                dismiss();
               })
               .catch((err: unknown) => {
                 setError(err instanceof Error ? err.message : 'Google Sign-In failed.');
@@ -395,11 +403,11 @@ export function SeekerAuthModal() {
         slot.innerHTML = '';
         gId.renderButton(slot, {
           type: 'standard',
-          theme: 'filled_black',
+          theme: 'outline',
           size: 'large',
           shape: 'pill',
           text: 'continue_with',
-          width: 380,
+          width: 340,
         });
       } catch {
         /* ignore GIS script initialization errors */
@@ -408,12 +416,10 @@ export function SeekerAuthModal() {
     return () => {
       active = false;
     };
-  }, [modalOpen, user, googleAuth.enabled, googleAuth.clientId, signInWithGoogleCredential]);
-
-  if (!modalOpen) return null;
+  }, [user, googleAuth.enabled, googleAuth.clientId, signInWithGoogleCredential, dismiss]);
 
   const myPosts = user
-    ? listFaithWallPosts().filter(post => post.userId === user.id || post.authorName === user.name)
+    ? listFaithWallPosts().filter(post => !post.isAnonymous && (post.userId === user.id || post.authorName === user.name))
     : [];
   const totalAmeen = myPosts.reduce((sum, post) => sum + (post.likes ?? 1), 0);
   const isGoogleUser = Boolean(user && (user.authProvider === 'google' || user.provider === 'google'));
@@ -422,7 +428,8 @@ export function SeekerAuthModal() {
     typeof window !== 'undefined' && window.location.origin
       ? window.location.origin
       : 'https://dragon-dawwa-production.up.railway.app';
-  const expectedRedirectUri = googleAuth.redirectUriOverride || `${currentOrigin}${googleAuth.callbackPath || '/api/auth/google/callback'}`;
+  const expectedRedirectUri =
+    googleAuth.redirectUriOverride || `${currentOrigin}${googleAuth.callbackPath || '/api/auth/google/callback'}`;
 
   const copyUri = async (value: string, label: string) => {
     try {
@@ -434,76 +441,31 @@ export function SeekerAuthModal() {
     }
   };
 
-  const handleQuickAuth = async (provider: SeekerAuthProvider) => {
-    setBusy(true);
-    setError(null);
-    setStatusNote(null);
-    try {
-      const defaultProfiles: Record<SeekerAuthProvider, { email: string; name: string; kunyah: string }> = {
-        google: {
-          email: email.trim() || 'fairoos.seeker@gmail.com',
-          name: name.trim() || 'Brother Feroz Ansar',
-          kunyah: kunyah.trim() || 'Verified Google Seeker',
-        },
-        apple: {
-          email: email.trim() || 'seeker.icloud@apple.com',
-          name: name.trim() || 'Sister Layla Mansoor',
-          kunyah: kunyah.trim() || 'Student of Qur’anic Tafsir',
-        },
-        guest: {
-          email: email.trim() || 'seeker.pass@dragondawwa.com',
-          name: name.trim() || 'Ustadh Zayd al-Ansari',
-          kunyah: kunyah.trim() || 'Seeker of Knowledge',
-        },
-        email: {
-          email: email.trim(),
-          name: name.trim(),
-          kunyah: kunyah.trim(),
-        },
-      };
-      const chosen = defaultProfiles[provider];
-      await loginOrRegister({
-        mode: 'quick',
-        provider,
-        email: chosen.email,
-        name: chosen.name,
-        kunyah: chosen.kunyah,
-        bio,
-        emblem,
-      });
-      setStatusNote('Signed in to your Personal Faith Wall session.');
-      closeModal();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not sign in.');
-    } finally {
-      setBusy(false);
-    }
+  const handleOAuthRedirectStart = (callbackPath?: string) => {
+    if (typeof window === 'undefined') return;
+    window.location.href = buildGoogleOAuthRedirectUrl(undefined, callbackPath);
   };
 
   const handleContinueWithGoogle = async () => {
+    setError(null);
     if (googleAuth.enabled && googleAuth.clientId) {
       const loaded = await ensureGoogleGisLoaded();
       const gId = window.google?.accounts?.id;
       if (loaded && gId) {
-        const gisBtn = gisContainerRef.current?.querySelector<HTMLElement>('[role="button"], div[ tabindex="0" ]');
+        const gisBtn = gisContainerRef.current?.querySelector<HTMLElement>('[role="button"], div[tabindex="0"]');
         if (gisBtn) {
           gisBtn.click();
           return;
         }
         gId.prompt(notification => {
           if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
-            void handleQuickAuth('google');
+            handleOAuthRedirectStart('/auth/callback');
           }
         });
         return;
       }
     }
-    await handleQuickAuth('google');
-  };
-
-  const handleOAuthRedirectStart = (callbackPath?: string) => {
-    if (typeof window === 'undefined') return;
-    window.location.href = buildGoogleOAuthRedirectUrl(undefined, callbackPath);
+    handleOAuthRedirectStart('/auth/callback');
   };
 
   const handleFormSubmit = async (event: FormEvent) => {
@@ -512,22 +474,31 @@ export function SeekerAuthModal() {
     setError(null);
     setStatusNote(null);
     try {
-      await loginOrRegister({
-        mode: tab === 'register' ? 'register' : 'login',
-        provider: 'email',
-        email,
-        password,
-        name,
-        kunyah,
-        bio,
-        emblem,
-      });
-      setStatusNote(
-        tab === 'register'
-          ? 'Your Seeker account and Personal Faith Wall are ready!'
-          : 'Welcome back to your Personal Faith Wall!',
-      );
-      closeModal();
+      if (tab === 'register') {
+        const trimmedContact = contact.trim() || identifier.trim();
+        const isPhone = trimmedContact && !trimmedContact.includes('@') && /^\+?[\d\s()-]{7,20}$/.test(trimmedContact);
+        await loginOrRegister({
+          mode: 'register',
+          provider: isPhone ? 'phone' : 'email',
+          identifier: trimmedContact,
+          email: isPhone ? undefined : trimmedContact,
+          phone: isPhone ? trimmedContact : undefined,
+          username: name.trim(),
+          name: name.trim(),
+          password,
+        });
+        setStatusNote('Your account is ready.');
+      } else {
+        const trimmedId = identifier.trim();
+        await loginOrRegister({
+          mode: 'login',
+          identifier: trimmedId,
+          email: trimmedId,
+          password,
+        });
+        setStatusNote('Signed in.');
+      }
+      dismiss();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Authentication failed.');
     } finally {
@@ -542,7 +513,7 @@ export function SeekerAuthModal() {
     setStatusNote(null);
     try {
       await updateProfile({ name, kunyah, bio, emblem });
-      setStatusNote('Personal Faith Wall profile updated!');
+      setStatusNote('Profile updated!');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not update profile.');
     } finally {
@@ -550,492 +521,462 @@ export function SeekerAuthModal() {
     }
   };
 
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Seeker Account & Personal Faith Wall Session"
-      data-seeker-auth-modal
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-3 backdrop-blur-md sm:p-6"
-      onClick={closeModal}
-    >
+  if (user) {
+    return (
       <div
-        style={{
-          background: 'linear-gradient(145deg, #031812 0%, #073024 55%, #041812 100%)',
-        }}
-        className="relative max-h-[92dvh] w-full max-w-xl overflow-y-auto rounded-3xl border-2 border-[#D4AF37]/50 p-5 text-[#F5EEDC] shadow-2xl sm:p-7"
+        data-seeker-auth-card
+        style={{ backgroundColor: '#FFFFFF', color: '#18221D', borderColor: '#E6DEC8' }}
+        className="relative w-full max-w-[460px] rounded-2xl border border-[#E6DEC8] bg-[#FFFFFF] p-5 text-[#18221D] shadow-md sm:p-6"
         onClick={event => event.stopPropagation()}
       >
-        {/* Inner Gold Frame */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-2.5 rounded-2xl border border-[#D4AF37]/20"
-        />
-
-        {/* Header */}
-        <div className="relative z-10 flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/50 bg-[#D4AF37]/15 px-3 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#D4AF37]">
-              <Sparkles className="h-3 w-3" aria-hidden />
-              DRAGON DAWWA · SEEKER SESSION
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#0F5132]/20 bg-[#FAF7F0] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#0F5132]">
+              <Sparkles className="h-3 w-3 text-[#C6A15A]" aria-hidden />
+              DRAGON DAWWA · ACCOUNT
             </span>
-            <h2 className="mt-2 font-display text-xl font-bold text-white sm:text-2xl">
-              {user
-                ? 'Your Seeker Profile & Personal Wall'
-                : pendingDesk
-                  ? `Sign in to Enter ${pendingDesk}`
-                  : 'Sign in to Your Personal Faith Wall'}
+            <h2 className="mt-1.5 font-display text-lg font-bold text-[#18221D] sm:text-xl">
+              Your Seeker Profile
             </h2>
-            <p data-auth-modal-subtitle className="mt-1 text-xs leading-relaxed text-[#F5EEDC]/75 sm:text-sm">
-              {user
-                ? 'Manage your verified Seeker identity, kunyah, emblem, and personal Qur’anic reflections.'
-                : pendingDesk
-                  ? `Sign in to enter ${pendingDesk} and access Dragon Dawwa’s full research studio.`
-                  : 'Publish illuminated 16:9 verse cards under your verified name and curate your Personal Faith Wall.'}
-            </p>
           </div>
-          <button
-            type="button"
-            aria-label="Close"
-            onClick={closeModal}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#D4AF37]/35 bg-white/5 text-[#F5EEDC] transition hover:border-[#D4AF37] hover:bg-white/10"
-          >
-            <X className="h-4 w-4" aria-hidden />
-          </button>
+          {!inline && (
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={dismiss}
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#E6DEC8] bg-[#FAF7F0] text-stone-600 transition hover:border-[#0F5132] hover:text-[#18221D]"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          )}
         </div>
 
-        {user ? (
-          <form onSubmit={event => void handleProfileSave(event)} className="relative z-10 mt-5 space-y-4">
-            {/* Active Session Identity Banner */}
-            <div
-              data-seeker-active-card
-              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#D4AF37]/45 bg-[#031812]/85 p-4"
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#D4AF37]/55 bg-[#0A2E23]">
-                  <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={emblem} size={24} />
-                </span>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <p className="truncate font-display text-base font-bold text-white">{user.name}</p>
-                    <span className="inline-flex items-center gap-1 rounded-full border border-[#D4AF37]/50 bg-[#D4AF37]/15 px-2 py-0.5 text-[10px] font-semibold text-[#D4AF37]">
-                      <ShieldCheck className="h-3 w-3" aria-hidden />
-                      {isGoogleUser ? 'Verified Google Seeker' : 'Verified Seeker'}
-                    </span>
-                  </div>
-                  <p className="truncate text-xs text-[#D4AF37]/90">{user.kunyah}</p>
-                  <p className="truncate text-[11px] text-[#F5EEDC]/60">{user.email}</p>
+        <form onSubmit={event => void handleProfileSave(event)} className="mt-4 space-y-3.5">
+          <div
+            data-seeker-active-card
+            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#E6DEC8] bg-[#FAF7F0] p-3.5"
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#E6DEC8] bg-[#0F5132] text-[#F5EEDC]">
+                <SeekerAvatar avatarUrl={user.avatarUrl} name={user.name} emblem={emblem} size={22} />
+              </span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <p className="truncate font-display text-sm font-bold text-[#18221D]">{user.name}</p>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[#0F5132]/20 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-[#0F5132]">
+                    <ShieldCheck className="h-3 w-3" aria-hidden />
+                    {isGoogleUser ? 'Google Verified' : 'Verified'}
+                  </span>
                 </div>
-              </div>
-
-              <div className="flex items-center gap-3 text-center">
-                <div className="rounded-xl border border-[#D4AF37]/25 bg-[#0A2E23]/70 px-3 py-1.5">
-                  <p className="font-display text-base font-bold text-[#D4AF37]">{myPosts.length}</p>
-                  <p className="text-[10px] uppercase tracking-wider text-[#F5EEDC]/70">My Cards</p>
-                </div>
-                <div className="rounded-xl border border-[#D4AF37]/25 bg-[#0A2E23]/70 px-3 py-1.5">
-                  <p className="font-display text-base font-bold text-[#D4AF37]">{totalAmeen}</p>
-                  <p className="text-[10px] uppercase tracking-wider text-[#F5EEDC]/70">Ameen</p>
-                </div>
+                <p className="truncate text-xs text-[#0F5132]">{user.kunyah}</p>
+                <p className="truncate text-[11px] text-stone-500">{user.phone || user.email}</p>
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block text-xs font-medium text-[#F5EEDC]/85">
-                Display Name
-                <input
-                  type="text"
-                  data-auth-name-input
-                  value={name}
-                  onChange={event => setName(event.target.value)}
-                  required
-                  className="mt-1.5 w-full rounded-xl border border-[#D4AF37]/35 bg-[#031812]/90 px-3.5 py-2 text-sm text-white focus:border-[#D4AF37] focus:outline-none"
-                />
-              </label>
-
-              <label className="block text-xs font-medium text-[#F5EEDC]/85">
-                Kunyah / Scholarly Role
-                <input
-                  type="text"
-                  data-auth-kunyah-input
-                  value={kunyah}
-                  onChange={event => setKunyah(event.target.value)}
-                  required
-                  className="mt-1.5 w-full rounded-xl border border-[#D4AF37]/35 bg-[#031812]/90 px-3.5 py-2 text-sm text-white focus:border-[#D4AF37] focus:outline-none"
-                />
-              </label>
+            <div className="flex items-center gap-2 text-center">
+              <div className="rounded-lg border border-[#E6DEC8] bg-white px-2.5 py-1">
+                <p className="font-display text-sm font-bold text-[#0F5132]">{myPosts.length}</p>
+                <p className="text-[9px] uppercase tracking-wider text-stone-500">Cards</p>
+              </div>
+              <div className="rounded-lg border border-[#E6DEC8] bg-white px-2.5 py-1">
+                <p className="font-display text-sm font-bold text-[#0F5132]">{totalAmeen}</p>
+                <p className="text-[9px] uppercase tracking-wider text-stone-500">Ameen</p>
+              </div>
             </div>
+          </div>
 
-            <label className="block text-xs font-medium text-[#F5EEDC]/85">
-              Personal Wall Bio / Intention
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-xs font-semibold text-[#18221D]">
+              Display Name
               <input
                 type="text"
-                data-auth-bio-input
-                value={bio}
-                onChange={event => setBio(event.target.value)}
-                placeholder="e.g. Reflecting daily on the Makki and Madani revelations..."
-                className="mt-1.5 w-full rounded-xl border border-[#D4AF37]/35 bg-[#031812]/90 px-3.5 py-2 text-sm text-white placeholder:text-[#F5EEDC]/40 focus:border-[#D4AF37] focus:outline-none"
+                data-auth-name-input
+                value={name}
+                onChange={event => setName(event.target.value)}
+                required
+                className="mt-1 w-full rounded-xl border border-[#E6DEC8] bg-[#FAF7F0] px-3 py-2 text-sm text-[#18221D] focus:border-[#0F5132] focus:bg-white focus:outline-none"
               />
             </label>
 
-            <div>
-              <p className="text-xs font-medium text-[#F5EEDC]/85">Illuminated Seal / Emblem</p>
-              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {SEEKER_EMBLEMS.map(item => {
-                  const selected = emblem === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      data-auth-emblem={item.id}
-                      aria-pressed={selected}
-                      onClick={() => setEmblem(item.id)}
-                      className={`flex flex-col items-center gap-1.5 rounded-xl border p-2.5 text-center transition ${
-                        selected
-                          ? 'border-[#D4AF37] bg-[#D4AF37]/20 text-white shadow-sm'
-                          : 'border-[#D4AF37]/25 bg-[#031812]/70 text-[#F5EEDC]/75 hover:border-[#D4AF37]/60'
-                      }`}
-                    >
-                      <SeekerEmblemGlyph emblem={item.id} size={20} />
-                      <span className="text-[11px] font-semibold">{item.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <label className="block text-xs font-semibold text-[#18221D]">
+              Kunyah / Title
+              <input
+                type="text"
+                data-auth-kunyah-input
+                value={kunyah}
+                onChange={event => setKunyah(event.target.value)}
+                required
+                className="mt-1 w-full rounded-xl border border-[#E6DEC8] bg-[#FAF7F0] px-3 py-2 text-sm text-[#18221D] focus:border-[#0F5132] focus:bg-white focus:outline-none"
+              />
+            </label>
+          </div>
 
-            {statusNote && (
-              <p role="status" data-auth-status className="rounded-xl border border-[#D4AF37]/50 bg-[#0A2E23] px-3.5 py-2 text-xs font-semibold text-[#F9E7B9]">
-                ✦ {statusNote}
-              </p>
-            )}
-            {error && (
-              <p role="alert" className="rounded-xl border border-red-400/40 bg-red-950/60 px-3.5 py-2 text-xs text-red-200">
-                {error}
-              </p>
-            )}
+          <label className="block text-xs font-semibold text-[#18221D]">
+            Personal Bio
+            <input
+              type="text"
+              data-auth-bio-input
+              value={bio}
+              onChange={event => setBio(event.target.value)}
+              placeholder="Reflecting daily on the Qur’an and Sunnah…"
+              className="mt-1 w-full rounded-xl border border-[#E6DEC8] bg-[#FAF7F0] px-3 py-2 text-sm text-[#18221D] placeholder:text-stone-400 focus:border-[#0F5132] focus:bg-white focus:outline-none"
+            />
+          </label>
 
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#D4AF37]/20 pt-4">
-              <button
-                type="button"
-                data-auth-signout
-                onClick={() => void signOut()}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-[#D4AF37]/35 bg-[#031812] px-3.5 py-2 text-xs font-semibold text-[#F5EEDC] transition hover:border-red-400/60 hover:text-red-200"
-              >
-                <LogOut className="h-3.5 w-3.5" aria-hidden />
-                <span>Sign Out</span>
-              </button>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <a
-                  href="#/profile"
-                  onClick={closeModal}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-[#D4AF37]/50 bg-[#0A2E23] px-3.5 py-2 text-xs font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37]"
-                >
-                  <User className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-                  <span>My Profile & Settings</span>
-                </a>
-                <a
-                  href="#/quran/wall"
-                  onClick={closeModal}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-[#D4AF37]/50 bg-[#0A2E23] px-3.5 py-2 text-xs font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37]"
-                >
-                  <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-                  <span>Faith Wall</span>
-                </a>
-                <button
-                  type="submit"
-                  data-auth-save-profile
-                  disabled={busy}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#D4AF37] px-4 py-2 text-xs font-bold text-[#031812] shadow-sm transition hover:bg-[#e3c14d] disabled:opacity-50"
-                >
-                  <Check className="h-3.5 w-3.5" aria-hidden />
-                  <span>Save Profile</span>
-                </button>
-              </div>
-            </div>
-          </form>
-        ) : (
-          <div className="relative z-10 mt-5 space-y-4">
-            {/* Primary Continue with Google CTA (GIS Popup Primary + Transparent GIS Overlay) */}
-            <div className="space-y-2.5">
-              <div className="relative">
-                <button
-                  type="button"
-                  data-google-signin-cta
-                  data-quick-auth="google"
-                  disabled={busy}
-                  onClick={() => void handleContinueWithGoogle()}
-                  className="flex w-full items-center justify-between gap-3 rounded-2xl border-2 border-[#D4AF37]/80 bg-gradient-to-r from-[#0A2E23] via-[#0F3F30] to-[#0A2E23] px-4 py-3 text-left text-white shadow-[0_0_24px_rgba(212,175,55,0.16)] transition hover:border-[#D4AF37] hover:bg-[#124535] disabled:opacity-50"
-                >
-                  <span className="flex items-center gap-3">
-                    <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white shadow-xs">
-                      <GoogleGMark size={20} />
-                    </span>
-                    <span>
-                      <span className="block text-sm font-bold tracking-wide text-white">
-                        Continue with Google
-                      </span>
-                      <span className="block text-[11px] text-[#F5EEDC]/75">
-                        Verified Google account · Instant Personal Faith Wall sync
-                      </span>
-                    </span>
-                  </span>
-                  <span className="hidden shrink-0 rounded-full border border-[#D4AF37]/50 bg-[#031812]/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#D4AF37] sm:inline-block">
-                    1-Click Sign In
-                  </span>
-                </button>
-
-                {/* Google Identity Services Popup Button Overlay (when GIS script is ready) */}
-                <div
-                  ref={gisContainerRef}
-                  data-gis-button-slot
-                  className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden rounded-2xl opacity-[0.01]"
-                />
-              </div>
-
-              {/* Secondary OAuth Redirect & Setup Helper Row */}
-              <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-[#F5EEDC]/70">
-                <div className="flex flex-wrap items-center gap-2">
+          <div>
+            <p className="text-xs font-semibold text-[#18221D]">Profile Seal</p>
+            <div className="mt-1.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {SEEKER_EMBLEMS.map(item => {
+                const selected = emblem === item.id;
+                return (
                   <button
+                    key={item.id}
                     type="button"
-                    data-google-oauth-redirect-link
-                    onClick={() => handleOAuthRedirectStart('/auth/callback')}
-                    className="font-medium text-[#D4AF37] hover:underline"
+                    data-auth-emblem={item.id}
+                    aria-pressed={selected}
+                    onClick={() => setEmblem(item.id)}
+                    className={`flex flex-col items-center gap-1 rounded-xl border p-2 text-center transition ${
+                      selected
+                        ? 'border-[#0F5132] bg-emerald-50/80 text-[#0F5132]'
+                        : 'border-[#E6DEC8] bg-[#FAF7F0] text-stone-600 hover:border-[#0F5132]/50'
+                    }`}
                   >
-                    Use Google Redirect Sign-In
+                    <SeekerEmblemGlyph emblem={item.id} size={18} />
+                    <span className="text-[11px] font-semibold">{item.label}</span>
                   </button>
-                  <span aria-hidden>·</span>
-                  <button
-                    type="button"
-                    data-google-oauth-help-toggle
-                    onClick={() => setShowOAuthSetupHelp(open => !open)}
-                    className="inline-flex items-center gap-1 text-[#F5EEDC]/75 hover:text-white"
-                  >
-                    <HelpCircle className="h-3 w-3 text-[#D4AF37]" aria-hidden />
-                    <span>Google OAuth URI setup</span>
-                  </button>
-                </div>
-              </div>
-
-              {showOAuthSetupHelp && (
-                <div
-                  data-google-oauth-help
-                  className="space-y-2 rounded-2xl border border-[#D4AF37]/35 bg-[#031812]/95 p-3 text-[11px] text-[#F5EEDC]/85"
-                >
-                  <p className="font-semibold text-[#D4AF37]">
-                    Google Cloud Console OAuth 2.0 Client Settings:
-                  </p>
-                  <div className="flex items-center justify-between gap-2 rounded-lg border border-[#D4AF37]/20 bg-[#0A2E23]/60 px-2.5 py-1.5">
-                    <span className="truncate font-mono text-[10px]">
-                      Origin: {currentOrigin}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => void copyUri(currentOrigin, 'origin')}
-                      className="inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold text-[#D4AF37]"
-                    >
-                      {copiedUri === 'origin' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                      <span>{copiedUri === 'origin' ? 'Copied' : 'Copy'}</span>
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between gap-2 rounded-lg border border-[#D4AF37]/20 bg-[#0A2E23]/60 px-2.5 py-1.5">
-                    <span className="truncate font-mono text-[10px]">
-                      Redirect: {expectedRedirectUri}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => void copyUri(expectedRedirectUri, 'redirect')}
-                      className="inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold text-[#D4AF37]"
-                    >
-                      {copiedUri === 'redirect' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                      <span>{copiedUri === 'redirect' ? 'Copied' : 'Copy'}</span>
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between gap-2 rounded-lg border border-[#D4AF37]/20 bg-[#0A2E23]/60 px-2.5 py-1.5">
-                    <span className="truncate font-mono text-[10px]">
-                      Legacy Redirect: {currentOrigin}/auth/callback
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => void copyUri(`${currentOrigin}/auth/callback`, 'legacy')}
-                      className="inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold text-[#D4AF37]"
-                    >
-                      {copiedUri === 'legacy' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                      <span>{copiedUri === 'legacy' ? 'Copied' : 'Copy'}</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Secondary Quick Studio Options */}
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  data-quick-auth="apple"
-                  disabled={busy}
-                  onClick={() => void handleQuickAuth('apple')}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#D4AF37]/40 bg-[#031812]/85 px-3 py-2 text-xs font-semibold text-[#F5EEDC] transition hover:border-[#D4AF37] hover:bg-[#0A2E23]"
-                >
-                  <span className="font-bold text-[#D4AF37]"></span>
-                  <span>Continue with Apple</span>
-                </button>
-                <button
-                  type="button"
-                  data-quick-auth="guest"
-                  disabled={busy}
-                  onClick={() => void handleQuickAuth('guest')}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#D4AF37]/45 bg-[#D4AF37]/15 px-3 py-2 text-xs font-semibold text-[#F9E7B9] transition hover:border-[#D4AF37] hover:bg-[#D4AF37]/25"
-                >
-                  <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-                  <span>Instant Seeker Pass</span>
-                </button>
-              </div>
+                );
+              })}
             </div>
+          </div>
 
-            <div className="flex items-center gap-3 text-[11px] text-[#F5EEDC]/55">
-              <span className="h-px flex-1 bg-[#D4AF37]/25" />
-              <span>OR CONTINUE WITH EMAIL</span>
-              <span className="h-px flex-1 bg-[#D4AF37]/25" />
-            </div>
+          {statusNote && (
+            <p role="status" data-auth-status className="rounded-xl border border-emerald-700/25 bg-emerald-50 px-3 py-2 text-xs font-semibold text-[#0F5132]">
+              ✦ {statusNote}
+            </p>
+          )}
+          {error && (
+            <p role="alert" data-auth-error className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-xs font-medium text-red-800">
+              {error}
+            </p>
+          )}
 
-            {/* Mode Switcher */}
-            <div className="flex rounded-full border border-[#D4AF37]/35 bg-[#031812] p-1">
-              <button
-                type="button"
-                data-auth-tab="signin"
-                aria-pressed={tab === 'signin'}
-                onClick={() => setTab('signin')}
-                className={`flex-1 rounded-full py-1.5 text-xs font-semibold transition ${
-                  tab === 'signin' ? 'bg-[#D4AF37] text-[#031812]' : 'text-[#F5EEDC]/80 hover:text-white'
-                }`}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#E6DEC8] pt-3.5">
+            <button
+              type="button"
+              data-auth-signout
+              onClick={() => void signOut()}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#E6DEC8] bg-[#FAF7F0] px-3 py-2 text-xs font-semibold text-stone-700 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+            >
+              <LogOut className="h-3.5 w-3.5" aria-hidden />
+              <span>Sign Out</span>
+            </button>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <a
+                href="#/profile"
+                onClick={dismiss}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#E6DEC8] bg-[#FAF7F0] px-3 py-2 text-xs font-semibold text-[#18221D] transition hover:border-[#0F5132]"
               >
-                Sign In
-              </button>
+                <User className="h-3.5 w-3.5 text-[#0F5132]" aria-hidden />
+                <span>My Profile</span>
+              </a>
               <button
-                type="button"
-                data-auth-tab="register"
-                aria-pressed={tab === 'register'}
-                onClick={() => setTab('register')}
-                className={`flex-1 rounded-full py-1.5 text-xs font-semibold transition ${
-                  tab === 'register' ? 'bg-[#D4AF37] text-[#031812]' : 'text-[#F5EEDC]/80 hover:text-white'
-                }`}
+                type="submit"
+                data-auth-save-profile
+                disabled={busy}
+                style={{ backgroundColor: '#0F5132', color: '#FFFFFF' }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#0F5132] px-4 py-2 text-xs font-bold text-white shadow-2xs transition hover:bg-[#0B3E26] disabled:opacity-50"
               >
-                Create Seeker Account
+                <Check className="h-3.5 w-3.5" aria-hidden />
+                <span>Save Profile</span>
               </button>
             </div>
+          </div>
+        </form>
+      </div>
+    );
+  }
 
-            <form onSubmit={event => void handleFormSubmit(event)} className="space-y-3">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block text-xs font-medium text-[#F5EEDC]/85">
-                  Email Address
-                  <input
-                    type="email"
-                    data-auth-email-input
-                    value={email}
-                    onChange={event => setEmail(event.target.value)}
-                    placeholder="seeker@dragondawwa.com"
-                    required
-                    className="mt-1.5 w-full rounded-xl border border-[#D4AF37]/35 bg-[#031812]/90 px-3.5 py-2 text-sm text-white placeholder:text-[#F5EEDC]/40 focus:border-[#D4AF37] focus:outline-none"
-                  />
-                </label>
+  return (
+    <div
+      data-seeker-auth-card
+      style={{ backgroundColor: '#FFFFFF', color: '#18221D', borderColor: '#E6DEC8' }}
+      className="relative mx-auto w-full max-w-[400px] rounded-2xl border border-[#E6DEC8] bg-[#FFFFFF] p-6 text-[#18221D] shadow-sm sm:p-7"
+      onClick={event => event.stopPropagation()}
+    >
+      {/* 1. Compact DRAGON DAWWA Brand Mark + Concise 1-Line Subtitle */}
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#0F5132]">
+            <Sparkles className="h-3.5 w-3.5 text-[#C6A15A]" aria-hidden />
+            <span>DRAGON DAWWA</span>
+          </div>
+          <h1 className="mt-1 font-display text-xl font-bold tracking-tight text-[#18221D]">
+            {pendingDesk ? `Sign in to ${pendingDesk}` : 'Welcome to Dragon Dawwa'}
+          </h1>
+          <p data-auth-modal-subtitle className="mt-0.5 text-xs text-stone-600">
+            Sign in with your username, email, phone number, or Google.
+          </p>
+        </div>
+        {!inline && (
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={dismiss}
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#E6DEC8] bg-[#FAF7F0] text-stone-500 transition hover:border-[#0F5132] hover:text-[#18221D]"
+          >
+            <X className="h-4 w-4" aria-hidden />
+          </button>
+        )}
+      </div>
 
-                <label className="block text-xs font-medium text-[#F5EEDC]/85">
-                  Password
-                  <input
-                    type="password"
-                    data-auth-password-input
-                    value={password}
-                    onChange={event => setPassword(event.target.value)}
-                    placeholder="••••••••"
-                    required
-                    minLength={4}
-                    className="mt-1.5 w-full rounded-xl border border-[#D4AF37]/35 bg-[#031812]/90 px-3.5 py-2 text-sm text-white placeholder:text-[#F5EEDC]/40 focus:border-[#D4AF37] focus:outline-none"
-                  />
-                </label>
-              </div>
+      {/* 2. Clean Sign In / Create Account Tab Toggle */}
+      <div
+        role="tablist"
+        aria-label="Authentication mode"
+        style={{ backgroundColor: '#FAF7F0', borderColor: '#E6DEC8' }}
+        className="mt-4 grid grid-cols-2 rounded-xl border border-[#E6DEC8] bg-[#FAF7F0] p-1"
+      >
+        <button
+          type="button"
+          role="tab"
+          data-auth-tab="signin"
+          aria-selected={tab === 'signin'}
+          aria-pressed={tab === 'signin'}
+          onClick={() => {
+            setTab('signin');
+            setError(null);
+          }}
+          style={
+            tab === 'signin'
+              ? { backgroundColor: '#FFFFFF', color: '#18221D' }
+              : { backgroundColor: 'transparent', color: '#57534E' }
+          }
+          className={`rounded-lg py-1.5 text-xs font-semibold transition cursor-pointer ${
+            tab === 'signin' ? 'bg-white text-[#18221D] shadow-2xs' : 'text-stone-600 hover:text-[#18221D]'
+          }`}
+        >
+          Sign In
+        </button>
+        <button
+          type="button"
+          role="tab"
+          data-auth-tab="register"
+          aria-selected={tab === 'register'}
+          aria-pressed={tab === 'register'}
+          onClick={() => {
+            setTab('register');
+            setError(null);
+          }}
+          style={
+            tab === 'register'
+              ? { backgroundColor: '#FFFFFF', color: '#18221D' }
+              : { backgroundColor: 'transparent', color: '#57534E' }
+          }
+          className={`rounded-lg py-1.5 text-xs font-semibold transition cursor-pointer ${
+            tab === 'register' ? 'bg-white text-[#18221D] shadow-2xs' : 'text-stone-600 hover:text-[#18221D]'
+          }`}
+        >
+          Create Account
+        </button>
+      </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block text-xs font-medium text-[#F5EEDC]/85">
-                  Display Name
-                  <input
-                    type="text"
-                    data-auth-name-input
-                    value={name}
-                    onChange={event => setName(event.target.value)}
-                    placeholder="e.g. Brother Feroz Ansar"
-                    className="mt-1.5 w-full rounded-xl border border-[#D4AF37]/35 bg-[#031812]/90 px-3.5 py-2 text-sm text-white placeholder:text-[#F5EEDC]/40 focus:border-[#D4AF37] focus:outline-none"
-                  />
-                </label>
+      {/* 3. Continue with Google Button at Top with Clean White Surface */}
+      <div className="mt-4 space-y-2">
+        <div className="relative">
+          <button
+            type="button"
+            data-testid="auth-google-btn"
+            data-google-signin-cta
+            disabled={busy}
+            onClick={() => void handleContinueWithGoogle()}
+            style={{ backgroundColor: '#FFFFFF', color: '#18221D', borderColor: '#E6DEC8' }}
+            className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-[#E6DEC8] bg-white px-4 py-2.5 text-xs font-semibold text-[#18221D] shadow-2xs transition hover:border-[#0F5132] hover:bg-[#FAF7F0] disabled:opacity-50 cursor-pointer"
+          >
+            <GoogleGMark size={18} />
+            <span>Continue with Google</span>
+          </button>
 
-                <label className="block text-xs font-medium text-[#F5EEDC]/85">
-                  Kunyah / Title
-                  <input
-                    type="text"
-                    data-auth-kunyah-input
-                    value={kunyah}
-                    onChange={event => setKunyah(event.target.value)}
-                    placeholder="e.g. Seeker of Knowledge"
-                    className="mt-1.5 w-full rounded-xl border border-[#D4AF37]/35 bg-[#031812]/90 px-3.5 py-2 text-sm text-white placeholder:text-[#F5EEDC]/40 focus:border-[#D4AF37] focus:outline-none"
-                  />
-                </label>
-              </div>
+          <div
+            ref={gisContainerRef}
+            data-gis-button-slot
+            className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden rounded-xl opacity-[0.01]"
+          />
+        </div>
 
-              <div>
-                <p className="text-xs font-medium text-[#F5EEDC]/85">Choose Your Illuminated Seal</p>
-                <div className="mt-1.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {SEEKER_EMBLEMS.map(item => {
-                    const selected = emblem === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        data-auth-emblem={item.id}
-                        aria-pressed={selected}
-                        onClick={() => setEmblem(item.id)}
-                        className={`flex flex-col items-center gap-1 rounded-xl border p-2 text-center transition ${
-                          selected
-                            ? 'border-[#D4AF37] bg-[#D4AF37]/20 text-white'
-                            : 'border-[#D4AF37]/25 bg-[#031812]/70 text-[#F5EEDC]/75 hover:border-[#D4AF37]/60'
-                        }`}
-                      >
-                        <SeekerEmblemGlyph emblem={item.id} size={18} />
-                        <span className="text-[11px] font-semibold">{item.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+        <div className="flex items-center justify-between px-0.5 text-[11px] text-stone-500">
+          <button
+            type="button"
+            data-google-oauth-redirect-link
+            onClick={() => handleOAuthRedirectStart('/auth/callback')}
+            className="font-medium text-[#0F5132] hover:underline"
+          >
+            Use Google Redirect Sign-In
+          </button>
+          <button
+            type="button"
+            data-google-oauth-help-toggle
+            onClick={() => setShowOAuthSetupHelp(open => !open)}
+            className="inline-flex items-center gap-1 text-stone-500 hover:text-[#18221D]"
+          >
+            <HelpCircle className="h-3 w-3 text-[#0F5132]" aria-hidden />
+            <span>OAuth URI help</span>
+          </button>
+        </div>
 
-              {error && (
-                <p role="alert" data-auth-error className="rounded-xl border border-red-400/40 bg-red-950/60 px-3.5 py-2 text-xs text-red-200">
-                  {error}
-                </p>
-              )}
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="rounded-xl px-3.5 py-2 text-xs font-medium text-[#F5EEDC]/75 hover:text-white"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  data-auth-submit
-                  disabled={busy}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#D4AF37] px-5 py-2.5 text-xs font-bold text-[#031812] shadow-md transition hover:bg-[#e3c14d] disabled:opacity-50"
-                >
-                  <LogIn className="h-3.5 w-3.5" aria-hidden />
-                  <span>{tab === 'register' ? 'Create Seeker Account' : 'Sign In to Faith Wall'}</span>
-                </button>
-              </div>
-            </form>
+        {showOAuthSetupHelp && (
+          <div
+            data-google-oauth-help
+            className="space-y-1.5 rounded-xl border border-[#E6DEC8] bg-[#FAF7F0] p-2.5 text-[11px] text-stone-700"
+          >
+            <p className="font-semibold text-[#0F5132]">Google OAuth 2.0 Redirect URI:</p>
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-[#E6DEC8] bg-white px-2 py-1">
+              <span className="truncate font-mono text-[10px]">{expectedRedirectUri}</span>
+              <button
+                type="button"
+                onClick={() => void copyUri(expectedRedirectUri, 'redirect')}
+                className="inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold text-[#0F5132]"
+              >
+                {copiedUri === 'redirect' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                <span>{copiedUri === 'redirect' ? 'Copied' : 'Copy'}</span>
+              </button>
+            </div>
           </div>
         )}
       </div>
+
+      {/* 4. Subtle Divider */}
+      <div className="my-4 flex items-center gap-3 text-[11px] text-stone-400">
+        <span className="h-px flex-1 bg-[#E6DEC8]" />
+        <span>or sign in with credentials</span>
+        <span className="h-px flex-1 bg-[#E6DEC8]" />
+      </div>
+
+      {/* 5. Credentials Form */}
+      <form onSubmit={event => void handleFormSubmit(event)} className="space-y-3">
+        {tab === 'signin' ? (
+          <label className="block text-xs font-semibold text-[#18221D]">
+            Username, Email, or Phone Number
+            <input
+              type="text"
+              data-testid="auth-identifier-input"
+              data-auth-email-input
+              value={identifier}
+              onChange={event => setIdentifier(event.target.value)}
+              placeholder="e.g. ahmad_k, name@email.com, or +971 50 123 4567"
+              autoComplete="username"
+              required
+              style={{ backgroundColor: '#FAF7F0', color: '#18221D', borderColor: '#E6DEC8' }}
+              className="mt-1 w-full rounded-xl border border-[#E6DEC8] bg-[#FAF7F0] px-3.5 py-2.5 text-sm text-[#18221D] placeholder:text-stone-400 focus:border-[#0F5132] focus:bg-white focus:outline-none"
+            />
+          </label>
+        ) : (
+          <>
+            <label className="block text-xs font-semibold text-[#18221D]">
+              Username or Full Name
+              <input
+                type="text"
+                data-testid="auth-register-name-input"
+                data-auth-name-input
+                value={name}
+                onChange={event => setName(event.target.value)}
+                placeholder="e.g. ahmad_k or Ahmad Khalid"
+                autoComplete="name"
+                required
+                style={{ backgroundColor: '#FAF7F0', color: '#18221D', borderColor: '#E6DEC8' }}
+                className="mt-1 w-full rounded-xl border border-[#E6DEC8] bg-[#FAF7F0] px-3.5 py-2.5 text-sm text-[#18221D] placeholder:text-stone-400 focus:border-[#0F5132] focus:bg-white focus:outline-none"
+              />
+            </label>
+
+            <label className="block text-xs font-semibold text-[#18221D]">
+              Email or Phone Number
+              <input
+                type="text"
+                data-testid="auth-identifier-input"
+                data-auth-email-input
+                value={contact}
+                onChange={event => setContact(event.target.value)}
+                placeholder="name@email.com or +971 50 123 4567"
+                autoComplete="email"
+                required
+                style={{ backgroundColor: '#FAF7F0', color: '#18221D', borderColor: '#E6DEC8' }}
+                className="mt-1 w-full rounded-xl border border-[#E6DEC8] bg-[#FAF7F0] px-3.5 py-2.5 text-sm text-[#18221D] placeholder:text-stone-400 focus:border-[#0F5132] focus:bg-white focus:outline-none"
+              />
+            </label>
+          </>
+        )}
+
+        <label className="block text-xs font-semibold text-[#18221D]">
+          Password
+          <input
+            type="password"
+            data-testid="auth-password-input"
+            data-auth-password-input
+            value={password}
+            onChange={event => setPassword(event.target.value)}
+            placeholder="••••••••"
+            autoComplete={tab === 'register' ? 'new-password' : 'current-password'}
+            required
+            minLength={4}
+            style={{ backgroundColor: '#FAF7F0', color: '#18221D', borderColor: '#E6DEC8' }}
+            className="mt-1 w-full rounded-xl border border-[#E6DEC8] bg-[#FAF7F0] px-3.5 py-2.5 text-sm text-[#18221D] placeholder:text-stone-400 focus:border-[#0F5132] focus:bg-white focus:outline-none"
+          />
+        </label>
+
+        {error && (
+          <p
+            role="alert"
+            data-auth-error
+            className="rounded-xl border border-red-300 bg-red-50 px-3.5 py-2 text-xs font-medium text-red-800"
+          >
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          data-testid="auth-submit-btn"
+          data-auth-submit
+          disabled={busy}
+          style={{ backgroundColor: '#0F5132', color: '#FFFFFF' }}
+          className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0F5132] px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-[#0B3E26] disabled:opacity-50 cursor-pointer"
+        >
+          <LogIn className="h-3.5 w-3.5" aria-hidden />
+          <span>{tab === 'register' ? 'Create Account' : 'Sign In'}</span>
+        </button>
+      </form>
     </div>
   );
 }
 
+export function SeekerAuthModal() {
+  const { user, modalOpen, closeModal } = useSeekerAuth();
+
+  useEffect(() => {
+    if (!modalOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && user) closeModal();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [modalOpen, user, closeModal]);
+
+  // When signed out, PublicHomeOverview renders the clean full-page login directly; only show modal if explicitly opened over About or when signed in editing profile.
+  if (!modalOpen) return null;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Seeker Sign In & Account"
+      data-seeker-auth-modal
+      style={{ backgroundColor: 'rgba(250, 247, 240, 0.88)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#FAF7F0]/90 p-4 backdrop-blur-xs"
+      onClick={() => {
+        if (user) closeModal();
+      }}
+    >
+      <SeekerAuthCard onClose={closeModal} />
+    </div>
+  );
+}

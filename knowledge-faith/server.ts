@@ -598,7 +598,7 @@ app.post(
   }),
 );
 
-const wallLimiter = rateLimiter(Number(process.env.WALL_POSTS_PER_15_MIN ?? 30));
+const wallLimiter = rateLimiter(Number(process.env.WALL_POSTS_PER_15_MIN ?? 120));
 
 app.get(
   '/api/auth/session',
@@ -631,16 +631,23 @@ const handleGoogleOAuthCallback = route(async (req, res) => {
   const state = typeof req.query.state === 'string' ? req.query.state.trim() : '';
   if (oauthError || !code || !state) {
     clearGoogleOAuthNonceCookie(res);
+    clearSeekerCookie(res);
     const reason = encodeURIComponent(oauthError || 'missing_code');
     res.redirect(302, `/?auth_error=${reason}#/quran/wall`);
     return;
   }
   const cookieNonce = readGoogleOAuthNonceCookie(req);
-  const { token, returnTo } = await exchangeGoogleOAuthCode({ code, state, cookieNonce });
-  clearGoogleOAuthNonceCookie(res);
-  setSeekerCookie(res, token);
-  const hash = returnTo.startsWith('#') ? returnTo : `#${returnTo}`;
-  res.redirect(302, `/?dd_seeker_handoff=${encodeURIComponent(token)}${hash}`);
+  try {
+    const { token, returnTo } = await exchangeGoogleOAuthCode({ code, state, cookieNonce });
+    clearGoogleOAuthNonceCookie(res);
+    setSeekerCookie(res, token);
+    const hash = returnTo.startsWith('#') ? returnTo : `#${returnTo}`;
+    res.redirect(302, `/?dd_seeker_handoff=${encodeURIComponent(token)}${hash}`);
+  } catch (err) {
+    clearGoogleOAuthNonceCookie(res);
+    clearSeekerCookie(res);
+    throw err;
+  }
 });
 
 for (const callbackAlias of GOOGLE_CALLBACK_ALIASES) {

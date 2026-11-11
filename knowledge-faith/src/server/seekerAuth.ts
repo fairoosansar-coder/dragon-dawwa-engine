@@ -7,13 +7,15 @@ import { persistRoot } from './persist.ts';
 import { toLang, type Lang } from '../shared/sources.ts';
 
 export type SeekerEmblem = 'rub-el-hizb' | 'crescent-star' | 'octagon-rosette' | 'emerald-lamp';
-export type SeekerAuthProvider = 'email' | 'google' | 'apple' | 'guest';
-export type SeekerAuthMethod = 'google' | 'password' | 'studio';
+export type SeekerAuthProvider = 'email' | 'google' | 'phone' | 'username';
+export type SeekerAuthMethod = 'google' | 'password';
 export type SeekerRole = 'seeker' | 'researcher' | 'scholar' | 'admin';
 
 export interface SeekerProfile {
   id: string;
   email: string;
+  phone?: string | null;
+  username?: string;
   name: string;
   handle?: string;
   kunyah: string;
@@ -66,7 +68,7 @@ interface StoredAccount extends SeekerProfile {
 }
 
 export type WallPostTheme = 'emerald' | 'amethyst' | 'obsidian' | 'sapphire' | 'amber';
-export type WallPostType = 'reflection' | 'podcast';
+export type WallPostType = 'reflection' | 'podcast' | 'good_deed';
 export type WallPostStatus = 'pending' | 'approved' | 'rejected';
 
 export interface StoredWallReply {
@@ -84,10 +86,15 @@ export interface StoredWallReply {
 export interface StoredWallPost {
   id: string;
   userId?: string;
+  authorId?: string;
+  authorEmail?: string;
   type?: WallPostType;
   status?: WallPostStatus;
   isPinned?: boolean;
   isOfficialBroadcast?: boolean;
+  isAnonymous?: boolean;
+  deedCategory?: 'charity' | 'dhikr' | 'kindness';
+  deedTitle?: string;
   surah: number;
   ayah: number;
   surahName: string;
@@ -104,8 +111,10 @@ export interface StoredWallPost {
   hadithNumber?: number;
   hadithGrade?: string;
   authorName: string;
+  authorHandle?: string;
   authorRole: string;
   authorEmblem?: SeekerEmblem;
+  authorAvatar?: string | null;
   authorAvatarUrl?: string | null;
   authorAuthProvider?: SeekerAuthMethod;
   verified?: boolean;
@@ -116,6 +125,28 @@ export interface StoredWallPost {
   url: string;
   createdAt: string;
   updatedAt?: string;
+}
+
+export function sanitizeAnonymousServerWallPost(post: StoredWallPost): StoredWallPost {
+  const isAnon = Boolean(post.isAnonymous || (post as { anonymous?: boolean }).anonymous);
+  if (!isAnon) return post;
+  const cleaned: StoredWallPost = {
+    ...post,
+    isAnonymous: true,
+    userId: undefined,
+    authorId: undefined,
+    authorEmail: undefined,
+    authorName: 'Anonymous Seeker',
+    authorHandle: '@anonymous',
+    authorRole: 'Sincere Sunnah Pledge',
+    authorEmblem: 'emerald-lamp',
+    authorAvatar: undefined,
+    authorAvatarUrl: undefined,
+    authorAuthProvider: undefined,
+    verified: false,
+  };
+  delete (cleaned as unknown as Record<string, unknown>).anonymous;
+  return cleaned;
 }
 
 export type ModerationMode = 'instant' | 'review';
@@ -148,6 +179,8 @@ const EMBLEMS: readonly SeekerEmblem[] = ['rub-el-hizb', 'crescent-star', 'octag
 const VALID_GOOGLE_ISSUERS = new Set(['accounts.google.com', 'https://accounts.google.com']);
 
 const accountsByEmail = new Map<string, StoredAccount>();
+const accountsByPhone = new Map<string, StoredAccount>();
+const accountsByUsername = new Map<string, StoredAccount>();
 const accountsById = new Map<string, StoredAccount>();
 const accountsByGoogleSub = new Map<string, StoredAccount>();
 const revokedTokens = new Set<string>();
@@ -176,15 +209,40 @@ export function sanitizeEmblem(value: unknown): SeekerEmblem {
 }
 
 function sanitizeProvider(value: unknown): SeekerAuthProvider {
-  if (value === 'google' || value === 'apple' || value === 'guest') return value;
+  if (value === 'google' || value === 'phone' || value === 'username') return value;
   return 'email';
 }
 
+function isRejectedBypassProvider(value: unknown): boolean {
+  return value === 'guest' || value === 'quick' || value === 'apple' || value === 'demo';
+}
+
 function sanitizeAuthMethod(value: unknown, provider: SeekerAuthProvider): SeekerAuthMethod {
-  if (value === 'google' || value === 'password' || value === 'studio') return value;
+  if (value === 'google' || value === 'password') return value;
   if (provider === 'google') return 'google';
-  if (provider === 'email') return 'password';
-  return 'studio';
+  return 'password';
+}
+
+export function normalizeEmailIdentifier(raw: unknown): string {
+  if (typeof raw !== 'string') return '';
+  const trimmed = raw.trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? trimmed : '';
+}
+
+export function normalizePhoneIdentifier(raw: unknown): string {
+  if (typeof raw !== 'string') return '';
+  const trimmed = raw.trim();
+  if (!trimmed || /[a-zA-Z@]/.test(trimmed)) return '';
+  const hasPlus = trimmed.startsWith('+');
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length < 7 || digits.length > 15) return '';
+  return hasPlus ? `+${digits}` : digits;
+}
+
+export function normalizeUsernameIdentifier(raw: unknown): string {
+  if (typeof raw !== 'string') return '';
+  const cleaned = raw.trim().replace(/^@+/, '').toLowerCase().replace(/[^a-z0-9._-]/g, '');
+  return cleaned.length >= 2 ? cleaned.slice(0, 40) : '';
 }
 
 export function sanitizeAvatarUrl(value: unknown): string | null {
@@ -244,11 +302,65 @@ function getGoogleClientSecret(): string {
 }
 
 function indexAccount(acc: StoredAccount) {
-  accountsByEmail.set(acc.email.toLowerCase(), acc);
+  if (acc.email) {
+    accountsByEmail.set(acc.email.toLowerCase(), acc);
+  }
+  if (acc.phone) {
+    const normPhone = normalizePhoneIdentifier(acc.phone);
+    if (normPhone) {
+      accountsByPhone.set(normPhone, acc);
+      accountsByPhone.set(normPhone.replace(/^\+/, ''), acc);
+    }
+  }
+  const uname = normalizeUsernameIdentifier(acc.username || acc.handle || acc.name);
+  if (uname) {
+    accountsByUsername.set(uname, acc);
+  }
+  const handleClean = normalizeUsernameIdentifier(acc.handle);
+  if (handleClean) {
+    accountsByUsername.set(handleClean, acc);
+  }
   accountsById.set(acc.id, acc);
   if (acc.googleSub) {
     accountsByGoogleSub.set(acc.googleSub, acc);
   }
+}
+
+function findAccountByIdentifier(rawIdentifier: string): StoredAccount | undefined {
+  const trimmed = rawIdentifier.trim();
+  if (!trimmed) return undefined;
+
+  const email = normalizeEmailIdentifier(trimmed);
+  if (email) {
+    const byEmail = accountsByEmail.get(email);
+    if (byEmail) return byEmail;
+  }
+
+  const phone = normalizePhoneIdentifier(trimmed);
+  if (phone) {
+    const byPhone = accountsByPhone.get(phone) ?? accountsByPhone.get(phone.replace(/^\+/, '')) ?? accountsByPhone.get(`+${phone.replace(/^\+/, '')}`);
+    if (byPhone) return byPhone;
+  }
+
+  const username = normalizeUsernameIdentifier(trimmed);
+  if (username) {
+    const byUser = accountsByUsername.get(username);
+    if (byUser) return byUser;
+  }
+
+  const lower = trimmed.toLowerCase();
+  for (const acc of accountsById.values()) {
+    if (
+      acc.email.toLowerCase() === lower ||
+      (acc.phone && acc.phone === phone) ||
+      (acc.username && acc.username.toLowerCase() === username) ||
+      (acc.handle && acc.handle.replace(/^@/, '').toLowerCase() === username) ||
+      acc.name.toLowerCase() === lower
+    ) {
+      return acc;
+    }
+  }
+  return undefined;
 }
 
 function loadStore() {
@@ -339,11 +451,18 @@ function inferRole(email: string, name: string, explicitRole?: unknown): SeekerR
 }
 
 function toPublicProfile(account: StoredAccount): SeekerProfile {
+  const username =
+    account.username ||
+    (account.handle ? account.handle.replace(/^@/, '') : '') ||
+    account.name.toLowerCase().replace(/[^a-z0-9._-]+/g, '') ||
+    'seeker';
   return {
     id: account.id,
     email: account.email,
+    phone: account.phone ?? null,
+    username,
     name: account.name,
-    handle: account.handle || `@${account.name.toLowerCase().replace(/[^a-z0-9]+/g, '') || 'seeker'}`,
+    handle: account.handle || `@${username.replace(/[^a-z0-9]+/g, '') || 'seeker'}`,
     kunyah: account.kunyah,
     bio: account.bio,
     emblem: account.emblem,
@@ -363,6 +482,8 @@ export function issueSeekerToken(profile: SeekerProfile): string {
     JSON.stringify({
       sub: profile.id,
       email: profile.email,
+      phone: profile.phone ?? null,
+      username: profile.username,
       name: profile.name,
       handle: profile.handle,
       kunyah: profile.kunyah,
@@ -731,7 +852,7 @@ export function upsertGoogleSeekerAccount(claims: VerifiedGoogleClaims): {
   indexAccount(account);
 
   for (const post of wallPosts) {
-    if (post.userId === account.id) {
+    if (!post.isAnonymous && post.userId === account.id) {
       post.authorName = account.name;
       post.authorRole = account.kunyah;
       post.authorEmblem = account.emblem;
@@ -845,62 +966,110 @@ export async function exchangeGoogleOAuthCode(
 }
 
 export function registerSeekerAccount(input: {
+  identifier?: unknown;
   email?: unknown;
+  phone?: unknown;
+  username?: unknown;
   password?: unknown;
   name?: unknown;
   kunyah?: unknown;
   bio?: unknown;
   emblem?: unknown;
   provider?: unknown;
+  mode?: unknown;
   avatarUrl?: unknown;
 }): { token: string; user: SeekerProfile } {
   loadStore();
-  const provider = sanitizeProvider(input.provider);
-  const authProvider = sanitizeAuthMethod(undefined, provider);
-  const rawEmail = typeof input.email === 'string' ? input.email.trim().toLowerCase() : '';
-  const email =
-    rawEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)
-      ? rawEmail
-      : provider !== 'email'
-        ? `${provider}.${Date.now()}@seeker.dragondawwa.com`
-        : '';
-  if (!email) {
-    throw new UpstreamError('Please enter a valid email address.', 400);
+  if (isRejectedBypassProvider(input.provider) || input.mode === 'quick' || input.mode === 'guest') {
+    throw new UpstreamError('Guest and quick sign-in are disabled. Please sign in with your credentials or Google.', 400);
   }
+
+  const rawContact =
+    typeof input.email === 'string' && input.email.trim()
+      ? input.email.trim()
+      : typeof input.phone === 'string' && input.phone.trim()
+        ? input.phone.trim()
+        : typeof input.identifier === 'string' && input.identifier.trim()
+          ? input.identifier.trim()
+          : '';
+
+  const emailFromInput = normalizeEmailIdentifier(input.email) || normalizeEmailIdentifier(rawContact);
+  const phoneFromInput = normalizePhoneIdentifier(input.phone) || normalizePhoneIdentifier(rawContact);
+  const explicitUsername = normalizeUsernameIdentifier(input.username);
+  const nameRaw = typeof input.name === 'string' ? input.name.trim().slice(0, 80) : '';
+  const usernameFromContact = !emailFromInput && !phoneFromInput ? normalizeUsernameIdentifier(rawContact) : '';
+  const username =
+    explicitUsername ||
+    usernameFromContact ||
+    normalizeUsernameIdentifier(nameRaw) ||
+    (emailFromInput ? normalizeUsernameIdentifier(emailFromInput.split('@')[0]) : '') ||
+    (phoneFromInput ? `seeker_${phoneFromInput.replace(/\D/g, '').slice(-6)}` : '');
+
+  if (typeof input.email === 'string' && input.email.trim() && !emailFromInput && !phoneFromInput && !usernameFromContact) {
+    throw new UpstreamError('Please enter a valid email address, phone number, or username.', 400);
+  }
+  if (!emailFromInput && !phoneFromInput && !username) {
+    throw new UpstreamError('Please enter a valid email address, phone number, or username.', 400);
+  }
+
   const password = typeof input.password === 'string' ? input.password : '';
-  if (provider === 'email' && password.length < 4) {
+  if (password.length < 4) {
     throw new UpstreamError('Password must be at least 4 characters.', 400);
   }
-  const existing = accountsByEmail.get(email);
-  if (existing && provider === 'email') {
+
+  if (emailFromInput && accountsByEmail.has(emailFromInput)) {
     throw new UpstreamError('An account with this email already exists. Please sign in.', 409);
   }
-  const nameRaw = typeof input.name === 'string' ? input.name.trim().slice(0, 80) : '';
-  const defaultName = email.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-  const name = nameRaw || existing?.name || defaultName || 'Community Seeker';
+  if (phoneFromInput && (accountsByPhone.has(phoneFromInput) || accountsByPhone.has(phoneFromInput.replace(/^\+/, '')))) {
+    throw new UpstreamError('An account with this phone number already exists. Please sign in.', 409);
+  }
+  if (explicitUsername && accountsByUsername.has(explicitUsername)) {
+    throw new UpstreamError('An account with this username already exists. Please sign in.', 409);
+  }
+
+  const provider: SeekerAuthProvider = phoneFromInput && !emailFromInput
+    ? 'phone'
+    : !emailFromInput && username
+      ? 'username'
+      : 'email';
+  const email =
+    emailFromInput ||
+    (phoneFromInput
+      ? `${phoneFromInput.replace(/\D/g, '')}@phone.dragondawwa.com`
+      : `${username}@user.dragondawwa.com`);
+  const defaultName = emailFromInput
+    ? emailFromInput.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    : username
+      ? username.replace(/[._-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+      : 'Community Seeker';
+  const name = nameRaw || defaultName || 'Community Seeker';
+  const finalUsername = username || normalizeUsernameIdentifier(name) || 'seeker';
+  const handle = `@${finalUsername.replace(/[^a-z0-9]+/g, '') || 'seeker'}`;
   const kunyah =
     (typeof input.kunyah === 'string' ? input.kunyah.trim().slice(0, 80) : '') ||
-    existing?.kunyah ||
-    (provider === 'google' ? 'Verified Google Seeker' : 'Seeker of Knowledge');
-  const bio = (typeof input.bio === 'string' ? input.bio.trim().slice(0, 280) : '') || existing?.bio || '';
-  const emblem = sanitizeEmblem(input.emblem ?? existing?.emblem);
-  const avatarUrl = sanitizeAvatarUrl(input.avatarUrl) ?? existing?.avatarUrl ?? null;
-  const salt = existing?.salt ?? crypto.randomBytes(16).toString('hex');
-  const passwordHash = password ? hashPassword(password, salt) : existing?.passwordHash ?? hashPassword(crypto.randomUUID(), salt);
+    'Seeker of Knowledge';
+  const bio = typeof input.bio === 'string' ? input.bio.trim().slice(0, 280) : '';
+  const emblem = sanitizeEmblem(input.emblem);
+  const avatarUrl = sanitizeAvatarUrl(input.avatarUrl);
+  const salt = crypto.randomBytes(16).toString('hex');
+  const passwordHash = hashPassword(password, salt);
 
   const account: StoredAccount = {
-    id: existing?.id ?? `seeker-${crypto.randomBytes(6).toString('hex')}`,
+    id: `seeker-${crypto.randomBytes(6).toString('hex')}`,
     email,
+    phone: phoneFromInput || null,
+    username: finalUsername,
     name,
+    handle,
     kunyah,
     bio,
     emblem,
     provider,
-    authProvider: existing?.authProvider ?? authProvider,
-    googleSub: existing?.googleSub ?? null,
+    authProvider: 'password',
+    googleSub: null,
     avatarUrl,
     verified: true,
-    createdAt: existing?.createdAt ?? new Date().toISOString(),
+    createdAt: new Date().toISOString(),
     salt,
     passwordHash,
   };
@@ -913,30 +1082,51 @@ export function registerSeekerAccount(input: {
 }
 
 export function loginSeekerAccount(input: {
+  identifier?: unknown;
   email?: unknown;
+  phone?: unknown;
+  username?: unknown;
   password?: unknown;
   name?: unknown;
   kunyah?: unknown;
   emblem?: unknown;
   provider?: unknown;
+  mode?: unknown;
   avatarUrl?: unknown;
 }): { token: string; user: SeekerProfile } {
   loadStore();
-  const provider = sanitizeProvider(input.provider);
-  if (provider !== 'email') {
-    return registerSeekerAccount(input);
+  if (isRejectedBypassProvider(input.provider) || input.mode === 'quick' || input.mode === 'guest') {
+    throw new UpstreamError('Guest and quick sign-in are disabled. Please sign in with your credentials or Google.', 400);
   }
-  const email = typeof input.email === 'string' ? input.email.trim().toLowerCase() : '';
+  const rawIdentifier =
+    typeof input.identifier === 'string' && input.identifier.trim()
+      ? input.identifier.trim()
+      : typeof input.email === 'string' && input.email.trim()
+        ? input.email.trim()
+        : typeof input.phone === 'string' && input.phone.trim()
+          ? input.phone.trim()
+          : typeof input.username === 'string' && input.username.trim()
+            ? input.username.trim()
+            : '';
+
+  if (!rawIdentifier) {
+    throw new UpstreamError('Please enter your username, email, or phone number.', 400);
+  }
+  const isEmail = Boolean(normalizeEmailIdentifier(rawIdentifier));
+  const isPhone = Boolean(normalizePhoneIdentifier(rawIdentifier));
+  const isUsername = Boolean(normalizeUsernameIdentifier(rawIdentifier));
+  if (!isEmail && !isPhone && !isUsername) {
+    throw new UpstreamError('Please enter a valid username, email address, or phone number.', 400);
+  }
+
   const password = typeof input.password === 'string' ? input.password : '';
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    throw new UpstreamError('Please enter a valid email address.', 400);
-  }
   if (password.length < 4) {
     throw new UpstreamError('Please enter your password (at least 4 characters).', 400);
   }
-  const existing = accountsByEmail.get(email);
+
+  const existing = findAccountByIdentifier(rawIdentifier);
   if (!existing) {
-    return registerSeekerAccount(input);
+    throw new UpstreamError('No Seeker account found for that username, email, or phone number. Please create an account first.', 401);
   }
   const computed = hashPassword(password, existing.salt);
   if (computed !== existing.passwordHash) {
@@ -1006,7 +1196,7 @@ export function updateSeekerAccountProfile(
   indexAccount(updated);
 
   for (const post of wallPosts) {
-    if (post.userId === updated.id) {
+    if (!post.isAnonymous && post.userId === updated.id) {
       post.authorName = updated.name;
       post.authorRole = updated.kunyah;
       post.authorEmblem = updated.emblem;
@@ -1027,10 +1217,12 @@ export function revokeSeekerToken(token: string | null) {
 
 export function listServerWallPosts(): StoredWallPost[] {
   loadStore();
-  return [...wallPosts].sort((a, b) => {
-    if (Boolean(b.isPinned) !== Boolean(a.isPinned)) return b.isPinned ? 1 : -1;
-    return b.createdAt.localeCompare(a.createdAt);
-  });
+  return [...wallPosts]
+    .map(p => (p.isAnonymous ? sanitizeAnonymousServerWallPost(p) : p))
+    .sort((a, b) => {
+      if (Boolean(b.isPinned) !== Boolean(a.isPinned)) return b.isPinned ? 1 : -1;
+      return b.createdAt.localeCompare(a.createdAt);
+    });
 }
 
 function sanitizeTheme(value: unknown): WallPostTheme {
@@ -1054,7 +1246,8 @@ export function createServerWallPost(
   seeker: SeekerProfile | null,
 ): StoredWallPost {
   loadStore();
-  const postType: WallPostType = body.type === 'podcast' ? 'podcast' : 'reflection';
+  const postType: WallPostType =
+    body.type === 'podcast' ? 'podcast' : body.type === 'good_deed' ? 'good_deed' : 'reflection';
   const surah = Number(body.surah ?? 0);
   const ayah = Number(body.ayah ?? 0);
   const podcastId = typeof body.podcastId === 'string' ? body.podcastId.trim().slice(0, 120) : '';
@@ -1075,6 +1268,7 @@ export function createServerWallPost(
   }
 
   const isOfficialBroadcast = Boolean(body.isOfficialBroadcast);
+  const isAnon = Boolean(body.isAnonymous || body.anonymous);
   const isPinned = Boolean(body.isPinned || isOfficialBroadcast);
   const defaultStatus: WallPostStatus =
     isOfficialBroadcast || body.status === 'approved'
@@ -1088,15 +1282,31 @@ export function createServerWallPost(
       ? body.id
       : postType === 'podcast'
         ? `wall-pod-${Date.now()}`
-        : `wall-${surah || 1}-${ayah || 1}-${Date.now()}`;
+        : postType === 'good_deed'
+          ? `wall-deed-${Date.now()}`
+          : `wall-${surah || 1}-${ayah || 1}-${Date.now()}`;
 
-  const post: StoredWallPost = {
+  const resolvedAuthorName = isAnon
+    ? 'Anonymous Seeker'
+    : isOfficialBroadcast
+      ? String(body.authorName || 'Dragon Dawwa Editorial Board').slice(0, 80)
+      : seeker?.name ?? (String(body.authorName ?? '').trim().slice(0, 80) || 'Community Seeker');
+
+  const rawPost: StoredWallPost = {
     id,
-    userId: seeker?.id ?? (typeof body.userId === 'string' ? body.userId.slice(0, 80) : undefined),
+    userId: isAnon
+      ? undefined
+      : seeker?.id ?? (typeof body.userId === 'string' ? body.userId.slice(0, 80) : undefined),
     type: postType,
     status: defaultStatus,
     isPinned,
     isOfficialBroadcast,
+    isAnonymous: isAnon,
+    deedCategory:
+      body.deedCategory === 'charity' || body.deedCategory === 'dhikr' || body.deedCategory === 'kindness'
+        ? body.deedCategory
+        : undefined,
+    deedTitle: typeof body.deedTitle === 'string' ? body.deedTitle.slice(0, 200) : undefined,
     surah: Number.isInteger(surah) && surah >= 1 ? surah : 1,
     ayah: Number.isInteger(ayah) && ayah >= 1 ? ayah : 1,
     surahName: String(body.surahName ?? (postType === 'podcast' ? 'Research Podcast' : '')).slice(0, 120),
@@ -1114,18 +1324,22 @@ export function createServerWallPost(
     hadithCollection: hadithCollection || undefined,
     hadithNumber: Number.isInteger(hadithNumber) && hadithNumber > 0 ? hadithNumber : undefined,
     hadithGrade: typeof body.hadithGrade === 'string' ? body.hadithGrade.slice(0, 80) : undefined,
-    authorName:
-      isOfficialBroadcast
-        ? String(body.authorName || 'Dragon Dawwa Editorial Board').slice(0, 80)
-        : seeker?.name ?? (String(body.authorName ?? '').trim().slice(0, 80) || 'Community Seeker'),
-    authorRole:
-      isOfficialBroadcast
+    authorName: resolvedAuthorName,
+    authorHandle: isAnon
+      ? '@anonymous'
+      : `@${resolvedAuthorName.toLowerCase().replace(/[^a-z0-9]+/g, '') || 'seeker'}`,
+    authorRole: isAnon
+      ? 'Sincere Sunnah Pledge'
+      : isOfficialBroadcast
         ? '✦ Official Institutional Broadcast'
         : seeker?.kunyah ?? (String(body.authorRole ?? '').trim().slice(0, 80) || 'Faith Wall Contributor'),
-    authorEmblem: seeker?.emblem ?? sanitizeEmblem(body.authorEmblem),
-    authorAvatarUrl: seeker?.avatarUrl ?? sanitizeAvatarUrl(body.authorAvatarUrl),
-    authorAuthProvider: seeker?.authProvider ?? (body.authorAuthProvider === 'google' ? 'google' : undefined),
-    verified: Boolean(seeker || isOfficialBroadcast),
+    authorEmblem: isAnon ? 'emerald-lamp' : seeker?.emblem ?? sanitizeEmblem(body.authorEmblem),
+    authorAvatar: undefined,
+    authorAvatarUrl: isAnon ? undefined : seeker?.avatarUrl ?? sanitizeAvatarUrl(body.authorAvatarUrl),
+    authorAuthProvider: isAnon
+      ? undefined
+      : seeker?.authProvider ?? (body.authorAuthProvider === 'google' ? 'google' : undefined),
+    verified: isAnon ? false : Boolean(seeker || isOfficialBroadcast),
     likes: typeof body.likes === 'number' && body.likes >= 0 ? Math.min(body.likes, 10000) : 1,
     reactions: { amin: 1 },
     replies: [],
@@ -1133,6 +1347,7 @@ export function createServerWallPost(
     url: String(body.url ?? '').slice(0, 400),
     createdAt: new Date().toISOString(),
   };
+  const post = isAnon ? sanitizeAnonymousServerWallPost(rawPost) : rawPost;
   const existingIdx = wallPosts.findIndex(item => item.id === post.id);
   if (existingIdx !== -1) wallPosts.splice(existingIdx, 1);
   wallPosts.unshift(post);
@@ -1264,7 +1479,7 @@ export function getServerUserProfile(idOrHandle: string): {
   if (!found) return null;
   const profile = toPublicProfile(found);
   const posts = wallPosts.filter(
-    p => (p.userId === profile.id || p.authorName === profile.name) && p.status !== 'rejected',
+    p => !p.isAnonymous && (p.userId === profile.id || p.authorName === profile.name) && p.status !== 'rejected',
   );
   return { profile, posts };
 }
@@ -1286,15 +1501,23 @@ export function updateServerWallPost(
   if (theme !== undefined) {
     post.theme = sanitizeTheme(theme);
   }
-  post.authorName = seeker.name;
-  post.authorRole = seeker.kunyah;
-  post.authorEmblem = seeker.emblem;
-  post.authorAvatarUrl = seeker.avatarUrl;
-  post.authorAuthProvider = seeker.authProvider;
-  post.verified = true;
-  post.updatedAt = new Date().toISOString();
+  if (post.isAnonymous) {
+    const sanitized = sanitizeAnonymousServerWallPost({
+      ...post,
+      updatedAt: new Date().toISOString(),
+    });
+    Object.assign(post, sanitized);
+  } else {
+    post.authorName = seeker.name;
+    post.authorRole = seeker.kunyah;
+    post.authorEmblem = seeker.emblem;
+    post.authorAvatarUrl = seeker.avatarUrl;
+    post.authorAuthProvider = seeker.authProvider;
+    post.verified = true;
+    post.updatedAt = new Date().toISOString();
+  }
   saveStore();
-  return post;
+  return post.isAnonymous ? sanitizeAnonymousServerWallPost(post) : post;
 }
 
 export function reactToServerWallPost(
@@ -1357,6 +1580,8 @@ export function deleteServerWallPost(postId: string, seeker: SeekerProfile | nul
 
 export function resetSeekerStoreForTests() {
   accountsByEmail.clear();
+  accountsByPhone.clear();
+  accountsByUsername.clear();
   accountsById.clear();
   accountsByGoogleSub.clear();
   revokedTokens.clear();
