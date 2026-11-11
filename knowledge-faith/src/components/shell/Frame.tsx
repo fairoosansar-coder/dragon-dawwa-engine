@@ -197,6 +197,34 @@ export function AppFrame({
     }
   };
 
+  // When unauthenticated on the login screen, render a clean minimal warm ivory layout without sidebar or bottom dock clutter
+  if (!isAuthenticated && path !== 'about') {
+    return (
+      <div
+        style={{ backgroundColor: '#FAF7F0', color: '#18221D' }}
+        className="flex min-h-dvh w-full flex-col bg-[#FAF7F0] text-[#18221D]"
+      >
+        <header
+          style={{ backgroundColor: '#FAF7F0', borderColor: '#E6DEC8' }}
+          className="flex h-12 shrink-0 items-center justify-between border-b border-[#E6DEC8] px-4 sm:px-6"
+        >
+          <span className="font-display text-sm font-bold tracking-tight text-[#0F5132]">
+            DRAGON DAWWA
+          </span>
+          <a
+            href="#/about"
+            className="text-xs font-medium text-stone-600 transition hover:text-[#0F5132]"
+          >
+            About
+          </a>
+        </header>
+        <main id="main" className="flex flex-1 items-center justify-center px-4 py-6">
+          {children}
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-dvh overflow-hidden bg-sand text-ink">
       <a

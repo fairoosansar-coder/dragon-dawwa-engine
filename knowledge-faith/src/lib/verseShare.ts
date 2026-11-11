@@ -302,6 +302,8 @@ export type GoodDeedCategory = 'charity' | 'dhikr' | 'kindness';
 export interface FaithWallPost {
   id: string;
   userId?: string;
+  authorId?: string;
+  authorEmail?: string;
   type?: WallPostType;
   status?: WallPostStatus;
   isPinned?: boolean;
@@ -333,6 +335,7 @@ export interface FaithWallPost {
   authorHandle?: string;
   authorRole?: string;
   authorEmblem?: SeekerEmblem;
+  authorAvatar?: string | null;
   authorAvatarUrl?: string | null;
   authorAuthProvider?: SeekerAuthMethod;
   verified?: boolean;
@@ -344,6 +347,28 @@ export interface FaithWallPost {
   saved?: boolean;
   createdAt: string;
   updatedAt?: string;
+}
+
+export function sanitizeAnonymousFaithWallPost(post: FaithWallPost): FaithWallPost {
+  const isAnon = Boolean(post.isAnonymous || (post as { anonymous?: boolean }).anonymous);
+  if (!isAnon) return post;
+  const cleaned: FaithWallPost = {
+    ...post,
+    isAnonymous: true,
+    userId: undefined,
+    authorId: undefined,
+    authorEmail: undefined,
+    authorName: 'Anonymous Seeker',
+    authorHandle: '@anonymous',
+    authorRole: 'Sincere Sunnah Pledge',
+    authorEmblem: 'emerald-lamp',
+    authorAvatar: undefined,
+    authorAvatarUrl: undefined,
+    authorAuthProvider: undefined,
+    verified: false,
+  };
+  delete (cleaned as unknown as Record<string, unknown>).anonymous;
+  return cleaned;
 }
 
 export interface CompletedPodcastOption {
@@ -473,7 +498,7 @@ export const SEEDED_FAITH_WALL_POSTS: FaithWallPost[] = [
     authorHandle: '@anonymous',
     authorRole: 'Sincere Sunnah Pledge',
     authorEmblem: 'emerald-lamp',
-    verified: true,
+    verified: false,
     likes: 19,
     reactions: {
       amin: 19,
@@ -1171,14 +1196,14 @@ export function listAllFaithWallPosts(includeAllStatuses = false): FaithWallPost
 
     const baseLikes = typeof post.likes === 'number' ? post.likes : 1;
     const baseJoined = typeof post.joinedCount === 'number' ? post.joinedCount : post.type === 'good_deed' ? 12 : 8;
-    const isCurrentUser = Boolean(session?.user && post.userId && post.userId === session.user.id);
+    const isAnon = Boolean(post.isAnonymous || (post as { anonymous?: boolean }).anonymous);
+    const isCurrentUser = !isAnon && Boolean(session?.user && post.userId && post.userId === session.user.id);
     const extraReplies = repliesMap[post.id] ?? [];
     const existingReplyIds = new Set((post.replies ?? []).map(r => r.id));
     const mergedReplies = [...(post.replies ?? []), ...extraReplies.filter(r => !existingReplyIds.has(r.id))];
     const modOverride = modMap[post.id];
     const effectiveStatus: WallPostStatus = modOverride?.status ?? post.status ?? 'approved';
     const effectivePinned = modOverride?.isPinned !== undefined ? modOverride.isPinned : Boolean(post.isPinned);
-    const isAnon = Boolean(post.isAnonymous);
     const authorName = isAnon
       ? 'Anonymous Seeker'
       : post.isOfficialBroadcast
@@ -1187,8 +1212,11 @@ export function listAllFaithWallPosts(includeAllStatuses = false): FaithWallPost
           ? session!.user.name
           : post.authorName || 'Community Seeker';
 
-    return {
+    const item: FaithWallPost = {
       ...post,
+      userId: isAnon ? undefined : post.userId,
+      authorId: undefined,
+      authorEmail: undefined,
       type: post.type ?? 'reflection',
       status: effectiveStatus,
       isPinned: effectivePinned,
@@ -1208,12 +1236,27 @@ export function listAllFaithWallPosts(includeAllStatuses = false): FaithWallPost
           : isCurrentUser
             ? session!.user.kunyah
             : post.authorRole || 'Faith Wall Contributor',
-      authorEmblem: isCurrentUser ? session!.user.emblem : sanitizeSeekerEmblem(post.authorEmblem),
-      authorAvatarUrl: isCurrentUser ? session!.user.avatarUrl ?? post.authorAvatarUrl ?? null : post.authorAvatarUrl ?? null,
-      authorAuthProvider: isCurrentUser
-        ? session!.user.authProvider ?? (session!.user.provider === 'google' ? 'google' : 'password')
-        : post.authorAuthProvider,
-      verified: isCurrentUser ? true : Boolean(post.verified || post.isOfficialBroadcast || post.id.startsWith('seed-wall-')),
+      authorEmblem: isAnon
+        ? 'emerald-lamp'
+        : isCurrentUser
+          ? session!.user.emblem
+          : sanitizeSeekerEmblem(post.authorEmblem),
+      authorAvatar: undefined,
+      authorAvatarUrl: isAnon
+        ? undefined
+        : isCurrentUser
+          ? session!.user.avatarUrl ?? post.authorAvatarUrl ?? null
+          : post.authorAvatarUrl ?? null,
+      authorAuthProvider: isAnon
+        ? undefined
+        : isCurrentUser
+          ? session!.user.authProvider ?? (session!.user.provider === 'google' ? 'google' : 'password')
+          : post.authorAuthProvider,
+      verified: isAnon
+        ? false
+        : isCurrentUser
+          ? true
+          : Boolean(post.verified || post.isOfficialBroadcast || post.id.startsWith('seed-wall-')),
       liked: isLiked || userReacted.has('amin'),
       likes: baseLikes + (userReacted.size > 0 && !post.liked ? userReacted.size : isLiked && !post.liked ? 1 : 0),
       reactions: baseReactions,
@@ -1221,6 +1264,7 @@ export function listAllFaithWallPosts(includeAllStatuses = false): FaithWallPost
       replies: mergedReplies,
       saved: savedSet.has(post.id),
     };
+    return isAnon ? sanitizeAnonymousFaithWallPost(item) : item;
   });
 
   const filtered = includeAllStatuses
@@ -1398,6 +1442,7 @@ export async function publishFaithWallPost(input: {
   isPinned?: boolean;
   isOfficialBroadcast?: boolean;
   isAnonymous?: boolean;
+  anonymous?: boolean;
   deedCategory?: GoodDeedCategory;
   deedTitle?: string;
   podcastId?: string;
@@ -1428,7 +1473,7 @@ export async function publishFaithWallPost(input: {
   }
   const settings = readAdminSettings();
   const isOfficial = Boolean(input.isOfficialBroadcast);
-  const isAnon = Boolean(input.isAnonymous);
+  const isAnon = Boolean(input.isAnonymous || input.anonymous);
   const status: WallPostStatus =
     isOfficial || input.status === 'approved'
       ? 'approved'
@@ -1441,7 +1486,7 @@ export async function publishFaithWallPost(input: {
       ? input.authorName || 'Dragon Dawwa Editorial Board'
       : seeker?.name || (input.authorName ?? '').trim() || 'Community Seeker';
 
-  const post: FaithWallPost = {
+  const rawPost: FaithWallPost = {
     id:
       postType === 'podcast'
         ? `wall-pod-${Date.now()}`
@@ -1485,10 +1530,13 @@ export async function publishFaithWallPost(input: {
       : isOfficial
         ? '✦ Official Institutional Broadcast'
         : seeker?.kunyah || (input.authorRole ?? '').trim() || 'Faith Wall Contributor',
-    authorEmblem: seeker?.emblem ?? 'rub-el-hizb',
-    authorAvatarUrl: seeker?.avatarUrl ?? null,
-    authorAuthProvider: seeker?.authProvider ?? (seeker?.provider === 'google' ? 'google' : undefined),
-    verified: Boolean(seeker || isOfficial),
+    authorEmblem: isAnon ? 'emerald-lamp' : seeker?.emblem ?? 'rub-el-hizb',
+    authorAvatar: undefined,
+    authorAvatarUrl: isAnon ? undefined : seeker?.avatarUrl ?? null,
+    authorAuthProvider: isAnon
+      ? undefined
+      : seeker?.authProvider ?? (seeker?.provider === 'google' ? 'google' : undefined),
+    verified: isAnon ? false : Boolean(seeker || isOfficial),
     likes: 1,
     liked: false,
     reactions: { amin: 1 },
@@ -1496,6 +1544,7 @@ export async function publishFaithWallPost(input: {
     replies: [],
     createdAt: new Date().toISOString(),
   };
+  const post = isAnon ? sanitizeAnonymousFaithWallPost(rawPost) : rawPost;
 
   const existingUserPosts = readStoredWallPosts();
   const next = [post, ...existingUserPosts.filter(item => item.id !== post.id)].slice(0, 50);
@@ -1515,6 +1564,9 @@ export async function publishFaithWallPost(input: {
           status: post.status,
           isPinned: post.isPinned,
           isOfficialBroadcast: post.isOfficialBroadcast,
+          isAnonymous: post.isAnonymous,
+          deedCategory: post.deedCategory,
+          deedTitle: post.deedTitle,
           surah: post.surah,
           ayah: post.ayah,
           surahName: post.surahName,
@@ -1531,6 +1583,7 @@ export async function publishFaithWallPost(input: {
           hadithNumber: post.hadithNumber,
           hadithGrade: post.hadithGrade,
           authorName: post.authorName,
+          authorHandle: post.authorHandle,
           authorRole: post.authorRole,
           authorEmblem: post.authorEmblem,
           authorAvatarUrl: post.authorAvatarUrl,
@@ -1687,9 +1740,10 @@ export function resolveUserProfilePortfolio(targetIdOrHandle?: string | null): U
     const handle = currentUser.handle || `@${currentUser.name.toLowerCase().replace(/[^a-z0-9]+/g, '') || 'seeker'}`;
     const userPosts = allPosts.filter(
       p =>
-        p.userId === currentUser.id ||
-        p.authorName?.toLowerCase() === currentUser.name.toLowerCase() ||
-        (p.authorHandle ?? '').toLowerCase() === handle.toLowerCase(),
+        !p.isAnonymous &&
+        (p.userId === currentUser.id ||
+          p.authorName?.toLowerCase() === currentUser.name.toLowerCase() ||
+          (p.authorHandle ?? '').toLowerCase() === handle.toLowerCase()),
     );
     const approvedPosts = userPosts.filter(p => p.status === 'approved');
     const pendingPosts = userPosts.filter(p => p.status === 'pending');
@@ -1718,6 +1772,7 @@ export function resolveUserProfilePortfolio(targetIdOrHandle?: string | null): U
 
   // Resolve another community author from posts
   const matchingPosts = allPosts.filter(p => {
+    if (p.isAnonymous) return false;
     const handleClean = (p.authorHandle ?? '').replace(/^@/, '').toLowerCase();
     const nameClean = (p.authorName ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
     const targetAlnum = cleanTarget.replace(/[^a-z0-9]+/g, '');
@@ -1729,7 +1784,7 @@ export function resolveUserProfilePortfolio(targetIdOrHandle?: string | null): U
     );
   });
 
-  const sample = matchingPosts[0] ?? SEEDED_FAITH_WALL_POSTS[0];
+  const sample = matchingPosts[0] ?? SEEDED_FAITH_WALL_POSTS.find(p => !p.isAnonymous) ?? SEEDED_FAITH_WALL_POSTS[0];
   const approvedPosts = matchingPosts.filter(p => p.status === 'approved');
   const authorName = sample.authorName || 'Dr. Layla al-Qasimi';
   const handle = sample.authorHandle || `@${authorName.toLowerCase().replace(/[^a-z0-9]+/g, '')}`;
@@ -1766,18 +1821,26 @@ export async function updateFaithWallPost(
   if (target.userId && session?.user && target.userId !== session.user.id) {
     return null;
   }
-  const updated: FaithWallPost = {
-    ...target,
-    reflection: reflection.trim().slice(0, 600),
-    theme: theme ? sanitizeWallTheme(theme) : sanitizeWallTheme(target.theme),
-    authorName: session?.user.name || target.authorName,
-    authorRole: session?.user.kunyah || target.authorRole,
-    authorEmblem: session?.user.emblem || target.authorEmblem,
-    authorAvatarUrl: session?.user.avatarUrl ?? target.authorAvatarUrl ?? null,
-    authorAuthProvider: session?.user.authProvider ?? target.authorAuthProvider,
-    verified: Boolean(session?.user || target.verified),
-    updatedAt: new Date().toISOString(),
-  };
+  const isAnon = Boolean(target.isAnonymous);
+  const updated: FaithWallPost = isAnon
+    ? sanitizeAnonymousFaithWallPost({
+        ...target,
+        reflection: reflection.trim().slice(0, 600),
+        theme: theme ? sanitizeWallTheme(theme) : sanitizeWallTheme(target.theme),
+        updatedAt: new Date().toISOString(),
+      })
+    : {
+        ...target,
+        reflection: reflection.trim().slice(0, 600),
+        theme: theme ? sanitizeWallTheme(theme) : sanitizeWallTheme(target.theme),
+        authorName: session?.user.name || target.authorName,
+        authorRole: session?.user.kunyah || target.authorRole,
+        authorEmblem: session?.user.emblem || target.authorEmblem,
+        authorAvatarUrl: session?.user.avatarUrl ?? target.authorAvatarUrl ?? null,
+        authorAuthProvider: session?.user.authProvider ?? target.authorAuthProvider,
+        verified: Boolean(session?.user || target.verified),
+        updatedAt: new Date().toISOString(),
+      };
   const next = [...existingUserPosts];
   next[idx] = updated;
   persistUserPosts(next);

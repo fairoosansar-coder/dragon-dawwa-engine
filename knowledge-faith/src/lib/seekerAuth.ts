@@ -2,13 +2,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { resolveHashPath, ROUTE_ROOTS, type RouteRoot } from './route.ts';
 
 export type SeekerEmblem = 'rub-el-hizb' | 'crescent-star' | 'octagon-rosette' | 'emerald-lamp';
-export type SeekerAuthProvider = 'email' | 'google' | 'apple' | 'guest';
-export type SeekerAuthMethod = 'google' | 'password' | 'studio';
+export type SeekerAuthProvider = 'email' | 'google' | 'phone' | 'username';
+export type SeekerAuthMethod = 'google' | 'password';
 export type SeekerRole = 'seeker' | 'researcher' | 'scholar' | 'admin';
 
 export interface SeekerUser {
   id: string;
   email: string;
+  phone?: string | null;
+  username?: string;
   name: string;
   handle?: string;
   kunyah: string;
@@ -169,8 +171,10 @@ export function sanitizeSeekerEmblem(value: unknown): SeekerEmblem {
 }
 
 function decodeTokenUserFallback(token: string): SeekerUser | null {
-  const parts = token.trim().split('.');
-  if (parts.length < 2) return null;
+  const trimmed = token.trim();
+  if (!trimmed || trimmed.startsWith('local-token-')) return null;
+  const parts = trimmed.split('.');
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
   try {
     const base64 = parts[0].replace(/-/g, '+').replace(/_/g, '/');
     const json = typeof atob === 'function' ? atob(base64) : Buffer.from(parts[0], 'base64url').toString('utf8');
@@ -179,20 +183,20 @@ function decodeTokenUserFallback(token: string): SeekerUser | null {
     const email = typeof decoded.email === 'string' ? decoded.email : '';
     if (!id || !email) return null;
     const provider: SeekerAuthProvider =
-      decoded.provider === 'google' || decoded.provider === 'apple' || decoded.provider === 'guest'
+      decoded.provider === 'google' || decoded.provider === 'phone' || decoded.provider === 'username'
         ? decoded.provider
         : 'email';
     const authProvider: SeekerAuthMethod =
-      decoded.authProvider === 'google' || decoded.authProvider === 'password' || decoded.authProvider === 'studio'
+      decoded.authProvider === 'google' || decoded.authProvider === 'password'
         ? decoded.authProvider
         : provider === 'google'
           ? 'google'
-          : provider === 'email'
-            ? 'password'
-            : 'studio';
+          : 'password';
     return {
       id,
       email,
+      phone: typeof decoded.phone === 'string' ? decoded.phone : null,
+      username: typeof decoded.username === 'string' ? decoded.username : undefined,
       name: typeof decoded.name === 'string' && decoded.name ? decoded.name : 'Community Seeker',
       kunyah: typeof decoded.kunyah === 'string' && decoded.kunyah ? decoded.kunyah : 'Seeker of Knowledge',
       bio: typeof decoded.bio === 'string' ? decoded.bio : '',
@@ -213,6 +217,11 @@ export function consumeOAuthHandoffFromLocation(): SeekerSession | null {
   if (typeof window === 'undefined') return null;
   try {
     const url = new URL(window.location.href);
+    const authError = url.searchParams.get('auth_error');
+    if (authError) {
+      writeSeekerSession(null);
+      return null;
+    }
     const handoffToken = url.searchParams.get('dd_seeker_handoff');
     if (!handoffToken) return null;
     const user = decodeTokenUserFallback(handoffToken);
@@ -224,6 +233,7 @@ export function consumeOAuthHandoffFromLocation(): SeekerSession | null {
       writeSeekerSession(session);
       return session;
     }
+    writeSeekerSession(null);
   } catch {
     /* ignore */
   }
@@ -238,16 +248,32 @@ export function readSeekerSession(): SeekerSession | null {
       const raw = window.localStorage.getItem(SESSION_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<SeekerSession>;
-        if (parsed && typeof parsed.token === 'string' && parsed.user && typeof parsed.user.id === 'string') {
-          const provider: SeekerAuthProvider = parsed.user.provider || 'email';
+        if (
+          parsed &&
+          typeof parsed.token === 'string' &&
+          parsed.token.trim() &&
+          !parsed.token.startsWith('local-token-') &&
+          parsed.user &&
+          typeof parsed.user.id === 'string' &&
+          parsed.user.id.trim()
+        ) {
+          const provider: SeekerAuthProvider =
+            parsed.user.provider === 'google' || parsed.user.provider === 'phone' || parsed.user.provider === 'username'
+              ? parsed.user.provider
+              : 'email';
           const authProvider: SeekerAuthMethod =
-            parsed.user.authProvider ||
-            (provider === 'google' ? 'google' : provider === 'email' ? 'password' : 'studio');
+            parsed.user.authProvider === 'google' || parsed.user.authProvider === 'password'
+              ? parsed.user.authProvider
+              : provider === 'google'
+                ? 'google'
+                : 'password';
           return {
             token: parsed.token,
             user: {
               id: parsed.user.id,
               email: parsed.user.email || '',
+              phone: parsed.user.phone ?? null,
+              username: parsed.user.username,
               name: parsed.user.name || 'Community Seeker',
               handle: parsed.user.handle,
               kunyah: parsed.user.kunyah || 'Seeker of Knowledge',
@@ -264,18 +290,28 @@ export function readSeekerSession(): SeekerSession | null {
             },
           };
         }
+        window.localStorage.removeItem(SESSION_STORAGE_KEY);
+        window.localStorage.removeItem(SESSION_TOKEN_KEY);
       }
       const tokenOnly = window.localStorage.getItem(SESSION_TOKEN_KEY);
       if (tokenOnly) {
-        const decoded = decodeTokenUserFallback(tokenOnly);
-        if (decoded) return { token: tokenOnly, user: decoded };
+        if (!tokenOnly.startsWith('local-token-')) {
+          const decoded = decodeTokenUserFallback(tokenOnly);
+          if (decoded) return { token: tokenOnly, user: decoded };
+        }
+        window.localStorage.removeItem(SESSION_TOKEN_KEY);
       }
     } catch {
       /* ignore */
     }
   }
+  if (memorySession?.token?.startsWith('local-token-')) {
+    memorySession = null;
+  }
   return memorySession;
 }
+
+export const getSession = readSeekerSession;
 
 export function writeSeekerSession(session: SeekerSession | null): void {
   memorySession = session;
@@ -332,6 +368,10 @@ export async function refreshSeekerSessionAndConfig(): Promise<{
         writeSeekerSession(next);
         return { session: next, googleAuth: memoryGoogleConfig };
       }
+      if (body.authenticated === false && local) {
+        writeSeekerSession(null);
+        return { session: null, googleAuth: memoryGoogleConfig };
+      }
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event(SEEKER_AUTH_EVENT));
       }
@@ -385,58 +425,36 @@ export function requestAuthenticatedNavigation(targetHash: string, deskLabel?: s
   return false;
 }
 
-function buildLocalFallbackSession(input: {
-  email?: string;
-  name?: string;
-  kunyah?: string;
-  bio?: string;
-  emblem?: SeekerEmblem;
-  provider?: SeekerAuthProvider;
-  avatarUrl?: string | null;
-}): SeekerSession {
-  const provider = input.provider ?? 'email';
-  const authProvider: SeekerAuthMethod =
-    provider === 'google' ? 'google' : provider === 'email' ? 'password' : 'studio';
-  const email = (input.email ?? '').trim().toLowerCase() || `${provider}.seeker@dragondawwa.com`;
-  const defaultName = email.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-  const name = (input.name ?? '').trim() || defaultName || 'Community Seeker';
-  const kunyah =
-    (input.kunyah ?? '').trim() ||
-    (provider === 'google' ? 'Verified Google Seeker' : 'Seeker of Knowledge');
-  const bio = (input.bio ?? '').trim();
-  const emblem = sanitizeSeekerEmblem(input.emblem);
-  const id = `seeker-${email.replace(/[^a-z0-9]/g, '').slice(0, 18) || 'local'}`;
-  const user: SeekerUser = {
-    id,
-    email,
-    name,
-    kunyah,
-    bio,
-    emblem,
-    provider,
-    authProvider,
-    avatarUrl: input.avatarUrl ?? null,
-    verified: true,
-    createdAt: new Date().toISOString(),
-  };
-  return { token: `local-token-${id}`, user };
-}
-
 export async function signInWithGoogleCredential(
   credential: string,
   preferredLanguage?: 'en' | 'ta' | 'si',
 ): Promise<SeekerSession> {
-  const response = await fetch('/api/auth/google/credential', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ credential, preferredLanguage }),
-  });
+  if (!credential || !credential.trim()) {
+    writeSeekerSession(null);
+    throw new Error('Google Sign-In credential is required.');
+  }
+  if (typeof fetch !== 'function') {
+    writeSeekerSession(null);
+    throw new Error('Authentication service is unavailable.');
+  }
+  let response: Response;
+  try {
+    response = await fetch('/api/auth/google/credential', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential, preferredLanguage }),
+    });
+  } catch (err) {
+    writeSeekerSession(null);
+    throw err instanceof Error ? err : new Error('Google Sign-In could not be verified.');
+  }
   const body = (await response.json().catch(() => ({}))) as {
     token?: string;
     user?: SeekerUser;
     error?: string;
   };
   if (!response.ok || !body.token || !body.user) {
+    writeSeekerSession(null);
     throw new Error(body.error || 'Google Sign-In could not be verified.');
   }
   const session: SeekerSession = { token: body.token, user: body.user };
@@ -489,56 +507,70 @@ export function ensureGoogleGisLoaded(): Promise<boolean> {
 }
 
 export async function loginOrRegisterSeeker(input: {
-  mode: 'login' | 'register' | 'quick';
+  mode: 'login' | 'register' | string;
+  identifier?: string;
   email?: string;
+  phone?: string;
+  username?: string;
   password?: string;
   name?: string;
   kunyah?: string;
   bio?: string;
   emblem?: SeekerEmblem;
-  provider?: SeekerAuthProvider;
+  provider?: SeekerAuthProvider | string;
   avatarUrl?: string | null;
 }): Promise<SeekerSession> {
+  if (
+    input.mode === 'quick' ||
+    input.mode === 'guest' ||
+    input.provider === 'guest' ||
+    input.provider === 'quick' ||
+    input.provider === 'apple'
+  ) {
+    writeSeekerSession(null);
+    throw new Error('Guest and quick sign-in are disabled. Please sign in with your credentials or Google.');
+  }
+  if (typeof fetch !== 'function') {
+    writeSeekerSession(null);
+    throw new Error('Authentication service is unavailable.');
+  }
   const endpoint = input.mode === 'register' ? '/api/auth/register' : '/api/auth/login';
   const provider = input.provider ?? 'email';
-  if (typeof fetch === 'function') {
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: input.email,
-          password: input.password,
-          name: input.name,
-          kunyah: input.kunyah,
-          bio: input.bio,
-          emblem: input.emblem,
-          provider,
-          avatarUrl: input.avatarUrl,
-        }),
-      });
-      const body = (await response.json().catch(() => ({}))) as {
-        token?: string;
-        user?: SeekerUser;
-        error?: string;
-      };
-      if (!response.ok) {
-        throw new Error(body.error || 'Authentication failed.');
-      }
-      if (body.token && body.user) {
-        const session: SeekerSession = { token: body.token, user: body.user };
-        writeSeekerSession(session);
-        return session;
-      }
-    } catch (err) {
-      if (err instanceof Error && /password|already exists|valid email/i.test(err.message)) {
-        throw err;
-      }
-    }
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identifier: input.identifier,
+        email: input.email,
+        phone: input.phone,
+        username: input.username,
+        password: input.password,
+        name: input.name,
+        kunyah: input.kunyah,
+        bio: input.bio,
+        emblem: input.emblem,
+        provider,
+        avatarUrl: input.avatarUrl,
+      }),
+    });
+  } catch (err) {
+    writeSeekerSession(null);
+    throw err instanceof Error ? err : new Error('Authentication failed.');
   }
-  const fallback = buildLocalFallbackSession(input);
-  writeSeekerSession(fallback);
-  return fallback;
+  const body = (await response.json().catch(() => ({}))) as {
+    token?: string;
+    user?: SeekerUser;
+    error?: string;
+  };
+  if (!response.ok || !body.token || !body.user) {
+    writeSeekerSession(null);
+    throw new Error(body.error || 'Authentication failed.');
+  }
+  const session: SeekerSession = { token: body.token, user: body.user };
+  writeSeekerSession(session);
+  return session;
 }
 
 export async function updateSeekerProfile(input: {

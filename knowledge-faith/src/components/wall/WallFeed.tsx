@@ -185,7 +185,7 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
   }, []);
 
   const isOwnedByUser = (post: FaithWallPost): boolean => {
-    if (!user) return false;
+    if (!user || post.isAnonymous) return false;
     if (post.userId && post.userId === user.id) return true;
     return false;
   };
@@ -241,10 +241,11 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
   };
 
   const handleCopy = async (post: FaithWallPost) => {
+    const attribution = post.isAnonymous ? 'Anonymous Seeker' : post.authorName || 'Community Seeker';
     const text = [
       post.arabic,
       formatQuotedTranslation(post.translation),
-      post.reflection ? `Reflection: “${post.reflection}” — ${post.authorName || 'Community Seeker'}` : '',
+      post.reflection ? `Reflection: “${post.reflection}” — ${attribution}` : '',
       `Surah ${post.surahName} ${post.surah}:${post.ayah} · Dragon Dawwa Faith Wall`,
     ]
       .filter(Boolean)
@@ -291,8 +292,9 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
     reflection: string;
     authorName: string;
     theme: WallPostTheme;
+    isAnonymous?: boolean;
   }) => {
-    const { type, preset, podcast, reflection, authorName, theme } = input;
+    const { type, preset, podcast, reflection, authorName, theme, isAnonymous } = input;
     const hash =
       type === 'podcast'
         ? '#/podcast'
@@ -305,6 +307,7 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
           });
     const created = await publishFaithWallPost({
       type: type ?? 'reflection',
+      isAnonymous: Boolean(isAnonymous),
       verse: {
         surah: preset.surah,
         ayah: preset.ayah,
@@ -324,8 +327,8 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
       hadithCollection: preset.hadithCollection,
       hadithNumber: preset.hadithNumber,
       hadithGrade: preset.hadithGrade,
-      authorName: user ? user.name : authorName,
-      authorRole: user ? user.kunyah : undefined,
+      authorName: isAnonymous ? 'Anonymous Seeker' : user ? user.name : authorName,
+      authorRole: isAnonymous ? 'Sincere Sunnah Pledge' : user ? user.kunyah : undefined,
     });
     setPosts(listFaithWallPosts());
     setComposerOpen(false);
