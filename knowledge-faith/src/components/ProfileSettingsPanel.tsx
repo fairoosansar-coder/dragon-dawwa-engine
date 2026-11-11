@@ -19,10 +19,10 @@ export function ProfileSettingsPanel({ compact = false }: { compact?: boolean })
       {!compact && (
         <div className="border-b border-stone-100 pb-2.5">
           <h3 className="text-xs font-bold uppercase tracking-wider text-stone-900">
-            Display & Language Settings
+            Platform Customization · Language, Colour & Typography
           </h3>
           <p className="mt-0.5 text-[11px] text-stone-500">
-            Customize your content language, reading surface theme, and interface font size.
+            Customize your content & reading language, colour theme, and interface font scale.
           </p>
         </div>
       )}
@@ -97,7 +97,7 @@ export function ProfileSettingsPanel({ compact = false }: { compact?: boolean })
       <div className="space-y-1.5">
         <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-stone-700">
           <Palette className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
-          <span>Appearance & Theme</span>
+          <span>Colour & Appearance Theme</span>
         </span>
         <div
           role="radiogroup"

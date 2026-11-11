@@ -62,12 +62,12 @@ export const UI_FONT_SCALES: Record<UiFontScaleId, { label: string; badge: strin
   compact: { label: 'Compact', badge: '13px', htmlPx: '14.5px', bodyPx: '13px' },
   standard: { label: 'Standard', badge: '14px', htmlPx: '15.25px', bodyPx: '13.75px' },
   comfortable: { label: 'Comfortable', badge: '15.5px', htmlPx: '16.5px', bodyPx: '15.5px' },
-  large: { label: 'Large', badge: '17px', htmlPx: '18px', bodyPx: '17px' },
+  large: { label: 'Large Reading', badge: '17px', htmlPx: '18px', bodyPx: '17px' },
 };
 
 export const UI_THEMES: Record<UiThemeId, { label: string; subtitle: string; sand: string; parchment: string; pine: string; swatch: string }> = {
   parchment: {
-    label: 'Parchment / Light',
+    label: 'Parchment (Light)',
     subtitle: 'Warm ivory & classic emerald',
     sand: '#F8F5EC',
     parchment: '#F5EEDC',
@@ -75,20 +75,20 @@ export const UI_THEMES: Record<UiThemeId, { label: string; subtitle: string; san
     swatch: 'linear-gradient(135deg, #F8F5EC 0%, #073C30 100%)',
   },
   obsidian: {
-    label: 'Obsidian Emerald',
-    subtitle: 'Cool sage mist & deep masjid green',
-    sand: '#EFF4F1',
-    parchment: '#E4EDE8',
+    label: 'Obsidian Emerald (Dark)',
+    subtitle: 'Deep masjid emerald & sage mist',
+    sand: '#E6F0EC',
+    parchment: '#DCE9E3',
     pine: '#04241C',
     swatch: 'linear-gradient(135deg, #04241C 0%, #C6A15A 100%)',
   },
   sepia: {
-    label: 'Warm Sepia / Manuscript',
+    label: 'Warm Sepia (Manuscript)',
     subtitle: 'Mushaf cream & gilded ink',
-    sand: '#F3EAD8',
-    parchment: '#EBE0C8',
+    sand: '#F2E6CE',
+    parchment: '#E8D8B9',
     pine: '#0B3B2D',
-    swatch: 'linear-gradient(135deg, #F3EAD8 0%, #C6A15A 100%)',
+    swatch: 'linear-gradient(135deg, #F2E6CE 0%, #C6A15A 100%)',
   },
 };
 

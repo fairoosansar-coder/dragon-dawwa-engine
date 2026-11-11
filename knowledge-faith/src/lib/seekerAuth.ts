@@ -643,7 +643,7 @@ export function useSeekerAuth() {
     if (!sessionHydrated) {
       sessionHydrated = true;
       void refreshSeekerSessionAndConfig().then(({ session: s, googleAuth: g }) => {
-        setSession(s);
+        setSession(s ?? readSeekerSession());
         setGoogleAuth(g);
       });
     }
