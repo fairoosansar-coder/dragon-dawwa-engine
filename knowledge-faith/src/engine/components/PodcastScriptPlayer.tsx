@@ -1051,7 +1051,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                         <span className={p.color}>{p.avatar}</span>
                       </div>
                       <div className="text-xs font-bold text-white truncate">{p.name.split('(')[0].trim()}</div>
-                      <div className="text-[10px] text-slate-400 truncate mt-0.5">{p.role.split('(')[0].trim()}</div>
+                      <div className="text-[10px] font-medium text-slate-300 truncate mt-0.5">{p.role.split('(')[0].trim()}</div>
                       
                       {pId === 'Sheikh Imran al-Hasani' ? (
                         <div className="mt-1 space-y-0.5">
@@ -1103,7 +1103,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
             </div>
 
             {/* Master Playback & Mixing Controls Bar */}
-            <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-[var(--surface-raised)] via-slate-900 to-[var(--surface-raised)] border border-slate-800/90 flex flex-wrap items-center justify-between gap-4 shadow-lg">
+            <div className="mt-4 p-4 rounded-2xl bg-[var(--surface-raised)] border border-slate-800/90 flex flex-wrap items-center justify-between gap-4 shadow-md">
               <div className="flex flex-wrap items-center gap-2.5">
                 <button
                   type="button"
@@ -1454,7 +1454,7 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                       </div>
                     </div>
 
-                    <p className="text-sm sm:text-base text-slate-100 leading-relaxed font-sans">
+                    <p className="text-sm sm:text-base text-slate-100 font-medium leading-relaxed font-sans">
                       {renderDialogueTextWithHighlights(item.text)}
                     </p>
                   </div>
