@@ -426,10 +426,18 @@ export function requestAuthenticatedNavigation(targetHash: string, deskLabel?: s
 }
 
 export async function signInWithGoogleCredential(
-  credential: string,
+  credentialOrToken: string | { credential?: string; accessToken?: string },
   preferredLanguage?: 'en' | 'ta' | 'si',
 ): Promise<SeekerSession> {
-  if (!credential || !credential.trim()) {
+  const payload =
+    typeof credentialOrToken === 'string'
+      ? { credential: credentialOrToken.trim(), preferredLanguage }
+      : {
+          credential: credentialOrToken.credential?.trim(),
+          accessToken: credentialOrToken.accessToken?.trim(),
+          preferredLanguage,
+        };
+  if (!payload.credential && !payload.accessToken) {
     writeSeekerSession(null);
     throw new Error('Google Sign-In credential is required.');
   }
@@ -442,7 +450,7 @@ export async function signInWithGoogleCredential(
     response = await fetch('/api/auth/google/credential', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ credential, preferredLanguage }),
+      body: JSON.stringify(payload),
     });
   } catch (err) {
     writeSeekerSession(null);
@@ -460,6 +468,13 @@ export async function signInWithGoogleCredential(
   const session: SeekerSession = { token: body.token, user: body.user };
   writeSeekerSession(session);
   return session;
+}
+
+export async function signInWithGoogleAccessToken(
+  accessToken: string,
+  preferredLanguage?: 'en' | 'ta' | 'si',
+): Promise<SeekerSession> {
+  return signInWithGoogleCredential({ accessToken }, preferredLanguage);
 }
 
 export function buildGoogleOAuthRedirectUrl(returnTo?: string, callbackPath?: string): string {
@@ -718,6 +733,7 @@ export function useSeekerAuth() {
     closeModal,
     loginOrRegister: loginOrRegisterSeeker,
     signInWithGoogleCredential,
+    signInWithGoogleAccessToken,
     updateProfile: updateSeekerProfile,
     signOut: signOutSeeker,
   };
