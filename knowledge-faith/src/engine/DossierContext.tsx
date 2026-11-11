@@ -155,7 +155,7 @@ interface DossierState {
 const DossierContext = createContext<DossierState | null>(null);
 
 export function DossierProvider({ children }: { children: ReactNode }) {
-  const { lang, setLang } = useApp();
+  const { lang, setLang, uiTheme } = useApp();
   const langRef = useRef(lang);
   const tokenRef = useRef(0);
   const selectionRef = useRef<SelectionStamp>({ token: 0, question: '', language: lang });
@@ -564,7 +564,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
   return (
     <DossierContext.Provider value={value}>
       {children}
-      <div data-theme="mushaf" className="dd-engine">
+      <div data-theme={uiTheme === 'obsidian' ? 'night' : 'mushaf'} className="dd-engine">
         <ShareModal
           isOpen={shareOpen}
           onClose={() => setShareOpen(false)}
