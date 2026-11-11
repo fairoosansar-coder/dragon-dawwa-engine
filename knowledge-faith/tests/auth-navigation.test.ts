@@ -8,15 +8,16 @@ import {
   buildGoogleOAuthRedirectUrl, closeSeekerAuthModal, consumePendingRoute,
   getSession, loginOrRegisterSeeker, openSeekerAuthModal, PENDING_ROUTE_STORAGE_KEY,
   readPendingRoute, readSeekerSession, refreshSeekerSessionAndConfig, requestAuthenticatedNavigation,
-  SESSION_STORAGE_KEY, SESSION_TOKEN_KEY, setPendingRoute, signInWithGoogleCredential,
-  useSeekerAuth, writeSeekerSession,
+  SESSION_STORAGE_KEY, SESSION_TOKEN_KEY, setPendingRoute, signInWithGoogleAccessToken,
+  signInWithGoogleCredential, useSeekerAuth, writeSeekerSession,
 } from '../src/lib/seekerAuth.ts';
 import {
   listFaithWallPosts, publishFaithWallPost, resolveUserProfilePortfolio,
 } from '../src/lib/verseShare.ts';
 import {
-  createServerWallPost, exchangeGoogleOAuthCode, getServerUserProfile,
-  listServerWallPosts, loginSeekerAccount, registerSeekerAccount, resetSeekerStoreForTests,
+  authenticateGoogleCredential, createServerWallPost, exchangeGoogleOAuthCode,
+  getServerUserProfile, listServerWallPosts, loginSeekerAccount, registerSeekerAccount,
+  resetSeekerStoreForTests, verifyGoogleAccessToken,
 } from '../src/server/seekerAuth.ts';
 import { WallPostCard } from '../src/components/wall/WallPostCard.tsx';
 import { PublicHomeOverview } from '../src/views/PublicHomeOverview.tsx';
@@ -577,7 +578,8 @@ test('server supports registration and sign-in via username, email, or phone num
     assert.ok(document.querySelector('[data-testid="auth-submit-btn"]'), 'must render auth-submit-btn');
     assert.ok(document.querySelector('[data-testid="auth-google-btn"]'), 'must render auth-google-btn');
     assert.equal(document.querySelector('[data-quick-auth]'), null, 'must not render any quick/guest auth buttons');
-    assert.doesNotMatch(html, /Instant Seeker Pass|Continue as Guest|Guest Seeker/i);
+    assert.equal(document.querySelector('[data-google-oauth-redirect-link]'), null, 'must not render raw redirect sign-in link');
+    assert.doesNotMatch(html, /Instant Seeker Pass|Continue as Guest|Guest Seeker|Use Google Redirect Sign-In/i);
   } finally {
     await act(async () => root.unmount());
     dom.window.close();
@@ -585,5 +587,75 @@ test('server supports registration and sign-in via username, email, or phone num
       if (descriptor) Object.defineProperty(globalThis, key, descriptor);
       else Reflect.deleteProperty(globalThis, key);
     }
+  }
+});
+
+test('Google OAuth2 popup accessToken verification works via postmessage without redirect_uri_mismatch', async () => {
+  resetSeekerStoreForTests();
+  const prevClientId = process.env.GOOGLE_OIDC_CLIENT_ID;
+  process.env.GOOGLE_OIDC_CLIENT_ID = '677673398182-ip1vn7a8qfdiisg3icu78ekktgc2r3pa.apps.googleusercontent.com';
+
+  try {
+    const mockGoogleFetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('oauth2.googleapis.com/tokeninfo')) {
+        return new Response(
+          JSON.stringify({
+            aud: '677673398182-ip1vn7a8qfdiisg3icu78ekktgc2r3pa.apps.googleusercontent.com',
+            sub: 'google-oauth2-sub-999',
+            email: 'popup.seeker@dragondawwa.com',
+            email_verified: 'true',
+            exp: String(Math.floor(Date.now() / 1000) + 3600),
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+      assert.equal(url, 'https://www.googleapis.com/oauth2/v3/userinfo');
+      return new Response(
+        JSON.stringify({
+          sub: 'google-oauth2-sub-999',
+          email: 'popup.seeker@dragondawwa.com',
+          email_verified: true,
+          name: 'Popup Google Seeker',
+          picture: 'https://lh3.googleusercontent.com/a/popup-avatar.png',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }) as typeof fetch;
+
+    const claims = await verifyGoogleAccessToken('ya29.valid-popup-access-token', undefined, mockGoogleFetch);
+    assert.equal(claims.sub, 'google-oauth2-sub-999');
+    assert.equal(claims.email, 'popup.seeker@dragondawwa.com');
+    assert.equal(claims.name, 'Popup Google Seeker');
+
+    const result = await authenticateGoogleCredential({ accessToken: 'ya29.valid-popup-access-token' }, mockGoogleFetch);
+    assert.equal(result.user.email, 'popup.seeker@dragondawwa.com');
+    assert.equal(result.user.provider, 'google');
+    assert.equal(result.user.authProvider, 'google');
+    assert.equal(result.user.verified, true);
+
+    // Client signInWithGoogleAccessToken sends accessToken to /api/auth/google/credential and persists session
+    const originalFetch = globalThis.fetch;
+    try {
+      let sentBody: Record<string, unknown> = {};
+      globalThis.fetch = async (url, init) => {
+        assert.equal(String(url), '/api/auth/google/credential');
+        sentBody = JSON.parse(String(init?.body || '{}'));
+        return new Response(JSON.stringify({ ok: true, token: result.token, user: result.user }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      };
+      const session = await signInWithGoogleAccessToken('ya29.valid-popup-access-token');
+      assert.equal(sentBody.accessToken, 'ya29.valid-popup-access-token');
+      assert.equal(session.user.email, 'popup.seeker@dragondawwa.com');
+      assert.equal(getSession()?.user.email, 'popup.seeker@dragondawwa.com');
+    } finally {
+      writeSeekerSession(null);
+      globalThis.fetch = originalFetch;
+    }
+  } finally {
+    if (prevClientId === undefined) delete process.env.GOOGLE_OIDC_CLIENT_ID;
+    else process.env.GOOGLE_OIDC_CLIENT_ID = prevClientId;
   }
 });

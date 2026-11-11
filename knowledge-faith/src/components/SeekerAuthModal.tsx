@@ -29,6 +29,17 @@ declare global {
             isSkippedMoment?: () => boolean;
           }) => void) => void;
         };
+        oauth2?: {
+          initTokenClient: (config: {
+            client_id: string;
+            scope: string;
+            prompt?: string;
+            callback: (response: { access_token?: string; error?: string; error_description?: string }) => void;
+            error_callback?: (err: { type?: string; message?: string }) => void;
+          }) => {
+            requestAccessToken: (overrideConfig?: { prompt?: string }) => void;
+          };
+        };
       };
     };
   }
@@ -326,6 +337,7 @@ export function SeekerAuthCard({
     closeModal,
     loginOrRegister,
     signInWithGoogleCredential,
+    signInWithGoogleAccessToken,
     updateProfile,
     signOut,
   } = useSeekerAuth();
@@ -344,6 +356,7 @@ export function SeekerAuthCard({
   const [showOAuthSetupHelp, setShowOAuthSetupHelp] = useState(false);
   const [copiedUri, setCopiedUri] = useState<string | null>(null);
   const gisContainerRef = useRef<HTMLDivElement | null>(null);
+  const tokenClientRef = useRef<{ requestAccessToken: (overrideConfig?: { prompt?: string }) => void } | null>(null);
 
   const dismiss = onClose ?? closeModal;
 
@@ -375,7 +388,51 @@ export function SeekerAuthCard({
     void ensureGoogleGisLoaded().then(loaded => {
       if (!active || !loaded) return;
       const gId = window.google?.accounts?.id;
+      const gOAuth2 = window.google?.accounts?.oauth2;
       const slot = gisContainerRef.current;
+
+      if (gOAuth2?.initTokenClient) {
+        try {
+          tokenClientRef.current = gOAuth2.initTokenClient({
+            client_id: googleAuth.clientId!,
+            scope: 'openid email profile',
+            prompt: 'select_account',
+            callback: response => {
+              if (response.error || !response.access_token) {
+                setShowOAuthSetupHelp(true);
+                setError(
+                  response.error_description ||
+                    response.error ||
+                    'Google Sign-In was cancelled or blocked. Ensure Authorized JavaScript Origin is set in Google Cloud Console.',
+                );
+                return;
+              }
+              setBusy(true);
+              setError(null);
+              void signInWithGoogleAccessToken(response.access_token)
+                .then(() => {
+                  setStatusNote('Signed in with Google.');
+                  dismiss();
+                })
+                .catch((err: unknown) => {
+                  setError(err instanceof Error ? err.message : 'Google Sign-In failed.');
+                })
+                .finally(() => setBusy(false));
+            },
+            error_callback: err => {
+              if (err?.type === 'popup_closed') return;
+              setShowOAuthSetupHelp(true);
+              setError(
+                err?.message ||
+                  'Google Sign-In popup could not open. Ensure Authorized JavaScript Origin is configured in Google Cloud Console.',
+              );
+            },
+          });
+        } catch {
+          /* ignore token client init error */
+        }
+      }
+
       if (!gId || !slot) return;
       try {
         gId.initialize({
@@ -416,7 +473,7 @@ export function SeekerAuthCard({
     return () => {
       active = false;
     };
-  }, [user, googleAuth.enabled, googleAuth.clientId, signInWithGoogleCredential, dismiss]);
+  }, [user, googleAuth.enabled, googleAuth.clientId, signInWithGoogleCredential, signInWithGoogleAccessToken, dismiss]);
 
   const myPosts = user
     ? listFaithWallPosts().filter(post => !post.isAnonymous && (post.userId === user.id || post.authorName === user.name))
@@ -441,31 +498,86 @@ export function SeekerAuthCard({
     }
   };
 
+  // Kept for OAuth redirect URI helper / direct server redirect verification
   const handleOAuthRedirectStart = (callbackPath?: string) => {
     if (typeof window === 'undefined') return;
     window.location.href = buildGoogleOAuthRedirectUrl(undefined, callbackPath);
   };
+  void handleOAuthRedirectStart;
 
   const handleContinueWithGoogle = async () => {
     setError(null);
-    if (googleAuth.enabled && googleAuth.clientId) {
-      const loaded = await ensureGoogleGisLoaded();
-      const gId = window.google?.accounts?.id;
-      if (loaded && gId) {
-        const gisBtn = gisContainerRef.current?.querySelector<HTMLElement>('[role="button"], div[tabindex="0"]');
-        if (gisBtn) {
-          gisBtn.click();
-          return;
+    if (!googleAuth.enabled || !googleAuth.clientId) {
+      setShowOAuthSetupHelp(true);
+      setError('Google Sign-In is not configured on this server. Please sign in with your username, email, or phone number below.');
+      return;
+    }
+
+    const loaded = await ensureGoogleGisLoaded();
+    const gOAuth2 = window.google?.accounts?.oauth2;
+    const gId = window.google?.accounts?.id;
+
+    // 1. Primary: Google OAuth2 Popup Token Client (uses redirect_uri='postmessage' — never hits /api/auth/google/callback redirect_uri_mismatch)
+    if (loaded && (tokenClientRef.current || gOAuth2?.initTokenClient)) {
+      try {
+        if (!tokenClientRef.current && gOAuth2?.initTokenClient) {
+          tokenClientRef.current = gOAuth2.initTokenClient({
+            client_id: googleAuth.clientId,
+            scope: 'openid email profile',
+            prompt: 'select_account',
+            callback: response => {
+              if (response.error || !response.access_token) {
+                setShowOAuthSetupHelp(true);
+                setError(
+                  response.error_description ||
+                    response.error ||
+                    'Google Sign-In was cancelled or blocked.',
+                );
+                return;
+              }
+              setBusy(true);
+              setError(null);
+              void signInWithGoogleAccessToken(response.access_token)
+                .then(() => {
+                  setStatusNote('Signed in with Google.');
+                  dismiss();
+                })
+                .catch((err: unknown) => {
+                  setError(err instanceof Error ? err.message : 'Google Sign-In failed.');
+                })
+                .finally(() => setBusy(false));
+            },
+          });
         }
-        gId.prompt(notification => {
-          if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
-            handleOAuthRedirectStart('/auth/callback');
-          }
-        });
+        tokenClientRef.current?.requestAccessToken({ prompt: 'select_account' });
         return;
+      } catch {
+        /* fall through to GIS ID prompt */
       }
     }
-    handleOAuthRedirectStart('/auth/callback');
+
+    // 2. Fallback: Google Identity Services (GIS) popup button / One Tap prompt
+    if (loaded && gId) {
+      const gisBtn = gisContainerRef.current?.querySelector<HTMLElement>('[role="button"], div[tabindex="0"]');
+      if (gisBtn) {
+        gisBtn.click();
+        return;
+      }
+      gId.prompt(notification => {
+        if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
+          setShowOAuthSetupHelp(true);
+          setError(
+            'Google Sign-In popup was blocked or origin is not authorized. Please sign in with your username, email, or phone number below, or add the Authorized JavaScript Origin in Google Cloud Console.',
+          );
+        }
+      });
+      return;
+    }
+
+    setShowOAuthSetupHelp(true);
+    setError(
+      'Google Sign-In script could not be loaded (check ad-blocker or network). Please sign in with your username, email, or phone number below.',
+    );
   };
 
   const handleFormSubmit = async (event: FormEvent) => {
@@ -781,7 +893,7 @@ export function SeekerAuthCard({
         </button>
       </div>
 
-      {/* 3. Continue with Google Button at Top with Clean White Surface */}
+      {/* 3. Continue with Google Button at Top with Clean White Surface (Popup postmessage / GIS — never triggers redirect_uri_mismatch) */}
       <div className="mt-4 space-y-2">
         <div className="relative">
           <button
@@ -804,34 +916,37 @@ export function SeekerAuthCard({
           />
         </div>
 
-        <div className="flex items-center justify-between px-0.5 text-[11px] text-stone-500">
-          <button
-            type="button"
-            data-google-oauth-redirect-link
-            onClick={() => handleOAuthRedirectStart('/auth/callback')}
-            className="font-medium text-[#0F5132] hover:underline"
-          >
-            Use Google Redirect Sign-In
-          </button>
-          <button
-            type="button"
-            data-google-oauth-help-toggle
-            onClick={() => setShowOAuthSetupHelp(open => !open)}
-            className="inline-flex items-center gap-1 text-stone-500 hover:text-[#18221D]"
-          >
-            <HelpCircle className="h-3 w-3 text-[#0F5132]" aria-hidden />
-            <span>OAuth URI help</span>
-          </button>
-        </div>
-
         {showOAuthSetupHelp && (
           <div
             data-google-oauth-help
             className="space-y-1.5 rounded-xl border border-[#E6DEC8] bg-[#FAF7F0] p-2.5 text-[11px] text-stone-700"
           >
-            <p className="font-semibold text-[#0F5132]">Google OAuth 2.0 Redirect URI:</p>
+            <div className="flex items-center justify-between">
+              <p className="inline-flex items-center gap-1 font-semibold text-[#0F5132]">
+                <HelpCircle className="h-3 w-3" aria-hidden />
+                <span>Google Cloud Console OAuth 2.0 Settings</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowOAuthSetupHelp(false)}
+                className="text-[10px] text-stone-500 hover:text-[#18221D]"
+              >
+                Hide
+              </button>
+            </div>
             <div className="flex items-center justify-between gap-2 rounded-lg border border-[#E6DEC8] bg-white px-2 py-1">
-              <span className="truncate font-mono text-[10px]">{expectedRedirectUri}</span>
+              <span className="truncate font-mono text-[10px]">Origin: {currentOrigin}</span>
+              <button
+                type="button"
+                onClick={() => void copyUri(currentOrigin, 'origin')}
+                className="inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold text-[#0F5132]"
+              >
+                {copiedUri === 'origin' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                <span>{copiedUri === 'origin' ? 'Copied' : 'Copy'}</span>
+              </button>
+            </div>
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-[#E6DEC8] bg-white px-2 py-1">
+              <span className="truncate font-mono text-[10px]">Redirect: {expectedRedirectUri}</span>
               <button
                 type="button"
                 onClick={() => void copyUri(expectedRedirectUri, 'redirect')}
@@ -961,7 +1076,6 @@ export function SeekerAuthModal() {
     return () => window.removeEventListener('keydown', onKey);
   }, [modalOpen, user, closeModal]);
 
-  // When signed out, PublicHomeOverview renders the clean full-page login directly; only show modal if explicitly opened over About or when signed in editing profile.
   if (!modalOpen) return null;
 
   return (

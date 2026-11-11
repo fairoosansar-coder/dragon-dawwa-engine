@@ -809,6 +809,73 @@ export async function verifyGoogleIdToken(
   };
 }
 
+export async function verifyGoogleAccessToken(
+  accessToken: string,
+  expectedClientId?: string | null,
+  fetchImpl: typeof fetch = globalThis.fetch,
+): Promise<VerifiedGoogleClaims> {
+  if (!accessToken || typeof accessToken !== 'string' || !accessToken.trim()) {
+    throw new UpstreamError('A Google access token is required.', 400);
+  }
+  const token = accessToken.trim();
+  const cfg = getGoogleAuthConfig();
+  const targetClientId = (expectedClientId ?? cfg.clientId ?? '').trim();
+
+  // Verify token audience/expiry against Google tokeninfo if available
+  const infoRes = await fetchImpl(
+    `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(token)}`,
+  ).catch(() => null);
+
+  let tokenInfoSub = '';
+  let tokenInfoEmail = '';
+  let tokenInfoVerified = false;
+  if (infoRes && infoRes.ok) {
+    const info = (await infoRes.json().catch(() => ({}))) as Record<string, unknown>;
+    const aud = typeof info.aud === 'string' ? info.aud.trim() : typeof info.azp === 'string' ? info.azp.trim() : '';
+    const exp = Number(info.exp ?? 0);
+    if (targetClientId && aud && aud !== targetClientId) {
+      throw new UpstreamError('Google access token audience does not match this application.', 401);
+    }
+    if (exp > 0 && exp * 1000 < Date.now() - 30_000) {
+      throw new UpstreamError('Google access token has expired.', 401);
+    }
+    tokenInfoSub = typeof info.sub === 'string' ? info.sub.trim() : '';
+    tokenInfoEmail = typeof info.email === 'string' ? info.email.trim().toLowerCase() : '';
+    tokenInfoVerified = info.email_verified === true || info.email_verified === 'true';
+  }
+
+  // Fetch user profile from Google OAuth2 v3 userinfo
+  const userRes = await fetchImpl('https://www.googleapis.com/oauth2/v3/userinfo', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!userRes.ok) {
+    throw new UpstreamError('Google access token could not be verified.', 401);
+  }
+  const profile = (await userRes.json().catch(() => ({}))) as Record<string, unknown>;
+  const sub = typeof profile.sub === 'string' && profile.sub.trim() ? profile.sub.trim() : tokenInfoSub;
+  const email =
+    typeof profile.email === 'string' && profile.email.trim()
+      ? profile.email.trim().toLowerCase()
+      : tokenInfoEmail;
+  const emailVerified =
+    profile.email_verified === true ||
+    profile.email_verified === 'true' ||
+    tokenInfoVerified;
+
+  if (!sub || !email) {
+    throw new UpstreamError('Google user profile did not include subject and email.', 401);
+  }
+
+  return {
+    sub,
+    email,
+    emailVerified,
+    name: typeof profile.name === 'string' ? profile.name.trim() : undefined,
+    picture: sanitizeAvatarUrl(profile.picture),
+    aud: targetClientId || undefined,
+  };
+}
+
 export function upsertGoogleSeekerAccount(claims: VerifiedGoogleClaims): {
   token: string;
   user: SeekerProfile;
@@ -869,14 +936,46 @@ export function upsertGoogleSeekerAccount(claims: VerifiedGoogleClaims): {
 }
 
 export async function authenticateGoogleCredential(
-  credential: unknown,
+  credentialOrInput:
+    | unknown
+    | {
+        credential?: unknown;
+        accessToken?: unknown;
+        access_token?: unknown;
+      },
   fetchImpl: typeof fetch = globalThis.fetch,
 ): Promise<{ token: string; user: SeekerProfile }> {
-  if (typeof credential !== 'string' || !credential.trim()) {
-    throw new UpstreamError('Google credential token is required.', 400);
+  if (typeof credentialOrInput === 'string') {
+    const trimmed = credentialOrInput.trim();
+    if (!trimmed) {
+      throw new UpstreamError('Google credential token is required.', 400);
+    }
+    const claims = await verifyGoogleIdToken(trimmed, undefined, fetchImpl);
+    return upsertGoogleSeekerAccount(claims);
   }
-  const claims = await verifyGoogleIdToken(credential.trim(), undefined, fetchImpl);
-  return upsertGoogleSeekerAccount(claims);
+  if (credentialOrInput && typeof credentialOrInput === 'object') {
+    const record = credentialOrInput as {
+      credential?: unknown;
+      accessToken?: unknown;
+      access_token?: unknown;
+    };
+    const idToken = typeof record.credential === 'string' ? record.credential.trim() : '';
+    const accessToken =
+      typeof record.accessToken === 'string' && record.accessToken.trim()
+        ? record.accessToken.trim()
+        : typeof record.access_token === 'string' && record.access_token.trim()
+          ? record.access_token.trim()
+          : '';
+    if (idToken) {
+      const claims = await verifyGoogleIdToken(idToken, undefined, fetchImpl);
+      return upsertGoogleSeekerAccount(claims);
+    }
+    if (accessToken) {
+      const claims = await verifyGoogleAccessToken(accessToken, undefined, fetchImpl);
+      return upsertGoogleSeekerAccount(claims);
+    }
+  }
+  throw new UpstreamError('Google credential or access token is required.', 400);
 }
 
 export async function exchangeGoogleOAuthCode(

@@ -658,7 +658,23 @@ app.post(
   '/api/auth/google/credential',
   wallLimiter,
   route(async (req, res) => {
-    const { token, user } = await authenticateGoogleCredential(req.body?.credential);
+    const { token, user } = await authenticateGoogleCredential({
+      credential: req.body?.credential,
+      accessToken: req.body?.accessToken ?? req.body?.access_token,
+    });
+    setSeekerCookie(res, token);
+    res.status(200).json({ ok: true, token, user });
+  }),
+);
+
+app.post(
+  '/api/auth/google/access-token',
+  wallLimiter,
+  route(async (req, res) => {
+    const { token, user } = await authenticateGoogleCredential({
+      accessToken: req.body?.accessToken ?? req.body?.access_token,
+      credential: req.body?.credential,
+    });
     setSeekerCookie(res, token);
     res.status(200).json({ ok: true, token, user });
   }),
