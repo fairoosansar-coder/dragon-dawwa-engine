@@ -101,12 +101,28 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
   const badgeText = formatVerseCardBadge(verse);
   const quotedTranslation = formatQuotedTranslation(verse.translation);
 
+  const arabicCharLen = (verse.arabic ?? '').length;
+  const translationCharLen = quotedTranslation.length;
+  const isLongPassage = arabicCharLen > 240 || translationCharLen > 320;
+  const isVeryLongPassage = arabicCharLen > 420 || translationCharLen > 520;
+
   useEffect(() => {
-    setPreview(null);
-    setSocialDrawerOpen(false);
-    setWallOpen(false);
-    setWallToast(null);
-  }, [verse.surah, verse.ayah, lang, verse.translationKey]);
+    if (!studioOpen || !ready) return;
+    let cancelled = false;
+    setDrawing(true);
+    void renderVerseImage(verse, lang, cardTheme).then(drawn => {
+      if (cancelled) return;
+      setDrawing(false);
+      if ('error' in drawn) {
+        setPreview(null);
+      } else {
+        setPreview(drawn);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [studioOpen, ready, verse, lang, cardTheme]);
 
   useEffect(() => {
     if (!studioOpen) return;
@@ -325,11 +341,11 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
               </button>
             </div>
 
-            {/* 16:9 Illuminated Manuscript Card Live Preview */}
+            {/* 16:9 Illuminated Manuscript Card Live Preview (Adaptive Typography & Zero Clipping) */}
             <div
               data-verse-studio-card
               data-studio-theme={cardTheme}
-              className={`relative flex min-h-[14.5rem] w-full flex-col justify-between overflow-hidden rounded-2xl border-2 p-3.5 shadow-inner sm:aspect-[16/9] sm:min-h-0 sm:p-8 ${WALL_THEMES[cardTheme].classes}`}
+              className={`relative flex min-h-[16rem] w-full flex-col justify-between rounded-2xl border-2 p-4 shadow-inner sm:min-h-[21rem] sm:p-7 ${WALL_THEMES[cardTheme].classes}`}
             >
               {/* Inner Second Gold Frame Line */}
               <div
@@ -341,7 +357,7 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
               <svg
                 aria-hidden
                 viewBox="0 0 200 200"
-                className="pointer-events-none absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 text-[#D4AF37]/[0.06] sm:h-80 sm:w-80"
+                className="pointer-events-none absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 text-[#D4AF37]/[0.06] sm:h-72 sm:w-72"
               >
                 <g fill="none" stroke="currentColor" strokeWidth="1.2">
                   <rect x="42" y="42" width="116" height="116" />
@@ -370,19 +386,25 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
                 </span>
               </div>
 
-              {/* Center Arabic + Quoted Warm Ivory Translation */}
-              <div className="relative z-10 my-auto flex flex-col items-center justify-center px-2 py-2 text-center sm:px-6 sm:py-3">
+              {/* Center Arabic + Quoted Warm Ivory Translation (Full Unclipped Display with Proper Harakat Line-Height) */}
+              <div className="relative z-10 my-auto flex flex-col items-center justify-center px-2 py-3 text-center sm:px-6 sm:py-4">
                 <p
                   lang="ar"
                   dir="rtl"
                   data-card-arabic
-                  style={{ textShadow: '0 0 20px rgba(212,175,55,0.2)' }}
-                  className="quran-face max-h-28 overflow-y-auto text-lg leading-[2] text-[#FFFFFF] sm:max-h-44 sm:text-3xl sm:leading-[2.1]"
+                  style={{ textShadow: '0 0 20px rgba(212,175,55,0.2)', lineHeight: 2.15 }}
+                  className={`quran-face w-full text-center text-[#FFFFFF] ${
+                    isVeryLongPassage
+                      ? 'text-base sm:text-xl'
+                      : isLongPassage
+                        ? 'text-lg sm:text-2xl'
+                        : 'text-xl sm:text-3xl'
+                  }`}
                 >
                   {verse.arabic}
                 </p>
 
-                <div aria-hidden className="my-1.5 flex items-center gap-2 text-[#D4AF37]/60 sm:my-3">
+                <div aria-hidden className="my-2 flex items-center gap-2 text-[#D4AF37]/60 sm:my-3">
                   <span className="h-px w-8 bg-[#D4AF37]/35 sm:w-14" />
                   <span className="text-[9px] sm:text-[10px]">◆</span>
                   <span className="h-px w-8 bg-[#D4AF37]/35 sm:w-14" />
@@ -391,7 +413,14 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
                 <p
                   lang={lang}
                   data-card-translation
-                  className="max-h-20 max-w-2xl overflow-y-auto font-display text-xs leading-relaxed text-[#F3E8C8] sm:max-h-32 sm:text-base"
+                  style={{ lineHeight: 1.75 }}
+                  className={`max-w-2xl text-center font-display text-[#F3E8C8] ${
+                    isVeryLongPassage
+                      ? 'text-xs sm:text-sm'
+                      : isLongPassage
+                        ? 'text-xs sm:text-[15px]'
+                        : 'text-sm sm:text-base'
+                  }`}
                 >
                   {quotedTranslation}
                 </p>
@@ -399,7 +428,7 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
                 {reflection.trim() && (
                   <p
                     data-card-reflection
-                    className="mt-1.5 max-w-xl truncate text-[11px] italic text-[#D4AF37]/90 sm:mt-2 sm:text-xs"
+                    className="mt-2 max-w-xl text-center text-[11px] italic text-[#D4AF37]/90 sm:text-xs"
                   >
                     — {reflection.trim()}
                   </p>
@@ -409,7 +438,7 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
               {/* Discreet Brand Footer */}
               <div
                 data-card-footer
-                className="relative z-10 flex items-center justify-between gap-2 border-t border-[#D4AF37]/20 pt-2 text-[10px] font-medium tracking-wide text-[#D4AF37]/70 sm:pt-2.5 sm:text-[11px]"
+                className="relative z-10 mt-2 flex items-center justify-between gap-2 border-t border-[#D4AF37]/20 pt-2 text-[10px] font-medium tracking-wide text-[#D4AF37]/70 sm:pt-2.5 sm:text-[11px]"
               >
                 <span className="truncate">{BRAND_FOOTER_LEFT}</span>
                 <span className="shrink-0">{BRAND_FOOTER_RIGHT}</span>

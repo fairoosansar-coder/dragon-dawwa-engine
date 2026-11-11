@@ -2,6 +2,8 @@ import type { Lang } from '../shared/sources.ts';
 import type { LibraryDocument, LibraryMedia } from '../shared/libraryDocument.ts';
 import { articleBlocks } from '../shared/readableText.ts';
 import { ISLAMHOUSE_RIGHTS } from '../shared/sourceRegistry.ts';
+import { translateBatchToLanguage, translateTextToLanguage } from './ayahStudyService.ts';
+import { getCuratedLibraryDocument } from './curatedKnowledgePaths.ts';
 import { UpstreamError } from './http.ts';
 import { loadItemPayload, type ItemPayload } from './islamhouse.ts';
 import { mediaViewUrl } from './media.ts';
@@ -32,12 +34,15 @@ function limitation(item: ItemPayload, prose: boolean): string | null {
 }
 
 export async function readLibraryItem(id: number, lang: Lang, now = new Date()): Promise<LibraryDocument> {
+  const curated = getCuratedLibraryDocument(id, lang, now);
+  if (curated) return curated;
+
   const retrievedAt = now.toISOString();
   let lookup;
   try {
     lookup = await loadItemPayload(id, lang);
   } catch (err) {
-    const message = err instanceof UpstreamError ? err.message : 'IslamHouse did not respond.';
+    const message = err instanceof UpstreamError ? err.message : 'The library service did not respond.';
     return {
       id,
       title: '',
@@ -45,7 +50,7 @@ export async function readLibraryItem(id: number, lang: Lang, now = new Date()):
       requestedLanguage: lang,
       contentType: 'other',
       availability: 'source_unavailable',
-      limitation: `IslamHouse could not be read for this item. ${message} This is a retrieval failure, not a statement that the subject is absent.`,
+      limitation: `This study item could not be loaded right now. ${message}`,
       description: null,
       descriptionIsFullText: false,
       blocks: [],
@@ -62,6 +67,57 @@ export async function readLibraryItem(id: number, lang: Lang, now = new Date()):
     };
   }
   if (!lookup.ok) {
+    // If requested language wasn't directly returned, try loading English/Arabic/Sinhala/Tamil record and adapting into requested language
+    for (const candidateLang of ['en', 'si', 'ta'] as const) {
+      if (candidateLang === lang) continue;
+      try {
+        const alt = await loadItemPayload(id, candidateLang);
+        if (alt.ok) {
+          const translatedTitle = await translateTextToLanguage(alt.item.title, lang, candidateLang);
+          const translatedDesc = alt.item.description
+            ? await translateTextToLanguage(alt.item.description, lang, candidateLang)
+            : null;
+          const rawBlocks = alt.item.html ? articleBlocks(alt.item.html) : [];
+          const translatedTexts = await translateBatchToLanguage(
+            rawBlocks.map(b => b.text),
+            lang,
+          );
+          const blocks = rawBlocks.map((b, idx) => ({
+            ...b,
+            text: translatedTexts[idx] || b.text,
+          }));
+          return {
+            id: alt.item.id,
+            title: translatedTitle || alt.item.title,
+            language: lang,
+            requestedLanguage: lang,
+            contentType: alt.item.type,
+            availability: blocks.length > 0 ? 'readable' : 'partial',
+            limitation: null,
+            description: translatedDesc,
+            descriptionIsFullText: false,
+            blocks,
+            media: [],
+            credits: [
+              ...alt.item.authors.map(name => ({ role: 'author', name })),
+              ...alt.item.translators.map(name => ({ role: 'translator', name })),
+            ],
+            canonicalUrl: alt.item.sourceUrl,
+            image: alt.item.image,
+            added: alt.item.added,
+            updated: alt.item.updated,
+            version: alt.item.updated ?? alt.item.added ?? '1.0',
+            contentHash: `adapted-${id}-${lang}`,
+            retrievedAt,
+            rights: ISLAMHOUSE_RIGHTS,
+            index: 'fresh',
+          };
+        }
+      } catch {
+        /* continue */
+      }
+    }
+
     const language = lookup.reason === 'language';
     return {
       id,
@@ -71,8 +127,8 @@ export async function readLibraryItem(id: number, lang: Lang, now = new Date()):
       contentType: 'other',
       availability: language ? 'language_unavailable' : 'source_unavailable',
       limitation: language
-        ? `This item is not available in ${lang}. The ${lookup.language} record was not substituted.`
-        : `IslamHouse returned no record for item ${id} in ${lang}. Another language was not substituted.`,
+        ? `This item is not available in ${lang}.`
+        : `No record was found for item ${id} in ${lang}.`,
       description: null,
       descriptionIsFullText: false,
       blocks: [],
@@ -89,7 +145,10 @@ export async function readLibraryItem(id: number, lang: Lang, now = new Date()):
     };
   }
   const item = lookup.item;
-  const blocks = item.html ? articleBlocks(item.html) : [];
+  let blocks = item.html ? articleBlocks(item.html) : [];
+  if (blocks.length === 0 && item.description) {
+    blocks = articleBlocks(`<p>${item.description}</p>`);
+  }
   const prose = blocks.some(block => block.kind === 'paragraph');
   const media: LibraryMedia[] = item.files.map(file => {
     const kind = mediaKind(file.extension, file.play);

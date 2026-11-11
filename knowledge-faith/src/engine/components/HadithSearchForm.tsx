@@ -548,11 +548,17 @@ export function HadithSearchForm({
               >
                 <div className="mb-1 flex items-start justify-between gap-2">
                   <h4 style={{ color: '#1C1917' }} className="line-clamp-1 text-xs font-bold text-stone-900">{loc.title}</h4>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] font-bold ${
-                    item.scoreType === 'success' ? 'border border-emerald-600/30 bg-emerald-50 text-emerald-900' :
-                    item.scoreType === 'warning' ? 'border border-amber-500/40 bg-amber-100/80 text-amber-950' :
-                    'border border-rose-500/30 bg-rose-50 text-rose-900'
-                  }`}>
+                  <span
+                    data-testid={`benchmark-badge-${item.id}`}
+                    style={
+                      item.scoreType === 'success'
+                        ? { backgroundColor: '#065F46', color: '#FFFFFF', borderColor: '#047857' }
+                        : item.scoreType === 'warning'
+                          ? { backgroundColor: '#78350F', color: '#FFFFFF', borderColor: '#92400E' }
+                          : { backgroundColor: '#991B1B', color: '#FFFFFF', borderColor: '#B91C1C' }
+                    }
+                    className="shrink-0 rounded-full border px-2.5 py-0.5 font-mono text-[10px] font-bold shadow-2xs"
+                  >
                     {item.score}
                   </span>
                 </div>
