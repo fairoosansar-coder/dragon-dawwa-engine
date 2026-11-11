@@ -55,6 +55,7 @@ export function WallPostCard({
   owned,
   defaultExpressOpen = false,
   onReact,
+  onJoinSunnah,
   onToggleSave,
   onAddReply,
   onExportCard,
@@ -68,6 +69,7 @@ export function WallPostCard({
   owned: boolean;
   defaultExpressOpen?: boolean;
   onReact: (postId: string, reactionId: string) => void;
+  onJoinSunnah?: (postId: string) => void;
   onToggleSave: (postId: string) => void;
   onAddReply: (postId: string, text: string) => Promise<void> | void;
   onExportCard: (post: FaithWallPost) => void;
@@ -402,8 +404,94 @@ export function WallPostCard({
         <div className="my-1.5" />
       )}
 
-      {/* 3. Attached Sacred Anchor: Either Podcast Episode Player OR 16:9 Illuminated Ayah/Hadith Card */}
-      {post.type === 'podcast' ? (
+      {/* 3. Attached Sacred Anchor: Good Deed Sunnah Pledge, Podcast Episode Player, OR 16:9 Illuminated Ayah/Hadith Card */}
+      {post.type === 'good_deed' ? (
+        <div
+          data-wall-good-deed-card={post.id}
+          style={{ backgroundColor: '#073C30', color: '#FFFFFF' }}
+          className="relative flex flex-col justify-between overflow-hidden rounded-xl border border-[#D4AF37]/45 bg-gradient-to-br from-[#04241C] via-[#073C30] to-[#0A2E23] p-4 text-[#FFFFFF] shadow-sm sm:p-5"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span
+              style={{ backgroundColor: 'rgba(212,175,55,0.16)', color: '#F9E7B9' }}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/55 px-3 py-0.5 text-[11px] font-bold tracking-wide text-[#F9E7B9]"
+            >
+              <Sparkles className="h-3 w-3 text-[#D4AF37]" aria-hidden />
+              <span>{post.isAnonymous ? '✨ Anonymous Seeker' : `✨ ${post.authorName}`}</span>
+            </span>
+            <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#E6C665]">
+              {post.deedCategory === 'charity'
+                ? 'Charity Pledge'
+                : post.deedCategory === 'kindness'
+                  ? 'Kindness Sunnah'
+                  : 'Dhikr & Sunnah'}
+            </span>
+          </div>
+
+          <h4
+            style={{ color: '#F9E7B9' }}
+            className="mt-3 font-display text-base font-bold leading-snug text-[#F9E7B9] sm:text-lg"
+          >
+            {post.deedTitle || 'Read Surah Al-Kahf on Friday & Morning Adhkar'}
+          </h4>
+
+          <div className="mt-2.5 rounded-xl border border-[#D4AF37]/25 bg-[#031812]/65 p-3">
+            <p
+              lang="ar"
+              dir="rtl"
+              style={{ color: '#FFFFFF' }}
+              className="quran-face text-center text-base leading-[1.95] text-[#FFFFFF] sm:text-lg"
+            >
+              {post.arabic}
+            </p>
+            <p
+              lang={post.lang}
+              style={{ color: '#E7E5E4' }}
+              className="mt-1 text-center text-xs leading-relaxed text-stone-200"
+            >
+              {quoted}
+            </p>
+          </div>
+
+          <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 border-t border-white/15 pt-3">
+            <a
+              href={openHref}
+              style={{ color: '#E6C665' }}
+              className="text-[11px] font-semibold text-[#E6C665] hover:underline"
+            >
+              {badge} →
+            </a>
+
+            <button
+              type="button"
+              data-testid="join-sunnah-btn"
+              data-join-sunnah={post.id}
+              aria-pressed={Boolean(post.userJoined)}
+              onClick={() => onJoinSunnah?.(post.id)}
+              style={{
+                backgroundColor: post.userJoined ? '#D4AF37' : '#0E4D3B',
+                color: post.userJoined ? '#031812' : '#FFFFFF',
+              }}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-xs font-bold shadow-sm transition cursor-pointer ${
+                post.userJoined
+                  ? 'border-[#D4AF37] bg-[#D4AF37] text-[#031812]'
+                  : 'border-[#D4AF37]/75 bg-[#0E4D3B] text-[#FFFFFF] hover:bg-[#13634C]'
+              }`}
+            >
+              {post.userJoined ? (
+                <Check className="h-3.5 w-3.5" aria-hidden />
+              ) : (
+                <Plus className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+              )}
+              <span>
+                {post.userJoined
+                  ? `Joined Sunnah · ${post.joinedCount ?? 49} joined`
+                  : `Join this Sunnah · ${post.joinedCount ?? 48} joined`}
+              </span>
+            </button>
+          </div>
+        </div>
+      ) : post.type === 'podcast' ? (
         <div
           data-wall-podcast-card={post.id}
           className={`relative flex flex-col justify-between overflow-hidden rounded-xl border border-[#D4AF37]/35 p-4 text-[#F3E8C8] shadow-sm ${themeSpec.classes}`}
@@ -557,9 +645,30 @@ export function WallPostCard({
         data-wall-reactions-bar={post.id}
         className="mt-3 flex flex-wrap items-center justify-between gap-1.5 border-t border-stone-100 pt-2.5 sm:flex-nowrap"
       >
-        {/* Left Side: Active Reaction Chips + [ + React ] Trigger on a single clean row */}
+        {/* Left Side: Active Reaction Chips + 1-Tap Join Sunnah + [ + React ] Trigger on a single clean row */}
         <div className="flex min-w-0 flex-wrap items-center gap-1 sm:flex-nowrap">
-          {activeReactionChips.slice(0, 4).map(chip => (
+          {post.type !== 'good_deed' && onJoinSunnah && (
+            <button
+              type="button"
+              data-testid="join-sunnah-btn"
+              data-join-sunnah={post.id}
+              aria-pressed={Boolean(post.userJoined)}
+              onClick={() => onJoinSunnah(post.id)}
+              style={{
+                backgroundColor: post.userJoined ? '#073C30' : '#E8F2EC',
+                color: post.userJoined ? '#FFFFFF' : '#073C30',
+              }}
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#073C30]/30 px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap transition cursor-pointer hover:border-[#073C30]"
+            >
+              {post.userJoined ? (
+                <Check className="h-3 w-3 text-[#D4AF37]" aria-hidden />
+              ) : (
+                <Plus className="h-3 w-3 text-[#073C30]" aria-hidden />
+              )}
+              <span>Join Sunnah · {post.joinedCount ?? 8}</span>
+            </button>
+          )}
+          {activeReactionChips.slice(0, 3).map(chip => (
             <button
               key={chip.id}
               type="button"

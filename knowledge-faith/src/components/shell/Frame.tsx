@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
+  Bell,
   Bookmark,
   BookOpen,
+  Check,
   ChevronUp,
   Compass,
   Globe,
@@ -36,6 +38,8 @@ import {
   ADMIN_SETTINGS_EVENT,
   FAITH_WALL_EVENT,
   listFaithWallPosts,
+  listWallNotifications,
+  markAllWallNotificationsRead,
   resolveUserProfilePortfolio,
 } from '../../lib/verseShare.ts';
 
@@ -116,7 +120,9 @@ export function AppFrame({
     typeof window === 'undefined' ? '#/quran/wall' : window.location.hash || '#/quran/wall',
   );
   const [footerSettingsOpen, setFooterSettingsOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const footerRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const sync = () => {
@@ -140,13 +146,31 @@ export function AppFrame({
   }, []);
 
   useEffect(() => {
-    if (!footerSettingsOpen) return;
+    if (!footerSettingsOpen && !notifOpen) return;
     const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setFooterSettingsOpen(false);
+      if (event.key === 'Escape') {
+        setFooterSettingsOpen(false);
+        setNotifOpen(false);
+      }
+    };
+    const handlePointerDown = (event: MouseEvent) => {
+      if (notifOpen && !notifRef.current?.contains(event.target as Node)) {
+        setNotifOpen(false);
+      }
     };
     window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [footerSettingsOpen]);
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => {
+      window.removeEventListener('keydown', handleKey);
+      document.removeEventListener('mousedown', handlePointerDown);
+    };
+  }, [footerSettingsOpen, notifOpen]);
+
+  const notifications = useMemo(() => listWallNotifications(), [wallTick]);
+  const unreadNotifCount = useMemo(
+    () => notifications.filter(item => item.unread).length,
+    [notifications],
+  );
 
   const posts = useMemo(() => listFaithWallPosts(), [wallTick, user]);
   const portfolio = useMemo(() => resolveUserProfilePortfolio('me'), [wallTick, user]);
@@ -621,6 +645,85 @@ export function AppFrame({
                       className="inline-block h-2.5 w-2.5 rounded-full border border-black/20"
                     />
                   </button>
+
+                  {/* Simple Header Notification Bell */}
+                  <div ref={notifRef} className="relative shrink-0">
+                    <button
+                      type="button"
+                      data-testid="header-notification-bell"
+                      aria-label="Community notifications"
+                      aria-expanded={notifOpen}
+                      onClick={() => setNotifOpen(open => !open)}
+                      className="relative inline-flex h-7.5 w-7.5 items-center justify-center rounded-full border border-stone-300/90 bg-white text-[#073C30] shadow-2xs transition hover:border-[#073C30]/50 hover:bg-emerald-50/40"
+                    >
+                      <Bell className="h-3.5 w-3.5" aria-hidden />
+                      {unreadNotifCount > 0 && (
+                        <span
+                          data-testid="header-notification-badge"
+                          style={{ backgroundColor: '#B91C1C', color: '#FFFFFF' }}
+                          className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-700 px-1 font-mono text-[9px] font-bold text-[#FFFFFF] shadow-2xs"
+                        >
+                          {unreadNotifCount}
+                        </span>
+                      )}
+                    </button>
+
+                    {notifOpen && (
+                      <div
+                        role="dialog"
+                        aria-label="Community Notifications"
+                        data-testid="header-notifications-popover"
+                        className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-1.5rem)] rounded-2xl border border-stone-200 bg-white p-3 text-stone-900 shadow-2xl ring-1 ring-black/5"
+                      >
+                        <div className="mb-2 flex items-center justify-between border-b border-stone-100 pb-2">
+                          <span className="text-xs font-bold text-stone-900">
+                            Community Updates
+                          </span>
+                          <button
+                            type="button"
+                            data-testid="mark-notifications-read-btn"
+                            onClick={() => {
+                              markAllWallNotificationsRead();
+                              setWallTick(n => n + 1);
+                            }}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:underline"
+                          >
+                            <Check className="h-3 w-3" aria-hidden />
+                            <span>Mark all read</span>
+                          </button>
+                        </div>
+
+                        <ul className="space-y-1.5">
+                          {notifications.map(item => (
+                            <li key={item.id}>
+                              <a
+                                href={item.href}
+                                onClick={() => {
+                                  markAllWallNotificationsRead();
+                                  setWallTick(n => n + 1);
+                                  setNotifOpen(false);
+                                }}
+                                className={`block rounded-xl border px-3 py-2 text-xs transition ${
+                                  item.unread
+                                    ? 'border-emerald-700/25 bg-emerald-50/60 text-stone-900'
+                                    : 'border-stone-100 bg-stone-50/60 text-stone-700 hover:bg-stone-100/70'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="font-bold text-[#073C30]">{item.actor}</span>
+                                  <span className="shrink-0 text-[10px] text-stone-500">{item.timeAgo}</span>
+                                </div>
+                                <p className="mt-0.5 text-[11px] leading-snug text-stone-700">
+                                  {item.action} <strong className="text-stone-900">“{item.target}”</strong>
+                                </p>
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+
                   <SeekerAccountPill variant="header" />
                 </div>
               </div>
