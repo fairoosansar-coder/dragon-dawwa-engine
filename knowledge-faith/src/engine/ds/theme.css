@@ -251,7 +251,8 @@
 
 /* Preserve pure white text inside dark emerald banners & primary buttons within mushaf theme */
 [data-theme="mushaf"] [data-research-arch],
-[data-theme="mushaf"] [data-testid="run-research-btn"] {
+[data-theme="mushaf"] [data-testid="run-research-btn"],
+[data-theme="mushaf"] [data-testid^="benchmark-badge-"] {
   --color-white: #ffffff;
 }
 }

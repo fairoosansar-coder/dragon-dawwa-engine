@@ -83,7 +83,7 @@ export interface ArticleBlock {
   text: string;
 }
 
-/** Headings and paragraphs in document order. Scripts and tags are not kept. */
+/** Headings and paragraphs in document order. Long lines inside `<h1-3>` are treated as paragraphs, not giant chapter pills. */
 export function articleBlocks(html: string): ArticleBlock[] {
   const blocks: ArticleBlock[] = [];
   const pattern = /<(h[1-3]|p)\b([^>]*)>([\s\S]*?)<\/\1>/gi;
@@ -97,7 +97,14 @@ export function articleBlocks(html: string): ArticleBlock[] {
     count += 1;
     const id = /\bid="([^"]+)"/i.exec(attrs)?.[1] || `b${count}`;
     const footnote = /footnote/i.test(attrs) || /^\[\d+\]/.test(text);
-    blocks.push({ id, kind: tag === 'p' ? (footnote ? 'footnote' : 'paragraph') : 'heading', text });
+    const isNumberedPoint = /^\s*\d{1,3}\s*[-.)]/.test(text);
+    const isTrueHeading =
+      tag !== 'p' && !footnote && !isNumberedPoint && text.length <= 95;
+    blocks.push({
+      id,
+      kind: footnote ? 'footnote' : isTrueHeading ? 'heading' : 'paragraph',
+      text,
+    });
   }
   return blocks;
 }

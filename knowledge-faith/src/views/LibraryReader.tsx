@@ -328,7 +328,8 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
             </div>
           )}
 
-          {data.blocks.some(block => block.kind === 'heading') && (
+          {data.blocks.some(block => block.kind === 'heading') &&
+            data.blocks.filter(block => block.kind === 'heading').length <= 12 && (
             <nav aria-label="Chapters" className="flex flex-wrap gap-2">
               {data.blocks
                 .filter(block => block.kind === 'heading')
