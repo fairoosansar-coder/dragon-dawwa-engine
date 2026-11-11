@@ -513,11 +513,36 @@ export function SeekerAuthCard({
       return;
     }
 
+    // Pre-check if the production Redirect URI is already registered in Google Cloud Console
+    if (typeof fetch === 'function') {
+      try {
+        const cfgRes = await fetch('/api/auth/google/config');
+        if (cfgRes.ok) {
+          const cfgData = (await cfgRes.json().catch(() => ({}))) as {
+            redirectUriAccepted?: boolean;
+          };
+          if (cfgData.redirectUriAccepted === true) {
+            handleOAuthRedirectStart();
+            return;
+          }
+          if (cfgData.redirectUriAccepted === false) {
+            setShowOAuthSetupHelp(true);
+            setError(
+              `Google Cloud Console setup needed: this OAuth Client ID has not authorized ${currentOrigin} yet. Add the Origin and Redirect URI below in Google Cloud Console, or sign in with your Username, Email, or Phone Number below.`,
+            );
+            return;
+          }
+        }
+      } catch {
+        /* continue to client-side popup attempt */
+      }
+    }
+
     const loaded = await ensureGoogleGisLoaded();
     const gOAuth2 = window.google?.accounts?.oauth2;
     const gId = window.google?.accounts?.id;
 
-    // 1. Primary: Google OAuth2 Popup Token Client (uses redirect_uri='postmessage' — never hits /api/auth/google/callback redirect_uri_mismatch)
+    // 1. Primary: Google OAuth2 Popup Token Client (uses redirect_uri='postmessage')
     if (loaded && (tokenClientRef.current || gOAuth2?.initTokenClient)) {
       try {
         if (!tokenClientRef.current && gOAuth2?.initTokenClient) {
@@ -924,7 +949,7 @@ export function SeekerAuthCard({
             <div className="flex items-center justify-between">
               <p className="inline-flex items-center gap-1 font-semibold text-[#0F5132]">
                 <HelpCircle className="h-3 w-3" aria-hidden />
-                <span>Google Cloud Console OAuth 2.0 Settings</span>
+                <span>1-Step Google Cloud Console Setup</span>
               </p>
               <button
                 type="button"
@@ -934,8 +959,20 @@ export function SeekerAuthCard({
                 Hide
               </button>
             </div>
+            <p className="text-[10px] leading-snug text-stone-600">
+              In{' '}
+              <a
+                href="https://console.cloud.google.com/apis/credentials?project=ummahconnect-staging-261017"
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-[#0F5132] underline"
+              >
+                Google Cloud Console → Credentials
+              </a>{' '}
+              (Client <code className="font-mono">677673398182-ip1vn7...</code>), add these two URLs and click Save:
+            </p>
             <div className="flex items-center justify-between gap-2 rounded-lg border border-[#E6DEC8] bg-white px-2 py-1">
-              <span className="truncate font-mono text-[10px]">Origin: {currentOrigin}</span>
+              <span className="truncate font-mono text-[10px]">JS Origin: {currentOrigin}</span>
               <button
                 type="button"
                 onClick={() => void copyUri(currentOrigin, 'origin')}
@@ -946,7 +983,7 @@ export function SeekerAuthCard({
               </button>
             </div>
             <div className="flex items-center justify-between gap-2 rounded-lg border border-[#E6DEC8] bg-white px-2 py-1">
-              <span className="truncate font-mono text-[10px]">Redirect: {expectedRedirectUri}</span>
+              <span className="truncate font-mono text-[10px]">Redirect URI: {expectedRedirectUri}</span>
               <button
                 type="button"
                 onClick={() => void copyUri(expectedRedirectUri, 'redirect')}

@@ -703,6 +703,40 @@ export function resolveGoogleRedirectUri(req: Request, callbackPathOverride?: un
   return `${resolveRequestOrigin(req)}${cfg.callbackPath}`;
 }
 
+export async function probeGoogleRedirectUriAccepted(
+  req: Request,
+  callbackPathOverride?: unknown,
+  fetchImpl: typeof fetch = globalThis.fetch,
+): Promise<{ accepted: boolean; redirectUri: string; clientId: string | null }> {
+  const cfg = getGoogleAuthConfig();
+  const redirectUri = resolveGoogleRedirectUri(req, callbackPathOverride);
+  if (!cfg.enabled || !cfg.clientId) {
+    return { accepted: false, redirectUri, clientId: null };
+  }
+  if (process.env.GOOGLE_OAUTH_SKIP_REDIRECT_PROBE === '1') {
+    return { accepted: true, redirectUri, clientId: cfg.clientId };
+  }
+  try {
+    const probeParams = new URLSearchParams({
+      client_id: cfg.clientId,
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      scope: 'openid email profile',
+    });
+    const probeRes = await fetchImpl(
+      `https://accounts.google.com/o/oauth2/v2/auth?${probeParams.toString()}`,
+      { redirect: 'manual', signal: AbortSignal.timeout(4000) },
+    );
+    const location = probeRes.headers.get('location') || '';
+    if (location.includes('signin/oauth/error') || location.includes('redirect_uri_mismatch')) {
+      return { accepted: false, redirectUri, clientId: cfg.clientId };
+    }
+    return { accepted: true, redirectUri, clientId: cfg.clientId };
+  } catch {
+    return { accepted: true, redirectUri, clientId: cfg.clientId };
+  }
+}
+
 export function buildGoogleOAuthStart(
   req: Request,
   returnToRaw?: unknown,
