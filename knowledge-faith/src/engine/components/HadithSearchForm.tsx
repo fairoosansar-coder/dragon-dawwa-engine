@@ -552,12 +552,12 @@ export function HadithSearchForm({
                     data-testid={`benchmark-badge-${item.id}`}
                     style={
                       item.scoreType === 'success'
-                        ? { backgroundColor: '#064E3B', color: '#FFFFFF', borderColor: '#047857' }
+                        ? { backgroundColor: '#042F2E', color: '#FFFFFF', borderColor: '#10B981' }
                         : item.scoreType === 'warning'
-                          ? { backgroundColor: '#78350F', color: '#FFFFFF', borderColor: '#92400E' }
-                          : { backgroundColor: '#991B1B', color: '#FFFFFF', borderColor: '#B91C1C' }
+                          ? { backgroundColor: '#451A03', color: '#FFFFFF', borderColor: '#F59E0B' }
+                          : { backgroundColor: '#450A0A', color: '#FFFFFF', borderColor: '#EF4444' }
                     }
-                    className="shrink-0 rounded-full border px-2.5 py-0.5 font-mono text-[11px] font-extrabold shadow-2xs"
+                    className="shrink-0 rounded-full border-2 px-3 py-0.5 font-mono text-xs font-extrabold tracking-tight shadow-sm"
                   >
                     {item.score}
                   </span>

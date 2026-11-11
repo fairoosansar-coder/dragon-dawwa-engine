@@ -341,49 +341,23 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
               </button>
             </div>
 
-            {/* 16:9 Illuminated Manuscript Card Live Preview (Exact 1200×675 HD Canvas Sync + Adaptive Typography) */}
-            {preview?.cards?.[0] ? (
-              <div
-                data-verse-studio-card
-                data-studio-theme={cardTheme}
-                className="relative overflow-hidden rounded-2xl border-2 border-[#D4AF37]/55 bg-[#031812] shadow-xl"
-              >
-                <img
-                  src={preview.cards[0]}
-                  alt={`${badgeText} — Illuminated 1200×675 HD Manuscript Card`}
-                  data-testid="studio-hd-canvas-preview"
-                  className="block h-auto w-full rounded-xl"
-                />
-                {/* Hidden accessible DOM nodes so copy/test selectors continue to inspect exact card text */}
-                <div className="sr-only">
-                  <span data-card-badge>{badgeText}</span>
-                  <span data-card-bismillah>۞ {CARD_BISMILLAH}</span>
-                  <p lang="ar" dir="rtl" data-card-arabic>{verse.arabic}</p>
-                  <p lang={lang} data-card-translation>{quotedTranslation}</p>
-                  {reflection.trim() && <p data-card-reflection>— {reflection.trim()}</p>}
-                  <div data-card-footer>
-                    <span>{BRAND_FOOTER_LEFT}</span>
-                    <span>{BRAND_FOOTER_RIGHT}</span>
-                  </div>
-                </div>
-              </div>
-            ) : (
+            {/* Illuminated Manuscript Card Live Preview (Auto-Expanding Frame — Never Clips Long Verses) */}
             <div
               data-verse-studio-card
               data-studio-theme={cardTheme}
-              className={`relative flex min-h-[16rem] w-full flex-col justify-between rounded-2xl border-2 p-4 shadow-inner sm:min-h-[21rem] sm:p-7 ${WALL_THEMES[cardTheme].classes}`}
+              className={`relative flex w-full flex-col justify-between rounded-2xl border-2 p-5 shadow-inner sm:p-8 ${WALL_THEMES[cardTheme].classes}`}
             >
               {/* Inner Second Gold Frame Line */}
               <div
                 aria-hidden
-                className="pointer-events-none absolute inset-2 rounded-xl border border-[#D4AF37]/25 sm:inset-2.5"
+                className="pointer-events-none absolute inset-2 rounded-xl border border-[#D4AF37]/30 sm:inset-3"
               />
 
               {/* Subtle Geometric Rosette SVG Watermark */}
               <svg
                 aria-hidden
                 viewBox="0 0 200 200"
-                className="pointer-events-none absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 text-[#D4AF37]/[0.06] sm:h-72 sm:w-72"
+                className="pointer-events-none absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 text-[#D4AF37]/[0.06] sm:h-64 sm:w-64"
               >
                 <g fill="none" stroke="currentColor" strokeWidth="1.2">
                   <rect x="42" y="42" width="116" height="116" />
@@ -395,10 +369,10 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
               </svg>
 
               {/* Top Row: Gold Pill Badge (left) + Decorative Gold Bismillah / Rosette (right) */}
-              <div className="relative z-10 flex items-center justify-between gap-2">
+              <div className="relative z-10 flex items-center justify-between gap-2 pb-2">
                 <span
                   data-card-badge
-                  className="inline-flex shrink-0 items-center rounded-full border border-[#D4AF37]/55 bg-[#D4AF37]/15 px-2.5 py-0.5 text-[10px] font-semibold tracking-[0.1em] text-[#D4AF37] sm:px-3.5 sm:py-1 sm:text-xs sm:tracking-[0.12em]"
+                  className="inline-flex shrink-0 items-center rounded-full border border-[#D4AF37]/55 bg-[#D4AF37]/15 px-3 py-1 text-[11px] font-semibold tracking-[0.12em] text-[#D4AF37]"
                 >
                   {badgeText}
                 </span>
@@ -406,45 +380,45 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
                   lang="ar"
                   dir="rtl"
                   data-card-bismillah
-                  className="quran-face truncate text-xs text-[#D4AF37]/90 sm:text-lg"
+                  className="quran-face truncate text-sm text-[#D4AF37]/90 sm:text-lg"
                 >
                   ۞ {CARD_BISMILLAH}
                 </span>
               </div>
 
-              {/* Center Arabic + Quoted Warm Ivory Translation */}
-              <div className="relative z-10 my-auto flex flex-col items-center justify-center px-2 py-3 text-center sm:px-6 sm:py-4">
+              {/* Center Arabic + Quoted Warm Ivory Translation (Full Unclipped Auto-Height Display) */}
+              <div className="relative z-10 flex flex-col items-center justify-center px-3 py-4 text-center sm:px-6 sm:py-5">
                 <p
                   lang="ar"
                   dir="rtl"
                   data-card-arabic
-                  style={{ textShadow: '0 0 20px rgba(212,175,55,0.2)', lineHeight: 2.15 }}
+                  style={{ textShadow: '0 0 20px rgba(212,175,55,0.2)', lineHeight: 2.2 }}
                   className={`quran-face w-full text-center text-[#FFFFFF] ${
                     isVeryLongPassage
-                      ? 'text-base sm:text-xl'
+                      ? 'text-lg sm:text-xl'
                       : isLongPassage
-                        ? 'text-lg sm:text-2xl'
-                        : 'text-xl sm:text-3xl'
+                        ? 'text-xl sm:text-2xl'
+                        : 'text-2xl sm:text-3xl'
                   }`}
                 >
                   {verse.arabic}
                 </p>
 
-                <div aria-hidden className="my-2 flex items-center gap-2 text-[#D4AF37]/60 sm:my-3">
-                  <span className="h-px w-8 bg-[#D4AF37]/35 sm:w-14" />
-                  <span className="text-[9px] sm:text-[10px]">◆</span>
-                  <span className="h-px w-8 bg-[#D4AF37]/35 sm:w-14" />
+                <div aria-hidden className="my-3 flex items-center gap-2 text-[#D4AF37]/65">
+                  <span className="h-px w-10 bg-[#D4AF37]/40 sm:w-16" />
+                  <span className="text-[10px]">◆</span>
+                  <span className="h-px w-10 bg-[#D4AF37]/40 sm:w-16" />
                 </div>
 
                 <p
                   lang={lang}
                   data-card-translation
-                  style={{ lineHeight: 1.75 }}
-                  className={`max-w-2xl text-center font-display text-[#F3E8C8] ${
+                  style={{ lineHeight: 1.85 }}
+                  className={`max-w-2xl pb-2 text-center font-display text-[#F3E8C8] ${
                     isVeryLongPassage
                       ? 'text-xs sm:text-sm'
                       : isLongPassage
-                        ? 'text-xs sm:text-[15px]'
+                        ? 'text-sm sm:text-[15px]'
                         : 'text-sm sm:text-base'
                   }`}
                 >
@@ -454,23 +428,22 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
                 {reflection.trim() && (
                   <p
                     data-card-reflection
-                    className="mt-2 max-w-xl text-center text-[11px] italic text-[#D4AF37]/90 sm:text-xs"
+                    className="mt-2 max-w-xl text-center text-xs italic text-[#D4AF37]/90"
                   >
                     — {reflection.trim()}
                   </p>
                 )}
               </div>
 
-              {/* Discreet Brand Footer */}
+              {/* Discreet Brand Footer with Generous Top Margin & Bottom Cushion */}
               <div
                 data-card-footer
-                className="relative z-10 mt-2 flex items-center justify-between gap-2 border-t border-[#D4AF37]/20 pt-2 text-[10px] font-medium tracking-wide text-[#D4AF37]/70 sm:pt-2.5 sm:text-[11px]"
+                className="relative z-10 mt-3 flex items-center justify-between gap-2 border-t border-[#D4AF37]/25 pt-3 pb-1 text-[11px] font-medium tracking-wide text-[#D4AF37]/80"
               >
                 <span className="truncate">{BRAND_FOOTER_LEFT}</span>
                 <span className="shrink-0">{BRAND_FOOTER_RIGHT}</span>
               </div>
             </div>
-            )}
 
             {drawing && (
               <p className="mt-2 text-xs text-[#D4AF37]/80">Rendering 1200×675 HD canvas…</p>
