@@ -4,6 +4,7 @@ import type { Evidence, Hadith, Verse } from '../shared/types.ts';
 import { pauseAudio, playAudio, resumeAudio, useAudioState } from '../lib/audio.ts';
 import { useApp, useStored } from '../lib/store.tsx';
 import { confirmedMeaningSrc, meaningPlaybackId } from '../shared/quranenc.ts';
+import { HadithVoiceBar } from './HadithVoiceBar.tsx';
 import { IconButton } from './ui.tsx';
 
 export function useReciter() {
@@ -168,9 +169,9 @@ export function HadithCard({ hadith }: { hadith: Hadith }) {
         </IconButton>
       </div>
       {hadith.arabic && (
-        <details className="mb-2">
+        <details className="mb-2" open>
           <summary className="cursor-pointer text-xs font-medium text-pine">العربية</summary>
-          <p lang="ar" className="arabic mt-1 text-xl text-ink">
+          <p lang="ar" dir="rtl" className="arabic mt-1 text-xl text-ink">
             {hadith.arabic}
           </p>
         </details>
@@ -178,6 +179,16 @@ export function HadithCard({ hadith }: { hadith: Hadith }) {
       <p lang={hadith.lang} className="leading-relaxed text-ink/90">
         {hadith.text}
       </p>
+      <div className="mt-3">
+        <HadithVoiceBar
+          hadithKey={`card-${hadith.collection}-${hadith.number}-${hadith.lang}`}
+          arabicText={hadith.arabic}
+          translationText={hadith.text}
+          lang={hadith.lang}
+          variant="light"
+          compact
+        />
+      </div>
       {hadith.machineTranslation && <p className="mt-1 text-xs text-pine">{t.machineHadithShort}</p>}
       {!hadith.machineTranslation && hadith.lang !== lang && <p className="mt-1 text-xs text-pine">{t.fallbackEnglish}</p>}
       <div className="mt-3">

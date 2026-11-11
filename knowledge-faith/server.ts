@@ -86,6 +86,7 @@ import { resolveDomainConfig } from './src/server/research/agentConfig.ts';
 import { randomUUID } from 'node:crypto';
 import { getResearchJob, seedResearchJob, startResearchJob } from './src/engine/server/researchJobs.ts';
 import { synthesizeRoundtableVoice } from './src/engine/server/geminiTtsService.ts';
+import { getHadithTtsStatus, synthesizeHadithVoice } from './src/server/elevenlabsTts.ts';
 import { extractHadithFromMedia } from './src/engine/server/hadithOcrService.ts';
 import { transcribeAudioWithGemini } from './src/engine/server/geminiAudioTranscribe.ts';
 import { ummahQuranMiddleware } from './src/engine/server/ummahQuran.ts';
@@ -1154,6 +1155,37 @@ app.get(
     res.json({ id: job.id, status: 'running' });
   }),
 );
+
+app.get(
+  '/api/tts/hadith/status',
+  route(async (_req, res) => {
+    res.json(getHadithTtsStatus());
+  }),
+);
+
+const hadithTtsHandler = route(async (req, res) => {
+  const body = text(req.body?.text, 3000, 'text');
+  const voiceProfile =
+    typeof req.body?.voiceProfile === 'string'
+      ? req.body.voiceProfile.slice(0, 40)
+      : typeof req.body?.voice === 'string'
+        ? req.body.voice.slice(0, 40)
+        : 'tariq';
+  const lang = req.body?.lang ?? 'en';
+  const speed = req.body?.speed ?? 1;
+  const modelId = typeof req.body?.modelId === 'string' ? req.body.modelId.slice(0, 40) : undefined;
+  const result = await synthesizeHadithVoice({
+    text: body,
+    lang,
+    voiceProfile,
+    speed,
+    modelId,
+  });
+  res.json(result);
+});
+
+app.post('/api/tts/hadith', ttsLimiter, hadithTtsHandler);
+app.post('/api/tts/elevenlabs', ttsLimiter, hadithTtsHandler);
 
 app.post(
   '/api/tts',

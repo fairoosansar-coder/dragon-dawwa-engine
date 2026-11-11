@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { ViewProps } from '../App.tsx';
+import { HadithVoiceBar, type ActiveHadithSpeechPart } from '../components/HadithVoiceBar.tsx';
 import { RecordShare } from '../components/RecordShare.tsx';
 import { researchStudioHref } from './hadithEncyclopediaCopy.ts';
 import { EmptyState } from '../components/shell/widgets.tsx';
@@ -47,6 +48,7 @@ function shareVerse(hadith: EncyclopediaHadith): ShareVerse {
 
 function HadithReading({ id }: { id: string }) {
   const { t, lang, setLang } = useApp();
+  const [activeSpeechPart, setActiveSpeechPart] = useState<ActiveHadithSpeechPart>(null);
   const hash = useLocationHash();
   const requested = new URLSearchParams(hash.split('?')[1] ?? '').get('lang');
   useEffect(() => {
@@ -72,15 +74,37 @@ function HadithReading({ id }: { id: string }) {
           <h2 className="font-display text-2xl font-bold text-pine" lang={hadith.lang}>
             {hadith.title}
           </h2>
+          <HadithVoiceBar
+            hadithKey={`hadeeth-${hadith.id}-${hadith.lang}`}
+            arabicText={[textBeyondIntro(hadith.arabicIntro, hadith.arabic) ? hadith.arabicIntro : '', hadith.arabic].filter(Boolean).join('\n')}
+            translationText={[textBeyondIntro(hadith.intro, hadith.text) ? hadith.intro : '', hadith.text].filter(Boolean).join('\n')}
+            explanationText={hadith.explanation}
+            lang={hadith.lang}
+            variant="light"
+            onActivePartChange={setActiveSpeechPart}
+          />
           {hadith.arabic ? (
-            <div lang="ar" dir="rtl" className="arabic space-y-2 text-2xl leading-loose text-ink">
+            <div
+              lang="ar"
+              dir="rtl"
+              data-active-speech={activeSpeechPart === 'arabic' ? 'true' : undefined}
+              className={`arabic space-y-2 rounded-2xl p-2 text-2xl leading-loose text-ink transition ${
+                activeSpeechPart === 'arabic' ? 'bg-amber-50/90 ring-1 ring-amber-400' : ''
+              }`}
+            >
               {textBeyondIntro(hadith.arabicIntro, hadith.arabic) && <p className="whitespace-pre-wrap">{hadith.arabicIntro}</p>}
               <p className="whitespace-pre-wrap">{hadith.arabic}</p>
             </div>
           ) : (
             <p className="text-sm text-muted">{t.arabicMissing}</p>
           )}
-          <div lang={hadith.lang} className="space-y-2 text-lg leading-relaxed text-ink">
+          <div
+            lang={hadith.lang}
+            data-active-speech={activeSpeechPart === 'translation' ? 'true' : undefined}
+            className={`space-y-2 rounded-2xl p-2 text-lg leading-relaxed text-ink transition ${
+              activeSpeechPart === 'translation' ? 'bg-emerald-50/80 ring-1 ring-emerald-500/40' : ''
+            }`}
+          >
             {textBeyondIntro(hadith.intro, hadith.text) && <p className="whitespace-pre-wrap">{hadith.intro}</p>}
             <p className="whitespace-pre-wrap">{hadith.text}</p>
           </div>

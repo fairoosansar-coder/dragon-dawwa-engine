@@ -7,6 +7,7 @@ interface Playable {
   src: string;
   paused: boolean;
   preload: string;
+  playbackRate?: number;
   play: () => Promise<void>;
   pause: () => void;
   addEventListener: (type: string, listener: () => void) => void;
@@ -18,6 +19,7 @@ let currentId: string | null = null;
 let status: AudioStatus = typeof Audio === 'undefined' ? 'unavailable' : 'idle';
 let currentTime = 0;
 let duration = 0;
+let desiredPlaybackRate = 1;
 let continuation: (() => void) | null = null;
 let externalStop: (() => void) | null = null;
 const listeners = new Set<() => void>();
@@ -98,6 +100,11 @@ function start(then?: () => void): Promise<void> {
   }
   if (then) continuation = then;
   stopOthers();
+  try {
+    audio.playbackRate = desiredPlaybackRate;
+  } catch {
+    /* ignore */
+  }
   setStatus('loading');
   return audio.play().then(
     () => undefined,
@@ -105,6 +112,18 @@ function start(then?: () => void): Promise<void> {
       if (currentId) setStatus('error');
     },
   );
+}
+
+export function setAudioPlaybackRate(rate: number) {
+  const clean = Number.isFinite(rate) && rate >= 0.5 && rate <= 2 ? rate : 1;
+  desiredPlaybackRate = clean;
+  if (media) {
+    try {
+      media.playbackRate = clean;
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 export function playAudio(id: string, src: string, then?: () => void): Promise<void> {

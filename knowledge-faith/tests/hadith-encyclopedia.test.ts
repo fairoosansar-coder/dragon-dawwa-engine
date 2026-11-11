@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { getHadithTtsStatus, synthesizeHadithVoice } from '../src/server/elevenlabsTts.ts';
+import { HADITH_VOICE_PROFILES, resolveHadithVoiceProfile } from '../src/shared/hadithVoices.ts';
 import { HADITH_COLLECTIONS } from '../src/shared/sources.ts';
 import {
   confirmedCount,
@@ -48,4 +50,33 @@ test('kutub shelf is the six indexed collections', () => {
     assert.equal(HADITH_COLLECTIONS.some(item => item.id === book.id), true);
     assert.equal(book.tamil.length > 0, true);
   }
+});
+
+test('ElevenLabs v4 Hadith voice status and synthesis support Arabic matn and translation with caching', async () => {
+  const status = getHadithTtsStatus();
+  assert.equal(status.configured, true);
+  assert.equal(status.defaultModel, 'eleven_v4');
+  assert.equal(status.voices.length, HADITH_VOICE_PROFILES.length);
+  assert.equal(resolveHadithVoiceProfile('tariq').id, 'tariq');
+  assert.equal(resolveHadithVoiceProfile('yusuf').id, 'yusuf');
+  assert.equal(resolveHadithVoiceProfile('noor').id, 'noor');
+
+  const arResult = await synthesizeHadithVoice({
+    text: 'إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ',
+    lang: 'ar',
+    voiceProfile: 'tariq',
+    speed: 1,
+  });
+  assert.equal(arResult.lang, 'ar');
+  assert.equal(arResult.voiceProfile, 'tariq');
+  assert.equal(arResult.audioBase64.length > 64, true);
+
+  const cachedAr = await synthesizeHadithVoice({
+    text: 'إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ',
+    lang: 'ar',
+    voiceProfile: 'tariq',
+    speed: 1,
+  });
+  assert.equal(cachedAr.cached, true);
+  assert.equal(cachedAr.audioBase64, arResult.audioBase64);
 });
