@@ -140,48 +140,46 @@ export function ProfileSettingsPanel({ compact = false }: { compact?: boolean })
         </div>
       </div>
 
-      {/* 3. Font Size Scale */}
+      {/* 3. Font Size Scale (4 progressive "Aa" buttons) */}
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-stone-700">
-            <Type className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
-            <span>Font Size Scale</span>
-          </span>
-          <span className="font-mono text-[10px] text-stone-500">
-            {UI_FONT_SCALES[fontScale].label} ({UI_FONT_SCALES[fontScale].badge})
-          </span>
-        </div>
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-stone-700">
+          <Type className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+          <span>Font Size</span>
+        </span>
 
         <div
           role="radiogroup"
           aria-label="Select font size scale"
           data-settings-fontsize-picker
-          className="grid grid-cols-4 gap-1"
+          className="grid grid-cols-4 gap-1.5"
         >
-          {(Object.keys(UI_FONT_SCALES) as UiFontScaleId[]).map(id => {
-            const spec = UI_FONT_SCALES[id];
-            const active = fontScale === id;
+          {(
+            [
+              { id: 'compact', sizePx: '12px' },
+              { id: 'standard', sizePx: '14.5px' },
+              { id: 'comfortable', sizePx: '17px' },
+              { id: 'large', sizePx: '20px' },
+            ] as const
+          ).map(item => {
+            const spec = UI_FONT_SCALES[item.id];
+            const active = fontScale === item.id;
             return (
               <button
-                key={id}
+                key={item.id}
                 type="button"
                 role="radio"
                 aria-checked={active}
-                data-settings-fontsize={id}
-                onClick={() => setFontScale(id)}
-                className={`flex flex-col items-center justify-center rounded-xl border px-1.5 py-1.5 text-center transition ${
+                aria-label={spec.label}
+                data-settings-fontsize={item.id}
+                onClick={() => setFontScale(item.id)}
+                className={`flex h-9 items-center justify-center rounded-xl border transition ${
                   active
                     ? 'border-[#073C30] bg-[#073C30] text-[#F5EEDC] shadow-2xs'
                     : 'border-stone-200 bg-stone-50 text-stone-700 hover:border-stone-300 hover:bg-white'
                 }`}
               >
-                <span className="text-[11px] font-semibold leading-tight">{spec.label}</span>
-                <span
-                  className={`mt-0.5 font-mono text-[9px] ${
-                    active ? 'text-[#D4AF37]' : 'text-stone-500'
-                  }`}
-                >
-                  {spec.badge}
+                <span style={{ fontSize: item.sizePx }} className="font-semibold leading-none">
+                  Aa
                 </span>
               </button>
             );
