@@ -16,9 +16,10 @@ import {
 } from '../src/lib/verseShare.ts';
 import {
   authenticateGoogleCredential, createServerWallPost, exchangeGoogleOAuthCode,
-  getServerUserProfile, listServerWallPosts, loginSeekerAccount, registerSeekerAccount,
-  resetSeekerStoreForTests, verifyGoogleAccessToken,
+  getServerUserProfile, listServerWallPosts, loginSeekerAccount, probeGoogleRedirectUriAccepted,
+  registerSeekerAccount, resetSeekerStoreForTests, verifyGoogleAccessToken,
 } from '../src/server/seekerAuth.ts';
+import { elevenlabsConfigured } from '../src/server/elevenlabsTts.ts';
 import { WallPostCard } from '../src/components/wall/WallPostCard.tsx';
 import { PublicHomeOverview } from '../src/views/PublicHomeOverview.tsx';
 
@@ -657,5 +658,52 @@ test('Google OAuth2 popup accessToken verification works via postmessage without
   } finally {
     if (prevClientId === undefined) delete process.env.GOOGLE_OIDC_CLIENT_ID;
     else process.env.GOOGLE_OIDC_CLIENT_ID = prevClientId;
+  }
+});
+
+test('probeGoogleRedirectUriAccepted detects unregistered redirect URIs and elevenlabsConfigured accepts LEVENLABS_API_KEY', async () => {
+  const prevClientId = process.env.GOOGLE_OIDC_CLIENT_ID;
+  const prevEleven = process.env.ELEVENLABS_API_KEY;
+  const prevLeven = process.env.LEVENLABS_API_KEY;
+  try {
+    process.env.GOOGLE_OIDC_CLIENT_ID = '677673398182-ip1vn7a8qfdiisg3icu78ekktgc2r3pa.apps.googleusercontent.com';
+    const fakeReq = {
+      headers: {
+        'x-forwarded-proto': 'https',
+        'x-forwarded-host': 'dragon-dawwa-production.up.railway.app',
+      },
+      protocol: 'https',
+      get: (name: string) => (name.toLowerCase() === 'host' ? 'dragon-dawwa-production.up.railway.app' : undefined),
+    } as unknown as Parameters<typeof probeGoogleRedirectUriAccepted>[0];
+
+    const rejectedProbe = await probeGoogleRedirectUriAccepted(fakeReq, undefined, (async () =>
+      new Response(null, {
+        status: 302,
+        headers: {
+          location: 'https://accounts.google.com/signin/oauth/error?authError=redirect_uri_mismatch',
+        },
+      })) as typeof fetch);
+    assert.equal(rejectedProbe.accepted, false);
+    assert.equal(rejectedProbe.redirectUri, 'https://dragon-dawwa-production.up.railway.app/api/auth/google/callback');
+
+    const acceptedProbe = await probeGoogleRedirectUriAccepted(fakeReq, undefined, (async () =>
+      new Response(null, {
+        status: 302,
+        headers: {
+          location: 'https://accounts.google.com/v3/signin/identifier?client_id=677673398182',
+        },
+      })) as typeof fetch);
+    assert.equal(acceptedProbe.accepted, true);
+
+    delete process.env.ELEVENLABS_API_KEY;
+    process.env.LEVENLABS_API_KEY = 'sk_live_elevenlabs_railway_key_12345';
+    assert.equal(elevenlabsConfigured(), true);
+  } finally {
+    if (prevClientId === undefined) delete process.env.GOOGLE_OIDC_CLIENT_ID;
+    else process.env.GOOGLE_OIDC_CLIENT_ID = prevClientId;
+    if (prevEleven === undefined) delete process.env.ELEVENLABS_API_KEY;
+    else process.env.ELEVENLABS_API_KEY = prevEleven;
+    if (prevLeven === undefined) delete process.env.LEVENLABS_API_KEY;
+    else process.env.LEVENLABS_API_KEY = prevLeven;
   }
 });

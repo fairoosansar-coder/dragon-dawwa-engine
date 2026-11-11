@@ -50,6 +50,7 @@ import {
   listServerWallPosts,
   loginSeekerAccount,
   moderateServerWallPost,
+  probeGoogleRedirectUriAccepted,
   reactToServerWallPost,
   readGoogleOAuthNonceCookie,
   registerSeekerAccount,
@@ -610,8 +611,16 @@ app.get(
 
 app.get(
   '/api/auth/google/config',
-  route(async (_req, res) => {
-    res.json(getGoogleAuthConfig());
+  route(async (req, res) => {
+    const probe = await probeGoogleRedirectUriAccepted(req);
+    res.json({
+      ...getGoogleAuthConfig(),
+      redirectUriAccepted: probe.accepted,
+      expectedOrigin: `${req.protocol}://${req.get('host') || 'dragon-dawwa-production.up.railway.app'}`,
+      expectedRedirectUri: probe.redirectUri,
+      googleConsoleCredentialsUrl:
+        'https://console.cloud.google.com/apis/credentials?project=ummahconnect-staging-261017',
+    });
   }),
 );
 
@@ -620,6 +629,19 @@ app.get(
   wallLimiter,
   route(async (req, res) => {
     const started = buildGoogleOAuthStart(req, req.query.returnTo, req.query.callbackPath);
+    if (req.query.probe === '1') {
+      const probe = await probeGoogleRedirectUriAccepted(req, req.query.callbackPath);
+      if (!probe.accepted) {
+        const returnTo = typeof req.query.returnTo === 'string' && req.query.returnTo.startsWith('#/')
+          ? req.query.returnTo
+          : '#/hub';
+        res.redirect(
+          302,
+          `/?auth_error=origin_or_redirect_not_registered&expected_redirect=${encodeURIComponent(probe.redirectUri)}${returnTo}`,
+        );
+        return;
+      }
+    }
     setGoogleOAuthNonceCookie(res, started.nonce);
     res.redirect(302, started.url);
   }),

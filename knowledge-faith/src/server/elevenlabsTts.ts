@@ -19,8 +19,18 @@ import { pcmToWav } from './wav.ts';
 
 const memoryTtsCache = new Map<string, HadithTtsResponse>();
 
-export function elevenlabsConfigured(key: string | undefined = process.env.ELEVENLABS_API_KEY): boolean {
-  const trimmed = (key ?? '').trim();
+function resolveElevenLabsApiKey(explicit?: string): string {
+  return (
+    explicit ??
+    process.env.ELEVENLABS_API_KEY ??
+    process.env.LEVENLABS_API_KEY ??
+    process.env.ELEVEN_LABS_API_KEY ??
+    ''
+  ).trim();
+}
+
+export function elevenlabsConfigured(key?: string): boolean {
+  const trimmed = resolveElevenLabsApiKey(key);
   return trimmed.length >= 16 && !/^replace|^your_|^xxx/i.test(trimmed);
 }
 
@@ -158,9 +168,10 @@ async function synthesizeWithElevenLabs(
   lang: HadithSpeechLang,
   speed: HadithPlaybackSpeed,
   requestedModel?: string,
-  apiKey: string | undefined = process.env.ELEVENLABS_API_KEY,
+  apiKey?: string,
 ): Promise<{ audioBase64: string; mimeType: string; modelUsed: string; engine: 'elevenlabs-v4' | 'elevenlabs' } | null> {
-  if (!elevenlabsConfigured(apiKey)) return null;
+  const resolvedKey = resolveElevenLabsApiKey(apiKey);
+  if (!elevenlabsConfigured(resolvedKey)) return null;
   const profile = resolveHadithVoiceProfile(voiceProfileId);
   const models = requestedModel
     ? [requestedModel, ...ELEVENLABS_HADITH_MODELS.filter(m => m !== requestedModel)]
@@ -175,7 +186,7 @@ async function synthesizeWithElevenLabs(
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'xi-api-key': apiKey!.trim(),
+          'xi-api-key': resolvedKey,
           Accept: 'audio/mpeg',
         },
         signal: AbortSignal.timeout(25_000),
