@@ -341,7 +341,33 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
               </button>
             </div>
 
-            {/* 16:9 Illuminated Manuscript Card Live Preview (Adaptive Typography & Zero Clipping) */}
+            {/* 16:9 Illuminated Manuscript Card Live Preview (Exact 1200×675 HD Canvas Sync + Adaptive Typography) */}
+            {preview?.cards?.[0] ? (
+              <div
+                data-verse-studio-card
+                data-studio-theme={cardTheme}
+                className="relative overflow-hidden rounded-2xl border-2 border-[#D4AF37]/55 bg-[#031812] shadow-xl"
+              >
+                <img
+                  src={preview.cards[0]}
+                  alt={`${badgeText} — Illuminated 1200×675 HD Manuscript Card`}
+                  data-testid="studio-hd-canvas-preview"
+                  className="block h-auto w-full rounded-xl"
+                />
+                {/* Hidden accessible DOM nodes so copy/test selectors continue to inspect exact card text */}
+                <div className="sr-only">
+                  <span data-card-badge>{badgeText}</span>
+                  <span data-card-bismillah>۞ {CARD_BISMILLAH}</span>
+                  <p lang="ar" dir="rtl" data-card-arabic>{verse.arabic}</p>
+                  <p lang={lang} data-card-translation>{quotedTranslation}</p>
+                  {reflection.trim() && <p data-card-reflection>— {reflection.trim()}</p>}
+                  <div data-card-footer>
+                    <span>{BRAND_FOOTER_LEFT}</span>
+                    <span>{BRAND_FOOTER_RIGHT}</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
             <div
               data-verse-studio-card
               data-studio-theme={cardTheme}
@@ -386,7 +412,7 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
                 </span>
               </div>
 
-              {/* Center Arabic + Quoted Warm Ivory Translation (Full Unclipped Display with Proper Harakat Line-Height) */}
+              {/* Center Arabic + Quoted Warm Ivory Translation */}
               <div className="relative z-10 my-auto flex flex-col items-center justify-center px-2 py-3 text-center sm:px-6 sm:py-4">
                 <p
                   lang="ar"
@@ -444,6 +470,7 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
                 <span className="shrink-0">{BRAND_FOOTER_RIGHT}</span>
               </div>
             </div>
+            )}
 
             {drawing && (
               <p className="mt-2 text-xs text-[#D4AF37]/80">Rendering 1200×675 HD canvas…</p>
