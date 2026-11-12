@@ -3,6 +3,7 @@ import { BookOpen, Pause, SkipBack, SkipForward, Sparkles, Square, Volume2 } fro
 import { useRemote } from '../../lib/api.ts';
 import { splitTextIntoSpeechLines, useLineByLineTts } from '../../lib/lineByLineTts.ts';
 import { useApp, useStored } from '../../lib/store.tsx';
+import { AudioLoadingSpinner, loadingAudioLabel } from '../AudioLoadingSpinner.tsx';
 import type { LocalizedAyahStudyPayload } from '../../server/ayahStudyService.ts';
 import { LANGUAGE_NAMES, type Lang } from '../../shared/sources.ts';
 import type { McpEdition } from '../../shared/quranMcp.ts';
@@ -63,8 +64,10 @@ export function AyahStudyPanel({
   const tafsirLines = data?.tafsirText ? splitTextIntoSpeechLines(data.tafsirText) : [];
   const tafsirSessionId = `tafsir-study:${info.number}:${ayah}:${lang}`;
   const lineTts = useLineByLineTts(tafsirSessionId);
-  const isTafsirPlaying = lineTts.sessionId === tafsirSessionId && lineTts.status === 'playing';
+  const isTafsirPlaying = lineTts.isPlayingSession(tafsirSessionId);
+  const isTafsirLoading = lineTts.isLoadingSession(tafsirSessionId);
   const langNative = LANGUAGE_NAMES[lang]?.native ?? 'English';
+  const loadingText = loadingAudioLabel(lang);
 
   const handleToggleTafsirAudio = () => {
     if (!tafsirLines.length) return;
@@ -166,20 +169,24 @@ export function AyahStudyPanel({
               data-testid="tafsir-listen-btn"
               onClick={handleToggleTafsirAudio}
               style={{
-                backgroundColor: isTafsirPlaying ? '#D4AF37' : '#073C30',
-                color: isTafsirPlaying ? '#041B14' : '#FFFFFF',
+                backgroundColor: isTafsirPlaying || isTafsirLoading ? '#D4AF37' : '#073C30',
+                color: isTafsirPlaying || isTafsirLoading ? '#041B14' : '#FFFFFF',
               }}
               className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold shadow-sm transition cursor-pointer"
             >
-              {isTafsirPlaying ? (
+              {isTafsirLoading ? (
+                <AudioLoadingSpinner size={14} />
+              ) : isTafsirPlaying ? (
                 <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
               ) : (
                 <Volume2 className="h-3.5 w-3.5" aria-hidden />
               )}
               <span>
-                {isTafsirPlaying
-                  ? `Pause Tafsir (${langNative})`
-                  : `Listen to Tafsir (${langNative})`}
+                {isTafsirLoading
+                  ? loadingText
+                  : isTafsirPlaying
+                    ? `Pause Tafsir (${langNative})`
+                    : `Listen to Tafsir (${langNative})`}
               </span>
             </button>
           )}

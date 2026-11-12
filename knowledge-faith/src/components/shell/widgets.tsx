@@ -16,6 +16,7 @@ import { minutesInZone, nextPrayer } from '../../shared/spiritual.ts';
 import type { PrayerDay } from '../../shared/types.ts';
 import { applyPrayerOffsets, latitudeAdjustmentId, type PrayerOffsets } from '../../spiritual/prayerAdjust.ts';
 import { usePlace } from '../../spiritual/place.ts';
+import { AudioLoadingSpinner, loadingAudioLabel } from '../AudioLoadingSpinner.tsx';
 import { Button, Loading } from '../ui.tsx';
 
 export function audioStatusLabel(t: Strings, status: AudioStatus, id?: string | null): string {
@@ -783,17 +784,32 @@ export function SettingsDrawer({
 }
 
 export function AudioMiniPlayer({ safe }: { safe: boolean }) {
-  const { t } = useApp();
+  const { t, lang } = useApp();
   const audio = useAudioState();
   if (!audio.id || audio.status === 'idle') return null;
   const meaning = Boolean(audio.id.startsWith('meaning-'));
   const active = audio.status === 'playing' || audio.status === 'loading';
+  const isLoading = audio.status === 'loading';
   return (
     <div data-mini-player className={`relative z-20 shrink-0 border-t-8 border-sand bg-pine px-4 py-3 text-sand ${safe ? 'pb-[max(0.75rem,env(safe-area-inset-bottom))]' : ''}`}>
       <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-        <p className="min-w-0 text-sm leading-snug">{audioStatusLabel(t, audio.status, audio.id)}</p>
+        <p className="min-w-0 flex items-center gap-2 text-sm leading-snug">
+          {isLoading && <AudioLoadingSpinner size={15} className="text-[#D4AF37]" />}
+          <span>{audioStatusLabel(t, audio.status, audio.id)}</span>
+        </p>
         <Button variant="soft" onClick={active ? pauseAudio : resumeAudio}>
-          {active ? t.pause : meaning ? t.playMeaning : t.play}
+          {isLoading ? (
+            <>
+              <AudioLoadingSpinner size={14} />
+              <span>{loadingAudioLabel(lang)}</span>
+            </>
+          ) : active ? (
+            t.pause
+          ) : meaning ? (
+            t.playMeaning
+          ) : (
+            t.play
+          )}
         </Button>
       </div>
     </div>

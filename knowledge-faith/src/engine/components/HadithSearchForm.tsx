@@ -27,6 +27,8 @@ import { HadithMediaUploadModal } from './HadithMediaUploadModal';
 import { SupportedLanguage, TRANSLATIONS } from '../utils/localization';
 import { dictationCode, languageChip, languageLabel } from '../utils/contentLanguage.ts';
 import { beginDictationTap, isMicrophoneDenial, MICROPHONE_DENIED_MESSAGE, requestMicrophoneFromTap } from '../../views/microphoneTap.ts';
+import { AudioLoadingSpinner } from '../../components/AudioLoadingSpinner.tsx';
+import { useResearchCountdown } from '../../components/research/SevenAgentCountdownCard.tsx';
 import { publishFaithWallPost } from '../../lib/verseShare.ts';
 import {
   podcastAvailability,
@@ -75,6 +77,7 @@ export function HadithSearchForm({
   activeQuestion = '',
 }: HadithSearchFormProps) {
   const t = TRANSLATIONS[currentLanguage];
+  const { remainingSeconds } = useResearchCountdown(Boolean(isAnalyzing), 12);
   const [hadithMatn, setHadithMatn] = useState<string>(initialMatn);
   const [isnad, setIsnad] = useState<string>(initialIsnad);
   const [isnadOpen, setIsnadOpen] = useState(Boolean(initialIsnad.trim()));
@@ -821,8 +824,14 @@ export function HadithSearchForm({
               >
                 {isAnalyzing ? (
                   <>
-                    <RefreshCw className="h-3.5 w-3.5 animate-spin" style={{ color: '#FFFFFF' }} />
-                    <span style={{ color: '#FFFFFF' }}>Researching…</span>
+                    <AudioLoadingSpinner size={14} className="text-[#D4AF37]" />
+                    <span style={{ color: '#FFFFFF' }}>
+                      {currentLanguage === 'ta'
+                        ? `7-முகவர் ஆய்வு · ${remainingSeconds}s…`
+                        : currentLanguage === 'si'
+                          ? `නියෝජිත 7 පර්යේෂණය · ${remainingSeconds}s…`
+                          : `Running 7-Agent Research · ${remainingSeconds}s…`}
+                    </span>
                   </>
                 ) : (
                   <>

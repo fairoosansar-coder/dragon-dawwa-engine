@@ -15,6 +15,7 @@ import { useDossier } from './DossierContext.tsx';
 import { useRemote } from '../lib/api.ts';
 import { useApp } from '../lib/store.tsx';
 import type { SevenAgentResearchDossier } from '../shared/sevenAgentTypes.ts';
+import { SevenAgentCountdownCard } from '../components/research/SevenAgentCountdownCard.tsx';
 import { SevenAgentResearchBoard } from '../components/research/SevenAgentResearchBoard.tsx';
 import { languageLabel } from './utils/contentLanguage.ts';
 
@@ -133,10 +134,11 @@ export default function DossierWorkbench() {
           {t.dossierIdle}
         </p>
       )}
-      {d.reportOrigin === 'researching' && (
-        <p role="status" data-testid="research-language-status" style={{ backgroundColor: '#F6EFE2', color: '#1C1915' }} className="rounded-2xl border border-[#c4a46a] bg-[#f6efe2] px-4 py-3 text-xs font-medium text-[#1c1915]">
-          Research is running in {languageLabel(d.lang)}. The previous episode is stopped and will not replace this one.
-        </p>
+      {(d.reportOrigin === 'researching' || d.isAnalyzing) && (
+        <SevenAgentCountdownCard
+          question={d.matn}
+          lang={d.lang}
+        />
       )}
       {d.reportOrigin === 'failed' && (
         <div

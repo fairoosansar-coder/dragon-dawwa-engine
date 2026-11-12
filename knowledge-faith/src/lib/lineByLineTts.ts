@@ -132,8 +132,8 @@ async function defaultPlayAudioLine(
   onStarted: () => void,
   onEnded: () => void,
 ): Promise<void> {
-  onStarted();
   await playAudio(audioId, src, onEnded);
+  onStarted();
 }
 
 /**
@@ -381,14 +381,26 @@ export function useLineByLineTts(sessionPrefix?: string) {
   const effectiveStatus =
     isMatchingSession && snapshot.status === 'playing' && audio.status === 'paused'
       ? 'paused'
-      : isMatchingSession
-        ? snapshot.status
-        : 'idle';
+      : isMatchingSession && snapshot.status === 'playing' && audio.status === 'loading'
+        ? 'loading'
+        : isMatchingSession
+          ? snapshot.status
+          : 'idle';
+
+  const isLoadingSession = (targetSessionId: string): boolean =>
+    snapshot.sessionId === targetSessionId && effectiveStatus === 'loading';
+
+  const isPlayingSession = (targetSessionId: string): boolean =>
+    snapshot.sessionId === targetSessionId && effectiveStatus === 'playing';
 
   return {
     ...snapshot,
     active: isMatchingSession && snapshot.status !== 'idle',
     status: effectiveStatus,
+    isLoadingAudio: isMatchingSession && effectiveStatus === 'loading',
+    isPlaying: isMatchingSession && effectiveStatus === 'playing',
+    isLoadingSession,
+    isPlayingSession,
     currentLineText:
       isMatchingSession && snapshot.currentIndex >= 0
         ? snapshot.lines[snapshot.currentIndex] ?? null

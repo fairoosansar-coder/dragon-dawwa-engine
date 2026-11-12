@@ -14,6 +14,7 @@ import {
 import { setAudioPlaybackRate } from '../lib/audio.ts';
 import { splitTextIntoSpeechLines, useLineByLineTts } from '../lib/lineByLineTts.ts';
 import { useStored } from '../lib/store.tsx';
+import { AudioLoadingSpinner, loadingAudioLabel } from './AudioLoadingSpinner.tsx';
 import {
   HADITH_PLAYBACK_SPEEDS,
   HADITH_VOICE_PROFILES,
@@ -193,13 +194,19 @@ export function HadithVoiceBar({
   };
 
   const isDark = variant === 'dark';
-  const isArPlaying = lineTts.sessionId === arSessionId && lineTts.status === 'playing';
-  const isTrPlaying = lineTts.sessionId === trSessionId && lineTts.status === 'playing';
-  const isExPlaying = lineTts.sessionId === exSessionId && lineTts.status === 'playing';
-  const isLsPlaying = lineTts.sessionId === lsSessionId && lineTts.status === 'playing';
+  const isArPlaying = lineTts.isPlayingSession(arSessionId);
+  const isArLoading = lineTts.isLoadingSession(arSessionId);
+  const isTrPlaying = lineTts.isPlayingSession(trSessionId);
+  const isTrLoading = lineTts.isLoadingSession(trSessionId);
+  const isExPlaying = lineTts.isPlayingSession(exSessionId);
+  const isExLoading = lineTts.isLoadingSession(exSessionId);
+  const isLsPlaying = lineTts.isPlayingSession(lsSessionId);
+  const isLsLoading = lineTts.isLoadingSession(lsSessionId);
   const isBothPlaying =
-    (lineTts.sessionId === bothSessionId || lineTts.sessionId === `${bothSessionId}-ar`) &&
-    lineTts.status === 'playing';
+    lineTts.isPlayingSession(bothSessionId) || lineTts.isPlayingSession(`${bothSessionId}-ar`);
+  const isBothLoading =
+    lineTts.isLoadingSession(bothSessionId) || lineTts.isLoadingSession(`${bothSessionId}-ar`);
+  const loadingText = loadingAudioLabel(lang);
 
   return (
     <div
@@ -346,19 +353,27 @@ export function HadithVoiceBar({
             aria-pressed={isArPlaying}
             onClick={handlePlayArabic}
             style={{
-              backgroundColor: isArPlaying ? '#D4AF37' : isDark ? '#FBF9F5' : '#073C30',
-              color: isArPlaying ? '#041B14' : isDark ? '#073C30' : '#FFFFFF',
+              backgroundColor:
+                isArPlaying || isArLoading ? '#D4AF37' : isDark ? '#FBF9F5' : '#073C30',
+              color:
+                isArPlaying || isArLoading ? '#041B14' : isDark ? '#073C30' : '#FFFFFF',
             }}
             className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold shadow-2xs transition cursor-pointer hover:opacity-95"
           >
-            {lineTts.sessionId === arSessionId && lineTts.status === 'loading' ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+            {isArLoading ? (
+              <AudioLoadingSpinner size={14} />
             ) : isArPlaying ? (
               <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
             ) : (
               <Play className="h-3.5 w-3.5 fill-current" aria-hidden />
             )}
-            <span>{isArPlaying ? 'Pause Arabic (عربي)' : 'Read Arabic (عربي)'}</span>
+            <span>
+              {isArLoading
+                ? loadingText
+                : isArPlaying
+                  ? 'Pause Arabic (عربي)'
+                  : 'Read Arabic (عربي)'}
+            </span>
           </button>
         )}
 
@@ -369,22 +384,28 @@ export function HadithVoiceBar({
             aria-pressed={isTrPlaying}
             onClick={handlePlayTranslation}
             style={{
-              backgroundColor: isTrPlaying ? '#D4AF37' : isDark ? '#0E4D3B' : '#FFFFFF',
-              color: isTrPlaying ? '#041B14' : isDark ? '#FFFFFF' : '#073C30',
+              backgroundColor:
+                isTrPlaying || isTrLoading ? '#D4AF37' : isDark ? '#0E4D3B' : '#FFFFFF',
+              color:
+                isTrPlaying || isTrLoading ? '#041B14' : isDark ? '#FFFFFF' : '#073C30',
             }}
             className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-bold shadow-2xs transition cursor-pointer ${
               isDark ? 'border-[#E7C98A]/50' : 'border-[#073C30]/35'
             }`}
           >
-            {lineTts.sessionId === trSessionId && lineTts.status === 'loading' ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+            {isTrLoading ? (
+              <AudioLoadingSpinner size={14} />
             ) : isTrPlaying ? (
               <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
             ) : (
               <Volume2 className="h-3.5 w-3.5" aria-hidden />
             )}
             <span>
-              {isTrPlaying ? `Pause ${langName}` : `Read Translation (${langName})`}
+              {isTrLoading
+                ? loadingText
+                : isTrPlaying
+                  ? `Pause ${langName}`
+                  : `Read Translation (${langName})`}
             </span>
           </button>
         )}
@@ -396,22 +417,28 @@ export function HadithVoiceBar({
             aria-pressed={isExPlaying}
             onClick={handlePlayExplanation}
             style={{
-              backgroundColor: isExPlaying ? '#D4AF37' : isDark ? '#0E4D3B' : '#FFFFFF',
-              color: isExPlaying ? '#041B14' : isDark ? '#FFFFFF' : '#073C30',
+              backgroundColor:
+                isExPlaying || isExLoading ? '#D4AF37' : isDark ? '#0E4D3B' : '#FFFFFF',
+              color:
+                isExPlaying || isExLoading ? '#041B14' : isDark ? '#FFFFFF' : '#073C30',
             }}
             className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-bold shadow-2xs transition cursor-pointer ${
               isDark ? 'border-[#E7C98A]/50' : 'border-[#073C30]/35'
             }`}
           >
-            {lineTts.sessionId === exSessionId && lineTts.status === 'loading' ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+            {isExLoading ? (
+              <AudioLoadingSpinner size={14} />
             ) : isExPlaying ? (
               <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
             ) : (
               <BookOpen className="h-3.5 w-3.5" aria-hidden />
             )}
             <span>
-              {isExPlaying ? `Pause Explanation` : `Read Explanation (${langName})`}
+              {isExLoading
+                ? loadingText
+                : isExPlaying
+                  ? `Pause Explanation`
+                  : `Read Explanation (${langName})`}
             </span>
           </button>
         )}
@@ -423,22 +450,28 @@ export function HadithVoiceBar({
             aria-pressed={isLsPlaying}
             onClick={handlePlayLessons}
             style={{
-              backgroundColor: isLsPlaying ? '#D4AF37' : isDark ? '#0E4D3B' : '#FFFFFF',
-              color: isLsPlaying ? '#041B14' : isDark ? '#FFFFFF' : '#073C30',
+              backgroundColor:
+                isLsPlaying || isLsLoading ? '#D4AF37' : isDark ? '#0E4D3B' : '#FFFFFF',
+              color:
+                isLsPlaying || isLsLoading ? '#041B14' : isDark ? '#FFFFFF' : '#073C30',
             }}
             className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-bold shadow-2xs transition cursor-pointer ${
               isDark ? 'border-[#E7C98A]/50' : 'border-[#073C30]/35'
             }`}
           >
-            {lineTts.sessionId === lsSessionId && lineTts.status === 'loading' ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+            {isLsLoading ? (
+              <AudioLoadingSpinner size={14} />
             ) : isLsPlaying ? (
               <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
             ) : (
               <Sparkles className="h-3.5 w-3.5" aria-hidden />
             )}
             <span>
-              {isLsPlaying ? `Pause Lessons` : `Read Lessons (${langName})`}
+              {isLsLoading
+                ? loadingText
+                : isLsPlaying
+                  ? `Pause Lessons`
+                  : `Read Lessons (${langName})`}
             </span>
           </button>
         )}
@@ -450,26 +483,34 @@ export function HadithVoiceBar({
             aria-pressed={isBothPlaying}
             onClick={() => void handlePlayBoth()}
             style={{
-              backgroundColor: isBothPlaying
-                ? '#D4AF37'
-                : isDark
-                  ? 'rgba(231, 201, 138, 0.16)'
-                  : '#EFE9DA',
-              color: isBothPlaying
-                ? '#041B14'
-                : isDark
-                  ? '#F9E7B9'
-                  : '#073C30',
+              backgroundColor:
+                isBothPlaying || isBothLoading
+                  ? '#D4AF37'
+                  : isDark
+                    ? 'rgba(231, 201, 138, 0.16)'
+                    : '#EFE9DA',
+              color:
+                isBothPlaying || isBothLoading
+                  ? '#041B14'
+                  : isDark
+                    ? '#F9E7B9'
+                    : '#073C30',
             }}
             className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/50 px-3.5 py-1.5 text-xs font-bold transition cursor-pointer hover:border-[#D4AF37]"
           >
-            {isBothPlaying ? (
+            {isBothLoading ? (
+              <AudioLoadingSpinner size={14} />
+            ) : isBothPlaying ? (
               <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
             ) : (
               <Headphones className="h-3.5 w-3.5" aria-hidden />
             )}
             <span>
-              {isBothPlaying ? 'Playing Full Hadith…' : 'Arabic + Translation'}
+              {isBothLoading
+                ? loadingText
+                : isBothPlaying
+                  ? 'Playing Full Hadith…'
+                  : 'Arabic + Translation'}
             </span>
           </button>
         )}

@@ -9,6 +9,7 @@ import { useRemote } from '../lib/api.ts';
 import { beginResearch, noticeText, readResearchHistory, rememberResearch, researchDeskHref, researchHref, type StoredResearch } from '../lib/researchDesk.ts';
 import type { ResearchDeskName } from '../lib/route.ts';
 import { PodcastHostChip } from '../components/PodcastHostChip.tsx';
+import { SevenAgentCountdownCard } from '../components/research/SevenAgentCountdownCard.tsx';
 import { SevenAgentResearchBoard } from '../components/research/SevenAgentResearchBoard.tsx';
 import { ResearchActionRow, ResearchFrame } from '../engine/ResearchFrame.tsx';
 import type { SevenAgentResearchDossier } from '../shared/sevenAgentTypes.ts';
@@ -65,6 +66,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   const [history, setHistory] = useState<StoredResearch[]>([]);
   const [chapters, setChapters] = useState<{ id: string; scope: ResearchScope; question: string; forwarded?: boolean }[]>([]);
   const [roundtableOpen, setRoundtableOpen] = useState(false);
+  const [countdownHold, setCountdownHold] = useState(false);
   const remote = useRemote<ResearchJobResponse>(jobId ? `/api/research/jobs/${jobId}` : null);
 
   const activeResearchQuery = useMemo(() => {
@@ -84,9 +86,13 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
       ? sevenAgentRemote.data
       : null;
 
-  const running =
-    !sevenAgentDossier &&
-    (remote.data?.job.status === 'running' || remote.data?.job.status === 'queued');
+  const isCountdownActive =
+    countdownHold ||
+    sevenAgentRemote.loading ||
+    (!sevenAgentDossier &&
+      (remote.data?.job.status === 'running' || remote.data?.job.status === 'queued'));
+
+  const running = isCountdownActive;
   const parallelPending =
     !sevenAgentDossier &&
     remote.data?.job.status === 'done' &&
@@ -175,6 +181,8 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     const pieces = questionsToResearch(field, clarifying ? null : remote.data?.job.question ?? null, clarifying);
     if (!pieces.length) return;
     setError(null);
+    setCountdownHold(true);
+    window.setTimeout(() => setCountdownHold(false), 2600);
     try {
       const startedChapters: { id: string; scope: ResearchScope; question: string; forwarded: boolean }[] = [];
       for (const piece of pieces) {
@@ -366,7 +374,14 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
         </div>
       )}
 
-      {sevenAgentDossier && (
+      {isCountdownActive && (
+        <SevenAgentCountdownCard
+          question={activeResearchQuery || question}
+          lang={lang}
+        />
+      )}
+
+      {sevenAgentDossier && !countdownHold && (
         <SevenAgentResearchBoard
           dossier={sevenAgentDossier}
           lang={lang}
@@ -375,13 +390,12 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
         />
       )}
 
-      {job && running && !sevenAgentDossier && (
+      {job && running && !sevenAgentDossier && !isCountdownActive && (
         <section className="rounded-3xl border border-pine/10 bg-parchment p-5" aria-live="polite">
           <h2 className="font-display text-2xl font-bold text-pine">{t.researchProgress}</h2>
           <ResearchActivity job={job} />
         </section>
       )}
-      { (running || sevenAgentRemote.loading) && !sevenAgentDossier && <Loading label={t.researchProgress} />}
       {remote.error && !savedReport && !sevenAgentDossier && <ErrorNote message={remote.error} onRetry={remote.reload} />}
       {outcome && !sevenAgentDossier && (
         <Notice>
