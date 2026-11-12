@@ -644,6 +644,119 @@ Return a structured JSON object matching the schema.`;
   };
 }
 
+async function runWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (cursor < items.length) {
+      const idx = cursor++;
+      results[idx] = await worker(items[idx], idx);
+    }
+  });
+  await Promise.all(runners);
+  return results;
+}
+
+const GOLD_SCIENCE_FORESIGHT_BY_LANG: Record<Lang, ModernScienceForesight> = {
+  en: {
+    headline: 'How Prophetic Guidance on Gold for Men Stands 1 Step Ahead of Modern Science',
+    badge: '🔬 MODERN SCIENCE ALIGNMENT · 1 STEP AHEAD',
+    summary:
+      'While classical jurisprudence establishes the prohibition of gold for men through authentic revelation, modern dermal chemistry, nanotoxicology, and behavioral endocrinology reveal remarkable empirical layers behind this 1,400-year-old gender-specific ruling.',
+    empiricalPillars: [
+      {
+        domain: 'Dermal Chemistry & Transdermal Ion Permeation',
+        finding:
+          'Human eccrine sweat contains sodium chloride, lactic acid, urea, and sulfur-bearing amino acids (cysteine) that form soluble complexes with metallic gold under friction, enabling trace Au⁺/Au³⁺ ions to penetrate the epidermis into dermal microcirculation.',
+        oneStepAheadNote:
+          'Long before modern chemistry disproved the myth that gold is 100% biologically inert on living skin, the Prophet (ﷺ) specifically prohibited men from wearing gold rings on their hands.',
+      },
+      {
+        domain: 'Sex-Specific Physiology & Bioaccumulation',
+        finding:
+          'Toxicological studies on metallic nanoparticles show sex-dimorphic biodistribution: females exhibit distinct hormonal metallothionein regulation and periodic physiological clearance, whereas male tissues—particularly hepatic and testicular tissues—are more vulnerable to chronic heavy-metal oxidative stress.',
+        oneStepAheadNote:
+          'The Hadith (“Unlawful for the males of my Ummah and lawful for its females” — Tirmidhi 1720) made a precise sex-specific distinction 1,400 years before sex-dimorphic toxicology existed.',
+      },
+      {
+        domain: 'Oligodynamic Silver vs. Gold Ornamentation',
+        finding:
+          'The Prophetic alternative for men—a silver ring (Bukhari 5866)—provides natural oligodynamic antibacterial action on the hand without adverse male reproductive bioaccumulation.',
+        oneStepAheadNote:
+          'Substituting silver for gold combines spiritual humility, economic circulation, and microbiological hygiene in a single Sunnah.',
+      },
+    ],
+    methodologicalNote:
+      'Methodological Principle: Islamic rulings rest upon verified revelation (Qur’an and Sahih Sunnah) rather than changing scientific theories; yet empirical observations continually illustrate the timeless wisdom of the Creator’s legislation.',
+  },
+  ta: {
+    headline: 'ஆண்களுக்குத் தங்கம் தடை செய்யப்பட்டுள்ள நபிவழி நவீன அறிவியலை விட ஒரு படி மேலே நிற்பது எப்படி?',
+    badge: '🔬 நவீன அறிவியல் & தீர்க்கதரிசனப் பார்வை · 1 STEP AHEAD',
+    summary:
+      'ஆண்களுக்குத் தங்கம் தடுக்கப்பட்டு பெண்களுக்கு அனுமதிக்கப்பட்ட நபிமொழியின் பின்னணியில், நவீன தோல் வேதியியல் (Dermal Chemistry), நானோ-நச்சியல் (Nanotoxicology) மற்றும் ஆண்-பெண் உடலியல் வேறுபாடுகள் வியக்கத்தக்க அறிவியல் உண்மைகளை வெளிப்படுத்துகின்றன.',
+    empiricalPillars: [
+      {
+        domain: 'தோல் வழி தங்க அயனிகள் ஊடுருவல் (Transdermal Gold Ion Permeation)',
+        finding:
+          'மனித வியர்வையில் உள்ள சோடியம் குளோரைடு, லாக்டிக் அமிலம் மற்றும் சிஸ்டீன் (Cysteine) அமினோ அமிலங்கள் விரலில் அணியும் தங்க மோதிரத்துடன் உராயும்போது நுண்ணிய தங்க அயனிகள் (Au⁺/Au³⁺) தோலின் வழியே இரத்த நுண்குழாய்களுக்குள் ஊடுருவுகின்றன.',
+        oneStepAheadNote:
+          'தங்கம் தோலில் எந்த வேதிவினையும் புரியாது என்ற பழைய கருத்தை நவீன அறிவியல் மாற்றுவதற்கு 1,400 ஆண்டுகளுக்கு முன்பே நபி (ஸல்) அவர்கள் ஆண்கள் கையில் தங்க மோதிரம் அணிவதைத் தடை செய்தார்கள்.',
+      },
+      {
+        domain: 'ஆண் - பெண் உடலியல் & உலோக வெளியேற்ற வேறுபாடு (Sex-Specific Physiology)',
+        finding:
+          'நவீன நானோ-மருத்துவ ஆய்வுகளின்படி, பெண்களின் உடலில் இயற்கையான மாதாந்திர உடலியல் வெளியேற்றம் மற்றும் ஈஸ்ட்ரோஜன் சார்ந்த மெட்டலோதியோனின் (Metallothionein) பாதுகாப்பு உள்ளது; ஆனால் ஆண்களின் கல்லீரல் மற்றும் இனப்பெருக்கத் திசுக்களில் நுண்ணிய தங்க அயனிகள் தங்கி ஆக்சிஜனேற்ற அழுத்தத்தை (Oxidative Stress) உருவாக்கும் தன்மை கொண்டவை.',
+        oneStepAheadNote:
+          '“என் சமுதாய ஆண்களுக்கு இது தடை செய்யப்பட்டுள்ளது; பெண்களுக்கு அனுமதிக்கப்பட்டுள்ளது” (திர்மிதி 1720) என்ற நபிமொழி, ஆண்-பெண் உடலியல் நச்சியல் (Sex-dimorphic toxicology) கண்டறியப்படுவதற்குப் பல நூற்றாண்டுகளுக்கு முன்பே துல்லியமாக வழிகாட்டியுள்ளது.',
+      },
+      {
+        domain: 'வெள்ளி மோதிரத்தின் நுண்ணுயிர் எதிர்ப்புத் திறன் (Oligodynamic Silver Sunnah)',
+        finding:
+          'ஆண்களுக்கு நபி (ஸல்) அவர்கள் பரிந்துரைத்த வெள்ளி மோதிரம் (புகாரி 5866), கைகளில் இயற்கையான நுண்ணுயிர் எதிர்ப்புத் திறனை (Oligodynamic antibacterial effect) வழங்குவதோடு ஆண்களின் உடலில் நச்சுத் தங்கலை ஏற்படுத்துவதில்லை.',
+        oneStepAheadNote:
+          'தங்கத்திற்குப் பதிலாக வெள்ளி மோதிரத்தை சுன்னாவாக ஆக்கியதன் மூலம் ஆன்மீகப் பணிவு, பொருளாதாரச் சமநிலை மற்றும் உடல்நலப் பாதுகாப்பு மூன்றும் ஒருங்கே இணைக்கப்பட்டுள்ளன.',
+      },
+    ],
+    methodologicalNote:
+      'அடிப்படைக் கொள்கை: இஸ்லாமியச் சட்டங்கள் வஹீ (குர்ஆன் மற்றும் ஸஹீஹ் சுன்னா) அடிப்படையிலேயே பின்பற்றப்படுகின்றன; எனினும் நவீன அறிவியல் கண்டுபிடிப்புகள் இறைச்சட்டங்களின் காலத்தால் அழியாத ஞானத்தைத் தொடர்ந்து மெய்ப்பிக்கின்றன.',
+  },
+  si: {
+    headline: 'පිරිමින්ට රන් පැළඳීම තහනම් කිරීමේ නබිතුමාගේ මඟපෙන්වීම නවීන විද්‍යාවට වඩා පියවරක් ඉදිරියෙන් සිටින්නේ කෙසේද?',
+    badge: '🔬 නවීන විද්‍යාව සහ අනාවැකිමය ප්‍රඥාව · 1 STEP AHEAD',
+    summary:
+      'පිරිමින්ට රන් ආභරණ තහනම් කර කාන්තාවන්ට අනුමත කිරීමේ වසර 1,400ක් පැරණි නබිවදන පිටුපස ඇති ගැඹුරු ජৈව වෛද්‍ය, සමේ රසායනික අවශෝෂණ සහ ස්ත්‍රී-පුරුෂ කායික විද්‍යාත්මක වෙනස්කම් නවීන විද්‍යාව මඟින් අද හෙළිදරව් කරමින් සිටියි.',
+    empiricalPillars: [
+      {
+        domain: 'සම හරහා රන් අයන අවශෝෂණය (Transdermal Gold Ion Permeation)',
+        finding:
+          'මිනිස් දහඩියෙහි අඩංගු සෝඩියම් ක්ලෝරයිඩ්, ලැක්ටික් අම්ලය සහ සිස්ටීන් (Cysteine) ඇමයිනෝ අම්ල ඇඟිල්ලේ පළඳින රන් මුදුවක් සමඟ ගැටීමේදී ඉතා සියුම් රන් අයන (Au⁺/Au³⁺) සම හරහා රුධිර කේශනාලිකා වෙත ගමන් කරන බව නවීන චර්ම රසායන විද්‍යාව තහවුරු කරයි.',
+        oneStepAheadNote:
+          'රත්තරන් සම මතදී සම්පූර්ණයෙන්ම අක්‍රිය බවට පැවති පැරණි මතය නවීන විද්‍යාවෙන් බිඳ වැටීමට සියවස් 14කට පෙර නබි (ﷺ) තුමාණන් පිරිමින්ට රන් මුදු පැළඳීමෙන් වැළකී සිටීමට මඟ පෙන්වූහ.',
+      },
+      {
+        domain: 'ස්ත්‍රී - පුරුෂ කායික විද්‍යාත්මක වෙනස (Sex-Specific Physiology & Clearance)',
+        finding:
+          'නවීන නැනෝ-විෂවේද (Nanotoxicology) පර්යේෂණ පෙන්වා දෙන්නේ කාන්තාවන්ගේ සිරුරේ ස්වභාවික කායික පිරිසිදු වීමේ ක්‍රියාවලීන් සහ ඊස්ට්‍රජන් හෝමෝනය මඟින් පාලනය වන ආරක්ෂණ යාන්ත්‍රණ පවතින අතර, පිරිමින්ගේ අක්මාව සහ ප්‍රජනක පටක තුළ රන් අයන දිගුකාලීනව තැන්පත් වීමෙන් ඔක්සිකාරක ආතතිය (Oxidative Stress) ඇති විය හැකි බවයි.',
+        oneStepAheadNote:
+          '“මෙය මාගේ උම්මාවේ පිරිමින්ට තහනම් (හරාම්) වන අතර කාන්තාවන්ට අනුමත (හලාල්) වේ” (තිර්මිදි 1720) යන නබිවදන නවීන ස්ත්‍රී-පුරුෂ විෂවේදය බිහිවීමට වසර 1,400කට පෙර ලබා දුන් විස්මිත මඟපෙන්වීමකි.',
+      },
+      {
+        domain: 'රිදී මුදුවේ ප්‍රතිබැක්ටීරියා ගුණය (Oligodynamic Silver Sunnah)',
+        finding:
+          'පිරිමින් සඳහා නබි (ﷺ) තුමාණන් අනුමත කළ රිදී මුදුව (සහීහ් අල්-බුහාරි 5866) පිරිමි ශරීරයට අහිතකර ලෝහ තැන්පත් වීමකින් තොරව අත්වල ස්වභාවික විෂබීජ නාශක (Oligodynamic antibacterial) ආරක්ෂාවක් සලසයි.',
+        oneStepAheadNote:
+          'රන් වෙනුවට රිදී මුදුවක් පැළඳීමේ සුන්නාව තුළ ආධ්‍යාත්මික නිහතමානීත්වය, ආර්ථික සාධාරණත්වය සහ සෞඛ්‍ය ආරක්ෂාව යන ත්‍රිත්වයම අන්තර්ගත වේ.',
+      },
+    ],
+    methodologicalNote:
+      'මූලික ප්‍රතිපත්තිය: ඉස්ලාමීය නීති රීති පදනම් වන්නේ දේව හෙළිදරව්ව (අල්-කුර්ආනය සහ සහීහ් සුන්නාව) මත වන අතර, නවීන විද්‍යාත්මක සොයාගැනීම් මඟින් එම දිව්‍යමය මඟපෙන්වීමේ පවතින ගැඹුරු ප්‍රඥාව නිරන්තරයෙන් තහවුරු කරයි.',
+  },
+};
+
 async function localizeDossierToLanguage(
   enDossier: SevenAgentResearchDossier,
   targetLang: Lang,
@@ -651,55 +764,63 @@ async function localizeDossierToLanguage(
   if (targetLang === 'en') return enDossier;
 
   const headers = LOCALIZED_AGENT_HEADERS[targetLang];
+  const isGold = isGoldOrRingQuestion(enDossier.question);
 
-  // Translate top-level headlines and summaries concurrently
-  const [
-    verdictHeadline,
-    executiveSummary,
-    sciHeadline,
-    sciSummary,
-    sciMethodNote,
-    agentSummaries,
-    turnTexts,
-  ] = await Promise.all([
+  const [verdictHeadline, executiveSummary, agentSummaries, turnTexts] = await Promise.all([
     translateTextToLanguage(enDossier.verdictHeadline, targetLang, 'en'),
     translateTextToLanguage(enDossier.executiveSummary, targetLang, 'en'),
-    translateTextToLanguage(enDossier.scienceForesight.headline, targetLang, 'en'),
-    translateTextToLanguage(enDossier.scienceForesight.summary, targetLang, 'en'),
-    translateTextToLanguage(enDossier.scienceForesight.methodologicalNote, targetLang, 'en'),
-    Promise.all(enDossier.agents.map(a => translateTextToLanguage(a.summary, targetLang, 'en'))),
-    Promise.all(enDossier.roundtableTurns.map(t => translateTextToLanguage(t.text, targetLang, 'en'))),
+    runWithConcurrency(enDossier.agents, 4, a =>
+      translateTextToLanguage(a.summary, targetLang, 'en'),
+    ),
+    runWithConcurrency(enDossier.roundtableTurns, 4, t =>
+      translateTextToLanguage(t.text, targetLang, 'en'),
+    ),
   ]);
 
-  // Translate each agent's bullet points and science pillars in parallel
-  const [localizedAgents, localizedPillars] = await Promise.all([
-    Promise.all(
-      enDossier.agents.map(async (agent, idx) => {
-        const localizedHeader = headers[agent.agentId];
-        const translatedPoints = await Promise.all(
-          agent.keyPoints.map(pt => translateTextToLanguage(pt, targetLang, 'en')),
-        );
-        return {
-          ...agent,
-          title: localizedHeader.title,
-          personaName: localizedHeader.personaName,
-          roleBadge: localizedHeader.roleBadge,
-          summary: agentSummaries[idx] || agent.summary,
-          keyPoints: translatedPoints,
-        };
-      }),
-    ),
-    Promise.all(
-      enDossier.scienceForesight.empiricalPillars.map(async p => {
+  const localizedAgents = await runWithConcurrency(enDossier.agents, 3, async (agent, idx) => {
+    const localizedHeader = headers[agent.agentId];
+    const translatedPoints = await runWithConcurrency(agent.keyPoints, 4, pt =>
+      translateTextToLanguage(pt, targetLang, 'en'),
+    );
+    return {
+      ...agent,
+      title: localizedHeader.title,
+      personaName: localizedHeader.personaName,
+      roleBadge: localizedHeader.roleBadge,
+      summary: agentSummaries[idx] || agent.summary,
+      keyPoints: translatedPoints,
+    };
+  });
+
+  let localizedScience: ModernScienceForesight;
+  if (isGold) {
+    localizedScience = GOLD_SCIENCE_FORESIGHT_BY_LANG[targetLang];
+  } else {
+    const [sciHeadline, sciSummary, sciMethodNote] = await Promise.all([
+      translateTextToLanguage(enDossier.scienceForesight.headline, targetLang, 'en'),
+      translateTextToLanguage(enDossier.scienceForesight.summary, targetLang, 'en'),
+      translateTextToLanguage(enDossier.scienceForesight.methodologicalNote, targetLang, 'en'),
+    ]);
+    const localizedPillars = await runWithConcurrency(
+      enDossier.scienceForesight.empiricalPillars,
+      3,
+      async p => {
         const [domain, finding, oneStepAheadNote] = await Promise.all([
           translateTextToLanguage(p.domain, targetLang, 'en'),
           translateTextToLanguage(p.finding, targetLang, 'en'),
           translateTextToLanguage(p.oneStepAheadNote, targetLang, 'en'),
         ]);
         return { domain, finding, oneStepAheadNote };
-      }),
-    ),
-  ]);
+      },
+    );
+    localizedScience = {
+      headline: sciHeadline || enDossier.scienceForesight.headline,
+      badge: GOLD_SCIENCE_FORESIGHT_BY_LANG[targetLang].badge,
+      summary: sciSummary || enDossier.scienceForesight.summary,
+      empiricalPillars: localizedPillars,
+      methodologicalNote: sciMethodNote || enDossier.scienceForesight.methodologicalNote,
+    };
+  }
 
   const localizedTurns: RoundtableTurn[] = enDossier.roundtableTurns.map((turn, idx) => ({
     ...turn,
@@ -712,17 +833,7 @@ async function localizeDossierToLanguage(
     verdictHeadline: verdictHeadline || enDossier.verdictHeadline,
     executiveSummary: executiveSummary || enDossier.executiveSummary,
     agents: localizedAgents,
-    scienceForesight: {
-      ...enDossier.scienceForesight,
-      headline: sciHeadline || enDossier.scienceForesight.headline,
-      badge:
-        targetLang === 'ta'
-          ? '🔬 நவீன அறிவியல் & தீர்க்கதரிசனப் பார்வை · 1 STEP AHEAD'
-          : '🔬 නවීන විද්‍යාව සහ අනාවැකිමය ප්‍රඥාව · 1 STEP AHEAD',
-      summary: sciSummary || enDossier.scienceForesight.summary,
-      empiricalPillars: localizedPillars,
-      methodologicalNote: sciMethodNote || enDossier.scienceForesight.methodologicalNote,
-    },
+    scienceForesight: localizedScience,
     roundtableTurns: localizedTurns,
     roundtableScriptText: localizedTurns
       .map(t => `${t.speaker.toUpperCase()}: ${t.text}`)
@@ -736,7 +847,7 @@ export async function runSevenAgentResearch(
 ): Promise<SevenAgentResearchDossier> {
   const cleanQ = question.trim().slice(0, 1200);
   const hash = createHash('sha256')
-    .update(`seven-agent-v2|${lang}|${cleanQ.toLowerCase()}`)
+    .update(`seven-agent-v3|${lang}|${cleanQ.toLowerCase()}`)
     .digest('hex')
     .slice(0, 32);
 
