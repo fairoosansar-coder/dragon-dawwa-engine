@@ -651,7 +651,10 @@ export function AppFrame({
               {/* Row 1: Single strictly horizontal bar on both mobile (390px) and desktop (1440px) */}
               <div className="flex h-11 min-w-0 items-center justify-between gap-2">
                 <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                  <p className="min-w-0 truncate text-[13px] font-semibold tracking-tight text-[#073C30] sm:shrink-0 sm:text-sm">
+                  <p
+                    data-header-section-title
+                    className="min-w-0 truncate text-[13px] font-semibold tracking-tight text-pine sm:shrink-0 sm:text-sm"
+                  >
                     {onFaithWall ? 'Community Faith Wall' : section}
                   </p>
                   <DeskHeaderTabs path={path} segments={segments} className="hidden min-w-0 flex-1 md:flex" />
@@ -767,20 +770,20 @@ export function AppFrame({
           id="main"
           className={
             quranBook
-              ? 'flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-3 sm:px-6'
-              : 'min-h-0 flex-1 overflow-x-clip overflow-y-auto scroll-pb-24 px-4 pt-4 pb-16 sm:px-6 sm:pt-5'
+              ? 'flex min-h-0 flex-1 flex-col overflow-hidden px-4 pt-3 pb-16 sm:px-6'
+              : 'min-h-0 flex-1 overflow-x-clip overflow-y-auto scroll-pb-32 px-4 pt-4 pb-28 sm:px-6 sm:pt-5'
           }
         >
-          <div className={quranBook ? 'mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col' : 'mx-auto max-w-[1160px] pb-10'}>{children}</div>
+          <div className={quranBook ? 'mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col' : 'mx-auto max-w-[1160px] pb-12'}>{children}</div>
         </main>
         {player && !(path === 'quran' && (segments[0] === 'book' || segments[0] === 'study')) && <AudioMiniPlayer safe={focus} />}
 
-        {/* 5 Primary Navigation Links (Knowledge · Faith Wall · Podcast · Saved · Profile) pinned at the bottom */}
-        {!focus && !(path === 'quran' && segments[0] === 'book') && (
+        {/* 5 Primary Navigation Links (Knowledge · Faith Wall · Podcast · Saved · Profile) fixed at the bottom of the viewport */}
+        {!focus && (
           <nav
             aria-label="Sections"
             data-bottom-primary-nav
-            className="shrink-0 border-t border-gold/40 bg-[#073C30] pb-[env(safe-area-inset-bottom)] text-[#F5EEDC] shadow-[0_-4px_20px_rgba(3,24,18,0.12)]"
+            className="fixed bottom-0 left-0 right-0 z-40 shrink-0 border-t border-gold/40 bg-[#073C30] pb-[env(safe-area-inset-bottom)] text-[#F5EEDC] shadow-[0_-4px_20px_rgba(3,24,18,0.18)] lg:left-72"
           >
             <ul className="mx-auto grid max-w-3xl grid-cols-5">
               {NAV.map(item => {

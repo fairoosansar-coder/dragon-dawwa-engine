@@ -395,10 +395,15 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
                     data-tts-line-index={currentParaIdx}
                     data-tts-line-active={isLineActive ? 'true' : undefined}
                     onClick={() => handlePlayFromBlockIndex(currentParaIdx)}
+                    style={{
+                      backgroundColor: isLineActive ? '#FFFBEB' : '#FFFFFF',
+                      color: '#1C1917',
+                      borderColor: isLineActive ? '#D4AF37' : '#E5E0D5',
+                    }}
                     className={`group flex cursor-pointer items-start gap-3.5 rounded-2xl border p-4 transition sm:p-5 ${
                       isLineActive
-                        ? 'border-[#D4AF37] border-l-4 bg-amber-50/90 shadow-sm'
-                        : 'border-stone-200/80 bg-white hover:border-[#073C30]/40 hover:shadow-2xs'
+                        ? 'border-l-4 shadow-sm'
+                        : 'hover:border-[#073C30]/40 hover:shadow-2xs'
                     }`}
                   >
                     <span
@@ -415,7 +420,7 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
                     <div className="min-w-0 flex-1">
                       <p
                         lang={effectiveLang}
-                        style={{ lineHeight: 1.85 }}
+                        style={{ color: '#1C1917', lineHeight: 1.85 }}
                         className={`${profileFontClass(effectiveLang, cleanBody)} max-w-[72ch] text-base text-stone-900 sm:text-[17px]`}
                       >
                         {cleanBody}

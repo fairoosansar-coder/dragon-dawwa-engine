@@ -123,16 +123,20 @@ export function DeskHeaderTabs({ path, segments, className = '' }: { path: Route
         {path === 'quran' && (
           <>
             <span className="mx-1 h-3.5 w-px shrink-0 bg-stone-300" aria-hidden />
-            <nav aria-label={t.quranTitle} data-testid="quran-tabs" className="inline-flex shrink-0 items-center gap-1">
+            <nav
+              aria-label={t.quranTitle}
+              data-testid="quran-tabs"
+              className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-stone-200/90 bg-white/90 p-0.5 shadow-2xs"
+            >
               {quranSubTabs.map(tab => (
                 <a
                   key={tab.id}
                   href={tab.href}
                   aria-current={quranCurrent === tab.id ? 'page' : undefined}
-                  className={`inline-flex shrink-0 whitespace-nowrap items-center rounded-full px-2 py-0.5 text-[11px] font-medium transition ${
+                  className={`inline-flex shrink-0 whitespace-nowrap items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition ${
                     quranCurrent === tab.id
-                      ? 'bg-emerald-900/15 font-semibold text-[#073C30]'
-                      : 'text-stone-600 hover:bg-stone-200/60 hover:text-stone-900'
+                      ? 'bg-[#073C30] text-[#F5EEDC] shadow-2xs'
+                      : 'text-stone-700 hover:bg-stone-100 hover:text-stone-950'
                   }`}
                 >
                   {tab.label}
@@ -791,7 +795,12 @@ export function AudioMiniPlayer({ safe }: { safe: boolean }) {
   const active = audio.status === 'playing' || audio.status === 'loading';
   const isLoading = audio.status === 'loading';
   return (
-    <div data-mini-player className={`relative z-20 shrink-0 border-t-8 border-sand bg-pine px-4 py-3 text-sand ${safe ? 'pb-[max(0.75rem,env(safe-area-inset-bottom))]' : ''}`}>
+    <div
+      data-mini-player
+      className={`fixed right-0 left-0 z-30 shrink-0 border-t border-gold/40 bg-[#04241C] px-4 py-2.5 text-[#F5EEDC] shadow-lg lg:left-72 ${
+        safe ? 'bottom-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]' : 'bottom-[56px]'
+      }`}
+    >
       <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
         <p className="min-w-0 flex items-center gap-2 text-sm leading-snug">
           {isLoading && <AudioLoadingSpinner size={15} className="text-[#D4AF37]" />}

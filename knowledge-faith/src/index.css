@@ -299,7 +299,8 @@ body {
 }
 
 .quran-page {
-  background: transparent;
+  background: #FAF6EC;
+  color: #16233B;
   border-radius: 16px 16px 0 0;
 }
 
@@ -317,7 +318,65 @@ body {
   bottom: 100%;
   left: -2rem;
   height: 4rem;
-  background: #F8F5EC;
+  background: var(--color-sand);
+}
+
+/* Semantic 3-Theme Contrast Guarantee: Any light/white card or reading surface inside Obsidian Emerald (Dark) keeps crisp dark charcoal ink */
+[data-ui-theme="obsidian"] .bg-white,
+[data-ui-theme="obsidian"] .bg-\[\#FAF6EC\],
+[data-ui-theme="obsidian"] .bg-\[\#FCF9F2\],
+[data-ui-theme="obsidian"] .bg-\[\#FBF9F5\],
+[data-ui-theme="obsidian"] .bg-\[\#fffdf8\],
+[data-ui-theme="obsidian"] .quran-page,
+[data-ui-theme="obsidian"] .quran-sheet {
+  --color-ink: #172720;
+  --color-pine: #073C30;
+  --color-muted: #57534E;
+  color: #172720;
+}
+
+/* In Obsidian Emerald (Dark) mode, the Mushaf Reading Sheet uses an illuminated deep emerald surface with luminous ivory/gold Arabic script */
+[data-ui-theme="obsidian"] [data-reading-sheet] {
+  background: #0A2920;
+  border-color: rgba(212, 175, 55, 0.35);
+  color: #F7F2E4;
+  --color-ink: #F7F2E4;
+  --color-pine: #E5C158;
+  --color-muted: #C7C2B4;
+}
+
+[data-ui-theme="obsidian"] [data-reading-sheet] [data-mushaf],
+[data-ui-theme="obsidian"] [data-reading-sheet] [data-verse-mode] [dir="rtl"] {
+  color: #F7F2E4;
+}
+
+[data-ui-theme="obsidian"] [data-reading-sheet] .quran-prose {
+  color: #EAE3D2;
+}
+
+[data-ui-theme="obsidian"] [data-reading-sheet] .quran-ayah-mark {
+  color: #E5C158;
+  border-color: rgba(229, 193, 88, 0.65);
+}
+
+[data-ui-theme="obsidian"] [data-reading-sheet] .quran-band {
+  background: rgba(212, 175, 55, 0.16);
+}
+
+[data-ui-theme="obsidian"] [data-reading-sheet] [data-page-number] {
+  color: #D4AF37;
+}
+
+[data-ui-theme="obsidian"] [data-reading-sheet] [data-verse-mode] button {
+  color: #E5C158;
+}
+
+[data-ui-theme="obsidian"] [data-reading-sheet] [data-verse-mode] button:hover {
+  background: rgba(229, 193, 88, 0.15);
+}
+
+[data-ui-theme="obsidian"] .bg-mint {
+  color: #073C30;
 }
 
 .quran-header-card {

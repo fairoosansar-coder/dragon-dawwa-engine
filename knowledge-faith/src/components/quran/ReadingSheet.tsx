@@ -223,7 +223,11 @@ export function ReadingSheet({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-    <article data-reading-sheet data-reader-scroll className="quran-page min-h-0 w-full flex-1 overflow-y-auto px-3 py-4 sm:px-6">
+    <article
+      data-reading-sheet
+      data-reader-scroll
+      className="quran-page min-h-0 w-full flex-1 overflow-y-auto rounded-t-2xl border border-[#e4dcc6] bg-[#FAF6EC] px-3 py-4 text-[#16233B] shadow-xs sm:px-6"
+    >
       <header
         id="kf-surah-title"
         data-surah-header
@@ -439,7 +443,10 @@ export function ReadingSheet({
       {picker && <TranslationPicker current={editionKey} onClose={() => setPicker(false)} onChoose={onChooseEdition} />}
 
     </article>
-      <div data-reading-player className="shrink-0 rounded-b-2xl border-t border-[#d5deea] bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div
+        data-reading-player
+        className="shrink-0 rounded-b-2xl border-x border-b border-t border-[#d5deea] bg-white px-4 py-3 text-[#16233B] shadow-sm"
+      >
         <div className="flex w-full items-center gap-3">
           <button type="button" aria-label={t.playerPrevious} className="rounded-full p-2 text-[#1c3d66]" onClick={onPrevious}>
             <SkipBack className="h-5 w-5" />

@@ -5,9 +5,9 @@ import { useApp } from '../lib/store.tsx';
 type Variant = 'primary' | 'ghost' | 'soft';
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-moss text-white hover:bg-pine disabled:bg-moss/50',
-  soft: 'bg-mint text-pine hover:bg-mint/70 disabled:opacity-50',
-  ghost: 'text-pine hover:bg-mint/60 disabled:opacity-50',
+  primary: 'bg-moss text-white hover:bg-[#073C30] disabled:bg-moss/50',
+  soft: 'bg-mint text-[#073C30] hover:bg-mint/80 disabled:opacity-50',
+  ghost: 'text-pine hover:bg-mint/60 hover:text-[#073C30] disabled:opacity-50',
 };
 
 export function Button({
