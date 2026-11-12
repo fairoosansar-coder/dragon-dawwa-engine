@@ -22,6 +22,7 @@ import {
 import { setAudioPlaybackRate } from '../../lib/audio.ts';
 import { splitTextIntoSpeechLines, useLineByLineTts } from '../../lib/lineByLineTts.ts';
 import { useStored } from '../../lib/store.tsx';
+import { profileFontClass, wallFontClass } from '../../lib/typography.ts';
 import { publishFaithWallPost } from '../../lib/verseShare.ts';
 import { AudioLoadingSpinner, loadingAudioLabel } from '../AudioLoadingSpinner.tsx';
 import {
@@ -285,7 +286,7 @@ export function SevenAgentResearchBoard({
   const loadingText = loadingAudioLabel(lang);
 
   return (
-    <div data-testid="seven-agent-research-board" className="space-y-6">
+    <div data-testid="seven-agent-research-board" className={`${profileFontClass(lang)} space-y-6`}>
       {/* 1. Light & Prestigious Executive Verdict Card */}
       <section
         data-testid="seven-agent-executive-banner"
@@ -329,7 +330,7 @@ export function SevenAgentResearchBoard({
         <h2
           lang={lang}
           style={{ color: '#0F2922' }}
-          className="mt-3.5 font-display text-xl font-extrabold leading-snug sm:text-2xl"
+          className={`${wallFontClass(lang, dossier.verdictHeadline)} mt-3.5 text-xl font-extrabold leading-snug sm:text-2xl`}
         >
           {dossier.verdictHeadline}
         </h2>

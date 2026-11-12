@@ -16,6 +16,7 @@ import { claimPlayback, pauseAudio, playAudio, setAudioPlaybackRate, useAudioSta
 import { useRemote } from '../lib/api.ts';
 import { useLineByLineTts } from '../lib/lineByLineTts.ts';
 import { useApp, useStored } from '../lib/store.tsx';
+import { profileFontClass, wallFontClass } from '../lib/typography.ts';
 import { AudioLoadingSpinner, loadingAudioLabel } from '../components/AudioLoadingSpinner.tsx';
 import {
   HADITH_PLAYBACK_SPEEDS,
@@ -175,7 +176,7 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
             </div>
 
             <h1
-              className="mt-3 font-display text-2xl font-bold leading-snug text-[#FFFFFF] sm:text-3xl"
+              className={`${wallFontClass(effectiveLang, data.title)} mt-3 text-2xl font-bold leading-snug text-[#FFFFFF] sm:text-3xl`}
               lang={effectiveLang}
             >
               {data.title || 'Dragon Dawwa Study Guide'}
@@ -415,7 +416,7 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
                       <p
                         lang={effectiveLang}
                         style={{ lineHeight: 1.85 }}
-                        className="max-w-[72ch] text-base text-stone-900 sm:text-[17px]"
+                        className={`${profileFontClass(effectiveLang, cleanBody)} max-w-[72ch] text-base text-stone-900 sm:text-[17px]`}
                       >
                         {cleanBody}
                       </p>

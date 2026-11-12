@@ -5,6 +5,7 @@ import { recitationUrl } from '../shared/sources.ts';
 import type { Evidence, Hadith, Verse } from '../shared/types.ts';
 import { pauseAudio, playAudio, resumeAudio, useAudioState } from '../lib/audio.ts';
 import { useApp, useStored } from '../lib/store.tsx';
+import { profileFontClass } from '../lib/typography.ts';
 import { publishFaithWallPost, WALL_THEMES, type WallPostTheme } from '../lib/verseShare.ts';
 import { confirmedMeaningSrc, meaningPlaybackId } from '../shared/quranenc.ts';
 import { HadithVoiceBar } from './HadithVoiceBar.tsx';
@@ -297,7 +298,7 @@ export function HadithCard({ hadith }: { hadith: Hadith }) {
       <div
         lang={hadith.lang}
         data-testid="hadith-translation-segmented"
-        className="rounded-2xl border border-stone-200/80 bg-white p-4 space-y-2.5"
+        className={`${profileFontClass(hadith.lang, hadith.text)} rounded-2xl border border-stone-200/80 bg-white p-4 space-y-2.5`}
       >
         {seg.translation.companion_attribution && (
           <div className="border-b border-stone-100 pb-2">

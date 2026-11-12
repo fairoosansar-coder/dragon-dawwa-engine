@@ -22,6 +22,7 @@ import { LANGUAGE_NAMES } from '../../shared/sources.ts';
 import type { RouteRoot } from '../../lib/route.ts';
 import { useShell } from '../../lib/shell.tsx';
 import { UI_FONT_SCALES, UI_THEMES, useApp } from '../../lib/store.tsx';
+import { profileFontClass } from '../../lib/typography.ts';
 import { useAudioState } from '../../lib/audio.ts';
 import { BrandLockup } from './Brand.tsx';
 import { NavGlyph, type NavIconName } from './navIcons.tsx';
@@ -226,7 +227,7 @@ export function AppFrame({
   }
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-sand text-ink">
+    <div className={`${profileFontClass(lang)} flex h-dvh overflow-hidden bg-sand text-ink`}>
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-parchment focus:px-3 focus:py-2"
@@ -249,7 +250,7 @@ export function AppFrame({
             {/* 1 & 2: User Profile Summary Card */}
             <div
               data-sidebar-profile-card
-              className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xs"
+              className={`${profileFontClass(lang)} overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xs`}
             >
               <div className="relative h-16 w-full bg-[#073C30]">
                 <img

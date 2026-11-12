@@ -47,12 +47,12 @@ export function buildVerseOgSvg(input: {
   <rect width="1200" height="630" fill="url(#bg)"/>
   <rect x="28" y="28" width="1144" height="574" rx="22" fill="none" stroke="#D4AF37" stroke-width="2" stroke-opacity="0.55"/>
   <rect x="42" y="42" width="1116" height="546" rx="16" fill="none" stroke="#D4AF37" stroke-width="1" stroke-opacity="0.28"/>
-  <text x="80" y="96" fill="#D4AF37" font-family="Inter, sans-serif" font-size="22" font-weight="700" letter-spacing="2">✦ ${safeBadge}</text>
+  <text x="80" y="96" fill="#D4AF37" font-family="Cinzel, Cormorant Garamond, Inter, sans-serif" font-size="22" font-weight="700" letter-spacing="2">✦ ${safeBadge}</text>
   <text x="600" y="265" fill="#FFFFFF" font-family="Amiri Quran, serif" font-size="42" text-anchor="middle" direction="rtl">${safeAr}</text>
   <line x1="480" y1="330" x2="720" y2="330" stroke="#D4AF37" stroke-opacity="0.45" stroke-width="1.5"/>
-  <text x="600" y="410" fill="#F3E8C8" font-family="Inter, Noto Sans Tamil, Noto Sans Sinhala, sans-serif" font-size="24" text-anchor="middle">“${safeTr}”</text>
-  <text x="80" y="560" fill="#D4AF37" fill-opacity="0.8" font-family="Inter, sans-serif" font-size="18" font-weight="600">DRAGON DAWWA · Institutional Research Studio</text>
-  <text x="1120" y="560" fill="#D4AF37" fill-opacity="0.8" font-family="Inter, sans-serif" font-size="18" text-anchor="end">dragondawwa.com</text>
+  <text x="600" y="410" fill="#F3E8C8" font-family="Cinzel, Cormorant Garamond, Arima, Kavivanar, Gemunu Libre, Abhaya Libre, serif" font-size="24" text-anchor="middle">“${safeTr}”</text>
+  <text x="80" y="560" fill="#D4AF37" fill-opacity="0.8" font-family="Plus Jakarta Sans, Inter, sans-serif" font-size="18" font-weight="600">DRAGON DAWWA · Institutional Research Studio</text>
+  <text x="1120" y="560" fill="#D4AF37" fill-opacity="0.8" font-family="Plus Jakarta Sans, Inter, sans-serif" font-size="18" text-anchor="end">dragondawwa.com</text>
 </svg>`;
 }
 
