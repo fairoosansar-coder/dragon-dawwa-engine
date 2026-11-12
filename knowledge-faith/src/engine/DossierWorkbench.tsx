@@ -15,6 +15,7 @@ import { useDossier } from './DossierContext.tsx';
 import { useRemote } from '../lib/api.ts';
 import { useApp } from '../lib/store.tsx';
 import type { SevenAgentResearchDossier } from '../shared/sevenAgentTypes.ts';
+import { RecentSevenAgentDossiers } from '../components/research/RecentSevenAgentDossiers.tsx';
 import { SevenAgentCountdownCard } from '../components/research/SevenAgentCountdownCard.tsx';
 import { SevenAgentResearchBoard } from '../components/research/SevenAgentResearchBoard.tsx';
 import { languageLabel } from './utils/contentLanguage.ts';
@@ -140,6 +141,16 @@ export default function DossierWorkbench() {
           lang={d.lang}
         />
       )}
+      <RecentSevenAgentDossiers
+        activeQuestion={scienceQuery}
+        onSelectDossier={selected => {
+          void d.run(selected.question, '', selected.lang);
+        }}
+        onOpenRoundtable={selected => {
+          void d.run(selected.question, '', selected.lang);
+          d.setStep('roundtable');
+        }}
+      />
       {d.reportOrigin === 'failed' && (
         <div
           data-testid="research-language-failed"

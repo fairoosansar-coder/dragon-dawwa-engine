@@ -43,6 +43,78 @@ function writeDiskDossier(hash: string, dossier: SevenAgentResearchDossier): voi
   }
 }
 
+function historyIndexPath(): string {
+  const dir = path.join(persistRoot(), 'seven-agent-cache');
+  if (!existsSync(dir)) {
+    try {
+      mkdirSync(dir, { recursive: true });
+    } catch {
+      /* ignore */
+    }
+  }
+  return path.join(dir, 'history-index.json');
+}
+
+function savedDossiersPath(): string {
+  const dir = path.join(persistRoot(), 'seven-agent-cache');
+  if (!existsSync(dir)) {
+    try {
+      mkdirSync(dir, { recursive: true });
+    } catch {
+      /* ignore */
+    }
+  }
+  return path.join(dir, 'saved-dossiers.json');
+}
+
+function readHistoryList(): SevenAgentResearchDossier[] {
+  try {
+    const file = historyIndexPath();
+    if (!existsSync(file)) return [];
+    const parsed = JSON.parse(readFileSync(file, 'utf8'));
+    return Array.isArray(parsed) ? (parsed as SevenAgentResearchDossier[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeHistoryList(items: SevenAgentResearchDossier[]): void {
+  try {
+    writeFileSync(historyIndexPath(), JSON.stringify(items.slice(0, 40)), 'utf8');
+  } catch {
+    /* ignore */
+  }
+}
+
+export function readServerSavedDossiers(): SevenAgentResearchDossier[] {
+  try {
+    const file = savedDossiersPath();
+    if (!existsSync(file)) return [];
+    const parsed = JSON.parse(readFileSync(file, 'utf8'));
+    return Array.isArray(parsed) ? (parsed as SevenAgentResearchDossier[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeServerSavedDossiers(items: SevenAgentResearchDossier[]): void {
+  try {
+    writeFileSync(savedDossiersPath(), JSON.stringify(items.slice(0, 50)), 'utf8');
+  } catch {
+    /* ignore */
+  }
+}
+
+function recordInHistory(dossier: SevenAgentResearchDossier): void {
+  const current = readHistoryList();
+  const filtered = current.filter(
+    item =>
+      item.id !== dossier.id &&
+      !(item.lang === dossier.lang && item.question.trim().toLowerCase() === dossier.question.trim().toLowerCase()),
+  );
+  writeHistoryList([dossier, ...filtered]);
+}
+
 const LOCALIZED_AGENT_HEADERS: Record<
   Lang,
   Record<
@@ -850,17 +922,127 @@ export async function runSevenAgentResearch(
     .update(`seven-agent-v3|${lang}|${cleanQ.toLowerCase()}`)
     .digest('hex')
     .slice(0, 32);
+  const stableId = `7agent-${hash.slice(0, 16)}`;
 
   const cached = readDiskDossier(hash);
   if (cached && cached.agents?.length === 7) {
-    return cached;
+    const hydrated = { ...cached, id: stableId };
+    recordInHistory(hydrated);
+    return hydrated;
   }
 
   const baseEn = isGoldOrRingQuestion(cleanQ)
     ? buildGoldAndRingsEnglishDossier(cleanQ)
     : await buildDynamicEnglishDossier(cleanQ);
 
-  const localized = await localizeDossierToLanguage(baseEn, lang);
+  const localized = {
+    ...(await localizeDossierToLanguage(baseEn, lang)),
+    id: stableId,
+  };
   writeDiskDossier(hash, localized);
+  recordInHistory(localized);
   return localized;
+}
+
+export async function listSevenAgentHistory(lang?: Lang): Promise<{
+  items: SevenAgentResearchDossier[];
+  saved: SevenAgentResearchDossier[];
+  savedIds: string[];
+}> {
+  let history = readHistoryList();
+  if (history.length === 0) {
+    const seeded = await runSevenAgentResearch(
+      'Can man wear gold ? or small ring or related in gold ?',
+      lang ?? 'en',
+    );
+    history = [seeded];
+  }
+  const saved = readServerSavedDossiers();
+  const savedIds = saved.map(item => item.id);
+  return {
+    items: history,
+    saved,
+    savedIds,
+  };
+}
+
+export async function getSevenAgentDossierById(
+  id: string,
+  lang: Lang = 'en',
+): Promise<SevenAgentResearchDossier | null> {
+  const cleanId = id.trim();
+  const fromSaved = readServerSavedDossiers().find(item => item.id === cleanId);
+  if (fromSaved) {
+    return fromSaved.lang === lang
+      ? fromSaved
+      : runSevenAgentResearch(fromSaved.question, lang);
+  }
+  const fromHistory = readHistoryList().find(item => item.id === cleanId);
+  if (fromHistory) {
+    return fromHistory.lang === lang
+      ? fromHistory
+      : runSevenAgentResearch(fromHistory.question, lang);
+  }
+  if (cleanId.startsWith('7agent-gold')) {
+    return runSevenAgentResearch('Can man wear gold ? or small ring or related in gold ?', lang);
+  }
+  return null;
+}
+
+export async function toggleServerSavedDossier(input: {
+  id?: string;
+  question?: string;
+  lang?: Lang;
+  dossier?: SevenAgentResearchDossier;
+  saved?: boolean;
+}): Promise<{
+  saved: boolean;
+  savedIds: string[];
+  items: SevenAgentResearchDossier[];
+}> {
+  const current = readServerSavedDossiers();
+  let target = input.dossier ?? null;
+  if (!target && input.id) {
+    target = await getSevenAgentDossierById(input.id, input.lang ?? 'en');
+  }
+  if (!target && input.question) {
+    target = await runSevenAgentResearch(input.question, input.lang ?? 'en');
+  }
+  if (!target) {
+    return {
+      saved: false,
+      savedIds: current.map(i => i.id),
+      items: current,
+    };
+  }
+
+  recordInHistory(target);
+  const exists = current.some(
+    item =>
+      item.id === target!.id ||
+      item.question.trim().toLowerCase() === target!.question.trim().toLowerCase(),
+  );
+  const shouldSave = input.saved !== undefined ? input.saved : !exists;
+
+  const next = shouldSave
+    ? [
+        target,
+        ...current.filter(
+          item =>
+            item.id !== target!.id &&
+            item.question.trim().toLowerCase() !== target!.question.trim().toLowerCase(),
+        ),
+      ]
+    : current.filter(
+        item =>
+          item.id !== target!.id &&
+          item.question.trim().toLowerCase() !== target!.question.trim().toLowerCase(),
+      );
+
+  writeServerSavedDossiers(next);
+  return {
+    saved: shouldSave,
+    savedIds: next.map(i => i.id),
+    items: next,
+  };
 }

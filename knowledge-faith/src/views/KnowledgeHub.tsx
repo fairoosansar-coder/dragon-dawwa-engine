@@ -17,6 +17,7 @@ import { FaithWallFeed } from '../components/FaithWallFeed.tsx';
 import { ADMIN_SETTINGS_EVENT, readAdminSettings, submitScholarQuestion } from '../lib/verseShare.ts';
 import { KnowledgeShelf } from './KnowledgePaths.tsx';
 import { LibraryReader } from './LibraryReader.tsx';
+import { SavedLibraryView } from './SavedLibraryView.tsx';
 import { EmptyState, FeatureCard, PrayerStrip } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, Loading, Notice, SectionTitle } from '../components/ui.tsx';
 import { DomainResearchForm } from './DomainResearchForm.tsx';
@@ -257,6 +258,7 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
     }
   }
 
+  if (sub === 'saved') return <SavedLibraryView />;
   if (sub === 'item' && /^\d{1,12}$/.test(segments[1] ?? '')) {
     return <LibraryReader itemId={Number(segments[1])} backHref="#/hub" />;
   }
@@ -400,19 +402,7 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
       </Card>
 
       <section ref={savedRef} id="saved" className="scroll-mt-28">
-        <Card>
-          <SectionTitle>{t.saved}</SectionTitle>
-          {saved.verses.length === 0 && saved.hadith.length === 0 ? (
-            <EmptyState>{t.savedEmpty}</EmptyState>
-          ) : (
-            <>
-              <VerseList refs={saved.verses.slice(0, 60)} />
-              {saved.hadith.map(item => (
-                <SavedHadith key={`${item.collection}-${item.number}`} collection={item.collection} number={item.number} />
-              ))}
-            </>
-          )}
-        </Card>
+        <SavedLibraryView />
       </section>
     </div>
   );

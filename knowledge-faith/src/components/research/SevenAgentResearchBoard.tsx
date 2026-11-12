@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import {
   Award,
+  Bookmark,
+  BookmarkCheck,
   BookOpen,
   Check,
   FlaskConical,
@@ -21,7 +23,7 @@ import {
 } from 'lucide-react';
 import { setAudioPlaybackRate } from '../../lib/audio.ts';
 import { splitTextIntoSpeechLines, useLineByLineTts } from '../../lib/lineByLineTts.ts';
-import { useStored } from '../../lib/store.tsx';
+import { useApp, useStored } from '../../lib/store.tsx';
 import { profileFontClass, wallFontClass } from '../../lib/typography.ts';
 import { publishFaithWallPost } from '../../lib/verseShare.ts';
 import { AudioLoadingSpinner, loadingAudioLabel } from '../AudioLoadingSpinner.tsx';
@@ -157,6 +159,7 @@ export function SevenAgentResearchBoard({
   roundtableOpen?: boolean;
   onToggleRoundtable?: (open: boolean) => void;
 }) {
+  const { isDossierSaved, toggleDossier } = useApp();
   const [internalRoundtableOpen, setInternalRoundtableOpen] = useState(roundtableOpen);
   const [voiceProfile, setVoiceProfile] = useStored<HadithVoiceProfileId>(
     'kf-hadith-voice-profile',
@@ -284,6 +287,18 @@ export function SevenAgentResearchBoard({
   const isSciencePlaying = lineTts.isPlayingSession(scienceSessionId);
   const isScienceLoading = lineTts.isLoadingSession(scienceSessionId);
   const loadingText = loadingAudioLabel(lang);
+  const savedInLibrary = isDossierSaved(dossier.id) || isDossierSaved(dossier.question);
+  const saveButtonLabel = savedInLibrary
+    ? lang === 'ta'
+      ? 'நூலகத்தில் சேமிக்கப்பட்டது ✓'
+      : lang === 'si'
+        ? 'පුස්තකාලයේ සුරකින ලදී ✓'
+        : 'Saved in Library ✓'
+    : lang === 'ta'
+      ? 'ஆய்வை சேமி'
+      : lang === 'si'
+        ? 'පර්යේෂණය සුරකින්න'
+        : 'Save Research to Library';
 
   return (
     <div data-testid="seven-agent-research-board" className={`${profileFontClass(lang)} space-y-6`}>
@@ -399,6 +414,49 @@ export function SevenAgentResearchBoard({
                     : 'Listen: 1 Step Ahead of Science'}
               </span>
             </button>
+
+            <button
+              type="button"
+              data-testid="save-seven-agent-report-btn"
+              aria-pressed={savedInLibrary}
+              onClick={() => toggleDossier(dossier)}
+              style={
+                savedInLibrary
+                  ? {
+                      backgroundColor: '#FEF3C7',
+                      color: '#78350F',
+                      borderColor: '#D4AF37',
+                    }
+                  : {
+                      backgroundColor: '#FFFFFF',
+                      color: '#073C30',
+                      borderColor: '#D6C8A9',
+                    }
+              }
+              className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-extrabold shadow-2xs transition hover:bg-amber-50/70 cursor-pointer"
+            >
+              {savedInLibrary ? (
+                <BookmarkCheck className="h-3.5 w-3.5 text-[#B45309]" aria-hidden />
+              ) : (
+                <Bookmark className="h-3.5 w-3.5 text-[#073C30]" aria-hidden />
+              )}
+              <span>{saveButtonLabel}</span>
+            </button>
+
+            {savedInLibrary && (
+              <a
+                href="#/saved"
+                data-testid="view-in-saved-link"
+                style={{ color: '#073C30' }}
+                className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-extrabold underline hover:bg-emerald-100"
+              >
+                {lang === 'ta'
+                  ? 'சேமித்தவற்றில் காண்க →'
+                  : lang === 'si'
+                    ? 'සුරැකි ලැයිස්තුව බලන්න →'
+                    : 'View in Saved →'}
+              </a>
+            )}
 
             <button
               type="button"
@@ -989,6 +1047,34 @@ export function SevenAgentResearchBoard({
                     ? 'Pause Roundtable Broadcast'
                     : `Play Roundtable Broadcast (${dossier.roundtableTurns.length} Speakers)`}
               </span>
+            </button>
+
+            <button
+              type="button"
+              data-testid="roundtable-save-report-btn"
+              aria-pressed={savedInLibrary}
+              onClick={() => toggleDossier(dossier)}
+              style={
+                savedInLibrary
+                  ? {
+                      backgroundColor: '#FEF3C7',
+                      color: '#78350F',
+                      borderColor: '#D4AF37',
+                    }
+                  : {
+                      backgroundColor: '#FFFFFF',
+                      color: '#073C30',
+                      borderColor: '#D6C8A9',
+                    }
+              }
+              className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-extrabold transition hover:bg-amber-50/70 cursor-pointer"
+            >
+              {savedInLibrary ? (
+                <BookmarkCheck className="h-3.5 w-3.5 text-[#B45309]" aria-hidden />
+              ) : (
+                <Bookmark className="h-3.5 w-3.5 text-[#073C30]" aria-hidden />
+              )}
+              <span>{saveButtonLabel}</span>
             </button>
 
             <button

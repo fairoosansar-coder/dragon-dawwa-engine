@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { toLang, type Lang } from '../shared/sources.ts';
 import type { HadithRef } from '../shared/refs.ts';
+import type { SevenAgentResearchDossier } from '../shared/sevenAgentTypes.ts';
 import { STRINGS, type Strings } from './i18n.ts';
 import { useRemote } from './api.ts';
 
@@ -52,6 +53,7 @@ export interface AppConfig {
 interface Saved {
   verses: string[];
   hadith: HadithRef[];
+  dossiers?: SevenAgentResearchDossier[];
   notes?: Record<string, string>;
 }
 
@@ -110,8 +112,10 @@ interface AppState {
   saved: Saved;
   toggleVerse: (key: string) => void;
   toggleHadith: (ref: HadithRef) => void;
+  toggleDossier: (dossier: SevenAgentResearchDossier) => void;
   isVerseSaved: (key: string) => boolean;
   isHadithSaved: (ref: HadithRef) => boolean;
+  isDossierSaved: (idOrQuestion: string) => boolean;
   notes: Record<string, string>;
   setVerseNote: (key: string, note: string) => void;
 }
@@ -188,6 +192,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [setSaved],
   );
 
+  const sameDossier = (a: SevenAgentResearchDossier, idOrQuestion: string) => {
+    const clean = idOrQuestion.trim().toLowerCase();
+    return a.id.toLowerCase() === clean || a.question.trim().toLowerCase() === clean;
+  };
+
+  const toggleDossier = useCallback(
+    (dossier: SevenAgentResearchDossier) => {
+      let nextSavedState = true;
+      setSaved(s => {
+        const list = s.dossiers ?? [];
+        const exists = list.some(
+          d => sameDossier(d, dossier.id) || sameDossier(d, dossier.question),
+        );
+        nextSavedState = !exists;
+        const nextDossiers = exists
+          ? list.filter(
+              d => !sameDossier(d, dossier.id) && !sameDossier(d, dossier.question),
+            )
+          : [dossier, ...list];
+        return {
+          ...s,
+          dossiers: nextDossiers,
+        };
+      });
+      if (typeof fetch === 'function') {
+        void fetch('/api/research/seven-agents/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: dossier.id,
+            question: dossier.question,
+            lang: dossier.lang,
+            dossier,
+            saved: nextSavedState,
+          }),
+        }).catch(() => {});
+      }
+    },
+    [setSaved],
+  );
+
   const value = useMemo<AppState>(
     () => ({
       lang,
@@ -201,12 +246,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       saved,
       toggleVerse,
       toggleHadith,
+      toggleDossier,
       isVerseSaved: key => saved.verses.includes(key),
       isHadithSaved: ref => saved.hadith.some(h => sameHadith(h, ref)),
+      isDossierSaved: idOrQuestion =>
+        (saved.dossiers ?? []).some(d => sameDossier(d, idOrQuestion)),
       notes: saved.notes ?? {},
       setVerseNote,
     }),
-    [lang, setLang, uiTheme, setUiTheme, fontScale, setFontScale, config, saved, toggleVerse, toggleHadith, setVerseNote],
+    [lang, setLang, uiTheme, setUiTheme, fontScale, setFontScale, config, saved, toggleVerse, toggleHadith, toggleDossier, setVerseNote],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
