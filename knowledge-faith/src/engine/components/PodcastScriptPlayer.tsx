@@ -28,6 +28,7 @@ import { audioStudio, StudioFxType } from '../utils/audioStudio';
 import { withoutVanakkam } from '../utils/tamilGreeting';
 import { cancelBrowserSpeech } from '../utils/browserVoice';
 import { concatWavBase64, decodeBase64, downloadBytes, readResponseBytes } from '../../lib/episodeWav.ts';
+import { publishFaithWallPost } from '../../lib/verseShare.ts';
 import type { Lang } from '../../shared/sources.ts';
 
 interface PodcastScriptPlayerProps {
@@ -87,6 +88,31 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
   const [testingPersonaVoice, setTestingPersonaVoice] = useState<PersonaId | null>(null);
   const [imranVoice, setImranVoice] = useState<string>('Orus');
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  const [wallPosted, setWallPosted] = useState(false);
+
+  const handlePublishPodcastToWall = async () => {
+    const firstSpeech = dialogueItems.find(d => d.type === 'speech')?.text || executiveReport.slice(0, 240);
+    await publishFaithWallPost({
+      type: 'podcast',
+      podcastId: `roundtable-${Date.now()}`,
+      podcastTitle: '7-Agent Hadith & Source Verification Roundtable',
+      podcastDuration: '06:30',
+      podcastCitations: ['7-Agent Transmission Audit', 'Kutub al-Sittah'],
+      verse: {
+        surah: 1,
+        ayah: 1,
+        surahName: 'Roundtable Studio',
+        arabic: 'طَلَبُ الْعِلْمِ فَرِيضَةٌ',
+        translation: firstSpeech,
+      },
+      lang: language,
+      url: '#/hadith/research',
+      reflection: firstSpeech.slice(0, 260),
+      theme: 'emerald',
+    });
+    setWallPosted(true);
+    window.setTimeout(() => setWallPosted(false), 4000);
+  };
 
   const isPlayingRef = useRef<boolean>(false);
   const currentItemIndexRef = useRef<number>(-1);
@@ -1290,6 +1316,20 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
                     <Download className="w-3.5 h-3.5 text-amber-300" />
                   )}
                   <span>Download .WAV</span>
+                </button>
+
+                <button
+                  type="button"
+                  data-testid="share-podcast-to-wall-btn"
+                  onClick={() => void handlePublishPodcastToWall()}
+                  style={{ backgroundColor: '#073C30', color: '#FFFFFF' }}
+                  className="px-3.5 py-2 rounded-xl bg-[#073C30] hover:bg-[#0A2E23] text-[#FFFFFF] text-xs font-semibold border border-[#D4AF37]/50 flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                  title="Publish this Roundtable Podcast directly to the Community Faith Wall"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-[#E5C158]" />
+                  <span style={{ color: '#FFFFFF' }}>
+                    {wallPosted ? 'Published to Faith Wall ✓' : 'Share Podcast to Faith Wall'}
+                  </span>
                 </button>
 
                 {onShare && (

@@ -1,10 +1,14 @@
-import { Bookmark, BookmarkCheck, Pause, Play } from 'lucide-react';
+import { useState } from 'react';
+import { Bookmark, BookmarkCheck, Check, Pause, Play, Send, Share2, Sparkles } from 'lucide-react';
+import { segmentHadithRecord } from '../shared/hadithSegmentation.ts';
 import { recitationUrl } from '../shared/sources.ts';
 import type { Evidence, Hadith, Verse } from '../shared/types.ts';
 import { pauseAudio, playAudio, resumeAudio, useAudioState } from '../lib/audio.ts';
 import { useApp, useStored } from '../lib/store.tsx';
+import { publishFaithWallPost, WALL_THEMES, type WallPostTheme } from '../lib/verseShare.ts';
 import { confirmedMeaningSrc, meaningPlaybackId } from '../shared/quranenc.ts';
 import { HadithVoiceBar } from './HadithVoiceBar.tsx';
+import { ThemeSwatches } from './wall/ReflectionModal.tsx';
 import { IconButton } from './ui.tsx';
 
 export function useReciter() {
@@ -158,27 +162,231 @@ export function HadithCard({ hadith }: { hadith: Hadith }) {
   const { t, lang, toggleHadith, isHadithSaved } = useApp();
   const ref = { collection: hadith.collection, number: hadith.number };
   const saved = isHadithSaved(ref);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [reflection, setReflection] = useState('');
+  const [theme, setTheme] = useState<WallPostTheme>('emerald');
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [postedToast, setPostedToast] = useState<string | null>(null);
+
+  const seg =
+    hadith.segmented ??
+    segmentHadithRecord({
+      arabic: hadith.arabic,
+      text: hadith.text,
+      lang: hadith.lang,
+    });
+
+  const handlePublishToWall = async () => {
+    const primaryGrade = hadith.grades?.[0]?.grade || 'Verified';
+    await publishFaithWallPost({
+      type: 'reflection',
+      isAnonymous,
+      theme,
+      hadithCollection: hadith.collectionName,
+      hadithNumber: hadith.number,
+      hadithGrade: primaryGrade,
+      verse: {
+        surah: hadith.book || 1,
+        ayah: hadith.number,
+        surahName: hadith.collectionName,
+        arabic: seg.arabic.matn || hadith.arabic || '',
+        translation: seg.translation.matn || hadith.text,
+        reference: `${hadith.collectionName} #${hadith.number}`,
+      },
+      lang: hadith.lang,
+      url: `#/hadith/collections?book=${encodeURIComponent(hadith.collection)}`,
+      reflection: reflection.trim(),
+    });
+    setShareOpen(false);
+    setReflection('');
+    setPostedToast('Published Hadith Card to the Community Faith Wall!');
+    window.setTimeout(() => setPostedToast(null), 3500);
+  };
+
+  const shareLandingUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/s/h/${encodeURIComponent(hadith.collection)}/${hadith.number}?lang=${hadith.lang}`
+      : `#/hadith/collections?book=${encodeURIComponent(hadith.collection)}`;
+  const shortWhatsAppText = `${hadith.collectionName} #${hadith.number} · Dragon Dawwa\n${shareLandingUrl}`;
+  const whatsappHref = `https://wa.me/?text=${encodeURIComponent(shortWhatsAppText)}`;
+
   return (
-    <article className="border-b border-pine/10 py-5 last:border-0">
-      <div className="mb-2 flex items-center justify-between gap-2">
+    <article
+      data-hadith-card={`${hadith.collection}-${hadith.number}`}
+      className="border-b border-pine/10 py-5 last:border-0"
+    >
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <span className="rounded-full bg-mint px-3 py-1 text-xs font-semibold text-pine">
           {hadith.collectionName} · {hadith.number}
         </span>
-        <IconButton label={saved ? t.unsave : t.save} aria-pressed={saved} onClick={() => toggleHadith(ref)}>
-          {saved ? <BookmarkCheck className="h-4 w-4 text-gold" /> : <Bookmark className="h-4 w-4" />}
-        </IconButton>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            data-testid="share-hadith-to-wall-btn"
+            onClick={() => setShareOpen(open => !open)}
+            style={{ backgroundColor: '#073C30', color: '#F9E7B9' }}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/45 bg-[#073C30] px-3 py-1 text-xs font-bold text-[#F9E7B9] shadow-2xs transition hover:bg-[#0A2E23] cursor-pointer"
+          >
+            <Sparkles className="h-3 w-3 text-[#D4AF37]" aria-hidden />
+            <span>Share to Faith Wall</span>
+          </button>
+
+          <a
+            href={whatsappHref}
+            target="_blank"
+            rel="noreferrer"
+            data-testid="hadith-whatsapp-share-link"
+            onClick={() => {
+              const fullCopy = [
+                hadith.arabic,
+                hadith.text,
+                `— ${hadith.collectionName} #${hadith.number}`,
+                shareLandingUrl,
+              ]
+                .filter(Boolean)
+                .join('\n\n');
+              void navigator.clipboard?.writeText(fullCopy).catch(() => {});
+              setPostedToast('Full Hadith copied to clipboard — ready for WhatsApp!');
+              window.setTimeout(() => setPostedToast(null), 3000);
+            }}
+            className="inline-flex items-center gap-1 rounded-full border border-pine/20 bg-white px-2.5 py-1 text-xs font-semibold text-pine hover:bg-emerald-50/60"
+          >
+            <Share2 className="h-3 w-3" aria-hidden />
+            <span>WhatsApp</span>
+          </a>
+
+          <IconButton label={saved ? t.unsave : t.save} aria-pressed={saved} onClick={() => toggleHadith(ref)}>
+            {saved ? <BookmarkCheck className="h-4 w-4 text-gold" /> : <Bookmark className="h-4 w-4" />}
+          </IconButton>
+        </div>
       </div>
+
+      {/* Two-Tier Arabic Display: Secondary Isnad Chain + Prominent Prophetic Matn */}
       {hadith.arabic && (
-        <details className="mb-2" open>
-          <summary className="cursor-pointer text-xs font-medium text-pine">العربية</summary>
-          <p lang="ar" dir="rtl" className="arabic mt-1 text-xl text-ink">
-            {hadith.arabic}
-          </p>
-        </details>
+        <div
+          lang="ar"
+          dir="rtl"
+          data-testid="hadith-arabic-segmented"
+          className="mb-3 rounded-2xl border border-[#0E382B]/15 bg-[#FCF9F2] p-4 space-y-2.5"
+        >
+          {seg.arabic.isnad && (
+            <div data-testid="hadith-arabic-isnad" className="border-b border-stone-200/80 pb-2">
+              <span className="mb-1 inline-block rounded-full bg-stone-200/80 px-2.5 py-0.5 font-sans text-[10px] font-bold uppercase tracking-wider text-stone-700">
+                Isnad · السند (Narrator Chain)
+              </span>
+              <p className="arabic text-base leading-relaxed text-stone-600">
+                {seg.arabic.isnad}
+              </p>
+            </div>
+          )}
+          <div data-testid="hadith-arabic-matn">
+            {seg.arabic.isnad && (
+              <span className="mb-1 inline-block rounded-full bg-emerald-900/10 px-2.5 py-0.5 font-sans text-[10px] font-bold uppercase tracking-wider text-[#073C30]">
+                Matn · المتن (Prophetic Statement)
+              </span>
+            )}
+            <p className="arabic text-xl font-bold leading-loose text-stone-950 sm:text-2xl">
+              {seg.arabic.matn || hadith.arabic}
+            </p>
+          </div>
+        </div>
       )}
-      <p lang={hadith.lang} className="leading-relaxed text-ink/90">
-        {hadith.text}
-      </p>
+
+      {/* Two-Tier Translation Display: Companion Attribution + Prominent Matn */}
+      <div
+        lang={hadith.lang}
+        data-testid="hadith-translation-segmented"
+        className="rounded-2xl border border-stone-200/80 bg-white p-4 space-y-2"
+      >
+        {seg.translation.companion_attribution && (
+          <p
+            data-testid="hadith-translation-attribution"
+            className="text-xs font-medium italic leading-relaxed text-stone-600 sm:text-sm"
+          >
+            {seg.translation.companion_attribution}:
+          </p>
+        )}
+        <p
+          data-testid="hadith-translation-matn"
+          className="text-base font-semibold leading-relaxed text-stone-900 sm:text-[17px]"
+        >
+          {seg.translation.companion_attribution
+            ? `“${seg.translation.matn}”`
+            : seg.translation.matn || hadith.text}
+        </p>
+      </div>
+
+      {/* Inline Share to Faith Wall Drawer */}
+      {shareOpen && (
+        <div
+          data-testid="hadith-share-wall-drawer"
+          className="mt-3 space-y-3 rounded-2xl border border-[#D4AF37]/50 bg-[#051C15] p-4 text-[#F3E8C8]"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#D4AF37]">
+              ✦ Share {hadith.collectionName} #{hadith.number} to Community Faith Wall
+            </span>
+            <ThemeSwatches selected={theme} onSelect={setTheme} />
+          </div>
+
+          <input
+            type="text"
+            value={reflection}
+            onChange={e => setReflection(e.target.value)}
+            placeholder="Add your reflection or takeaway on this Hadith (optional)…"
+            className="w-full rounded-xl border border-[#D4AF37]/35 bg-[#0A2E23]/80 px-3.5 py-2 text-xs text-white placeholder:text-stone-400 focus:border-[#D4AF37] focus:outline-none"
+          />
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label className="inline-flex items-center gap-2 text-xs font-semibold text-[#F9E7B9] cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isAnonymous}
+                onChange={e => setIsAnonymous(e.target.checked)}
+                className="rounded border-[#D4AF37]"
+              />
+              <span>Post as Anonymous Seeker</span>
+            </label>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShareOpen(false)}
+                className="rounded-xl px-3 py-1.5 text-xs text-stone-300 hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                data-testid="confirm-share-hadith-wall-btn"
+                onClick={() => void handlePublishToWall()}
+                style={{ backgroundColor: '#D4AF37', color: '#031812' }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#D4AF37] px-4 py-1.5 text-xs font-bold text-[#031812] cursor-pointer"
+              >
+                <Send className="h-3.5 w-3.5" aria-hidden />
+                <span>Publish to Faith Wall</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {postedToast && (
+        <div
+          role="status"
+          className="mt-2.5 flex items-center justify-between rounded-xl border border-emerald-700/30 bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-950"
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <Check className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+            <span>{postedToast}</span>
+          </span>
+          <a href="#/quran/wall" className="font-bold text-[#073C30] underline">
+            Open Faith Wall →
+          </a>
+        </div>
+      )}
+
       <div className="mt-3">
         <HadithVoiceBar
           hadithKey={`card-${hadith.collection}-${hadith.number}-${hadith.lang}`}
@@ -189,7 +397,6 @@ export function HadithCard({ hadith }: { hadith: Hadith }) {
           compact
         />
       </div>
-      {hadith.machineTranslation && <p className="mt-1 text-xs text-pine">{t.machineHadithShort}</p>}
       {!hadith.machineTranslation && hadith.lang !== lang && <p className="mt-1 text-xs text-pine">{t.fallbackEnglish}</p>}
       <div className="mt-3">
         <GradeList grades={hadith.grades} />

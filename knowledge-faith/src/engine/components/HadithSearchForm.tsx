@@ -27,6 +27,7 @@ import { HadithMediaUploadModal } from './HadithMediaUploadModal';
 import { SupportedLanguage, TRANSLATIONS } from '../utils/localization';
 import { dictationCode, languageChip, languageLabel } from '../utils/contentLanguage.ts';
 import { beginDictationTap, isMicrophoneDenial, MICROPHONE_DENIED_MESSAGE, requestMicrophoneFromTap } from '../../views/microphoneTap.ts';
+import { publishFaithWallPost } from '../../lib/verseShare.ts';
 import {
   podcastAvailability,
   readSavedResearch,
@@ -935,6 +936,36 @@ export function HadithSearchForm({
                         }}
                       >
                         View Full Report
+                      </button>
+                      <button
+                        type="button"
+                        data-testid="share-podcast-to-wall-btn"
+                        className="rounded-lg border border-[#0f6b4c]/40 bg-[#e8f2ec] px-2.5 py-1 text-[10px] font-bold text-[#0c3d2e] hover:bg-[#d1fae5] cursor-pointer"
+                        onClick={async () => {
+                          const langCode: Lang =
+                            item.language === 'ta' || item.language === 'si' ? item.language : 'en';
+                          await publishFaithWallPost({
+                            type: 'podcast',
+                            podcastId: `saved-research-${item.id}`,
+                            podcastTitle: item.question.slice(0, 140),
+                            podcastDuration: '06:20',
+                            podcastCitations: ['7-Agent Hadith Dossier'],
+                            verse: {
+                              surah: 1,
+                              ayah: 1,
+                              surahName: 'Hadith Research Studio',
+                              arabic: 'طَلَبُ الْعِلْمِ فَرِيضَةٌ',
+                              translation: item.question,
+                            },
+                            lang: langCode,
+                            url: '#/hadith/research',
+                            reflection: `Shared Hadith Research Podcast: “${item.question.slice(0, 180)}”`,
+                            theme: 'emerald',
+                          });
+                          window.location.hash = '#/quran/wall';
+                        }}
+                      >
+                        Share to Faith Wall
                       </button>
                       <button
                         type="button"

@@ -22,9 +22,11 @@ import {
   type HadithSpeechLang,
   type HadithVoiceProfileId,
 } from '../shared/hadithVoices.ts';
+import { segmentHadithRecord } from '../shared/hadithSegmentation.ts';
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
 
 export type ActiveHadithSpeechPart = 'arabic' | 'translation' | 'explanation' | 'lessons' | null;
+export type HadithTtsScopeMode = 'matn' | 'full';
 
 export function HadithVoiceBar({
   hadithKey,
@@ -58,6 +60,16 @@ export function HadithVoiceBar({
     'tariq',
   );
   const [speed, setSpeed] = useStored<HadithPlaybackSpeed>('kf-hadith-voice-speed', 1);
+  const [ttsMode, setTtsMode] = useStored<HadithTtsScopeMode>('kf-hadith-tts-mode', 'matn');
+
+  const segmented = segmentHadithRecord({
+    arabic: arabicText,
+    text: translationText,
+    lang,
+  });
+  const hasSeparatedChain = Boolean(
+    segmented.arabic.isnad || segmented.translation.companion_attribution,
+  );
 
   const sessionPrefix = `hadith-v4:${hadithKey}:`;
   const arSessionId = `${sessionPrefix}arabic`;
@@ -91,8 +103,14 @@ export function HadithVoiceBar({
     });
   }, [activePart, lineTts.currentIndex, lineTts.currentLineText, onActivePartChange, onActiveLineChange]);
 
-  const arabicClean = (arabicText ?? '').trim();
-  const translationClean = (translationText ?? '').trim();
+  const arabicClean =
+    ttsMode === 'matn' && segmented.audio_targets.elevenlabs_short
+      ? segmented.audio_targets.elevenlabs_short.trim()
+      : (arabicText ?? '').trim();
+  const translationClean =
+    ttsMode === 'matn' && segmented.audio_targets.translation_short
+      ? segmented.audio_targets.translation_short.trim()
+      : (translationText ?? '').trim();
   const explanationClean = (explanationText ?? '').trim();
   const lessonsClean = (lessonsList ?? []).map(s => s.trim()).filter(Boolean).join('\n');
 
@@ -243,31 +261,71 @@ export function HadithVoiceBar({
           )}
         </div>
 
-        {/* Speed Selector Pills (0.85x, 1x, 1.15x) */}
-        <div
-          role="group"
-          aria-label="Playback speed"
-          className="inline-flex items-center gap-1 rounded-xl border border-[#D4AF37]/30 bg-black/10 p-0.5"
-        >
-          {HADITH_PLAYBACK_SPEEDS.map(rate => {
-            const active = speed === rate;
-            return (
+        {/* Mode B (Matn Only) vs Mode A (Full Chain) + Speed Selector Pills */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {hasSeparatedChain && (
+            <div
+              role="group"
+              aria-label="Hadith recitation scope"
+              data-testid="hadith-tts-mode-toggle"
+              className="inline-flex items-center gap-0.5 rounded-xl border border-[#D4AF37]/35 bg-black/10 p-0.5"
+            >
               <button
-                key={rate}
                 type="button"
-                data-testid={`hadith-voice-speed-${rate}`}
-                aria-pressed={active}
-                onClick={() => handleSpeedChange(rate)}
+                data-testid="hadith-tts-mode-matn"
+                aria-pressed={ttsMode === 'matn'}
+                onClick={() => setTtsMode('matn')}
                 style={{
-                  backgroundColor: active ? '#D4AF37' : 'transparent',
-                  color: active ? '#041B14' : isDark ? '#FBF9F5' : '#1C1917',
+                  backgroundColor: ttsMode === 'matn' ? '#073C30' : 'transparent',
+                  color: ttsMode === 'matn' ? '#F9E7B9' : isDark ? '#FBF9F5' : '#1C1917',
                 }}
-                className="rounded-lg px-2 py-0.5 font-mono text-[11px] font-bold transition cursor-pointer"
+                className="rounded-lg px-2 py-0.5 text-[11px] font-bold transition cursor-pointer"
+                title="Mode B: Recite only the core Prophetic Matn (saves 40–60% voice quota)"
               >
-                {rate}x
+                {lang === 'ta' ? 'சுருக்கமான மத்ன் (Matn Only)' : 'Matn Only'}
               </button>
-            );
-          })}
+              <button
+                type="button"
+                data-testid="hadith-tts-mode-full"
+                aria-pressed={ttsMode === 'full'}
+                onClick={() => setTtsMode('full')}
+                style={{
+                  backgroundColor: ttsMode === 'full' ? '#073C30' : 'transparent',
+                  color: ttsMode === 'full' ? '#F9E7B9' : isDark ? '#FBF9F5' : '#1C1917',
+                }}
+                className="rounded-lg px-2 py-0.5 text-[11px] font-bold transition cursor-pointer"
+                title="Mode A: Recite Full Narrator Chain (Isnad) + Prophetic Matn"
+              >
+                {lang === 'ta' ? 'இஸ்னாத் + மத்ன் (Full Chain)' : 'Full Chain (Isnad + Matn)'}
+              </button>
+            </div>
+          )}
+
+          <div
+            role="group"
+            aria-label="Playback speed"
+            className="inline-flex items-center gap-1 rounded-xl border border-[#D4AF37]/30 bg-black/10 p-0.5"
+          >
+            {HADITH_PLAYBACK_SPEEDS.map(rate => {
+              const active = speed === rate;
+              return (
+                <button
+                  key={rate}
+                  type="button"
+                  data-testid={`hadith-voice-speed-${rate}`}
+                  aria-pressed={active}
+                  onClick={() => handleSpeedChange(rate)}
+                  style={{
+                    backgroundColor: active ? '#D4AF37' : 'transparent',
+                    color: active ? '#041B14' : isDark ? '#FBF9F5' : '#1C1917',
+                  }}
+                  className="rounded-lg px-2 py-0.5 font-mono text-[11px] font-bold transition cursor-pointer"
+                >
+                  {rate}x
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 

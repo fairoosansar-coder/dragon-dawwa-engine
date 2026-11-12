@@ -1,3 +1,4 @@
+import type { SegmentedHadithMetadata } from './hadithSegmentation.ts';
 import type { Lang } from './sources.ts';
 
 export interface SurahInfo {
@@ -56,6 +57,7 @@ export interface Hadith {
   grades: Grade[];
   book: number;
   section: string | null;
+  segmented?: SegmentedHadithMetadata;
 }
 
 export interface HadithSection {

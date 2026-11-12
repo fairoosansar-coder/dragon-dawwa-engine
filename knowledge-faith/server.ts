@@ -89,6 +89,7 @@ import { getResearchJob, seedResearchJob, startResearchJob } from './src/engine/
 import { synthesizeRoundtableVoice } from './src/engine/server/geminiTtsService.ts';
 import { loadLocalizedAyahStudy } from './src/server/ayahStudyService.ts';
 import { getHadithTtsStatus, synthesizeHadithVoice } from './src/server/elevenlabsTts.ts';
+import { serveHadithShareLanding, serveVerseOgImage, serveVerseShareLanding } from './src/server/shareLanding.ts';
 import { extractHadithFromMedia } from './src/engine/server/hadithOcrService.ts';
 import { transcribeAudioWithGemini } from './src/engine/server/geminiAudioTranscribe.ts';
 import { ummahQuranMiddleware } from './src/engine/server/ummahQuran.ts';
@@ -189,6 +190,13 @@ function releaseInfo(): { sha: string; builtAt: string } {
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', app: 'DRAGON DAWWA', ai: geminiConfigured(), release: releaseInfo() });
 });
+
+app.get('/s/v/:surah/:ayah', route(serveVerseShareLanding));
+app.get('/s/v/:surah/:ayah/:lang', route(serveVerseShareLanding));
+app.get('/share/verse/:surah/:ayah', route(serveVerseShareLanding));
+app.get('/api/og/verse/:surah/:ayah', route(serveVerseOgImage));
+app.get('/s/h/:id/:number', route(serveHadithShareLanding));
+app.get('/s/h/:id', route(serveHadithShareLanding));
 
 app.get('/api/config', (_req, res) => {
   res.json({

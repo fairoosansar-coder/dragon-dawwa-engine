@@ -8,6 +8,7 @@ import type { Lang } from '../shared/sources.ts';
 import { getJson, postJson, useRemote } from '../lib/api.ts';
 import { decodeBase64, downloadBytes, readResponseBytes } from '../lib/episodeWav.ts';
 import { readResearchHistory } from '../lib/researchDesk.ts';
+import { publishFaithWallPost } from '../lib/verseShare.ts';
 import { PodcastHostChip } from '../components/PodcastHostChip.tsx';
 import { ContentText } from '../components/ContentText.tsx';
 import { Button, ErrorNote, Notice } from '../components/ui.tsx';
@@ -447,6 +448,24 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
       reportHtml: episode.reportHtml,
       shared: true,
     });
+    await publishFaithWallPost({
+      type: 'podcast',
+      podcastId: episode.id,
+      podcastTitle: episode.question,
+      podcastDuration: '06:00',
+      podcastCitations: episode.sources?.slice(0, 4) ?? ['7-Agent Research Dossier'],
+      verse: {
+        surah: 1,
+        ayah: 1,
+        surahName: 'Research Roundtable',
+        arabic: 'وَقُل رَّبِّ زِدْنِى عِلْمًا',
+        translation: episode.lines[0]?.text || episode.question,
+      },
+      lang: episode.language,
+      url: '#/podcast',
+      reflection: `Shared Research Podcast episode: “${episode.question}”`,
+      theme: 'emerald',
+    });
     save(readEpisodes().map(item => (item.id === episode.id ? { ...item, shared: true } : item)));
     community.reload();
   }
@@ -539,9 +558,23 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
                     Download .WAV
                   </Button>
                   {!stage.shared && (
-                    <Button type="button" variant="soft" onClick={() => void share(stage)}>Share with the community</Button>
+                    <Button
+                      type="button"
+                      variant="soft"
+                      data-testid="share-podcast-to-wall-btn"
+                      onClick={() => void share(stage)}
+                    >
+                      Share Podcast to Faith Wall
+                    </Button>
                   )}
-                  {stage.shared && <span className="text-sm text-pine">Shared for the community</span>}
+                  {stage.shared && (
+                    <a
+                      href="#/quran/wall"
+                      className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-[#073C30] underline"
+                    >
+                      Shared to Community Faith Wall →
+                    </a>
+                  )}
                 </div>
               }
             />
