@@ -18,6 +18,7 @@ import {
   User,
 } from 'lucide-react';
 import { pauseAudio, playAudio, useAudioState } from '../../lib/audio.ts';
+import { profileFontClass, wallFontClass } from '../../lib/typography.ts';
 import { SeekerAvatar } from '../SeekerAuthModal.tsx';
 import { ReflectionModal, type PresetVerseOption } from './ReflectionModal.tsx';
 import { WallPostCard } from './WallPostCard.tsx';
@@ -447,7 +448,7 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
   return (
     <section
       data-faith-wall
-      className="mx-auto w-full max-w-[1120px]"
+      className={`${profileFontClass(lang)} mx-auto w-full max-w-[1120px]`}
     >
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_285px] xl:grid-cols-[minmax(0,1fr)_300px]">
         {/* TABLE 2 (Center Feed Column): 1-Tap Daily Benefit Stories Row + 3-Pill Share Bar + Post Stream */}
@@ -455,7 +456,7 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
           {/* 1. Top of Center Feed: 4 Simple Daily Benefit Cards (Stories Row) */}
           <div
             data-testid="daily-benefit-stories"
-            className="grid grid-cols-2 gap-2.5 sm:grid-cols-4"
+            className={`${wallFontClass(lang)} grid grid-cols-2 gap-2.5 sm:grid-cols-4`}
           >
             {/* Card 1: Daily Ayah */}
             <a

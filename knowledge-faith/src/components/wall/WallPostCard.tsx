@@ -21,6 +21,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { pauseAudio, playAudio, useAudioState } from '../../lib/audio.ts';
+import { profileFontClass, wallFontClass } from '../../lib/typography.ts';
 import { HadithVoiceBar } from '../HadithVoiceBar.tsx';
 import { SeekerAvatar } from '../SeekerAuthModal.tsx';
 import { ThemeSwatches } from './ReflectionModal.tsx';
@@ -193,7 +194,7 @@ export function WallPostCard({
       data-faith-wall-card={post.id}
       data-post-theme={themeKey}
       data-post-type={post.type ?? 'reflection'}
-      className={`rounded-2xl border bg-white p-4 text-stone-900 shadow-sm transition sm:p-5 ${
+      className={`${profileFontClass(post.lang, post.reflection || post.translation)} rounded-2xl border bg-white p-4 text-stone-900 shadow-sm transition sm:p-5 ${
         post.isPinned || post.isOfficialBroadcast
           ? 'border-[#C6A15A]/70 ring-1 ring-[#C6A15A]/30'
           : 'border-stone-200/80 hover:border-stone-300/90'
@@ -440,7 +441,7 @@ export function WallPostCard({
         <p
           lang={post.lang}
           data-wall-card-reflection
-          className="my-3 font-sans text-sm leading-relaxed text-stone-800"
+          className={`${profileFontClass(post.lang, post.reflection)} my-3 text-sm leading-relaxed text-stone-800`}
         >
           {post.reflection}
         </p>
@@ -474,7 +475,7 @@ export function WallPostCard({
 
           <h4
             style={{ color: '#F9E7B9' }}
-            className="mt-3 font-display text-base font-bold leading-snug text-[#F9E7B9] sm:text-lg"
+            className={`${wallFontClass(post.lang, post.deedTitle)} mt-3 text-base font-bold leading-snug text-[#F9E7B9] sm:text-lg`}
           >
             {post.deedTitle || 'Read Surah Al-Kahf on Friday & Morning Adhkar'}
           </h4>
@@ -491,7 +492,7 @@ export function WallPostCard({
             <p
               lang={post.lang}
               style={{ color: '#E7E5E4' }}
-              className="mt-1 text-center text-xs leading-relaxed text-stone-200"
+              className={`${wallFontClass(post.lang, quoted)} mt-1 text-center text-xs leading-relaxed text-stone-200`}
             >
               {quoted}
             </p>
@@ -670,7 +671,7 @@ export function WallPostCard({
 
           <p
             lang={post.lang}
-            className="max-h-20 max-w-xl overflow-y-auto font-sans text-xs leading-relaxed text-[#F3E8C8] sm:max-h-24 sm:text-[13px]"
+            className={`${wallFontClass(post.lang, quoted)} max-h-20 max-w-xl overflow-y-auto text-xs leading-relaxed text-[#F3E8C8] sm:max-h-24 sm:text-[14px]`}
           >
             {quoted}
           </p>

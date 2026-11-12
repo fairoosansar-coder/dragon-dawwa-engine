@@ -18,6 +18,8 @@ import { SeekerAvatar } from '../components/SeekerAuthModal.tsx';
 import { ReflectionModal, type PresetVerseOption } from '../components/wall/ReflectionModal.tsx';
 import { WallPostCard } from '../components/wall/WallPostCard.tsx';
 import { SEEKER_AUTH_EVENT, useSeekerAuth } from '../lib/seekerAuth.ts';
+import { useApp } from '../lib/store.tsx';
+import { profileFontClass, wallFontClass } from '../lib/typography.ts';
 import { formatQuotedTranslation, renderVerseImage } from '../lib/verseImage.ts';
 import {
   addFaithWallReply,
@@ -45,6 +47,7 @@ const BANNER_PRESETS = [
 ] as const;
 
 export function UserProfileView({ sub }: ViewProps) {
+  const { lang } = useApp();
   const { user, updateProfile, openModal: openAuthModal } = useSeekerAuth();
   const [tick, setTick] = useState(0);
   const [portfolioTab, setPortfolioTab] = useState<'all' | 'reflections' | 'podcasts' | 'settings'>('all');
@@ -210,7 +213,10 @@ export function UserProfileView({ sub }: ViewProps) {
   };
 
   return (
-    <section data-user-profile-view className="mx-auto w-full max-w-[1240px] space-y-4">
+    <section
+      data-user-profile-view
+      className={`${profileFontClass(lang)} mx-auto w-full max-w-[1240px] space-y-4`}
+    >
       {/* Top Breadcrumb Navigation */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <a

@@ -407,12 +407,14 @@ export async function renderVerseImage(
   if (typeof document === 'undefined') {
     return { error: 'The verse image could not be drawn because a required font did not load.' };
   }
-  const meaningFamily = lang === 'ta' ? 'Noto Sans Tamil' : lang === 'si' ? 'Noto Sans Sinhala' : 'Fraunces';
-  const fallbackFamily = lang === 'ta' ? 'Noto Sans Tamil' : lang === 'si' ? 'Noto Sans Sinhala' : 'Inter';
+  const meaningFamily = lang === 'ta' ? 'Arima' : lang === 'si' ? 'Gemunu Libre' : 'Cormorant Garamond';
+  const fallbackFamily = lang === 'ta' ? 'Anek Tamil' : lang === 'si' ? 'Anek Sinhala' : 'Fraunces';
   const meaningSample = lang === 'ta' ? 'அவர்கள்' : lang === 'si' ? 'ඔවුන්' : verse.translation.slice(0, 24) || 'Meaning';
   const [arabicOk, meaningOk] = await Promise.all([
     fontReady('Amiri Quran', 48, 'بِسْمِ ٱللَّهِ'),
-    fontReady(meaningFamily, 28, meaningSample).then(ok => (ok ? true : fontReady(fallbackFamily, 28, meaningSample))),
+    fontReady(meaningFamily, 28, meaningSample)
+      .then(ok => (ok ? true : fontReady(fallbackFamily, 28, meaningSample)))
+      .then(ok => (ok ? true : fontReady(lang === 'ta' ? 'Noto Sans Tamil' : lang === 'si' ? 'Noto Sans Sinhala' : 'Inter', 28, meaningSample))),
   ]);
   if (!arabicOk || !meaningOk) {
     return { error: 'The verse image could not be drawn because a required font did not load.' };

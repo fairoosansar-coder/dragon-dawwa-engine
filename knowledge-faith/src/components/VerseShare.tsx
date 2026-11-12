@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Check, Copy, Download, Link2, LogIn, Send, Share2, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { useSeekerAuth } from '../lib/seekerAuth.ts';
 import { useApp } from '../lib/store.tsx';
+import { wallFontClass } from '../lib/typography.ts';
 import { SeekerAvatar } from './SeekerAuthModal.tsx';
 import {
   BRAND_FOOTER_LEFT,
@@ -426,7 +427,7 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
                   lang={lang}
                   data-card-translation
                   style={{ lineHeight: 1.85 }}
-                  className={`max-w-2xl pb-2 text-center font-display text-[#F3E8C8] ${
+                  className={`${wallFontClass(lang, quotedTranslation)} max-w-2xl pb-2 text-center text-[#F3E8C8] ${
                     isVeryLongPassage
                       ? 'text-xs sm:text-sm'
                       : isLongPassage
