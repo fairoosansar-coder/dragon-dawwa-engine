@@ -59,7 +59,12 @@ export function RecordShare({
       ? `${origin}/s/v/${verse.surah}/${verse.ayah}?lang=${lang}`
       : url;
 
-  const shortWhatsAppText = `${title.slice(0, 80)} · Dragon Dawwa\n${shortShareUrl}`;
+  const asciiBadge = hadithIdMatch
+    ? `Prophetic Hadith #${hadithIdMatch[1]} (${lang.toUpperCase()})`
+    : verse.surah > 0 && verse.ayah > 0
+      ? `Surah ${verse.surahName || verse.surah} (${verse.surah}:${verse.ayah})`
+      : 'Dragon Dawwa Study Record';
+  const shortWhatsAppText = `${asciiBadge} · Dragon Dawwa\n${shortShareUrl}`;
   const whatsappHref = `https://wa.me/?text=${encodeURIComponent(shortWhatsAppText)}`;
 
   const copyText = async () => {
