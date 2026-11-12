@@ -2,10 +2,11 @@ import { Type, type Schema } from '@google/genai';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
+import { deduplicateHonorifics } from '../shared/hadithSegmentation.ts';
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
 import type { Hadith } from '../shared/types.ts';
 import { withoutVanakkam } from '../engine/utils/tamilGreeting.ts';
-import { translateBatchToLanguage } from './ayahStudyService.ts';
+import { translateBatchToLanguage, translateTextToLanguage } from './ayahStudyService.ts';
 import { completeJson, geminiConfigured } from './gemini.ts';
 import { persistRoot } from './persist.ts';
 
@@ -31,7 +32,7 @@ export function clearHadithTranslationCache(): void {
 }
 
 function cacheKey(lang: Lang, text: string): string {
-  return `${lang}\0${text}`;
+  return `v3:${lang}\0${text}`;
 }
 
 function diskHadithTranslationPath(lang: Lang, text: string): string {
@@ -43,7 +44,7 @@ function diskHadithTranslationPath(lang: Lang, text: string): string {
       /* ignore */
     }
   }
-  const hash = createHash('sha256').update(`${lang}|${text}`).digest('hex').slice(0, 32);
+  const hash = createHash('sha256').update(`v3|${lang}|${text}`).digest('hex').slice(0, 32);
   return path.join(dir, `${hash}.txt`);
 }
 
@@ -80,9 +81,10 @@ export function applyMachineTranslation(texts: string[], translations: string[] 
     return texts.map(text => ({ text, machineTranslation: false }));
   }
   return texts.map((original, i) => {
-    const next = String(translations[i] ?? '').trim();
-    if (!next) return { text: original, machineTranslation: false };
-    return { text: lang === 'ta' ? withoutVanakkam(next) : next, machineTranslation: true };
+    const rawNext = String(translations[i] ?? '').trim();
+    if (!rawNext) return { text: original, machineTranslation: false };
+    const cleaned = deduplicateHonorifics(lang === 'ta' ? withoutVanakkam(rawNext) : rawNext);
+    return { text: cleaned, machineTranslation: true };
   });
 }
 
@@ -117,9 +119,8 @@ export async function translateStudyTexts(
   }
   if (missing.length === 0) return result;
 
-  // To guarantee < 1s response times for large sections (e.g. 39 hadiths in Muwatta' Malik Section 8),
-  // translate up to the first 10 items immediately within a strict 1800ms budget, and warm the remaining items in background!
-  const syncLimit = isCustomTranslator ? missing.length : Math.min(missing.length, 10);
+  // Translate up to 16 items immediately in parallel within a 4500ms budget, and warm any remaining items in background!
+  const syncLimit = isCustomTranslator ? missing.length : Math.min(missing.length, 16);
   const immediateSlice = missing.slice(0, syncLimit);
   const backgroundSlice = missing.slice(syncLimit);
 
@@ -154,7 +155,7 @@ export async function translateStudyTexts(
         ? await translate(batch.map(item => item.text), lang)
         : await Promise.race([
             translate(batch.map(item => item.text), lang),
-            new Promise<null>(resolve => setTimeout(() => resolve(null), 1800)),
+            new Promise<null>(resolve => setTimeout(() => resolve(null), 4500)),
           ]);
     } catch (err) {
       console.error('Hadith study rendering failed:', (err as Error)?.message);
@@ -207,12 +208,40 @@ export async function localizeHadith(
   });
 }
 
+function refineIslamicTerminology(text: string, lang: Lang): string {
+  let out = deduplicateHonorifics(text);
+  if (lang === 'ta') {
+    out = out
+      .replace(/அல்லாஹ்வின் தூதர்\s*(?!\(ஸல்\))/gu, 'அல்லாஹ்வின் தூதர் (ஸல்) ')
+      .replace(/நபி\s*\(\s*ஸல்\s*\)\s*\(\s*ஸல்\s*\)/gu, 'நபி (ஸல்)')
+      .replace(/அல்லாஹ்வின் தூதர்\s*\(ஸல்\)\s*\(ஸல்\)/gu, 'அல்லாஹ்வின் தூதர் (ஸல்)')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+  return deduplicateHonorifics(out);
+}
+
 async function fastStudyTranslator(texts: string[], lang: Lang): Promise<string[] | null> {
   if (lang !== 'ta' && lang !== 'si') return null;
   try {
+    // Translate all items concurrently in parallel (each individual request is < 1800 chars so it completes in ~350–600ms)
+    const parallelResults = await Promise.all(
+      texts.map(async item => {
+        if (!item.trim()) return '';
+        const tr = await translateTextToLanguage(item, lang, 'en');
+        return refineIslamicTerminology(lang === 'ta' ? withoutVanakkam(tr) : tr, lang);
+      }),
+    );
+    if (parallelResults.length === texts.length && parallelResults.some((t, i) => t !== texts[i])) {
+      return parallelResults;
+    }
+  } catch {
+    /* fall through to batch/Gemini */
+  }
+  try {
     const fast = await translateBatchToLanguage(texts, lang);
     if (Array.isArray(fast) && fast.length === texts.length && fast.some((t, i) => t !== texts[i])) {
-      return fast.map(t => (lang === 'ta' ? withoutVanakkam(t) : t));
+      return fast.map(t => refineIslamicTerminology(lang === 'ta' ? withoutVanakkam(t) : t, lang));
     }
   } catch {
     /* fall through to Gemini */

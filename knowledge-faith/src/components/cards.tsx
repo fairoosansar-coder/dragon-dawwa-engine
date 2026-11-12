@@ -287,7 +287,7 @@ export function HadithCard({ hadith }: { hadith: Hadith }) {
               </span>
             )}
             <p className="arabic text-xl font-bold leading-loose text-stone-950 sm:text-2xl">
-              {seg.arabic.matn || hadith.arabic}
+              {seg.arabic.isnad ? `« ${seg.arabic.matn || hadith.arabic} »` : seg.arabic.matn || hadith.arabic}
             </p>
           </div>
         </div>
@@ -297,15 +297,24 @@ export function HadithCard({ hadith }: { hadith: Hadith }) {
       <div
         lang={hadith.lang}
         data-testid="hadith-translation-segmented"
-        className="rounded-2xl border border-stone-200/80 bg-white p-4 space-y-2"
+        className="rounded-2xl border border-stone-200/80 bg-white p-4 space-y-2.5"
       >
         {seg.translation.companion_attribution && (
-          <p
-            data-testid="hadith-translation-attribution"
-            className="text-xs font-medium italic leading-relaxed text-stone-600 sm:text-sm"
-          >
-            {seg.translation.companion_attribution}:
-          </p>
+          <div className="border-b border-stone-100 pb-2">
+            <span className="mb-1 inline-block rounded-full bg-amber-50 border border-amber-300/60 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-950">
+              {hadith.lang === 'ta'
+                ? 'அறிவிப்பாளர் தொடர் (Narrator)'
+                : hadith.lang === 'si'
+                  ? 'වාර්තාකරු (Narrator)'
+                  : 'Companion Attribution'}
+            </span>
+            <p
+              data-testid="hadith-translation-attribution"
+              className="text-xs font-medium italic leading-relaxed text-stone-600 sm:text-sm"
+            >
+              {seg.translation.companion_attribution}:
+            </p>
+          </div>
         )}
         <p
           data-testid="hadith-translation-matn"
@@ -389,15 +398,14 @@ export function HadithCard({ hadith }: { hadith: Hadith }) {
 
       <div className="mt-3">
         <HadithVoiceBar
-          hadithKey={`card-${hadith.collection}-${hadith.number}-${hadith.lang}`}
+          hadithKey={`card-${hadith.collection}-${hadith.number}-${lang}`}
           arabicText={hadith.arabic}
           translationText={hadith.text}
-          lang={hadith.lang}
+          lang={lang}
           variant="light"
           compact
         />
       </div>
-      {!hadith.machineTranslation && hadith.lang !== lang && <p className="mt-1 text-xs text-pine">{t.fallbackEnglish}</p>}
       <div className="mt-3">
         <GradeList grades={hadith.grades} />
       </div>
