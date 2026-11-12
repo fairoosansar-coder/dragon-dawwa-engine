@@ -58,12 +58,14 @@ function buildNormalizedArabicMap(rawArabic: string): {
 const ARABIC_MATN_BOUNDARY_PATTERNS: readonly RegExp[] = [
   /(?:قال|يقول)\s+(?=كان\s+(?:رسول\s+الله|النبي))/u,
   /(?:قال|يقول)\s+(?=قال\s+(?:رسول\s+الله|النبي))/u,
+  /(?:انه\s+قال|انها\s+قالت)\s+(?=(?:خرج|دخل|قام|صلى|خطب|قالت?|كان|امر|نهى)\s)/u,
   /(?=(?:قال|يقول)\s+(?:رسول\s+الله|النبي))/u,
   /(?=كان\s+(?:رسول\s+الله|النبي))/u,
   /(?=ان\s+(?:رسول\s+الله|النبي))/u,
   /(?=عن\s+(?:رسول\s+الله|النبي)[^،:]{0,60}(?:قال|يقول))/u,
   /(?=سمعت\s+(?:رسول\s+الله|النبي))/u,
   /(?=رايت\s+(?:رسول\s+الله|النبي))/u,
+  /(?:حدثنا|اخبرنا|حدثني)(?:[^،:]+،\s*)*(?:عن\s+[^،:]+\s*،\s*)+(?:قال|قالت)\s+/u,
 ];
 
 /**
@@ -84,12 +86,10 @@ export function splitArabicHadith(rawArabic: string): SegmentedArabicHadith {
 
   for (const pattern of ARABIC_MATN_BOUNDARY_PATTERNS) {
     const match = pattern.exec(stripped);
-    if (match && match.index >= 12) {
-      // If the pattern matched a leading `قال ` before `كان رسول الله` or `قال رسول الله`,
-      // start Matn at the inner prophetic clause (`كان رسول الله` / `قال رسول الله`)
+    if (match && match.index >= 0) {
       const innerOffset =
         match[0].length > 0 ? match.index + match[0].length : match.index;
-      if (bestStrippedStart === -1 || innerOffset < bestStrippedStart) {
+      if (innerOffset >= 12 && (bestStrippedStart === -1 || innerOffset < bestStrippedStart)) {
         bestStrippedStart = innerOffset;
       }
       break;
@@ -129,8 +129,11 @@ const TAMIL_BOUNDARY_PATTERNS: readonly RegExp[] = [
 
 const SINHALA_BOUNDARY_PATTERNS: readonly RegExp[] = [
   /^(.*?විසින්\s+වාර්තා\s+කරන\s+ලදී\s*[:\-–]\s*)(.+)$/su,
+  /^(.*?විස්තර\s+කරයි\s*[:\-–]\s*)(.+)$/su,
+  /^(.*?වාර්තා\s+කරයි\s*[:\-–]\s*)(.+)$/su,
   /^(.*?ප්‍රකාශ\s+කළහ\s*[:\-–]\s*)(.+)$/su,
   /^(.*?පැවසූහ\s*[:\-–]\s*)(.+)$/su,
+  /^(.*?පැවසීය\s*[:\-–]\s*)(.+)$/su,
   /^(.*?වාර්තා\s+කළේය\s*[:\-–]\s*)(.+)$/su,
 ];
 
@@ -139,6 +142,43 @@ const ENGLISH_BOUNDARY_PATTERNS: readonly RegExp[] = [
   /^(Narrated\s+[^:]{2,140}?:\s*)(.+)$/isu,
   /^([^:.]{4,160}?\s+reported(?:\s+that[^:]{0,80})?\s*:\s*)(.+)$/isu,
 ];
+
+/**
+ * Deduplicate consecutive repeated Salawat / Radhiyallahu honorifics in Sinhala, Tamil, and English
+ * (e.g. `නබි (සල්) තුමාණන් (සල්ලල්ලාහු අලෙයිහි වසල්ලම්) තුමාණෝ (සල්ලල්ලාහු අලෙයිහි වසල්ලම්) තුමාණෝ` -> `නබි (සල්) තුමාණෝ`).
+ */
+export function deduplicateHonorifics(rawText: string): string {
+  if (!rawText) return '';
+  let text = rawText;
+
+  // Sinhala repeated Salawat patterns
+  text = text.replace(
+    /(?:නබි\s*)?(?:\(\s*(?:සල්|සල්ලල්ලාහු\s+අල[ෙෛ]යි?හි\s+වසල්ලම්)\s*\)\s*(?:තුමාණන්|තුමාණෝ|තුමා)?\s*){2,}/gu,
+    match => (match.trim().startsWith('නබි') ? 'නබි (සල්) තුමාණෝ ' : '(සල්) තුමාණෝ '),
+  );
+  text = text.replace(
+    /(\(\s*සල්ලල්ලාහු\s+අල[ෙෛ]යි?හි\s+වසල්ලම්\s*\)\s*(?:තුමාණෝ|තුමාණන්)?)(?:\s*\1)+/gu,
+    '$1',
+  );
+  text = text.replace(
+    /(තුමාණන්|තුමාණෝ)\s*\(\s*සල්ලල්ලාහු\s+අල[ෙෛ]යි?හි\s+වසල්ලම්\s*\)\s*(?:තුමාණෝ|තුමාණන්)/gu,
+    '$1',
+  );
+
+  // Tamil repeated Salawat / Radhiyallahu patterns
+  text = text.replace(
+    /(?:\(\s*(?:ஸல்|ஸல்லல்லாஹு\s+அலைஹி\s+வஸல்லம்)\s*\)\s*(?:அவர்கள்)?\s*){2,}/gu,
+    '(ஸல்) அவர்கள் ',
+  );
+  text = text.replace(
+    /(?:\(\s*(?:ரலி|ரலியல்லாஹு\s+அன்ஹு|ரலியல்லாஹு\s+அன்ஹா)\s*\)\s*(?:அவர்கள்)?\s*){2,}/gu,
+    '(ரலி) அவர்கள் ',
+  );
+  text = text.replace(/\b(அவர்கள்)\s+\1\b/gu, '$1');
+  text = text.replace(/\b(තුමාණෝ|තුමාණන්)\s+\1\b/gu, '$1');
+
+  return text.replace(/[ \t]{2,}/g, ' ').trim();
+}
 
 function stripSurroundingQuotes(text: string): string {
   const t = text.trim();
@@ -159,7 +199,7 @@ export function splitTranslationHadith(
   rawText: string,
   lang: Lang = 'en',
 ): SegmentedTranslationHadith {
-  const full = (rawText ?? '').trim();
+  const full = deduplicateHonorifics((rawText ?? '').trim());
   if (!full) {
     return { companion_attribution: '', matn: '', full: '' };
   }

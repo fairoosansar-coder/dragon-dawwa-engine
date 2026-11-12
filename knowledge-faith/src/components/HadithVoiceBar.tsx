@@ -282,7 +282,11 @@ export function HadithVoiceBar({
                 className="rounded-lg px-2 py-0.5 text-[11px] font-bold transition cursor-pointer"
                 title="Mode B: Recite only the core Prophetic Matn (saves 40–60% voice quota)"
               >
-                {lang === 'ta' ? 'சுருக்கமான மத்ன் (Matn Only)' : 'Matn Only'}
+                {lang === 'ta'
+                  ? 'சுருக்கமான மத்ன் (Matn Only)'
+                  : lang === 'si'
+                    ? 'මූලික හදීස් පාඨය (Matn Only)'
+                    : 'Matn Only'}
               </button>
               <button
                 type="button"
@@ -296,7 +300,11 @@ export function HadithVoiceBar({
                 className="rounded-lg px-2 py-0.5 text-[11px] font-bold transition cursor-pointer"
                 title="Mode A: Recite Full Narrator Chain (Isnad) + Prophetic Matn"
               >
-                {lang === 'ta' ? 'இஸ்னாத் + மத்ன் (Full Chain)' : 'Full Chain (Isnad + Matn)'}
+                {lang === 'ta'
+                  ? 'இஸ்னாத் + மத்ன் (Full Chain)'
+                  : lang === 'si'
+                    ? 'සම්පූර්ණ දාමය (Full Chain)'
+                    : 'Full Chain (Isnad + Matn)'}
               </button>
             </div>
           )}
