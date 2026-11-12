@@ -375,6 +375,26 @@ body {
   background: rgba(229, 193, 88, 0.15);
 }
 
+[data-ui-theme="obsidian"] [data-reading-player] {
+  background: #072019;
+  border-color: rgba(212, 175, 55, 0.35);
+  color: #F5EEDC;
+}
+
+[data-ui-theme="obsidian"] [data-reading-player] button,
+[data-ui-theme="obsidian"] [data-reading-player] [data-player-status] {
+  color: #F5EEDC;
+}
+
+[data-ui-theme="obsidian"] [data-reading-player] [data-player-play] {
+  background: #D4AF37;
+  color: #031812;
+}
+
+[data-ui-theme="obsidian"] [data-reading-player] [data-player-time] {
+  color: #E5C158;
+}
+
 [data-ui-theme="obsidian"] .bg-mint {
   color: #073C30;
 }

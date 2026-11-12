@@ -420,8 +420,8 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
                     <div className="min-w-0 flex-1">
                       <p
                         lang={effectiveLang}
-                        style={{ color: '#1C1917', lineHeight: 1.85 }}
-                        className={`${profileFontClass(effectiveLang, cleanBody)} max-w-[72ch] text-base text-stone-900 sm:text-[17px]`}
+                        style={{ color: '#0B1612', lineHeight: 1.85 }}
+                        className={`${profileFontClass(effectiveLang, cleanBody)} max-w-[72ch] text-base font-medium text-[#0B1612] sm:text-[17px]`}
                       >
                         {cleanBody}
                       </p>
