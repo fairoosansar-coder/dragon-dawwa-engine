@@ -36,24 +36,113 @@ import type {
 } from '../../shared/sevenAgentTypes.ts';
 import { LANGUAGE_NAMES, type Lang } from '../../shared/sources.ts';
 
-function agentIcon(agentId: SpecialistAgentFinding['agentId']) {
+function agentVisualSpec(agentId: SpecialistAgentFinding['agentId']) {
   switch (agentId) {
     case 'quran_tafsir':
-      return BookOpen;
+      return {
+        Icon: BookOpen,
+        accentHex: '#B45309',
+        badgeBg: '#FEF3C7',
+        badgeText: '#78350F',
+        badgeBorder: '#F59E0B',
+        iconBg: '#78350F',
+        iconText: '#FDE68A',
+      };
     case 'hadith_sunnah':
-      return ScrollText;
+      return {
+        Icon: ScrollText,
+        accentHex: '#0F5132',
+        badgeBg: '#D1FAE5',
+        badgeText: '#064E3B',
+        badgeBorder: '#10B981',
+        iconBg: '#073C30',
+        iconText: '#F9E7B9',
+      };
     case 'isnad_rijal':
-      return ShieldCheck;
+      return {
+        Icon: ShieldCheck,
+        accentHex: '#1E3A8A',
+        badgeBg: '#DBEAFE',
+        badgeText: '#1E3A8A',
+        badgeBorder: '#60A5FA',
+        iconBg: '#1E3A8A',
+        iconText: '#EFF6FF',
+      };
     case 'fiqh_consensus':
-      return Scale;
+      return {
+        Icon: Scale,
+        accentHex: '#92400E',
+        badgeBg: '#FFEDD5',
+        badgeText: '#7C2D12',
+        badgeBorder: '#F97316',
+        iconBg: '#7C2D12',
+        iconText: '#FFEDD5',
+      };
     case 'linguistic_maqasid':
-      return Layers;
+      return {
+        Icon: Layers,
+        accentHex: '#6B21A8',
+        badgeBg: '#F3E8FF',
+        badgeText: '#581C87',
+        badgeBorder: '#C084FC',
+        iconBg: '#581C87',
+        iconText: '#F3E8FF',
+      };
     case 'modern_science':
-      return FlaskConical;
+      return {
+        Icon: FlaskConical,
+        accentHex: '#0F766E',
+        badgeBg: '#CCFBF1',
+        badgeText: '#134E4A',
+        badgeBorder: '#14B8A6',
+        iconBg: '#115E59',
+        iconText: '#CCFBF1',
+      };
     case 'executive_synthesis':
-      return Award;
+      return {
+        Icon: Award,
+        accentHex: '#073C30',
+        badgeBg: '#FEF3C7',
+        badgeText: '#78350F',
+        badgeBorder: '#D4AF37',
+        iconBg: '#073C30',
+        iconText: '#D4AF37',
+      };
   }
 }
+
+const PILLAR_ACCENTS = [
+  {
+    stripeHex: '#C89D54',
+    badgeBg: '#78350F',
+    badgeText: '#FEF3C7',
+    domainColor: '#78350F',
+    boxBg: '#FFFBEB',
+    boxBorder: '#F59E0B',
+    boxTitle: '#92400E',
+    boxText: '#451A03',
+  },
+  {
+    stripeHex: '#0F5132',
+    badgeBg: '#064E3B',
+    badgeText: '#ECFDF5',
+    domainColor: '#064E3B',
+    boxBg: '#ECFDF5',
+    boxBorder: '#10B981',
+    boxTitle: '#065F46',
+    boxText: '#064E3B',
+  },
+  {
+    stripeHex: '#1E4E5F',
+    badgeBg: '#1E3A8A',
+    badgeText: '#EFF6FF',
+    domainColor: '#1E3A8A',
+    boxBg: '#F0F9FF',
+    boxBorder: '#38BDF8',
+    boxTitle: '#075985',
+    boxText: '#0C4A6E',
+  },
+] as const;
 
 export function SevenAgentResearchBoard({
   dossier,
@@ -195,52 +284,67 @@ export function SevenAgentResearchBoard({
 
   return (
     <div data-testid="seven-agent-research-board" className="space-y-6">
-      {/* 1. Executive 7-Agent Synthesis Header Card */}
+      {/* 1. Light & Prestigious Executive Verdict Card */}
       <section
         data-testid="seven-agent-executive-banner"
-        style={{ backgroundColor: '#041B14', color: '#FFFFFF' }}
-        className="relative overflow-hidden rounded-3xl border-2 border-[#D4AF37]/60 bg-gradient-to-br from-[#041B14] via-[#073C30] to-[#041B14] p-5 text-white shadow-xl sm:p-7"
+        style={{ backgroundColor: '#FFFFFF', color: '#1C1917', borderColor: '#E2D5B5' }}
+        className="relative overflow-hidden rounded-3xl border bg-white p-5 text-stone-900 shadow-sm sm:p-7"
       >
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        {/* Top Gilded Accent Bar */}
+        <div
+          aria-hidden
+          style={{
+            background: 'linear-gradient(90deg, #073C30 0%, #C89D54 50%, #073C30 100%)',
+          }}
+          className="absolute inset-x-0 top-0 h-1.5"
+        />
+
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
           <div className="flex flex-wrap items-center gap-2">
             <span
-              style={{ backgroundColor: 'rgba(212,175,55,0.2)', color: '#F9E7B9' }}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/60 px-3 py-1 text-xs font-bold tracking-wider"
+              style={{ backgroundColor: '#073C30', color: '#F9E7B9' }}
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold tracking-wider"
             >
               <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
               <span>7-AGENT MULTIDISCIPLINARY DOSSIER</span>
             </span>
             <span
-              style={{ backgroundColor: '#064E3B', color: '#FFFFFF', borderColor: '#10B981' }}
+              style={{ backgroundColor: '#FEF3C7', color: '#78350F', borderColor: '#F59E0B' }}
               className="rounded-full border px-3 py-1 font-mono text-xs font-extrabold"
             >
               {dossier.confidenceScore}% CONFIDENCE · {dossier.verdictClassification}
             </span>
           </div>
 
-          <span className="rounded-full bg-white/10 px-3 py-0.5 text-xs font-semibold text-[#E6C665]">
+          <span
+            style={{ backgroundColor: '#F5EFE2', color: '#073C30' }}
+            className="rounded-full border border-[#D4AF37]/40 px-3 py-0.5 text-xs font-bold"
+          >
             {langLabel}
           </span>
         </div>
 
         <h2
           lang={lang}
-          style={{ color: '#F9E7B9' }}
-          className="mt-3.5 font-display text-xl font-extrabold leading-snug text-[#F9E7B9] sm:text-2xl"
+          style={{ color: '#0F2922' }}
+          className="mt-3.5 font-display text-xl font-extrabold leading-snug sm:text-2xl"
         >
           {dossier.verdictHeadline}
         </h2>
 
         <p
           lang={lang}
-          style={{ color: '#F3E8C8' }}
-          className="mt-2.5 max-w-4xl text-sm leading-relaxed text-[#F3E8C8] sm:text-base"
+          style={{ color: '#3F3A32' }}
+          className="mt-2.5 max-w-4xl text-sm leading-relaxed sm:text-base"
         >
           {dossier.executiveSummary}
         </p>
 
         {/* Voice Selector + Primary Action Bar */}
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/15 pt-4">
+        <div
+          style={{ borderColor: '#EDE6D6' }}
+          className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t pt-4"
+        >
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -249,10 +353,10 @@ export function SevenAgentResearchBoard({
                 setRoundtableVisible(true);
                 handlePlayRoundtable(0);
               }}
-              style={{ backgroundColor: '#D4AF37', color: '#031812' }}
-              className="inline-flex items-center gap-2 rounded-full bg-[#D4AF37] px-4 py-2 text-xs font-extrabold text-[#031812] shadow-md transition hover:bg-[#e3c14d] cursor-pointer"
+              style={{ backgroundColor: '#073C30', color: '#F9E7B9' }}
+              className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-extrabold shadow-sm transition hover:opacity-95 cursor-pointer"
             >
-              <Radio className="h-4 w-4" aria-hidden />
+              <Radio className="h-4 w-4 text-[#D4AF37]" aria-hidden />
               <span>
                 {isRoundtablePlaying
                   ? `Pause Roundtable (${langLabel})`
@@ -264,13 +368,17 @@ export function SevenAgentResearchBoard({
               type="button"
               data-testid="board-listen-science-btn"
               onClick={handlePlayScienceSpotlight}
-              style={{ backgroundColor: '#0E4D3B', color: '#FFFFFF' }}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/50 bg-[#0E4D3B] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#13634C] cursor-pointer"
+              style={{
+                backgroundColor: '#FFFBEB',
+                color: '#78350F',
+                borderColor: '#F59E0B',
+              }}
+              className="inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold transition hover:bg-amber-100/70 cursor-pointer"
             >
               {isSciencePlaying ? (
-                <Pause className="h-3.5 w-3.5 fill-current text-[#D4AF37]" aria-hidden />
+                <Pause className="h-3.5 w-3.5 fill-current text-[#B45309]" aria-hidden />
               ) : (
-                <FlaskConical className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                <FlaskConical className="h-3.5 w-3.5 text-[#B45309]" aria-hidden />
               )}
               <span>
                 {isSciencePlaying ? 'Pause Science Audio' : 'Listen: 1 Step Ahead of Science'}
@@ -281,9 +389,14 @@ export function SevenAgentResearchBoard({
               type="button"
               data-testid="board-share-wall-btn"
               onClick={() => void handleShareToFaithWall()}
-              className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/10 px-3.5 py-2 text-xs font-bold text-[#F9E7B9] transition hover:bg-white/20 cursor-pointer"
+              style={{
+                backgroundColor: '#F8F5EC',
+                color: '#073C30',
+                borderColor: '#D6C8A9',
+              }}
+              className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-bold transition hover:bg-stone-100 cursor-pointer"
             >
-              <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+              <Sparkles className="h-3.5 w-3.5 text-[#B45309]" aria-hidden />
               <span>Share to Faith Wall</span>
             </button>
           </div>
@@ -293,8 +406,12 @@ export function SevenAgentResearchBoard({
               aria-label="Select ElevenLabs v4 Voice"
               value={profile.id}
               onChange={e => setVoiceProfile(e.target.value as HadithVoiceProfileId)}
-              style={{ backgroundColor: '#0A3528', color: '#FBF9F5' }}
-              className="rounded-xl border border-[#D4AF37]/40 bg-[#0A3528] px-2.5 py-1 text-xs font-semibold text-[#FBF9F5] outline-none"
+              style={{
+                backgroundColor: '#FAF7F0',
+                color: '#1C1917',
+                borderColor: '#D6C8A9',
+              }}
+              className="rounded-xl border px-2.5 py-1 text-xs font-semibold outline-none"
             >
               {HADITH_VOICE_PROFILES.map(v => (
                 <option
@@ -307,7 +424,10 @@ export function SevenAgentResearchBoard({
               ))}
             </select>
 
-            <div className="inline-flex items-center gap-1 rounded-xl border border-[#D4AF37]/30 bg-black/25 p-0.5">
+            <div
+              style={{ backgroundColor: '#F5EFE2', borderColor: '#E2D5B5' }}
+              className="inline-flex items-center gap-1 rounded-xl border p-0.5"
+            >
               {HADITH_PLAYBACK_SPEEDS.map(rate => {
                 const active = speed === rate;
                 return (
@@ -319,8 +439,8 @@ export function SevenAgentResearchBoard({
                       setAudioPlaybackRate(rate);
                     }}
                     style={{
-                      backgroundColor: active ? '#D4AF37' : 'transparent',
-                      color: active ? '#041B14' : '#FBF9F5',
+                      backgroundColor: active ? '#073C30' : 'transparent',
+                      color: active ? '#F9E7B9' : '#3F3A32',
                     }}
                     className="rounded-lg px-2 py-0.5 font-mono text-[11px] font-bold cursor-pointer"
                   >
@@ -335,10 +455,11 @@ export function SevenAgentResearchBoard({
         {wallToast && (
           <div
             role="status"
-            className="mt-3 flex items-center justify-between rounded-xl border border-[#D4AF37] bg-[#0A2E23] px-4 py-2 text-xs font-bold text-[#F9E7B9]"
+            style={{ backgroundColor: '#ECFDF5', color: '#064E3B', borderColor: '#10B981' }}
+            className="mt-3 flex items-center justify-between rounded-xl border px-4 py-2 text-xs font-bold"
           >
             <span className="inline-flex items-center gap-1.5">
-              <Check className="h-4 w-4 text-emerald-400" aria-hidden />
+              <Check className="h-4 w-4 text-emerald-700" aria-hidden />
               <span>{wallToast}</span>
             </span>
             <a href="#/quran/wall" className="underline">
@@ -351,20 +472,28 @@ export function SevenAgentResearchBoard({
         {lineTts.active && (
           <div
             data-testid="seven-agent-tts-progress"
-            className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[#D4AF37]/50 bg-[#031812]/90 px-4 py-2 text-xs text-[#F9E7B9]"
+            style={{
+              backgroundColor: '#FFFBEB',
+              color: '#78350F',
+              borderColor: '#F59E0B',
+            }}
+            className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-4 py-2 text-xs"
           >
             <div className="flex min-w-0 flex-1 items-center gap-2">
-              <span className="inline-flex h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-400" />
+              <span className="inline-flex h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-600" />
               <span className="font-mono text-[11px] font-bold">
                 ElevenLabs v4 · Reading Line {lineTts.currentIndex + 1} of {lineTts.lines.length}
               </span>
               {lineTts.nextLineReady && (
-                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+                <span
+                  style={{ backgroundColor: '#D1FAE5', color: '#065F46' }}
+                  className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                >
                   Next line ready
                 </span>
               )}
               {lineTts.currentLineText && (
-                <span className="hidden truncate text-[11px] text-stone-300 sm:inline">
+                <span className="hidden truncate text-[11px] text-amber-900 sm:inline">
                   — “{lineTts.currentLineText}”
                 </span>
               )}
@@ -375,7 +504,7 @@ export function SevenAgentResearchBoard({
                 aria-label="Previous line"
                 disabled={lineTts.currentIndex <= 0}
                 onClick={() => void lineTts.jumpToLine(lineTts.currentIndex - 1)}
-                className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-white/25 disabled:opacity-40 cursor-pointer"
+                className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-amber-400 bg-white text-amber-900 disabled:opacity-40 cursor-pointer"
               >
                 <SkipBack className="h-3 w-3" aria-hidden />
               </button>
@@ -384,7 +513,7 @@ export function SevenAgentResearchBoard({
                 aria-label="Next line"
                 disabled={lineTts.currentIndex + 1 >= lineTts.lines.length}
                 onClick={() => void lineTts.jumpToLine(lineTts.currentIndex + 1)}
-                className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-white/25 disabled:opacity-40 cursor-pointer"
+                className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-amber-400 bg-white text-amber-900 disabled:opacity-40 cursor-pointer"
               >
                 <SkipForward className="h-3 w-3" aria-hidden />
               </button>
@@ -392,7 +521,7 @@ export function SevenAgentResearchBoard({
                 type="button"
                 aria-label="Stop"
                 onClick={() => lineTts.stop()}
-                className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-red-400/50 text-red-300 cursor-pointer"
+                className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-red-300 bg-white text-red-700 cursor-pointer"
               >
                 <Square className="h-3 w-3 fill-current" aria-hidden />
               </button>
@@ -401,17 +530,26 @@ export function SevenAgentResearchBoard({
         )}
       </section>
 
-      {/* 2. Highlighted Spotlight Card: Modern Science & Prophetic Foresight (1 Step Ahead of Modern Science) */}
+      {/* 2. Luminous Warm Ivory Spotlight Card: Modern Science & Prophetic Foresight (1 Step Ahead of Modern Science) */}
       <section
         data-testid="modern-science-foresight-card"
-        className="rounded-3xl border-2 border-[#073C30] bg-gradient-to-br from-[#F4EFE4] via-[#FFFFFF] to-[#E8F2EC] p-5 text-stone-900 shadow-md sm:p-6"
+        style={{
+          background: 'linear-gradient(135deg, #FFFDF9 0%, #FAF6EC 55%, #F3EFE2 100%)',
+          color: '#1C1917',
+          borderColor: '#E2D5B5',
+        }}
+        className="rounded-3xl border p-5 shadow-sm sm:p-7"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span
-            style={{ backgroundColor: '#073C30', color: '#F9E7B9' }}
-            className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/50 bg-[#073C30] px-3.5 py-1 text-xs font-extrabold tracking-wide text-[#F9E7B9]"
+            style={{
+              backgroundColor: '#FFFBEB',
+              color: '#78350F',
+              borderColor: '#F59E0B',
+            }}
+            className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1 text-xs font-extrabold tracking-wide shadow-2xs"
           >
-            <FlaskConical className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+            <FlaskConical className="h-3.5 w-3.5 text-[#B45309]" aria-hidden />
             <span>{dossier.scienceForesight.badge}</span>
           </span>
 
@@ -435,70 +573,134 @@ export function SevenAgentResearchBoard({
 
         <h3
           lang={lang}
-          className="mt-3 font-display text-lg font-extrabold text-[#073C30] sm:text-xl"
+          style={{ color: '#0F2922' }}
+          className="mt-3 font-display text-lg font-extrabold sm:text-xl"
         >
           {dossier.scienceForesight.headline}
         </h3>
-        <p lang={lang} className="mt-1.5 text-sm leading-relaxed text-stone-700">
+        <p
+          lang={lang}
+          style={{ color: '#44403C' }}
+          className="mt-1.5 text-sm leading-relaxed"
+        >
           {dossier.scienceForesight.summary}
         </p>
 
-        <div className="mt-4 grid gap-3.5 md:grid-cols-3">
-          {dossier.scienceForesight.empiricalPillars.map((pillar, idx) => (
-            <div
-              key={idx}
-              data-testid={`science-pillar-${idx + 1}`}
-              className="flex flex-col justify-between rounded-2xl border border-[#073C30]/20 bg-white p-4 shadow-2xs"
-            >
-              <div>
-                <div className="flex items-center gap-2">
-                  <span
-                    style={{ backgroundColor: '#073C30', color: '#F9E7B9' }}
-                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg font-mono text-xs font-bold"
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          {dossier.scienceForesight.empiricalPillars.map((pillar, idx) => {
+            const accent = PILLAR_ACCENTS[idx % PILLAR_ACCENTS.length];
+            return (
+              <div
+                key={idx}
+                data-testid={`science-pillar-${idx + 1}`}
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  color: '#1C1917',
+                  borderColor: '#E7E0D0',
+                  borderTopWidth: '4px',
+                  borderTopColor: accent.stripeHex,
+                }}
+                className="flex flex-col justify-between rounded-2xl border p-4 shadow-xs"
+              >
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      style={{
+                        backgroundColor: accent.badgeBg,
+                        color: accent.badgeText,
+                      }}
+                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg font-mono text-xs font-bold"
+                    >
+                      0{idx + 1}
+                    </span>
+                    <h4
+                      lang={lang}
+                      style={{ color: accent.domainColor }}
+                      className="text-xs font-extrabold uppercase tracking-wide"
+                    >
+                      {pillar.domain}
+                    </h4>
+                  </div>
+                  <p
+                    lang={lang}
+                    style={{ color: '#292524' }}
+                    className="mt-2.5 text-xs leading-relaxed sm:text-[13px]"
                   >
-                    0{idx + 1}
-                  </span>
-                  <h4 lang={lang} className="text-xs font-extrabold uppercase tracking-wide text-[#073C30]">
-                    {pillar.domain}
-                  </h4>
+                    {pillar.finding}
+                  </p>
                 </div>
-                <p lang={lang} className="mt-2 text-xs leading-relaxed text-stone-800 sm:text-[13px]">
-                  {pillar.finding}
-                </p>
-              </div>
 
-              <div className="mt-3 rounded-xl border border-amber-400/50 bg-amber-50/90 p-2.5">
-                <p className="text-[10px] font-extrabold uppercase tracking-wider text-amber-900">
-                  ✦ 1 Step Ahead of Modern Science
-                </p>
-                <p lang={lang} className="mt-0.5 text-xs font-medium leading-snug text-amber-950">
-                  {pillar.oneStepAheadNote}
-                </p>
+                <div
+                  style={{
+                    backgroundColor: accent.boxBg,
+                    borderColor: accent.boxBorder,
+                  }}
+                  className="mt-3.5 rounded-xl border p-3"
+                >
+                  <p
+                    style={{ color: accent.boxTitle }}
+                    className="text-[10px] font-extrabold uppercase tracking-wider"
+                  >
+                    ✦ 1 Step Ahead of Modern Science
+                  </p>
+                  <p
+                    lang={lang}
+                    style={{ color: accent.boxText }}
+                    className="mt-1 text-xs font-medium leading-snug"
+                  >
+                    {pillar.oneStepAheadNote}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <p
           lang={lang}
-          className="mt-3.5 rounded-xl border border-[#073C30]/15 bg-[#FAF7F0] px-3.5 py-2 text-xs italic text-stone-700"
+          style={{
+            backgroundColor: '#FFFFFF',
+            color: '#44403C',
+            borderColor: '#E5DEC9',
+          }}
+          className="mt-4 rounded-xl border px-4 py-2.5 text-xs italic"
         >
           {dossier.scienceForesight.methodologicalNote}
         </p>
       </section>
 
-      {/* 3. All 7 Specialist Agent Result Cards (Agents 01 – 07) */}
-      <section className="space-y-3.5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+      {/* 3. All 7 Specialist Agent Result Cards (Bright White Cards with Distinct Discipline Accents) */}
+      <section className="space-y-4">
+        <div
+          style={{
+            backgroundColor: '#FFFFFF',
+            color: '#1C1917',
+            borderColor: '#E5DEC9',
+          }}
+          className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-5 py-3.5 shadow-2xs"
+        >
           <div>
-            <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#073C30]">
+            <p
+              style={{ color: '#B45309' }}
+              className="text-[11px] font-extrabold uppercase tracking-widest"
+            >
               ✦ COMPLETE 7-AGENT VERIFICATION & EVIDENCE MATRIX
             </p>
-            <h3 className="font-display text-lg font-bold text-stone-900 sm:text-xl">
+            <h3
+              style={{ color: '#1C1917' }}
+              className="font-display text-lg font-bold sm:text-xl"
+            >
               Individual Findings from All 7 Specialist Agents ({langLabel})
             </h3>
           </div>
-          <span className="rounded-full border border-emerald-700/30 bg-emerald-50 px-3 py-1 text-xs font-bold text-[#073C30]">
+          <span
+            style={{
+              backgroundColor: '#ECFDF5',
+              color: '#065F46',
+              borderColor: '#A7F3D0',
+            }}
+            className="rounded-full border px-3.5 py-1 text-xs font-extrabold"
+          >
             7 / 7 Agents Completed ✓
           </span>
         </div>
@@ -508,7 +710,8 @@ export function SevenAgentResearchBoard({
           className="grid grid-cols-1 gap-4 lg:grid-cols-2"
         >
           {dossier.agents.map(agent => {
-            const Icon = agentIcon(agent.agentId);
+            const spec = agentVisualSpec(agent.agentId);
+            const Icon = spec.Icon;
             const agentSid = `${sessionPrefix}agent-${agent.agentNumber}`;
             const isAgentPlaying =
               lineTts.sessionId === agentSid && lineTts.status === 'playing';
@@ -518,39 +721,58 @@ export function SevenAgentResearchBoard({
               <article
                 key={agent.agentId}
                 data-testid={`specialist-agent-card-${agent.agentNumber}`}
+                style={{
+                  backgroundColor: isSpotlight ? '#FFFDF9' : '#FFFFFF',
+                  color: '#1C1917',
+                  borderColor: '#E5DEC9',
+                  borderLeftWidth: '4px',
+                  borderLeftColor: spec.accentHex,
+                }}
                 className={`flex flex-col justify-between rounded-2xl border p-4 shadow-xs transition sm:p-5 ${
-                  isSpotlight
-                    ? 'border-2 border-[#073C30] bg-gradient-to-br from-[#FAF7F0] to-[#E8F2EC] lg:col-span-2'
-                    : 'border-stone-200/90 bg-white'
+                  isSpotlight ? 'lg:col-span-2' : ''
                 }`}
               >
                 <div>
                   {/* Agent Card Top Header */}
-                  <div className="flex flex-wrap items-start justify-between gap-2 border-b border-stone-100 pb-3">
+                  <div
+                    style={{ borderColor: '#F3EFE6' }}
+                    className="flex flex-wrap items-start justify-between gap-2 border-b pb-3"
+                  >
                     <div className="flex items-start gap-3">
                       <span
-                        style={{ backgroundColor: '#073C30', color: '#F9E7B9' }}
-                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#073C30] text-[#F9E7B9] shadow-2xs"
+                        style={{
+                          backgroundColor: spec.iconBg,
+                          color: spec.iconText,
+                        }}
+                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-2xs"
                       >
-                        <Icon className="h-4 w-4 text-[#D4AF37]" aria-hidden />
+                        <Icon className="h-4 w-4" aria-hidden />
                       </span>
                       <div>
                         <h4
                           lang={lang}
-                          className="font-display text-sm font-extrabold text-stone-900 sm:text-base"
+                          style={{ color: '#1C1917' }}
+                          className="font-display text-sm font-extrabold sm:text-base"
                         >
                           {agent.title}
                         </h4>
-                        <p className="text-xs font-medium text-stone-600">
-                          {agent.personaName} · <span className="text-[#073C30]">{agent.roleBadge}</span>
+                        <p style={{ color: '#57534E' }} className="text-xs font-medium">
+                          {agent.personaName} ·{' '}
+                          <span style={{ color: spec.accentHex }} className="font-semibold">
+                            {agent.roleBadge}
+                          </span>
                         </p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-1.5">
                       <span
-                        style={{ backgroundColor: '#042F2E', color: '#FFFFFF', borderColor: '#10B981' }}
-                        className="rounded-full border px-2.5 py-0.5 font-mono text-[11px] font-extrabold text-white"
+                        style={{
+                          backgroundColor: spec.badgeBg,
+                          color: spec.badgeText,
+                          borderColor: spec.badgeBorder,
+                        }}
+                        className="rounded-full border px-2.5 py-0.5 font-mono text-[11px] font-extrabold"
                       >
                         {agent.confidenceScore}
                       </span>
@@ -559,15 +781,16 @@ export function SevenAgentResearchBoard({
                         data-testid={`listen-agent-${agent.agentNumber}-btn`}
                         onClick={() => handlePlayAgent(agent)}
                         style={{
-                          backgroundColor: isAgentPlaying ? '#D4AF37' : '#073C30',
-                          color: isAgentPlaying ? '#031812' : '#FFFFFF',
+                          backgroundColor: isAgentPlaying ? '#FEF3C7' : '#FAF7F0',
+                          color: isAgentPlaying ? '#78350F' : '#073C30',
+                          borderColor: isAgentPlaying ? '#F59E0B' : '#D6C8A9',
                         }}
-                        className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold cursor-pointer"
+                        className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold cursor-pointer"
                       >
                         {isAgentPlaying ? (
                           <Pause className="h-3 w-3 fill-current" aria-hidden />
                         ) : (
-                          <Volume2 className="h-3 w-3 text-[#D4AF37]" aria-hidden />
+                          <Volume2 className="h-3 w-3 text-[#B45309]" aria-hidden />
                         )}
                         <span>{isAgentPlaying ? 'Pause' : 'Listen'}</span>
                       </button>
@@ -576,23 +799,42 @@ export function SevenAgentResearchBoard({
 
                   {/* Verdict Pill */}
                   <div className="mt-2.5">
-                    <span className="inline-block rounded-full border border-amber-400/60 bg-amber-50 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-950">
+                    <span
+                      style={{
+                        backgroundColor: spec.badgeBg,
+                        color: spec.badgeText,
+                        borderColor: spec.badgeBorder,
+                      }}
+                      className="inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider"
+                    >
                       {agent.verdictBadge}
                     </span>
                   </div>
 
-                  {/* Arabic Primary Text Quote (if present) */}
+                  {/* Arabic Primary Text Quote (Light Parchment Callout) */}
                   {agent.arabicQuote && (
                     <div
                       lang="ar"
                       dir="rtl"
-                      className="mt-3 rounded-xl border border-[#D4AF37]/40 bg-[#FAF7F0] p-3"
+                      style={{
+                        backgroundColor: '#FAF6EC',
+                        color: '#1C1917',
+                        borderColor: '#E5DEC9',
+                      }}
+                      className="mt-3 rounded-xl border p-3.5"
                     >
-                      <p className="arabic text-lg font-bold leading-loose text-stone-950 sm:text-xl">
+                      <p
+                        style={{ color: '#1C1917' }}
+                        className="arabic text-lg font-bold leading-loose sm:text-xl"
+                      >
                         « {agent.arabicQuote} »
                       </p>
                       {agent.arabicReference && (
-                        <p dir="ltr" className="mt-1 text-left font-mono text-[11px] font-semibold text-[#073C30]">
+                        <p
+                          dir="ltr"
+                          style={{ color: '#78350F' }}
+                          className="mt-1 text-left font-mono text-[11px] font-semibold"
+                        >
                           ✦ {agent.arabicReference}
                         </p>
                       )}
@@ -602,16 +844,34 @@ export function SevenAgentResearchBoard({
                   {/* Agent Summary */}
                   <p
                     lang={lang}
-                    className="mt-3 text-sm font-semibold leading-relaxed text-stone-900"
+                    style={{ color: '#1C1917' }}
+                    className="mt-3 text-sm font-semibold leading-relaxed"
                   >
                     {agent.summary}
                   </p>
 
                   {/* Key Findings Bullet List */}
-                  <ul lang={lang} className="mt-2.5 space-y-1.5 text-xs leading-relaxed text-stone-700 sm:text-[13px]">
+                  <ul
+                    lang={lang}
+                    className="mt-2.5 space-y-1.5 text-xs leading-relaxed sm:text-[13px]"
+                  >
                     {agent.keyPoints.map((pt, idx) => (
-                      <li key={idx} className="flex items-start gap-2 rounded-lg bg-stone-50/90 px-2.5 py-1.5">
-                        <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#073C30] font-mono text-[9px] font-bold text-[#F9E7B9]">
+                      <li
+                        key={idx}
+                        style={{
+                          backgroundColor: '#FAF8F3',
+                          color: '#292524',
+                          borderColor: '#EFECE4',
+                        }}
+                        className="flex items-start gap-2.5 rounded-xl border px-3 py-2"
+                      >
+                        <span
+                          style={{
+                            backgroundColor: spec.badgeBg,
+                            color: spec.badgeText,
+                          }}
+                          className="mt-0.5 inline-flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-extrabold"
+                        >
                           {idx + 1}
                         </span>
                         <span>{pt}</span>
@@ -621,11 +881,19 @@ export function SevenAgentResearchBoard({
                 </div>
 
                 {/* Citations Footer */}
-                <div className="mt-3.5 flex flex-wrap items-center gap-1.5 border-t border-stone-100 pt-2.5">
+                <div
+                  style={{ borderColor: '#F3EFE6' }}
+                  className="mt-3.5 flex flex-wrap items-center gap-1.5 border-t pt-2.5"
+                >
                   {agent.citations.map(cite => (
                     <span
                       key={cite}
-                      className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-0.5 text-[10px] font-semibold text-stone-700"
+                      style={{
+                        backgroundColor: '#FAF7F0',
+                        color: '#57534E',
+                        borderColor: '#E5DEC9',
+                      }}
+                      className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold"
                     >
                       ✦ {cite}
                     </span>
@@ -637,23 +905,39 @@ export function SevenAgentResearchBoard({
         </div>
       </section>
 
-      {/* 4. Interactive 7-Agent Scholarly Roundtable Studio */}
+      {/* 4. Light Editorial 7-Agent Scholarly Roundtable Studio */}
       <section
         id="seven-agent-roundtable-studio"
         data-testid="seven-agent-roundtable-studio"
-        style={{ backgroundColor: '#041B14', color: '#FFFFFF' }}
-        className="rounded-3xl border-2 border-[#D4AF37]/65 bg-gradient-to-br from-[#041B14] via-[#073C30] to-[#041B14] p-5 text-white shadow-xl sm:p-7"
+        style={{
+          backgroundColor: '#FCF9F2',
+          color: '#1C1917',
+          borderColor: '#E2D5B5',
+        }}
+        className="rounded-3xl border p-5 shadow-sm sm:p-7"
       >
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/15 pb-4">
+        <div
+          style={{ borderColor: '#E5DEC9' }}
+          className="flex flex-wrap items-center justify-between gap-3 border-b pb-4"
+        >
           <div className="flex items-center gap-3">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#D4AF37] text-[#031812] shadow-md">
+            <span
+              style={{ backgroundColor: '#073C30', color: '#D4AF37' }}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl shadow-xs"
+            >
               <Radio className="h-5 w-5" aria-hidden />
             </span>
             <div>
-              <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#E6C665]">
+              <p
+                style={{ color: '#B45309' }}
+                className="text-[11px] font-extrabold uppercase tracking-widest"
+              >
                 ✦ DRAGON DAWWA LIVE · MULTI-VOICE ROUNDTABLE STUDIO
               </p>
-              <h3 className="font-display text-lg font-bold text-white sm:text-xl">
+              <h3
+                style={{ color: '#0F2922' }}
+                className="font-display text-lg font-extrabold sm:text-xl"
+              >
                 7-Agent Scholarly & Scientific Roundtable ({langLabel})
               </h3>
             </div>
@@ -664,13 +948,13 @@ export function SevenAgentResearchBoard({
               type="button"
               data-testid="roundtable-play-all-btn"
               onClick={() => handlePlayRoundtable(0)}
-              style={{ backgroundColor: '#D4AF37', color: '#031812' }}
-              className="inline-flex items-center gap-2 rounded-full bg-[#D4AF37] px-4 py-2 text-xs font-extrabold text-[#031812] shadow-md transition hover:bg-[#e3c14d] cursor-pointer"
+              style={{ backgroundColor: '#073C30', color: '#F9E7B9' }}
+              className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-extrabold shadow-xs transition hover:opacity-95 cursor-pointer"
             >
               {isRoundtablePlaying ? (
-                <Pause className="h-4 w-4 fill-current" aria-hidden />
+                <Pause className="h-4 w-4 fill-current text-[#D4AF37]" aria-hidden />
               ) : (
-                <Play className="h-4 w-4 fill-current" aria-hidden />
+                <Play className="h-4 w-4 fill-current text-[#D4AF37]" aria-hidden />
               )}
               <span>
                 {isRoundtablePlaying
@@ -682,7 +966,12 @@ export function SevenAgentResearchBoard({
             <button
               type="button"
               onClick={() => setRoundtableVisible(!isRoundtableVisible)}
-              className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-semibold text-[#F9E7B9] hover:bg-white/20 cursor-pointer"
+              style={{
+                backgroundColor: '#FFFFFF',
+                color: '#073C30',
+                borderColor: '#D6C8A9',
+              }}
+              className="rounded-full border px-3.5 py-1.5 text-xs font-bold hover:bg-stone-50 cursor-pointer"
             >
               {isRoundtableVisible ? 'Compact View' : 'Expand Transcript'}
             </button>
@@ -695,6 +984,13 @@ export function SevenAgentResearchBoard({
               lineTts.sessionId === roundtableSessionId &&
               lineTts.status !== 'idle' &&
               lineTts.currentIndex === idx;
+            const turnAccent =
+              turn.voiceProfile === 'noor'
+                ? { badgeBg: '#CCFBF1', badgeText: '#115E59', borderHex: '#14B8A6' }
+                : turn.voiceProfile === 'yusuf'
+                  ? { badgeBg: '#FEF3C7', badgeText: '#78350F', borderHex: '#F59E0B' }
+                  : { badgeBg: '#D1FAE5', badgeText: '#064E3B', borderHex: '#10B981' };
+
             return (
               <div
                 key={idx}
@@ -702,30 +998,43 @@ export function SevenAgentResearchBoard({
                 data-tts-line-active={isTurnActive ? 'true' : undefined}
                 onClick={() => handlePlayRoundtable(idx)}
                 style={{
-                  backgroundColor: isTurnActive
-                    ? 'rgba(212, 175, 55, 0.22)'
-                    : 'rgba(3, 24, 18, 0.72)',
+                  backgroundColor: isTurnActive ? '#FFFBEB' : '#FFFFFF',
+                  color: '#1C1917',
+                  borderColor: isTurnActive ? '#F59E0B' : '#E7E0D0',
+                  borderLeftWidth: '4px',
+                  borderLeftColor: isTurnActive ? '#D97706' : turnAccent.borderHex,
                 }}
-                className={`cursor-pointer rounded-2xl border p-4 transition ${
-                  isTurnActive
-                    ? 'border-[#D4AF37] ring-1 ring-[#D4AF37]'
-                    : 'border-white/15 hover:border-[#D4AF37]/50'
-                }`}
+                className="cursor-pointer rounded-2xl border p-4 shadow-2xs transition hover:shadow-xs"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#D4AF37] font-mono text-[11px] font-extrabold text-[#031812]">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      style={{
+                        backgroundColor: turnAccent.badgeBg,
+                        color: turnAccent.badgeText,
+                      }}
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-full font-mono text-[11px] font-extrabold"
+                    >
                       <Mic className="h-3.5 w-3.5" aria-hidden />
                     </span>
-                    <span className="text-xs font-extrabold text-[#F9E7B9]">
+                    <span style={{ color: '#1C1917' }} className="text-xs font-extrabold">
                       {turn.speaker}
                     </span>
-                    <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-[10px] font-semibold text-[#E6C665]">
+                    <span
+                      style={{
+                        backgroundColor: turnAccent.badgeBg,
+                        color: turnAccent.badgeText,
+                      }}
+                      className="rounded-full px-2.5 py-0.5 text-[10px] font-bold"
+                    >
                       {turn.role}
                     </span>
                   </div>
 
-                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#E6C665]">
+                  <span
+                    style={{ color: isTurnActive ? '#B45309' : '#073C30' }}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold"
+                  >
                     <Headphones className="h-3 w-3" aria-hidden />
                     <span>{isTurnActive ? 'Speaking now…' : 'Tap to hear speaker'}</span>
                   </span>
@@ -733,8 +1042,8 @@ export function SevenAgentResearchBoard({
 
                 <p
                   lang={lang}
-                  style={{ color: '#FFFFFF', lineHeight: 1.8 }}
-                  className="mt-2 text-sm text-white sm:text-[15px]"
+                  style={{ color: '#292524', lineHeight: 1.8 }}
+                  className="mt-2 text-sm sm:text-[15px]"
                 >
                   “{turn.text}”
                 </p>
