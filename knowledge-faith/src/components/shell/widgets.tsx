@@ -65,7 +65,8 @@ export function isKnowledgeDomainPath(path: RouteRoot, segments: string[] = []):
 
 /** Sub-view tabs that belong in the desk header, beside the title. */
 export function DeskHeaderTabs({ path, segments, className = '' }: { path: RouteRoot; segments: string[]; className?: string }) {
-  const { t } = useApp();
+  const { t, uiTheme } = useApp();
+  const isObsidian = uiTheme === 'obsidian';
   const shell = 'flex min-w-0 items-center gap-1.5 ' + className;
   const scroller = 'flex min-w-0 flex-1 items-center gap-1 overflow-x-auto no-scrollbar whitespace-nowrap py-0.5';
 
@@ -91,13 +92,18 @@ export function DeskHeaderTabs({ path, segments, className = '' }: { path: Route
 
   return (
     <div className={shell}>
-      <div className="hidden h-3.5 w-px shrink-0 bg-stone-300 md:block" aria-hidden />
+      <div className="hidden h-3.5 w-px shrink-0 bg-stone-300/60 md:block" aria-hidden />
       <div className={scroller}>
         {/* Consolidated Knowledge Desk Switcher (Hub · Qur'an · Hadith · Books · Worship) */}
         <nav
           aria-label="Knowledge Desks"
           data-testid="knowledge-desk-switcher"
-          className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-stone-200/90 bg-white/80 p-0.5 shadow-2xs"
+          style={
+            isObsidian
+              ? { backgroundColor: '#0A2E23', borderColor: 'rgba(212,175,55,0.4)' }
+              : { backgroundColor: '#FFFFFF', borderColor: '#E5E0D5' }
+          }
+          className="inline-flex shrink-0 items-center gap-0.5 rounded-full border p-0.5 shadow-2xs"
         >
           {KNOWLEDGE_DESKS.map(desk => {
             const active = desk.path === path;
@@ -107,11 +113,16 @@ export function DeskHeaderTabs({ path, segments, className = '' }: { path: Route
                 href={desk.href}
                 data-knowledge-desk-tab={desk.path}
                 aria-current={active ? 'page' : undefined}
-                className={`inline-flex shrink-0 whitespace-nowrap items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition ${
+                style={
                   active
-                    ? 'bg-[#073C30] text-[#F5EEDC] shadow-2xs'
-                    : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
-                }`}
+                    ? isObsidian
+                      ? { backgroundColor: '#D4AF37', color: '#031812' }
+                      : { backgroundColor: '#073C30', color: '#F5EEDC' }
+                    : isObsidian
+                      ? { color: '#F5EEDC' }
+                      : { color: '#292524' }
+                }
+                className="inline-flex shrink-0 whitespace-nowrap items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold transition"
               >
                 {desk.label}
               </a>
@@ -122,26 +133,39 @@ export function DeskHeaderTabs({ path, segments, className = '' }: { path: Route
         {/* Contextual Sub-Tabs when inside Qur'an or Hadith */}
         {path === 'quran' && (
           <>
-            <span className="mx-1 h-3.5 w-px shrink-0 bg-stone-300" aria-hidden />
+            <span className="mx-1 h-3.5 w-px shrink-0 bg-stone-300/60" aria-hidden />
             <nav
               aria-label={t.quranTitle}
               data-testid="quran-tabs"
-              className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-stone-200/90 bg-white/90 p-0.5 shadow-2xs"
+              style={
+                isObsidian
+                  ? { backgroundColor: '#0A2E23', borderColor: 'rgba(212,175,55,0.4)' }
+                  : { backgroundColor: '#FFFFFF', borderColor: '#E5E0D5' }
+              }
+              className="inline-flex shrink-0 items-center gap-0.5 rounded-full border p-0.5 shadow-2xs"
             >
-              {quranSubTabs.map(tab => (
-                <a
-                  key={tab.id}
-                  href={tab.href}
-                  aria-current={quranCurrent === tab.id ? 'page' : undefined}
-                  className={`inline-flex shrink-0 whitespace-nowrap items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition ${
-                    quranCurrent === tab.id
-                      ? 'bg-[#073C30] text-[#F5EEDC] shadow-2xs'
-                      : 'text-stone-700 hover:bg-stone-100 hover:text-stone-950'
-                  }`}
-                >
-                  {tab.label}
-                </a>
-              ))}
+              {quranSubTabs.map(tab => {
+                const active = quranCurrent === tab.id;
+                return (
+                  <a
+                    key={tab.id}
+                    href={tab.href}
+                    aria-current={active ? 'page' : undefined}
+                    style={
+                      active
+                        ? isObsidian
+                          ? { backgroundColor: '#D4AF37', color: '#031812' }
+                          : { backgroundColor: '#073C30', color: '#F5EEDC' }
+                        : isObsidian
+                          ? { color: '#F5EEDC' }
+                          : { color: '#292524' }
+                    }
+                    className="inline-flex shrink-0 whitespace-nowrap items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold transition"
+                  >
+                    {tab.label}
+                  </a>
+                );
+              })}
             </nav>
           </>
         )}

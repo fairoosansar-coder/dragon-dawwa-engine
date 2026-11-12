@@ -46,7 +46,8 @@ function stripLeadingNumberPrefix(text: string): string {
 }
 
 export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: string }) {
-  const { lang } = useApp();
+  const { lang, uiTheme } = useApp();
+  const isObsidian = uiTheme === 'obsidian';
   const [page, setPage] = useState(1);
   const [voiceProfile, setVoiceProfile] = useStored<HadithVoiceProfileId>(
     'kf-hadith-voice-profile',
@@ -341,11 +342,16 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
             </div>
           )}
 
-          {/* Editorial Reading Sheet (Clean Aligned Cards — Never Pill Chips) */}
+          {/* Editorial Reading Sheet (Theme-Aware Surface & High-Contrast Typography) */}
           {blocks.some(block => block.kind !== 'heading') && (
             <div
               data-testid="editorial-article-blocks"
-              className="space-y-4 rounded-3xl border border-stone-200/90 bg-[#FCF9F2] p-5 shadow-xs sm:p-8"
+              style={
+                isObsidian
+                  ? { backgroundColor: '#0A2920', color: '#F7F2E4', borderColor: 'rgba(212,175,55,0.35)' }
+                  : { backgroundColor: '#FCF9F2', color: '#1C1917', borderColor: '#E5DEC9' }
+              }
+              className="space-y-4 rounded-3xl border p-5 shadow-xs sm:p-8"
             >
               {blocks.map(block => {
                 if (block.kind === 'heading') {
@@ -353,7 +359,8 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
                     <h2
                       id={`block-${block.id}`}
                       key={block.id}
-                      className="pt-3 font-display text-xl font-bold text-[#073C30] first:pt-0 sm:text-2xl"
+                      style={{ color: isObsidian ? '#F9E7B9' : '#073C30' }}
+                      className="pt-3 font-display text-xl font-bold first:pt-0 sm:text-2xl"
                       lang={effectiveLang}
                     >
                       {block.text}
@@ -376,12 +383,17 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
                     <details
                       key={block.id}
                       id={`block-${block.id}`}
-                      className="rounded-2xl border border-stone-200 bg-white px-4 py-3"
+                      style={
+                        isObsidian
+                          ? { backgroundColor: '#0D3529', color: '#F5EEDC', borderColor: 'rgba(212,175,55,0.3)' }
+                          : { backgroundColor: '#FFFFFF', color: '#1C1917', borderColor: '#E5E0D5' }
+                      }
+                      className="rounded-2xl border px-4 py-3"
                     >
-                      <summary className="cursor-pointer text-xs font-semibold text-pine">
+                      <summary className="cursor-pointer text-xs font-semibold">
                         Note
                       </summary>
-                      <p className="mt-2 text-sm leading-relaxed text-stone-800" lang={effectiveLang}>
+                      <p className="mt-2 text-sm leading-relaxed" lang={effectiveLang}>
                         {block.text}
                       </p>
                     </details>
@@ -395,22 +407,30 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
                     data-tts-line-index={currentParaIdx}
                     data-tts-line-active={isLineActive ? 'true' : undefined}
                     onClick={() => handlePlayFromBlockIndex(currentParaIdx)}
-                    style={{
-                      backgroundColor: isLineActive ? '#FFFBEB' : '#FFFFFF',
-                      color: '#1C1917',
-                      borderColor: isLineActive ? '#D4AF37' : '#E5E0D5',
-                    }}
+                    style={
+                      isObsidian
+                        ? {
+                            backgroundColor: isLineActive ? '#134233' : '#0D3529',
+                            color: '#F7F2E4',
+                            borderColor: isLineActive ? '#D4AF37' : 'rgba(212,175,55,0.28)',
+                          }
+                        : {
+                            backgroundColor: isLineActive ? '#FFFBEB' : '#FFFFFF',
+                            color: '#1C1917',
+                            borderColor: isLineActive ? '#D4AF37' : '#E5E0D5',
+                          }
+                    }
                     className={`group flex cursor-pointer items-start gap-3.5 rounded-2xl border p-4 transition sm:p-5 ${
                       isLineActive
                         ? 'border-l-4 shadow-sm'
-                        : 'hover:border-[#073C30]/40 hover:shadow-2xs'
+                        : 'hover:border-[#D4AF37]/60 hover:shadow-2xs'
                     }`}
                   >
                     <span
                       data-testid={`editorial-badge-${badgeNum}`}
                       style={{
-                        backgroundColor: isLineActive ? '#D4AF37' : '#073C30',
-                        color: isLineActive ? '#041B14' : '#F9E7B9',
+                        backgroundColor: isLineActive || isObsidian ? '#D4AF37' : '#073C30',
+                        color: isLineActive || isObsidian ? '#041B14' : '#F9E7B9',
                       }}
                       className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-xl font-mono text-xs font-bold shadow-2xs"
                     >
@@ -420,18 +440,24 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
                     <div className="min-w-0 flex-1">
                       <p
                         lang={effectiveLang}
-                        style={{ color: '#0B1612', lineHeight: 1.85 }}
-                        className={`${profileFontClass(effectiveLang, cleanBody)} max-w-[72ch] text-base font-medium text-[#0B1612] sm:text-[17px]`}
+                        style={{
+                          color: isObsidian ? '#F7F2E4' : '#0B1612',
+                          lineHeight: 1.85,
+                        }}
+                        className={`${profileFontClass(effectiveLang, cleanBody)} max-w-[72ch] text-base font-medium sm:text-[17px]`}
                       >
                         {cleanBody}
                       </p>
 
-                      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500">
-                        <span className="inline-flex items-center gap-1.5 font-medium text-emerald-800">
+                      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <span
+                          style={{ color: isObsidian ? '#E5C158' : '#065F46' }}
+                          className="inline-flex items-center gap-1.5 font-semibold"
+                        >
                           {isLineActive && isLoading ? (
                             <>
-                              <AudioLoadingSpinner size={13} className="text-amber-700" />
-                              <span className="text-amber-900 font-bold">{loadingText}</span>
+                              <AudioLoadingSpinner size={13} />
+                              <span className="font-bold">{loadingText}</span>
                             </>
                           ) : (
                             <>
@@ -451,7 +477,8 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
                             );
                             setSaved(block.id);
                           }}
-                          className="inline-flex items-center gap-1 font-medium text-stone-500 hover:text-[#073C30] hover:underline"
+                          style={{ color: isObsidian ? '#C8D6CE' : '#57534E' }}
+                          className="inline-flex items-center gap-1 font-medium hover:underline"
                         >
                           <Bookmark className="h-3 w-3" aria-hidden />
                           <span>{saved === block.id ? 'Place saved' : 'Bookmark section'}</span>

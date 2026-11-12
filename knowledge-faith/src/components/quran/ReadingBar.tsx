@@ -350,11 +350,12 @@ function IconButton({
       aria-pressed={pressed}
       title={label}
       onClick={onClick}
-      className={`inline-flex h-9 w-9 items-center justify-center rounded-full border transition ${
-        pressed
-          ? 'border-[#073C30] bg-[#073C30] text-[#F5EEDC] shadow-2xs'
-          : 'border-[#c5d0de] bg-white text-[#1c3d66] shadow-2xs hover:bg-[#eef3f8]'
-      }`}
+      style={{
+        backgroundColor: pressed ? '#D4AF37' : '#FFFFFF',
+        color: pressed ? '#031812' : '#073C30',
+        borderColor: pressed ? '#D4AF37' : '#C5D0DE',
+      }}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-full border shadow-xs transition hover:opacity-90"
     >
       {children}
     </button>
