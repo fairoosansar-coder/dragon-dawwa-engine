@@ -65,7 +65,7 @@ export const UI_FONT_SCALES: Record<UiFontScaleId, { label: string; badge: strin
   large: { label: 'Large Reading', badge: '17px', htmlPx: '18px', bodyPx: '17px' },
 };
 
-export const UI_THEMES: Record<UiThemeId, { label: string; subtitle: string; sand: string; parchment: string; pine: string; ink: string; swatch: string }> = {
+export const UI_THEMES: Record<UiThemeId, { label: string; subtitle: string; sand: string; parchment: string; pine: string; ink: string; muted: string; swatch: string }> = {
   parchment: {
     label: 'Parchment (Light)',
     subtitle: 'Warm ivory & classic emerald',
@@ -73,6 +73,7 @@ export const UI_THEMES: Record<UiThemeId, { label: string; subtitle: string; san
     parchment: '#F5EEDC',
     pine: '#073C30',
     ink: '#172720',
+    muted: '#57534E',
     swatch: 'linear-gradient(135deg, #F8F5EC 0%, #073C30 100%)',
   },
   obsidian: {
@@ -80,8 +81,9 @@ export const UI_THEMES: Record<UiThemeId, { label: string; subtitle: string; san
     subtitle: 'Deep masjid emerald & gilded ivory',
     sand: '#061F18',
     parchment: '#0A2E23',
-    pine: '#D4AF37',
+    pine: '#E5C158',
     ink: '#F5EEDC',
+    muted: '#C8D6CE',
     swatch: 'linear-gradient(135deg, #04241C 0%, #C6A15A 100%)',
   },
   sepia: {
@@ -91,6 +93,7 @@ export const UI_THEMES: Record<UiThemeId, { label: string; subtitle: string; san
     parchment: '#E4D3AF',
     pine: '#0B3B2D',
     ink: '#1E1810',
+    muted: '#5C4B35',
     swatch: 'linear-gradient(135deg, #F2E6CE 0%, #C6A15A 100%)',
   },
 };
@@ -141,6 +144,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--color-parchment', themeSpec.parchment);
     root.style.setProperty('--color-pine', themeSpec.pine);
     root.style.setProperty('--color-ink', themeSpec.ink);
+    root.style.setProperty('--color-muted', themeSpec.muted);
   }, [uiTheme]);
 
   useEffect(() => {
