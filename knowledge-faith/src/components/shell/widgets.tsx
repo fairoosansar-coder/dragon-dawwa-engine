@@ -63,18 +63,16 @@ export function isKnowledgeDomainPath(path: RouteRoot, segments: string[] = []):
   return path === 'hub' || path === 'quran' || path === 'hadith' || path === 'books' || path === 'spiritual';
 }
 
-/** Sub-view tabs that belong in the desk header, beside the title. */
+/** Sub-view tabs that belong in the desk header, centered above the workspace. */
 export function DeskHeaderTabs({ path, segments, className = '' }: { path: RouteRoot; segments: string[]; className?: string }) {
   const { t, uiTheme } = useApp();
   const isObsidian = uiTheme === 'obsidian';
-  const shell = 'flex min-w-0 items-center gap-1.5 ' + className;
-  const scroller = 'flex min-w-0 flex-1 items-center gap-1 overflow-x-auto no-scrollbar whitespace-nowrap py-0.5';
+  const shell = 'flex min-w-0 items-center justify-center gap-1.5 ' + className;
+  const scroller = 'flex min-w-0 items-center justify-center gap-1 overflow-x-auto no-scrollbar whitespace-nowrap py-0.5';
 
-  if (!isKnowledgeDomainPath(path, segments)) {
-    return null;
-  }
-
-  const quranCurrent = path === 'quran' ? quranSectionId(segments[0]) : null;
+  const onKnowledgeDesk = isKnowledgeDomainPath(path, segments);
+  const onQuranDesk = path === 'quran' && segments[0] !== 'wall';
+  const quranCurrent = onQuranDesk ? quranSectionId(segments[0]) : null;
   const quranSubTabs: { id: QuranSectionId; href: string; label: string }[] = [
     { id: 'home', href: '#/quran', label: t.quranHome },
     { id: 'read', href: '#/quran/book', label: t.quranRead },
@@ -92,7 +90,6 @@ export function DeskHeaderTabs({ path, segments, className = '' }: { path: Route
 
   return (
     <div className={shell}>
-      <div className="hidden h-3.5 w-px shrink-0 bg-stone-300/60 md:block" aria-hidden />
       <div className={scroller}>
         {/* Consolidated Knowledge Desk Switcher (Hub · Qur'an · Hadith · Books · Worship) */}
         <nav
@@ -106,7 +103,7 @@ export function DeskHeaderTabs({ path, segments, className = '' }: { path: Route
           className="inline-flex shrink-0 items-center gap-0.5 rounded-full border p-0.5 shadow-2xs"
         >
           {KNOWLEDGE_DESKS.map(desk => {
-            const active = desk.path === path;
+            const active = onKnowledgeDesk && desk.path === path;
             return (
               <a
                 key={desk.path}
@@ -131,7 +128,7 @@ export function DeskHeaderTabs({ path, segments, className = '' }: { path: Route
         </nav>
 
         {/* Contextual Sub-Tabs when inside Qur'an or Hadith */}
-        {path === 'quran' && (
+        {onQuranDesk && (
           <>
             <span className="mx-1 h-3.5 w-px shrink-0 bg-stone-300/60" aria-hidden />
             <nav
@@ -821,11 +818,11 @@ export function AudioMiniPlayer({ safe }: { safe: boolean }) {
   return (
     <div
       data-mini-player
-      className={`fixed right-0 left-0 z-30 shrink-0 border-t border-gold/40 bg-[#04241C] px-4 py-2.5 text-[#F5EEDC] shadow-lg lg:left-72 ${
+      className={`fixed right-0 left-0 z-30 shrink-0 border-t border-gold/40 bg-[#04241C] px-4 py-2.5 text-[#F5EEDC] shadow-lg ${
         safe ? 'bottom-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]' : 'bottom-[56px]'
       }`}
     >
-      <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
+      <div className="mx-auto flex max-w-[680px] items-center justify-between gap-3">
         <p className="min-w-0 flex items-center gap-2 text-sm leading-snug">
           {isLoading && <AudioLoadingSpinner size={15} className="text-[#D4AF37]" />}
           <span>{audioStatusLabel(t, audio.status, audio.id)}</span>

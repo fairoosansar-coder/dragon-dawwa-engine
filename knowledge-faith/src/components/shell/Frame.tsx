@@ -234,7 +234,11 @@ export function AppFrame({
   }
 
   return (
-    <div className={`${profileFontClass(lang)} flex h-dvh overflow-hidden bg-sand text-ink`}>
+    <div
+      className={`${profileFontClass(lang)} flex w-full flex-col bg-sand text-ink ${
+        quranBook ? 'h-dvh overflow-hidden' : 'min-h-dvh'
+      }`}
+    >
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-parchment focus:px-3 focus:py-2"
@@ -242,17 +246,199 @@ export function AppFrame({
         Skip to content
       </a>
 
-      {/* TABLE 1 (Left Column on Desktop LG+): Brand + User Profile Summary Card (1, 2) + Faith Wall & Shortcuts Navigation (3) + Sticky Bottom Settings Footer */}
+      {focus && (
+        <div className="shrink-0 border-b border-pine/10 bg-sand px-4 py-3">
+          <button
+            type="button"
+            onClick={() => setFocus(false)}
+            className="rounded-full bg-pine px-4 py-2 text-sm font-medium text-sand"
+          >
+            {t.exitFocus}
+          </button>
+        </div>
+      )}
+
+      {/* Full-Width Top Header Bar (edge-to-edge across the entire viewport, 3-zone layout like Facebook) */}
       {!focus && (
-        <aside
-          data-left-social-rail
-          className="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col border-r border-stone-200/80 bg-sand/95 text-stone-900 lg:flex"
+        <header
+          data-top-header-bar
+          className="sticky top-0 z-40 w-full shrink-0 border-b border-stone-200/80 bg-sand/95 px-3 backdrop-blur-xs sm:px-5 lg:px-6"
         >
-          {/* Scrollable Top & Middle Area */}
-          <div className="flex-1 overflow-y-auto no-scrollbar px-3.5 pb-3 pt-4">
-            <div className="px-1 pb-3">
-              <BrandLockup tone="ivory" />
+          {/* Row 1: 3-zone grid on md+ (Far-Left Brand+Section | Center Desk Switcher | Far-Right Actions) */}
+          <div className="flex h-14 w-full min-w-0 items-center justify-between gap-2 md:grid md:grid-cols-[minmax(200px,1fr)_auto_minmax(200px,1fr)]">
+            {/* Far-Left Zone: Brand Emblem + DRAGON DAWWA + Current Section Label */}
+            <div
+              data-header-left-zone
+              className="flex min-w-0 items-center gap-2.5 justify-self-start"
+            >
+              <a
+                href="#/quran/wall"
+                data-header-brand
+                className="inline-flex shrink-0 items-center gap-2 rounded-xl"
+              >
+                <span
+                  className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#073C30] shadow-2xs"
+                  aria-hidden
+                >
+                  <svg viewBox="0 0 48 48" className="absolute inset-0 h-full w-full">
+                    <circle cx="24" cy="24" r="21.4" fill="none" stroke="#C6A15A" strokeWidth="1.5" />
+                    <circle cx="24" cy="24" r="18.15" fill="none" stroke="#E6D3A1" strokeWidth="0.6" />
+                  </svg>
+                  <span className="relative font-['Cormorant_Garamond',Georgia,serif] text-xs font-semibold tracking-[0.08em] text-[#F6E7C1]">
+                    DD
+                  </span>
+                </span>
+                <span className="hidden font-['Cormorant_Garamond',Georgia,serif] text-[13px] font-bold tracking-[0.08em] text-pine sm:inline">
+                  DRAGON DAWWA
+                </span>
+              </a>
+              <span className="hidden h-4 w-px shrink-0 bg-stone-300/80 sm:block" aria-hidden />
+              <p
+                data-header-section-title
+                className="min-w-0 truncate text-[13px] font-semibold tracking-tight text-pine sm:text-sm"
+              >
+                {onFaithWall ? 'Community Faith Wall' : section}
+              </p>
             </div>
+
+            {/* Center Zone: Primary Desk Switcher & Contextual Sub-Tabs centered directly above Center Column */}
+            <div
+              data-header-center-zone
+              className="hidden min-w-0 items-center justify-center gap-2 justify-self-center md:flex"
+            >
+              <DeskHeaderTabs path={path} segments={segments} />
+            </div>
+
+            {/* Far-Right Zone: Library Settings + Mobile Customize + Notification Bell + Seeker Account Pill */}
+            <div
+              data-header-right-zone
+              className="flex shrink-0 items-center justify-end gap-2 justify-self-end"
+            >
+              {quranSettings && <div id="kf-library-settings" className="hidden lg:block" />}
+              {quranSettings && <div id="kf-library-settings-mobile" className="lg:hidden" />}
+              <button
+                type="button"
+                data-mobile-customize-btn
+                onClick={() => setFooterSettingsOpen(open => !open)}
+                title="Settings · Language, Colour & Font Size"
+                className="inline-flex h-7.5 items-center gap-1 rounded-full border border-stone-300 bg-white px-2 text-[11px] font-semibold text-stone-800 shadow-2xs transition hover:border-[#073C30]/40 lg:hidden"
+              >
+                <Settings className="h-3 w-3 text-[#073C30]" aria-hidden />
+                <span>{LANGUAGE_NAMES[lang].native}</span>
+                <span
+                  aria-hidden
+                  style={{ background: UI_THEMES[uiTheme].swatch }}
+                  className="inline-block h-2.5 w-2.5 rounded-full border border-black/20"
+                />
+              </button>
+
+              {/* Simple Header Notification Bell */}
+              <div ref={notifRef} className="relative shrink-0">
+                <button
+                  type="button"
+                  data-testid="header-notification-bell"
+                  aria-label="Community notifications"
+                  aria-expanded={notifOpen}
+                  onClick={() => setNotifOpen(open => !open)}
+                  className="relative inline-flex h-8 w-8 items-center justify-center rounded-full border border-stone-300/90 bg-white text-[#073C30] shadow-2xs transition hover:border-[#073C30]/50 hover:bg-emerald-50/40"
+                >
+                  <Bell className="h-3.5 w-3.5" aria-hidden />
+                  {unreadNotifCount > 0 && (
+                    <span
+                      data-testid="header-notification-badge"
+                      style={{ backgroundColor: '#B91C1C', color: '#FFFFFF' }}
+                      className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-700 px-1 font-mono text-[9px] font-bold text-[#FFFFFF] shadow-2xs"
+                    >
+                      {unreadNotifCount}
+                    </span>
+                  )}
+                </button>
+
+                {notifOpen && (
+                  <div
+                    role="dialog"
+                    aria-label="Community Notifications"
+                    data-testid="header-notifications-popover"
+                    className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-1.5rem)] rounded-2xl border border-stone-200 bg-white p-3 text-stone-900 shadow-2xl ring-1 ring-black/5"
+                  >
+                    <div className="mb-2 flex items-center justify-between border-b border-stone-100 pb-2">
+                      <span className="text-xs font-bold text-stone-900">
+                        Community Updates
+                      </span>
+                      <button
+                        type="button"
+                        data-testid="mark-notifications-read-btn"
+                        onClick={() => {
+                          markAllWallNotificationsRead();
+                          setWallTick(n => n + 1);
+                        }}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:underline"
+                      >
+                        <Check className="h-3 w-3" aria-hidden />
+                        <span>Mark all read</span>
+                      </button>
+                    </div>
+
+                    <ul className="space-y-1.5">
+                      {notifications.map(item => (
+                        <li key={item.id}>
+                          <a
+                            href={item.href}
+                            onClick={() => {
+                              markAllWallNotificationsRead();
+                              setWallTick(n => n + 1);
+                              setNotifOpen(false);
+                            }}
+                            className={`block rounded-xl border px-3 py-2 text-xs transition ${
+                              item.unread
+                                ? 'border-emerald-700/25 bg-emerald-50/60 text-stone-900'
+                                : 'border-stone-100 bg-stone-50/60 text-stone-700 hover:bg-stone-100/70'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-bold text-[#073C30]">{item.actor}</span>
+                              <span className="shrink-0 text-[10px] text-stone-500">{item.timeAgo}</span>
+                            </div>
+                            <p className="mt-0.5 text-[11px] leading-snug text-stone-700">
+                              {item.action} <strong className="text-stone-900">“{item.target}”</strong>
+                            </p>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              <SeekerAccountPill variant="header" />
+            </div>
+          </div>
+
+          {/* Row 2 on Mobile/Small screens: Knowledge desk switcher & sub-tabs */}
+          {isKnowledgeDomainPath(path, segments) && (
+            <DeskHeaderTabs path={path} segments={segments} className="border-t border-stone-200/60 py-1 md:hidden" />
+          )}
+        </header>
+      )}
+
+      {/* Cohesive Centered 3-Column Workspace Container (Left Sidebar + Main Content grouped in max-w-[1440px] mx-auto) */}
+      <div
+        data-workspace-container
+        className={`mx-auto flex w-full max-w-[1440px] flex-1 justify-center gap-5 px-3 sm:px-5 lg:px-6 xl:gap-6 ${
+          quranBook ? 'min-h-0 items-stretch overflow-hidden' : 'items-start'
+        }`}
+      >
+        {/* TABLE 1 (Left Column on Desktop LG+): Brand + User Profile Summary Card (1, 2) + Faith Wall & Shortcuts Navigation (3) + Sticky Bottom Settings Footer */}
+        {!focus && (
+          <aside
+            data-left-social-rail
+            className="sticky top-14 z-30 hidden h-[calc(100vh-3.5rem-3.5rem)] w-[300px] shrink-0 flex-col overflow-y-auto no-scrollbar pt-4 text-stone-900 lg:flex xl:w-[310px]"
+          >
+            {/* Scrollable Top & Middle Area */}
+            <div className="flex-1 overflow-y-auto no-scrollbar pr-1 pb-3">
+              <div className="px-1 pb-3">
+                <BrandLockup tone="ivory" />
+              </div>
 
             {/* 1 & 2: User Profile Summary Card */}
             <div
@@ -514,14 +700,14 @@ export function AppFrame({
           <div
             ref={footerRef}
             data-left-rail-footer
-            className="relative mt-auto shrink-0 border-t border-stone-200/90 bg-white/95 p-3 backdrop-blur-xs"
+            className="relative mt-auto shrink-0 pt-2 pb-3 pr-1"
           >
             {footerSettingsOpen && (
               <div
                 role="dialog"
                 aria-label="Platform Customization Settings"
                 data-left-footer-settings-drawer
-                className="absolute bottom-full left-2.5 right-2.5 z-50 mb-2 rounded-2xl border border-stone-200 bg-white p-3.5 text-stone-900 shadow-2xl ring-1 ring-black/10"
+                className="absolute bottom-full left-0 right-1 z-50 mb-2 rounded-2xl border border-stone-200 bg-white p-3.5 text-stone-900 shadow-2xl ring-1 ring-black/10"
               >
                 <div className="mb-2.5 flex items-center justify-between border-b border-stone-100 pb-2">
                   <div className="flex items-center gap-1.5">
@@ -569,7 +755,7 @@ export function AppFrame({
               data-testid="left-footer-settings-btn"
               aria-expanded={footerSettingsOpen}
               onClick={() => setFooterSettingsOpen(open => !open)}
-              className="flex w-full items-center justify-between gap-2 rounded-xl border border-stone-200 bg-stone-50/90 px-3 py-2 text-left shadow-2xs transition hover:border-[#073C30]/40 hover:bg-emerald-50/40"
+              className="flex w-full items-center justify-between gap-2 rounded-2xl border border-stone-200/90 bg-white px-3 py-2.5 text-left shadow-2xs transition hover:border-[#073C30]/40 hover:bg-emerald-50/40"
             >
               <div className="flex min-w-0 items-center gap-2.5">
                 <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#073C30] text-[#D4AF37] shadow-2xs">
@@ -586,7 +772,7 @@ export function AppFrame({
               </div>
 
               <div className="flex shrink-0 items-center gap-1.5">
-                <span className="rounded-md border border-stone-200 bg-white px-1.5 py-0.5 font-mono text-[10px] font-semibold text-emerald-900">
+                <span className="rounded-md border border-stone-200 bg-stone-50 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-emerald-900">
                   {LANGUAGE_NAMES[lang].native}
                 </span>
                 <span
@@ -605,7 +791,30 @@ export function AppFrame({
             </button>
           </div>
         </aside>
-      )}
+        )}
+
+        {/* Center + Right Columns (<main className="flex-1 min-w-0 pb-28">) */}
+        <main
+          id="main"
+          className={
+            quranBook
+              ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden pt-3 pb-16'
+              : 'min-w-0 flex-1 overflow-x-clip pt-4 pb-28'
+          }
+        >
+          <div
+            className={
+              quranBook
+                ? 'flex min-h-0 w-full flex-1 flex-col'
+                : onFaithWall
+                  ? 'w-full pb-12'
+                  : 'w-full pb-12'
+            }
+          >
+            {children}
+          </div>
+        </main>
+      </div>
 
       {/* Mobile Customization Bottom Sheet when opened on <1024px viewports */}
       {footerSettingsOpen && (
@@ -647,177 +856,39 @@ export function AppFrame({
         </div>
       )}
 
-      <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${focus ? '' : 'lg:pl-72'}`}>
-        {focus && (
-          <div className="shrink-0 border-b border-pine/10 bg-sand px-4 py-3">
-            <button type="button" onClick={() => setFocus(false)} className="rounded-full bg-pine px-4 py-2 text-sm font-medium text-sand">
-              {t.exitFocus}
-            </button>
-          </div>
-        )}
-        {!focus && (
-          <header className="relative z-40 shrink-0 border-b border-stone-200/80 bg-sand/95 backdrop-blur-xs">
-            <div className="mx-auto max-w-[1280px] px-3 sm:px-5">
-              {/* Row 1: Single strictly horizontal bar on both mobile (390px) and desktop (1440px) */}
-              <div className="flex h-11 min-w-0 items-center justify-between gap-2">
-                <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                  <p
-                    data-header-section-title
-                    className="min-w-0 truncate text-[13px] font-semibold tracking-tight text-pine sm:shrink-0 sm:text-sm"
-                  >
-                    {onFaithWall ? 'Community Faith Wall' : section}
-                  </p>
-                  <DeskHeaderTabs path={path} segments={segments} className="hidden min-w-0 flex-1 md:flex" />
-                </div>
-                <div className="flex shrink-0 items-center gap-1.5">
-                  {quranSettings && <div id="kf-library-settings" className="hidden lg:block" />}
-                  {quranSettings && <div id="kf-library-settings-mobile" className="lg:hidden" />}
-                  <button
-                    type="button"
-                    data-mobile-customize-btn
-                    onClick={() => setFooterSettingsOpen(open => !open)}
-                    title="Settings · Language, Colour & Font Size"
-                    className="inline-flex h-7.5 items-center gap-1 rounded-full border border-stone-300 bg-white px-2 text-[11px] font-semibold text-stone-800 shadow-2xs transition hover:border-[#073C30]/40 lg:hidden"
-                  >
-                    <Settings className="h-3 w-3 text-[#073C30]" aria-hidden />
-                    <span>{LANGUAGE_NAMES[lang].native}</span>
-                    <span
-                      aria-hidden
-                      style={{ background: UI_THEMES[uiTheme].swatch }}
-                      className="inline-block h-2.5 w-2.5 rounded-full border border-black/20"
-                    />
-                  </button>
+      {player && !(path === 'quran' && (segments[0] === 'book' || segments[0] === 'study')) && (
+        <AudioMiniPlayer safe={focus} />
+      )}
 
-                  {/* Simple Header Notification Bell */}
-                  <div ref={notifRef} className="relative shrink-0">
-                    <button
-                      type="button"
-                      data-testid="header-notification-bell"
-                      aria-label="Community notifications"
-                      aria-expanded={notifOpen}
-                      onClick={() => setNotifOpen(open => !open)}
-                      className="relative inline-flex h-7.5 w-7.5 items-center justify-center rounded-full border border-stone-300/90 bg-white text-[#073C30] shadow-2xs transition hover:border-[#073C30]/50 hover:bg-emerald-50/40"
-                    >
-                      <Bell className="h-3.5 w-3.5" aria-hidden />
-                      {unreadNotifCount > 0 && (
-                        <span
-                          data-testid="header-notification-badge"
-                          style={{ backgroundColor: '#B91C1C', color: '#FFFFFF' }}
-                          className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-700 px-1 font-mono text-[9px] font-bold text-[#FFFFFF] shadow-2xs"
-                        >
-                          {unreadNotifCount}
-                        </span>
-                      )}
-                    </button>
-
-                    {notifOpen && (
-                      <div
-                        role="dialog"
-                        aria-label="Community Notifications"
-                        data-testid="header-notifications-popover"
-                        className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-1.5rem)] rounded-2xl border border-stone-200 bg-white p-3 text-stone-900 shadow-2xl ring-1 ring-black/5"
-                      >
-                        <div className="mb-2 flex items-center justify-between border-b border-stone-100 pb-2">
-                          <span className="text-xs font-bold text-stone-900">
-                            Community Updates
-                          </span>
-                          <button
-                            type="button"
-                            data-testid="mark-notifications-read-btn"
-                            onClick={() => {
-                              markAllWallNotificationsRead();
-                              setWallTick(n => n + 1);
-                            }}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:underline"
-                          >
-                            <Check className="h-3 w-3" aria-hidden />
-                            <span>Mark all read</span>
-                          </button>
-                        </div>
-
-                        <ul className="space-y-1.5">
-                          {notifications.map(item => (
-                            <li key={item.id}>
-                              <a
-                                href={item.href}
-                                onClick={() => {
-                                  markAllWallNotificationsRead();
-                                  setWallTick(n => n + 1);
-                                  setNotifOpen(false);
-                                }}
-                                className={`block rounded-xl border px-3 py-2 text-xs transition ${
-                                  item.unread
-                                    ? 'border-emerald-700/25 bg-emerald-50/60 text-stone-900'
-                                    : 'border-stone-100 bg-stone-50/60 text-stone-700 hover:bg-stone-100/70'
-                                }`}
-                              >
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="font-bold text-[#073C30]">{item.actor}</span>
-                                  <span className="shrink-0 text-[10px] text-stone-500">{item.timeAgo}</span>
-                                </div>
-                                <p className="mt-0.5 text-[11px] leading-snug text-stone-700">
-                                  {item.action} <strong className="text-stone-900">“{item.target}”</strong>
-                                </p>
-                              </a>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-
-                  <SeekerAccountPill variant="header" />
-                </div>
-              </div>
-              {/* Row 2 on Mobile/Small screens: Knowledge desk switcher & sub-tabs */}
-              {isKnowledgeDomainPath(path, segments) && (
-                <DeskHeaderTabs path={path} segments={segments} className="border-t border-stone-200/60 py-1 md:hidden" />
-              )}
-            </div>
-          </header>
-        )}
-        <main
-          id="main"
-          className={
-            quranBook
-              ? 'flex min-h-0 flex-1 flex-col overflow-hidden px-4 pt-3 pb-16 sm:px-6'
-              : 'min-h-0 flex-1 overflow-x-clip overflow-y-auto scroll-pb-32 px-4 pt-4 pb-28 sm:px-6 sm:pt-5'
-          }
+      {/* 5 Primary Navigation Links (Knowledge · Faith Wall · Podcast · Saved · Profile) fixed at the bottom of the viewport */}
+      {!focus && (
+        <nav
+          aria-label="Sections"
+          data-bottom-primary-nav
+          className="fixed bottom-0 left-0 right-0 z-40 shrink-0 border-t border-gold/40 bg-[#073C30] pb-[env(safe-area-inset-bottom)] text-[#F5EEDC] shadow-[0_-4px_20px_rgba(3,24,18,0.18)]"
         >
-          <div className={quranBook ? 'mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col' : 'mx-auto max-w-[1160px] pb-12'}>{children}</div>
-        </main>
-        {player && !(path === 'quran' && (segments[0] === 'book' || segments[0] === 'study')) && <AudioMiniPlayer safe={focus} />}
-
-        {/* 5 Primary Navigation Links (Knowledge · Faith Wall · Podcast · Saved · Profile) fixed at the bottom of the viewport */}
-        {!focus && (
-          <nav
-            aria-label="Sections"
-            data-bottom-primary-nav
-            className="fixed bottom-0 left-0 right-0 z-40 shrink-0 border-t border-gold/40 bg-[#073C30] pb-[env(safe-area-inset-bottom)] text-[#F5EEDC] shadow-[0_-4px_20px_rgba(3,24,18,0.18)] lg:left-72"
-          >
-            <ul className="mx-auto grid max-w-3xl grid-cols-5">
-              {NAV.map(item => {
-                const active = item.isActive(path, segments);
-                return (
-                  <li key={item.id} className="min-w-0">
-                    <a
-                      href={item.href}
-                      data-primary-nav={item.id}
-                      data-dock-nav={item.id}
-                      aria-current={active ? 'page' : undefined}
-                      onClick={event => handleNavClick(event, item.href, item.label)}
-                      className={navLinkClass('dock')}
-                    >
-                      <NavGlyph name={item.mark} />
-                      <span className="max-w-full truncate">{item.label}</span>
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-        )}
-      </div>
+          <ul className="mx-auto grid max-w-[680px] grid-cols-5">
+            {NAV.map(item => {
+              const active = item.isActive(path, segments);
+              return (
+                <li key={item.id} className="min-w-0">
+                  <a
+                    href={item.href}
+                    data-primary-nav={item.id}
+                    data-dock-nav={item.id}
+                    aria-current={active ? 'page' : undefined}
+                    onClick={event => handleNavClick(event, item.href, item.label)}
+                    className={navLinkClass('dock')}
+                  >
+                    <NavGlyph name={item.mark} />
+                    <span className="max-w-full truncate">{item.label}</span>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      )}
       <SeekerAuthModal />
     </div>
   );

@@ -3,9 +3,10 @@ export function scrollBehavior(): ScrollBehavior {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
 }
 
-/** The library shell scrolls inside `#main`, not the window. The mushaf scrolls inside the reader column. */
+/** The library shell scrolls the window or `#main`. The mushaf scrolls inside the reader column. */
 export function scrollMain(): void {
   const behavior = scrollBehavior();
+  if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior });
   document.getElementById('main')?.scrollTo({ top: 0, behavior });
   document.querySelector('[data-reader-scroll]')?.scrollTo({ top: 0, behavior });
 }

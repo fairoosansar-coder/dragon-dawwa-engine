@@ -448,9 +448,9 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
   return (
     <section
       data-faith-wall
-      className={`${profileFontClass(lang)} mx-auto w-full max-w-[1120px]`}
+      className={`${profileFontClass(lang)} w-full`}
     >
-      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_285px] xl:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="grid w-full grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,680px)_320px] xl:gap-6">
         {/* TABLE 2 (Center Feed Column): 1-Tap Daily Benefit Stories Row + 3-Pill Share Bar + Post Stream */}
         <div data-faith-wall-center className="min-w-0 space-y-4">
           {/* 1. Top of Center Feed: 4 Simple Daily Benefit Cards (Stories Row) */}
@@ -988,7 +988,7 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
         {/* TABLE 3 (Right Rail on Desktop LG+): Weekly Community Reading Circle + Asma-ul-Husna + Verified Contributors */}
         <aside
           data-faith-wall-right-rail
-          className="hidden space-y-4 lg:block"
+          className="hidden space-y-4 lg:sticky lg:top-[72px] lg:block"
         >
           {/* 1. Weekly Community Reading Circle Card */}
           <div
