@@ -9,6 +9,7 @@ import { useRemote } from '../lib/api.ts';
 import { beginResearch, noticeText, readResearchHistory, rememberResearch, researchDeskHref, researchHref, type StoredResearch } from '../lib/researchDesk.ts';
 import type { ResearchDeskName } from '../lib/route.ts';
 import { PodcastHostChip } from '../components/PodcastHostChip.tsx';
+import { RecentSevenAgentDossiers } from '../components/research/RecentSevenAgentDossiers.tsx';
 import { SevenAgentCountdownCard } from '../components/research/SevenAgentCountdownCard.tsx';
 import { SevenAgentResearchBoard } from '../components/research/SevenAgentResearchBoard.tsx';
 import { ResearchActionRow, ResearchFrame } from '../engine/ResearchFrame.tsx';
@@ -67,24 +68,30 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   const [chapters, setChapters] = useState<{ id: string; scope: ResearchScope; question: string; forwarded?: boolean }[]>([]);
   const [roundtableOpen, setRoundtableOpen] = useState(false);
   const [countdownHold, setCountdownHold] = useState(false);
+  const [instantDossier, setInstantDossier] = useState<SevenAgentResearchDossier | null>(null);
   const remote = useRemote<ResearchJobResponse>(jobId ? `/api/research/jobs/${jobId}` : null);
+  const reportIdParam = params.get('reportId');
 
   const activeResearchQuery = useMemo(() => {
+    if (instantDossier?.question) return instantDossier.question;
     const fromJob = remote.data?.job.question?.trim();
     if (fromJob) return fromJob;
     if (askedParam?.trim()) return askedParam.trim();
     return '';
-  }, [remote.data?.job.question, askedParam]);
+  }, [instantDossier?.question, remote.data?.job.question, askedParam]);
 
   const sevenAgentRemote = useRemote<SevenAgentResearchDossier>(
-    activeResearchQuery
-      ? `/api/research/seven-agents?q=${encodeURIComponent(activeResearchQuery)}&lang=${lang}`
-      : null,
+    reportIdParam
+      ? `/api/research/seven-agents/${encodeURIComponent(reportIdParam)}?lang=${lang}`
+      : activeResearchQuery
+        ? `/api/research/seven-agents?q=${encodeURIComponent(activeResearchQuery)}&lang=${lang}`
+        : null,
   );
   const sevenAgentDossier =
-    sevenAgentRemote.data && sevenAgentRemote.data.lang === lang
+    (instantDossier && instantDossier.lang === lang ? instantDossier : null) ??
+    (sevenAgentRemote.data && sevenAgentRemote.data.lang === lang
       ? sevenAgentRemote.data
-      : null;
+      : null);
 
   const isCountdownActive =
     countdownHold ||
@@ -181,6 +188,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     const pieces = questionsToResearch(field, clarifying ? null : remote.data?.job.question ?? null, clarifying);
     if (!pieces.length) return;
     setError(null);
+    setInstantDossier(null);
     setCountdownHold(true);
     window.setTimeout(() => setCountdownHold(false), 2600);
     try {
@@ -477,6 +485,32 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
           <ResearchActivity job={job} />
         </details>
       )}
+
+      <RecentSevenAgentDossiers
+        activeQuestion={sevenAgentDossier?.question || activeResearchQuery}
+        onSelectDossier={selected => {
+          setCountdownHold(false);
+          setQuestion(selected.question);
+          setInstantDossier(selected);
+          setRoundtableOpen(false);
+          window.setTimeout(() => {
+            document
+              .querySelector('[data-testid="seven-agent-research-board"]')
+              ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 60);
+        }}
+        onOpenRoundtable={selected => {
+          setCountdownHold(false);
+          setQuestion(selected.question);
+          setInstantDossier(selected);
+          setRoundtableOpen(true);
+          window.setTimeout(() => {
+            document
+              .getElementById('seven-agent-roundtable-studio')
+              ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 80);
+        }}
+      />
 
       <section>
         <h2 className="font-display text-2xl font-bold text-pine">{t.previousResearch}</h2>

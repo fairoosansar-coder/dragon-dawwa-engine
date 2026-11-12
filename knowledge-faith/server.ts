@@ -89,7 +89,12 @@ import { getResearchJob, seedResearchJob, startResearchJob } from './src/engine/
 import { synthesizeRoundtableVoice } from './src/engine/server/geminiTtsService.ts';
 import { loadLocalizedAyahStudy } from './src/server/ayahStudyService.ts';
 import { getHadithTtsStatus, synthesizeHadithVoice } from './src/server/elevenlabsTts.ts';
-import { runSevenAgentResearch } from './src/server/sevenAgentService.ts';
+import {
+  getSevenAgentDossierById,
+  listSevenAgentHistory,
+  runSevenAgentResearch,
+  toggleServerSavedDossier,
+} from './src/server/sevenAgentService.ts';
 import { serveHadithShareLanding, serveVerseOgImage, serveVerseShareLanding } from './src/server/shareLanding.ts';
 import { extractHadithFromMedia } from './src/engine/server/hadithOcrService.ts';
 import { transcribeAudioWithGemini } from './src/engine/server/geminiAudioTranscribe.ts';
@@ -131,7 +136,7 @@ if (process.env.CODESPACES === 'true' || process.env.CODESPACE_NAME) {
 }
 app.use(ummahQuranMiddleware);
 app.use(ummahStudyMiddleware);
-app.use(['/api/extract-hadith-media', '/api/transcribe-audio', '/api/research/episodes'], express.json({ limit: '20mb' }));
+app.use(['/api/extract-hadith-media', '/api/transcribe-audio', '/api/research/episodes', '/api/research/seven-agents/save'], express.json({ limit: '20mb' }));
 app.use(express.json({ limit: '64kb' }));
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
@@ -475,6 +480,37 @@ const sevenAgentHandler = route(async (req, res) => {
 
 app.get('/api/research/seven-agents', sevenAgentHandler);
 app.post('/api/research/seven-agents', sevenAgentHandler);
+
+app.get(
+  '/api/research/seven-agents/history',
+  route(async (req, res) => {
+    const lang = req.query.lang ? toLang(req.query.lang) : undefined;
+    res.json(await listSevenAgentHistory(lang));
+  }),
+);
+
+app.post(
+  '/api/research/seven-agents/save',
+  route(async (req, res) => {
+    const id = typeof req.body?.id === 'string' ? req.body.id : undefined;
+    const question = typeof req.body?.question === 'string' ? req.body.question : undefined;
+    const lang = toLang(req.body?.lang);
+    const dossier = req.body?.dossier && typeof req.body.dossier === 'object' ? req.body.dossier : undefined;
+    const saved = typeof req.body?.saved === 'boolean' ? req.body.saved : undefined;
+    res.json(await toggleServerSavedDossier({ id, question, lang, dossier, saved }));
+  }),
+);
+
+app.get(
+  '/api/research/seven-agents/:id',
+  route(async (req, res) => {
+    const id = String(req.params.id ?? '').trim();
+    const lang = toLang(req.query.lang);
+    const found = await getSevenAgentDossierById(id, lang);
+    if (!found) throw new UpstreamError('Research dossier not found.', 404);
+    res.json(found);
+  }),
+);
 
 app.post(
   '/api/research/jobs',

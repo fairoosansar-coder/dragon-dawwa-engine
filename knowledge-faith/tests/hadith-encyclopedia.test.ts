@@ -7,7 +7,12 @@ import { getHadithTtsStatus, synthesizeHadithVoice } from '../src/server/elevenl
 import { getSection } from '../src/server/hadith.ts';
 import { loadKnowledgeShelf } from '../src/server/islamhouse.ts';
 import { readLibraryItem, textNeedsTranslationToLang } from '../src/server/libraryRead.ts';
-import { runSevenAgentResearch } from '../src/server/sevenAgentService.ts';
+import {
+  getSevenAgentDossierById,
+  listSevenAgentHistory,
+  runSevenAgentResearch,
+  toggleServerSavedDossier,
+} from '../src/server/sevenAgentService.ts';
 import { buildVerseOgSvg } from '../src/server/shareLanding.ts';
 import { segmentHadithRecord, splitArabicHadith, splitTranslationHadith } from '../src/shared/hadithSegmentation.ts';
 import { HADITH_VOICE_PROFILES, resolveHadithVoiceProfile } from '../src/shared/hadithVoices.ts';
@@ -259,4 +264,16 @@ test('Seven-Agent Research & Modern Science Foresight synthesizes all 7 speciali
   assert.equal(si.agents.length, 7);
   assert.equal(/[\u0D80-\u0DFF]/u.test(si.verdictHeadline), true);
   assert.equal(/[\u0D80-\u0DFF]/u.test(si.scienceForesight.summary), true);
+
+  const savedRes = await toggleServerSavedDossier({ dossier: en, saved: true });
+  assert.equal(savedRes.saved, true);
+  assert.equal(savedRes.savedIds.includes(en.id), true);
+
+  const lookedUp = await getSevenAgentDossierById(en.id, 'en');
+  assert.ok(lookedUp);
+  assert.equal(lookedUp.id, en.id);
+
+  const history = await listSevenAgentHistory('en');
+  assert.equal(history.items.length >= 1, true);
+  assert.equal(history.saved.some(d => d.id === en.id), true);
 });

@@ -108,7 +108,7 @@ export function AppFrame({
   segments?: string[];
   children: ReactNode;
 }) {
-  const { t, lang, uiTheme, fontScale } = useApp();
+  const { t, lang, uiTheme, fontScale, saved } = useApp();
   const { focus, setFocus } = useShell();
   const { user, isAuthenticated, openModal } = useSeekerAuth();
   const audio = useAudioState();
@@ -179,7 +179,14 @@ export function AppFrame({
     () => (user ? posts.filter(p => p.userId && p.userId === user.id).length : 0),
     [posts, user],
   );
-  const savedPostsCount = useMemo(() => posts.filter(p => p.saved).length, [posts]);
+  const savedPostsCount = useMemo(
+    () =>
+      posts.filter(p => p.saved).length +
+      saved.verses.length +
+      saved.hadith.length +
+      (saved.dossiers?.length ?? 0),
+    [posts, saved],
+  );
 
   const onFaithWall =
     (path === 'quran' && segments[0] === 'wall') || (path === 'hub' && segments[0] === 'wall');
@@ -375,11 +382,11 @@ export function AppFrame({
               </a>
 
               <a
-                href="#/quran/wall?view=saved"
+                href="#/saved"
                 data-sidebar-wall-tab="saved"
-                onClick={event => handleNavClick(event, '#/quran/wall?view=saved', 'Saved Bookmarks')}
+                onClick={event => handleNavClick(event, '#/saved', 'Saved Bookmarks')}
                 className={`mt-0.5 flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-medium transition ${
-                  activeWallTab === 'saved'
+                  activeWallTab === 'saved' || (path === 'hub' && segments[0] === 'saved')
                     ? 'bg-emerald-50/90 font-semibold text-emerald-950'
                     : 'text-stone-700 hover:bg-stone-50'
                 }`}
@@ -388,7 +395,10 @@ export function AppFrame({
                   <Bookmark className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
                   <span>Saved Bookmarks</span>
                 </span>
-                <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-600">
+                <span
+                  data-testid="sidebar-saved-bookmarks-count"
+                  className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-600"
+                >
                   {savedPostsCount}
                 </span>
               </a>
