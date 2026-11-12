@@ -12,7 +12,10 @@ import { PodcastScriptPlayer } from './components/PodcastScriptPlayer.tsx';
 import { StarDivider } from './ds/ornaments.tsx';
 import { ResearchFrame, fullReportActionClass, roundtableActionClass } from './ResearchFrame.tsx';
 import { useDossier } from './DossierContext.tsx';
+import { useRemote } from '../lib/api.ts';
 import { useApp } from '../lib/store.tsx';
+import type { SevenAgentResearchDossier } from '../shared/sevenAgentTypes.ts';
+import { SevenAgentResearchBoard } from '../components/research/SevenAgentResearchBoard.tsx';
 import { languageLabel } from './utils/contentLanguage.ts';
 
 export function DossierActions() {
@@ -42,6 +45,9 @@ export function DossierActions() {
         data-testid="open-roundtable-btn"
         className={btn}
         onClick={() => {
+          if (!d.displayed && d.matn.trim()) {
+            void d.run(d.matn, d.isnad, d.lang);
+          }
           d.setStep('roundtable');
           window.setTimeout(() => {
             document.getElementById('dossier-results-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -91,6 +97,16 @@ export default function DossierWorkbench() {
   const data = d.displayed;
   const agent7 = data?.agent_7_source_research;
   const showReport = data != null && (d.reportOrigin === 'live' || d.reportOrigin === 'saved' || d.reportOrigin === 'example');
+  const scienceQuery = (data?.query_hadith || d.matn || '').trim();
+  const sevenAgentRemote = useRemote<SevenAgentResearchDossier>(
+    showReport && scienceQuery
+      ? `/api/research/seven-agents?q=${encodeURIComponent(scienceQuery.slice(0, 600))}&lang=${d.lang}`
+      : null,
+  );
+  const scienceDossier =
+    sevenAgentRemote.data && sevenAgentRemote.data.lang === d.lang
+      ? sevenAgentRemote.data
+      : null;
 
   const openFullReport = () => {
     d.setStep('report');
@@ -104,7 +120,7 @@ export default function DossierWorkbench() {
       title="Explore a hadith, understand its sources"
       arabic="طلب العلم فريضة"
       subtitle="Enter a hadith → Research across all 7 agents (including HadeethEnc Source Research) → Open Full Report."
-      actions={showReport ? <DossierActions /> : null}
+      actions={<DossierActions />}
       after={
         <>
       {d.reportOrigin === 'example' && (
@@ -187,6 +203,15 @@ export default function DossierWorkbench() {
         </div>
 
         <AgentStatusTracker currentTab={d.step} onSelectTab={d.setStep} isLoading={d.isAnalyzing} currentLanguage={d.lang} />
+
+        {scienceDossier && (
+          <SevenAgentResearchBoard
+            dossier={scienceDossier}
+            lang={d.lang}
+            roundtableOpen={d.step === 'roundtable'}
+            onToggleRoundtable={open => d.setStep(open ? 'roundtable' : 'overview')}
+          />
+        )}
 
         {d.step === 'overview' && (
           <DashboardVisualization

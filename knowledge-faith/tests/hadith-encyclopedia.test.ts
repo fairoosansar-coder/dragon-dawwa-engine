@@ -7,6 +7,7 @@ import { getHadithTtsStatus, synthesizeHadithVoice } from '../src/server/elevenl
 import { getSection } from '../src/server/hadith.ts';
 import { loadKnowledgeShelf } from '../src/server/islamhouse.ts';
 import { readLibraryItem, textNeedsTranslationToLang } from '../src/server/libraryRead.ts';
+import { runSevenAgentResearch } from '../src/server/sevenAgentService.ts';
 import { buildVerseOgSvg } from '../src/server/shareLanding.ts';
 import { segmentHadithRecord, splitArabicHadith, splitTranslationHadith } from '../src/shared/hadithSegmentation.ts';
 import { HADITH_VOICE_PROFILES, resolveHadithVoiceProfile } from '../src/shared/hadithVoices.ts';
@@ -243,4 +244,19 @@ test('LibraryReader item 2831568 translates into English, Tamil, and Sinhala wit
   assert.equal(docTa.requestedLanguage, 'ta');
   assert.equal(docTa.blocks.length, 15);
   assert.equal(/[\u0B80-\u0BFF]/u.test(docTa.blocks[2]?.text ?? ''), true);
+});
+
+test('Seven-Agent Research & Modern Science Foresight synthesizes all 7 specialist agents and Roundtable script in en, ta, si', async () => {
+  const q = 'Can man wear gold ? or small ring or related in gold ?';
+  const en = await runSevenAgentResearch(q, 'en');
+  assert.equal(en.agents.length, 7);
+  assert.equal(en.scienceForesight.empiricalPillars.length, 3);
+  assert.equal(en.roundtableTurns.length >= 4, true);
+  assert.equal(en.agents[1].citations.some(c => c.includes('Muslim 2089')), true);
+
+  const si = await runSevenAgentResearch(q, 'si');
+  assert.equal(si.lang, 'si');
+  assert.equal(si.agents.length, 7);
+  assert.equal(/[\u0D80-\u0DFF]/u.test(si.verdictHeadline), true);
+  assert.equal(/[\u0D80-\u0DFF]/u.test(si.scienceForesight.summary), true);
 });

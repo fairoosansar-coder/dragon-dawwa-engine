@@ -246,12 +246,12 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
     try {
       const started = await beginResearch({ question, entry: 'knowledge', desk: 'knowledge', lang, clarified });
       if (started.action === 'clarify' || !started.id || !started.scope) {
-        setClarify(true);
+        window.location.hash = `#/hub/research?lang=${encodeURIComponent(lang)}&q=${encodeURIComponent(question)}`;
         return;
       }
       window.location.hash = researchHref(started.scope, started.id, lang, started.action === 'forward', null, question);
-    } catch (err) {
-      setAskError(err instanceof Error ? err.message : 'The research job could not be started.');
+    } catch {
+      window.location.hash = `#/hub/research?lang=${encodeURIComponent(lang)}&q=${encodeURIComponent(question)}`;
     } finally {
       setBusy(false);
     }

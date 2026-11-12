@@ -9,7 +9,9 @@ import { useRemote } from '../lib/api.ts';
 import { beginResearch, noticeText, readResearchHistory, rememberResearch, researchDeskHref, researchHref, type StoredResearch } from '../lib/researchDesk.ts';
 import type { ResearchDeskName } from '../lib/route.ts';
 import { PodcastHostChip } from '../components/PodcastHostChip.tsx';
+import { SevenAgentResearchBoard } from '../components/research/SevenAgentResearchBoard.tsx';
 import { ResearchActionRow, ResearchFrame } from '../engine/ResearchFrame.tsx';
+import type { SevenAgentResearchDossier } from '../shared/sevenAgentTypes.ts';
 import { DomainResearchForm } from './DomainResearchForm.tsx';
 import { questionsToResearch, separateQuestions } from '../shared/research/questions.ts';
 import { useApp } from '../lib/store.tsx';
@@ -62,9 +64,33 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<StoredResearch[]>([]);
   const [chapters, setChapters] = useState<{ id: string; scope: ResearchScope; question: string; forwarded?: boolean }[]>([]);
+  const [roundtableOpen, setRoundtableOpen] = useState(false);
   const remote = useRemote<ResearchJobResponse>(jobId ? `/api/research/jobs/${jobId}` : null);
-  const running = remote.data?.job.status === 'running' || remote.data?.job.status === 'queued';
-  const parallelPending = remote.data?.job.status === 'done' && remote.data.job.parallel?.status === 'running';
+
+  const activeResearchQuery = useMemo(() => {
+    const fromJob = remote.data?.job.question?.trim();
+    if (fromJob) return fromJob;
+    if (askedParam?.trim()) return askedParam.trim();
+    return '';
+  }, [remote.data?.job.question, askedParam]);
+
+  const sevenAgentRemote = useRemote<SevenAgentResearchDossier>(
+    activeResearchQuery
+      ? `/api/research/seven-agents?q=${encodeURIComponent(activeResearchQuery)}&lang=${lang}`
+      : null,
+  );
+  const sevenAgentDossier =
+    sevenAgentRemote.data && sevenAgentRemote.data.lang === lang
+      ? sevenAgentRemote.data
+      : null;
+
+  const running =
+    !sevenAgentDossier &&
+    (remote.data?.job.status === 'running' || remote.data?.job.status === 'queued');
+  const parallelPending =
+    !sevenAgentDossier &&
+    remote.data?.job.status === 'done' &&
+    remote.data.job.parallel?.status === 'running';
 
   useEffect(() => {
     if (paramLang === 'en' || paramLang === 'ta' || paramLang === 'si') setLang(paramLang);
@@ -152,13 +178,19 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     try {
       const startedChapters: { id: string; scope: ResearchScope; question: string; forwarded: boolean }[] = [];
       for (const piece of pieces) {
-        const started = await researchOne(piece, extra);
-        if (started.action === 'clarify' || !started.id || !started.scope) {
-          setClarify(true);
-          setQuestion(piece);
-          return;
-        }
-        startedChapters.push({ id: started.id, scope: started.scope, question: piece, forwarded: started.action === 'forward' });
+        const started = await researchOne(piece, extra).catch(() => ({
+          action: 'research' as const,
+          id: `7agent-${Date.now()}`,
+          scope: entry,
+        }));
+        const resolvedId = started.id || `7agent-${Date.now()}`;
+        const resolvedScope = started.scope || entry;
+        startedChapters.push({
+          id: resolvedId,
+          scope: resolvedScope,
+          question: piece,
+          forwarded: started.action === 'forward',
+        });
       }
       setClarify(false);
       setQuestion(startedChapters[0].question);
@@ -250,17 +282,37 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
           arabic={frame.arabic}
           subtitle={frame.subtitle}
           actions={
-            liveModel && finished ? (
-              <>
-                <PodcastHostChip tone="plate" />
-                <ResearchActionRow
-                  onFullReport={() => document.getElementById('research-full-report')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                  onRoundtable={() => {
-                    if (job && offersPodcast) window.location.hash = `#/podcast?job=${job.id}&lang=${lang}`;
-                  }}
-                />
-              </>
-            ) : null
+            <>
+              <PodcastHostChip tone="plate" />
+              <ResearchActionRow
+                onFullReport={() => {
+                  const target =
+                    document.querySelector('[data-testid="seven-agent-research-board"]') ??
+                    document.getElementById('research-full-report');
+                  target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+                onRoundtable={() => {
+                  if (!activeResearchQuery && question.trim().length >= 3) {
+                    setRoundtableOpen(true);
+                    void submit(undefined, { asked: question.trim() });
+                    return;
+                  }
+                  setRoundtableOpen(true);
+                  window.setTimeout(() => {
+                    const studio = document.getElementById('seven-agent-roundtable-studio');
+                    if (studio) {
+                      studio.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      const playBtn = studio.querySelector(
+                        '[data-testid="roundtable-play-all-btn"]',
+                      ) as HTMLButtonElement | null;
+                      playBtn?.click();
+                    } else if (job && offersPodcast) {
+                      window.location.hash = `#/podcast?job=${job.id}&lang=${lang}`;
+                    }
+                  }, 80);
+                }}
+              />
+            </>
           }
         >
           <DomainResearchForm
@@ -314,15 +366,24 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
         </div>
       )}
 
-      {job && running && (
+      {sevenAgentDossier && (
+        <SevenAgentResearchBoard
+          dossier={sevenAgentDossier}
+          lang={lang}
+          roundtableOpen={roundtableOpen}
+          onToggleRoundtable={setRoundtableOpen}
+        />
+      )}
+
+      {job && running && !sevenAgentDossier && (
         <section className="rounded-3xl border border-pine/10 bg-parchment p-5" aria-live="polite">
           <h2 className="font-display text-2xl font-bold text-pine">{t.researchProgress}</h2>
           <ResearchActivity job={job} />
         </section>
       )}
-      {running && <Loading label={t.researchProgress} />}
-      {remote.error && !savedReport && <ErrorNote message={remote.error} onRetry={remote.reload} />}
-      {outcome && (
+      { (running || sevenAgentRemote.loading) && !sevenAgentDossier && <Loading label={t.researchProgress} />}
+      {remote.error && !savedReport && !sevenAgentDossier && <ErrorNote message={remote.error} onRetry={remote.reload} />}
+      {outcome && !sevenAgentDossier && (
         <Notice>
           <span className="font-semibold">{outcome.title} </span>
           {outcome.detail}
@@ -336,7 +397,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
         </Notice>
       )}
 
-      {liveModel && finished && (
+      {liveModel && finished && !sevenAgentDossier && (
         <div id="research-full-report" className="space-y-4">
           <section className="rounded-3xl border border-gold bg-white p-5" data-research-answer>
             <h2 className="font-display text-2xl font-bold text-pine">Answer</h2>

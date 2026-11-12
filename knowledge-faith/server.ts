@@ -89,6 +89,7 @@ import { getResearchJob, seedResearchJob, startResearchJob } from './src/engine/
 import { synthesizeRoundtableVoice } from './src/engine/server/geminiTtsService.ts';
 import { loadLocalizedAyahStudy } from './src/server/ayahStudyService.ts';
 import { getHadithTtsStatus, synthesizeHadithVoice } from './src/server/elevenlabsTts.ts';
+import { runSevenAgentResearch } from './src/server/sevenAgentService.ts';
 import { serveHadithShareLanding, serveVerseOgImage, serveVerseShareLanding } from './src/server/shareLanding.ts';
 import { extractHadithFromMedia } from './src/engine/server/hadithOcrService.ts';
 import { transcribeAudioWithGemini } from './src/engine/server/geminiAudioTranscribe.ts';
@@ -464,6 +465,16 @@ app.get(
 
 app.get('/api/names', route(async (_req, res) => res.json(await listNames())));
 app.get('/api/names/:id', route(async (req, res) => res.json(await readName(String(req.params.id)))));
+
+const sevenAgentHandler = route(async (req, res) => {
+  const qRaw = req.method === 'POST' ? (req.body?.question ?? req.body?.q) : (req.query.q ?? req.query.question);
+  const question = text(qRaw, 2000, 'question');
+  const lang = toLang(req.method === 'POST' ? req.body?.lang : req.query.lang);
+  res.json(await runSevenAgentResearch(question, lang));
+});
+
+app.get('/api/research/seven-agents', sevenAgentHandler);
+app.post('/api/research/seven-agents', sevenAgentHandler);
 
 app.post(
   '/api/research/jobs',
