@@ -23,6 +23,7 @@ import { setAudioPlaybackRate } from '../../lib/audio.ts';
 import { splitTextIntoSpeechLines, useLineByLineTts } from '../../lib/lineByLineTts.ts';
 import { useStored } from '../../lib/store.tsx';
 import { publishFaithWallPost } from '../../lib/verseShare.ts';
+import { AudioLoadingSpinner, loadingAudioLabel } from '../AudioLoadingSpinner.tsx';
 import {
   HADITH_PLAYBACK_SPEEDS,
   HADITH_VOICE_PROFILES,
@@ -277,10 +278,11 @@ export function SevenAgentResearchBoard({
     window.setTimeout(() => setWallToast(null), 4000);
   };
 
-  const isRoundtablePlaying =
-    lineTts.sessionId === roundtableSessionId && lineTts.status === 'playing';
-  const isSciencePlaying =
-    lineTts.sessionId === scienceSessionId && lineTts.status === 'playing';
+  const isRoundtablePlaying = lineTts.isPlayingSession(roundtableSessionId);
+  const isRoundtableLoading = lineTts.isLoadingSession(roundtableSessionId);
+  const isSciencePlaying = lineTts.isPlayingSession(scienceSessionId);
+  const isScienceLoading = lineTts.isLoadingSession(scienceSessionId);
+  const loadingText = loadingAudioLabel(lang);
 
   return (
     <div data-testid="seven-agent-research-board" className="space-y-6">
@@ -356,11 +358,17 @@ export function SevenAgentResearchBoard({
               style={{ backgroundColor: '#073C30', color: '#F9E7B9' }}
               className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-extrabold shadow-sm transition hover:opacity-95 cursor-pointer"
             >
-              <Radio className="h-4 w-4 text-[#D4AF37]" aria-hidden />
+              {isRoundtableLoading ? (
+                <AudioLoadingSpinner size={15} className="text-[#D4AF37]" />
+              ) : (
+                <Radio className="h-4 w-4 text-[#D4AF37]" aria-hidden />
+              )}
               <span>
-                {isRoundtablePlaying
-                  ? `Pause Roundtable (${langLabel})`
-                  : `Open & Play 7-Agent Roundtable (${langLabel})`}
+                {isRoundtableLoading
+                  ? loadingText
+                  : isRoundtablePlaying
+                    ? `Pause Roundtable (${langLabel})`
+                    : `Open & Play 7-Agent Roundtable (${langLabel})`}
               </span>
             </button>
 
@@ -375,13 +383,19 @@ export function SevenAgentResearchBoard({
               }}
               className="inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold transition hover:bg-amber-100/70 cursor-pointer"
             >
-              {isSciencePlaying ? (
+              {isScienceLoading ? (
+                <AudioLoadingSpinner size={14} className="text-[#B45309]" />
+              ) : isSciencePlaying ? (
                 <Pause className="h-3.5 w-3.5 fill-current text-[#B45309]" aria-hidden />
               ) : (
                 <FlaskConical className="h-3.5 w-3.5 text-[#B45309]" aria-hidden />
               )}
               <span>
-                {isSciencePlaying ? 'Pause Science Audio' : 'Listen: 1 Step Ahead of Science'}
+                {isScienceLoading
+                  ? loadingText
+                  : isSciencePlaying
+                    ? 'Pause Science Audio'
+                    : 'Listen: 1 Step Ahead of Science'}
               </span>
             </button>
 
@@ -555,19 +569,24 @@ export function SevenAgentResearchBoard({
 
           <button
             type="button"
+            data-testid="science-card-listen-btn"
             onClick={handlePlayScienceSpotlight}
             style={{
-              backgroundColor: isSciencePlaying ? '#D4AF37' : '#073C30',
-              color: isSciencePlaying ? '#031812' : '#FFFFFF',
+              backgroundColor: isSciencePlaying || isScienceLoading ? '#D4AF37' : '#073C30',
+              color: isSciencePlaying || isScienceLoading ? '#031812' : '#FFFFFF',
             }}
             className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold shadow-2xs cursor-pointer"
           >
-            {isSciencePlaying ? (
+            {isScienceLoading ? (
+              <AudioLoadingSpinner size={14} />
+            ) : isSciencePlaying ? (
               <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
             ) : (
               <Volume2 className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
             )}
-            <span>{isSciencePlaying ? 'Pause' : `Listen (${langLabel})`}</span>
+            <span>
+              {isScienceLoading ? loadingText : isSciencePlaying ? 'Pause' : `Listen (${langLabel})`}
+            </span>
           </button>
         </div>
 
@@ -713,8 +732,8 @@ export function SevenAgentResearchBoard({
             const spec = agentVisualSpec(agent.agentId);
             const Icon = spec.Icon;
             const agentSid = `${sessionPrefix}agent-${agent.agentNumber}`;
-            const isAgentPlaying =
-              lineTts.sessionId === agentSid && lineTts.status === 'playing';
+            const isAgentPlaying = lineTts.isPlayingSession(agentSid);
+            const isAgentLoading = lineTts.isLoadingSession(agentSid);
             const isSpotlight = Boolean(agent.isScienceSpotlight);
 
             return (
@@ -781,18 +800,22 @@ export function SevenAgentResearchBoard({
                         data-testid={`listen-agent-${agent.agentNumber}-btn`}
                         onClick={() => handlePlayAgent(agent)}
                         style={{
-                          backgroundColor: isAgentPlaying ? '#FEF3C7' : '#FAF7F0',
-                          color: isAgentPlaying ? '#78350F' : '#073C30',
-                          borderColor: isAgentPlaying ? '#F59E0B' : '#D6C8A9',
+                          backgroundColor: isAgentPlaying || isAgentLoading ? '#FEF3C7' : '#FAF7F0',
+                          color: isAgentPlaying || isAgentLoading ? '#78350F' : '#073C30',
+                          borderColor: isAgentPlaying || isAgentLoading ? '#F59E0B' : '#D6C8A9',
                         }}
                         className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold cursor-pointer"
                       >
-                        {isAgentPlaying ? (
+                        {isAgentLoading ? (
+                          <AudioLoadingSpinner size={12} className="text-[#B45309]" />
+                        ) : isAgentPlaying ? (
                           <Pause className="h-3 w-3 fill-current" aria-hidden />
                         ) : (
                           <Volume2 className="h-3 w-3 text-[#B45309]" aria-hidden />
                         )}
-                        <span>{isAgentPlaying ? 'Pause' : 'Listen'}</span>
+                        <span>
+                          {isAgentLoading ? loadingText : isAgentPlaying ? 'Pause' : 'Listen'}
+                        </span>
                       </button>
                     </div>
                   </div>
@@ -951,15 +974,19 @@ export function SevenAgentResearchBoard({
               style={{ backgroundColor: '#073C30', color: '#F9E7B9' }}
               className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-extrabold shadow-xs transition hover:opacity-95 cursor-pointer"
             >
-              {isRoundtablePlaying ? (
+              {isRoundtableLoading ? (
+                <AudioLoadingSpinner size={15} className="text-[#D4AF37]" />
+              ) : isRoundtablePlaying ? (
                 <Pause className="h-4 w-4 fill-current text-[#D4AF37]" aria-hidden />
               ) : (
                 <Play className="h-4 w-4 fill-current text-[#D4AF37]" aria-hidden />
               )}
               <span>
-                {isRoundtablePlaying
-                  ? 'Pause Roundtable Broadcast'
-                  : `Play Roundtable Broadcast (${dossier.roundtableTurns.length} Speakers)`}
+                {isRoundtableLoading
+                  ? loadingText
+                  : isRoundtablePlaying
+                    ? 'Pause Roundtable Broadcast'
+                    : `Play Roundtable Broadcast (${dossier.roundtableTurns.length} Speakers)`}
               </span>
             </button>
 
@@ -984,6 +1011,8 @@ export function SevenAgentResearchBoard({
               lineTts.sessionId === roundtableSessionId &&
               lineTts.status !== 'idle' &&
               lineTts.currentIndex === idx;
+            const isTurnLoading =
+              isTurnActive && lineTts.status === 'loading';
             const turnAccent =
               turn.voiceProfile === 'noor'
                 ? { badgeBg: '#CCFBF1', badgeText: '#115E59', borderHex: '#14B8A6' }
@@ -1033,10 +1062,19 @@ export function SevenAgentResearchBoard({
 
                   <span
                     style={{ color: isTurnActive ? '#B45309' : '#073C30' }}
-                    className="inline-flex items-center gap-1 text-[11px] font-bold"
+                    className="inline-flex items-center gap-1.5 text-[11px] font-bold"
                   >
-                    <Headphones className="h-3 w-3" aria-hidden />
-                    <span>{isTurnActive ? 'Speaking now…' : 'Tap to hear speaker'}</span>
+                    {isTurnLoading ? (
+                      <>
+                        <AudioLoadingSpinner size={13} className="text-[#B45309]" />
+                        <span>{loadingText}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Headphones className="h-3 w-3" aria-hidden />
+                        <span>{isTurnActive ? 'Speaking now…' : 'Tap to hear speaker'}</span>
+                      </>
+                    )}
                   </span>
                 </div>
 

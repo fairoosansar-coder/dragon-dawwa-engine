@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Pause, Volume2 } from 'lucide-react';
 import type { ViewProps } from '../App.tsx';
 import { HadithVoiceBar, type ActiveHadithSpeechPart } from '../components/HadithVoiceBar.tsx';
+import { AudioLoadingSpinner, loadingAudioLabel } from '../components/AudioLoadingSpinner.tsx';
 import { RecordShare } from '../components/RecordShare.tsx';
 import { splitTextIntoSpeechLines, useLineByLineTts } from '../lib/lineByLineTts.ts';
 import { researchStudioHref } from './hadithEncyclopediaCopy.ts';
@@ -162,25 +163,29 @@ function HadithReading({ id }: { id: string }) {
                   onClick={() => toggleSectionTts(exSessionId, explanationLines)}
                   style={{
                     backgroundColor:
-                      lineTts.sessionId === exSessionId && lineTts.status === 'playing'
+                      lineTts.isPlayingSession(exSessionId) || lineTts.isLoadingSession(exSessionId)
                         ? '#D4AF37'
                         : '#073C30',
                     color:
-                      lineTts.sessionId === exSessionId && lineTts.status === 'playing'
+                      lineTts.isPlayingSession(exSessionId) || lineTts.isLoadingSession(exSessionId)
                         ? '#041B14'
                         : '#FFFFFF',
                   }}
                   className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold shadow-2xs cursor-pointer"
                 >
-                  {lineTts.sessionId === exSessionId && lineTts.status === 'playing' ? (
+                  {lineTts.isLoadingSession(exSessionId) ? (
+                    <AudioLoadingSpinner size={13} />
+                  ) : lineTts.isPlayingSession(exSessionId) ? (
                     <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
                   ) : (
                     <Volume2 className="h-3.5 w-3.5" aria-hidden />
                   )}
                   <span>
-                    {lineTts.sessionId === exSessionId && lineTts.status === 'playing'
-                      ? 'Pause'
-                      : `Listen (${langLabel})`}
+                    {lineTts.isLoadingSession(exSessionId)
+                      ? loadingAudioLabel(lang)
+                      : lineTts.isPlayingSession(exSessionId)
+                        ? 'Pause'
+                        : `Listen (${langLabel})`}
                   </span>
                 </button>
               ) : null
@@ -242,25 +247,29 @@ function HadithReading({ id }: { id: string }) {
                   onClick={() => toggleSectionTts(lsSessionId, lessonsLines)}
                   style={{
                     backgroundColor:
-                      lineTts.sessionId === lsSessionId && lineTts.status === 'playing'
+                      lineTts.isPlayingSession(lsSessionId) || lineTts.isLoadingSession(lsSessionId)
                         ? '#D4AF37'
                         : '#073C30',
                     color:
-                      lineTts.sessionId === lsSessionId && lineTts.status === 'playing'
+                      lineTts.isPlayingSession(lsSessionId) || lineTts.isLoadingSession(lsSessionId)
                         ? '#041B14'
                         : '#FFFFFF',
                   }}
                   className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold shadow-2xs cursor-pointer"
                 >
-                  {lineTts.sessionId === lsSessionId && lineTts.status === 'playing' ? (
+                  {lineTts.isLoadingSession(lsSessionId) ? (
+                    <AudioLoadingSpinner size={13} />
+                  ) : lineTts.isPlayingSession(lsSessionId) ? (
                     <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
                   ) : (
                     <Volume2 className="h-3.5 w-3.5" aria-hidden />
                   )}
                   <span>
-                    {lineTts.sessionId === lsSessionId && lineTts.status === 'playing'
-                      ? 'Pause'
-                      : `Listen (${langLabel})`}
+                    {lineTts.isLoadingSession(lsSessionId)
+                      ? loadingAudioLabel(lang)
+                      : lineTts.isPlayingSession(lsSessionId)
+                        ? 'Pause'
+                        : `Listen (${langLabel})`}
                   </span>
                 </button>
               ) : null

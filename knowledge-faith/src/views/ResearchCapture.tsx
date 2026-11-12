@@ -3,6 +3,8 @@ import { Camera, FileText, Image as ImageIcon, Loader2, Mic, MicOff, Paperclip }
 import { HadithMediaUploadModal } from '../engine/components/HadithMediaUploadModal.tsx';
 import { dictationCode, languageChip, languageLabel } from '../engine/utils/contentLanguage.ts';
 import { useApp } from '../lib/store.tsx';
+import { AudioLoadingSpinner } from '../components/AudioLoadingSpinner.tsx';
+import { useResearchCountdown } from '../components/research/SevenAgentCountdownCard.tsx';
 import { DictationSession } from './dictationSession.ts';
 import { beginDictationTap, MICROPHONE_DENIED_MESSAGE, requestMicrophoneFromTap, type SpeechEngine } from './microphoneTap.ts';
 
@@ -25,6 +27,7 @@ export function ResearchCapture({
   variant?: 'studio' | 'omni';
 }) {
   const { lang, setLang } = useApp();
+  const { remainingSeconds } = useResearchCountdown(Boolean(disabled), 12);
   const [mode, setMode] = useState<CaptureMode | null>(null);
   const [attachOpen, setAttachOpen] = useState(false);
   const attachRef = useRef<HTMLDivElement>(null);
@@ -467,10 +470,25 @@ export function ResearchCapture({
             data-testid="run-research-btn"
             disabled={disabled || !ready}
             style={{ backgroundColor: '#0A3D2E', color: '#FFFFFF' }}
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-emerald-600/30 bg-[#0A3D2E] px-4 py-2 text-xs font-semibold tracking-wide text-[#FFFFFF] shadow-md transition-all hover:bg-[#0E4D3B] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-emerald-600/30 bg-[#0A3D2E] px-4 py-2 text-xs font-semibold tracking-wide text-[#FFFFFF] shadow-md transition-all hover:bg-[#0E4D3B] disabled:cursor-not-allowed disabled:opacity-80"
           >
-            <span aria-hidden>✨</span>
-            <span style={{ color: '#FFFFFF' }}>{disabled ? 'Researching…' : 'Run 7-Agent Research →'}</span>
+            {disabled ? (
+              <>
+                <AudioLoadingSpinner size={14} className="text-[#D4AF37]" />
+                <span style={{ color: '#FFFFFF' }}>
+                  {lang === 'ta'
+                    ? `7-முகவர் ஆய்வு · ${remainingSeconds}s…`
+                    : lang === 'si'
+                      ? `නියෝජිත 7 පර්යේෂණය · ${remainingSeconds}s…`
+                      : `Running 7-Agent Research · ${remainingSeconds}s…`}
+                </span>
+              </>
+            ) : (
+              <>
+                <span aria-hidden>✨</span>
+                <span style={{ color: '#FFFFFF' }}>Run 7-Agent Research →</span>
+              </>
+            )}
           </button>
         </div>
       </div>

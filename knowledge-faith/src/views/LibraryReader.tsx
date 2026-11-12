@@ -16,6 +16,7 @@ import { claimPlayback, pauseAudio, playAudio, setAudioPlaybackRate, useAudioSta
 import { useRemote } from '../lib/api.ts';
 import { useLineByLineTts } from '../lib/lineByLineTts.ts';
 import { useApp, useStored } from '../lib/store.tsx';
+import { AudioLoadingSpinner, loadingAudioLabel } from '../components/AudioLoadingSpinner.tsx';
 import {
   HADITH_PLAYBACK_SPEEDS,
   HADITH_VOICE_PROFILES,
@@ -93,10 +94,12 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
 
   const sessionId = `hub-reader:${itemId}:${lang}:${page}`;
   const lineTts = useLineByLineTts(sessionId);
-  const isPlaying = lineTts.sessionId === sessionId && lineTts.status === 'playing';
+  const isPlaying = lineTts.isPlayingSession(sessionId);
+  const isLoading = lineTts.isLoadingSession(sessionId);
   const profile = resolveHadithVoiceProfile(voiceProfile);
   const effectiveLang: Lang = lang;
   const langLabel = LANGUAGE_NAMES[effectiveLang]?.native ?? 'English';
+  const loadingText = loadingAudioLabel(effectiveLang);
   const totalPages = data?.totalPages ?? 1;
   const pageOffset = ((data?.page ?? page) - 1) * (data?.pageSize ?? 15);
 
@@ -250,20 +253,24 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
                     data-testid="article-play-tts-btn"
                     onClick={handleTogglePlayAll}
                     style={{
-                      backgroundColor: isPlaying ? '#D4AF37' : '#FBF9F5',
+                      backgroundColor: isPlaying || isLoading ? '#D4AF37' : '#FBF9F5',
                       color: '#041B14',
                     }}
                     className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold shadow-sm transition cursor-pointer"
                   >
-                    {isPlaying ? (
+                    {isLoading ? (
+                      <AudioLoadingSpinner size={14} />
+                    ) : isPlaying ? (
                       <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
                     ) : (
                       <Play className="h-3.5 w-3.5 fill-current" aria-hidden />
                     )}
                     <span>
-                      {isPlaying
-                        ? `Pause Article (${langLabel})`
-                        : `Listen to Article (${langLabel} · ${speechLines.length} sections)`}
+                      {isLoading
+                        ? loadingText
+                        : isPlaying
+                          ? `Pause Article (${langLabel})`
+                          : `Listen to Article (${langLabel} · ${speechLines.length} sections)`}
                     </span>
                   </button>
 
@@ -414,9 +421,18 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
                       </p>
 
                       <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500">
-                        <span className="inline-flex items-center gap-1 font-medium text-emerald-800">
-                          <Volume2 className="h-3.5 w-3.5" aria-hidden />
-                          <span>{isLineActive ? 'Reading this section…' : 'Tap to listen from here'}</span>
+                        <span className="inline-flex items-center gap-1.5 font-medium text-emerald-800">
+                          {isLineActive && isLoading ? (
+                            <>
+                              <AudioLoadingSpinner size={13} className="text-amber-700" />
+                              <span className="text-amber-900 font-bold">{loadingText}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Volume2 className="h-3.5 w-3.5" aria-hidden />
+                              <span>{isLineActive ? 'Reading this section…' : 'Tap to listen from here'}</span>
+                            </>
+                          )}
                         </span>
 
                         <button
