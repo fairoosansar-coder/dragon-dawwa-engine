@@ -396,7 +396,12 @@ app.get(
   route(async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) throw new UpstreamError('Unknown item', 404);
-    const document = await readLibraryItem(id, toLang(req.query.lang));
+    const sectionParam = req.query.section ?? req.query.page;
+    const requestedPage =
+      typeof sectionParam === 'string' && /^\d+$/.test(sectionParam)
+        ? Math.max(1, Number(sectionParam))
+        : undefined;
+    const document = await readLibraryItem(id, toLang(req.query.lang), new Date(), requestedPage);
     if (req.query.pages !== '1') {
       res.json(document);
       return;

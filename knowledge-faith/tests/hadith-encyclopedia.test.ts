@@ -6,6 +6,7 @@ import { getCuratedChaptersForPath, getCuratedLibraryDocument } from '../src/ser
 import { getHadithTtsStatus, synthesizeHadithVoice } from '../src/server/elevenlabsTts.ts';
 import { getSection } from '../src/server/hadith.ts';
 import { loadKnowledgeShelf } from '../src/server/islamhouse.ts';
+import { readLibraryItem, textNeedsTranslationToLang } from '../src/server/libraryRead.ts';
 import { buildVerseOgSvg } from '../src/server/shareLanding.ts';
 import { segmentHadithRecord, splitArabicHadith, splitTranslationHadith } from '../src/shared/hadithSegmentation.ts';
 import { HADITH_VOICE_PROFILES, resolveHadithVoiceProfile } from '../src/shared/hadithVoices.ts';
@@ -225,4 +226,21 @@ test('Muwatta Malik Section 8 in Tamil returns segmented hadiths without hanging
   assert.equal(section8.total > 20, true);
   assert.ok(section8.items[0].segmented);
   assert.equal(elapsed < 4500, true);
+});
+
+test('LibraryReader item 2831568 translates into English, Tamil, and Sinhala with 15-block pagination and no duplicate Arabic title block', async () => {
+  assert.equal(textNeedsTranslationToLang('ඉස්ලාමය පිළිබඳ කෙටි හැඳින්වීමක්', 'en'), true);
+  assert.equal(textNeedsTranslationToLang('ඉස්ලාමය පිළිබඳ කෙටි හැඳින්වීමක්', 'ta'), true);
+  assert.equal(textNeedsTranslationToLang('ඉස්ලාමය පිළිබඳ කෙටි හැඳින්වීමක්', 'si'), false);
+
+  const docEn = await readLibraryItem(2831568, 'en', new Date(), 1);
+  assert.equal(docEn.requestedLanguage, 'en');
+  assert.equal(docEn.blocks.length, 15);
+  assert.equal((docEn.totalPages ?? 1) > 10, true);
+  assert.equal(/[\u0D80-\u0DFF]/u.test(docEn.blocks[2]?.text ?? ''), false);
+
+  const docTa = await readLibraryItem(2831568, 'ta', new Date(), 1);
+  assert.equal(docTa.requestedLanguage, 'ta');
+  assert.equal(docTa.blocks.length, 15);
+  assert.equal(/[\u0B80-\u0BFF]/u.test(docTa.blocks[2]?.text ?? ''), true);
 });

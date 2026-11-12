@@ -39,28 +39,33 @@ function savedPlace(): { id: number; blockId: string } | null {
   }
 }
 
-function parseNumberedParagraph(text: string): { badge: string | null; body: string } {
-  const m = /^\s*(\d{1,2})\s*[-.)]\s*(.+)$/s.exec(text);
-  if (!m) return { badge: null, body: text.trim() };
-  return {
-    badge: m[1].padStart(2, '0'),
-    body: m[2].trim(),
-  };
+function stripLeadingNumberPrefix(text: string): string {
+  return text.replace(/^\s*(?:\(\d{1,3}\)|\d{1,3}\s*[-.)])\s*/u, '').trim();
 }
 
 export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: string }) {
   const { lang } = useApp();
+  const [page, setPage] = useState(1);
   const [voiceProfile, setVoiceProfile] = useStored<HadithVoiceProfileId>(
     'kf-hadith-voice-profile',
     'tariq',
   );
   const [speed, setSpeed] = useStored<HadithPlaybackSpeed>('kf-hadith-voice-speed', 1);
 
+  useEffect(() => {
+    setPage(1);
+  }, [itemId, lang]);
+
   const remote = useRemote<LibraryDocument>(
-    Number.isInteger(itemId) && itemId > 0 ? `/api/library/read/${itemId}?lang=${lang}` : null,
+    Number.isInteger(itemId) && itemId > 0
+      ? `/api/library/read/${itemId}?lang=${lang}&section=${page}`
+      : null,
   );
   const data =
-    remote.data && remote.data.id === itemId && remote.data.requestedLanguage === lang
+    remote.data &&
+    remote.data.id === itemId &&
+    remote.data.requestedLanguage === lang &&
+    (remote.data.page ?? 1) === page
       ? remote.data
       : null;
 
@@ -86,14 +91,14 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
     [readableParagraphs],
   );
 
-  const sessionId = `hub-reader:${itemId}:${lang}`;
+  const sessionId = `hub-reader:${itemId}:${lang}:${page}`;
   const lineTts = useLineByLineTts(sessionId);
   const isPlaying = lineTts.sessionId === sessionId && lineTts.status === 'playing';
   const profile = resolveHadithVoiceProfile(voiceProfile);
-  const effectiveLang: Lang = (data?.language === 'ta' || data?.language === 'si' || data?.language === 'en')
-    ? data.language
-    : lang;
+  const effectiveLang: Lang = lang;
   const langLabel = LANGUAGE_NAMES[effectiveLang]?.native ?? 'English';
+  const totalPages = data?.totalPages ?? 1;
+  const pageOffset = ((data?.page ?? page) - 1) * (data?.pageSize ?? 15);
 
   useEffect(() => {
     const place = savedPlace();
@@ -355,8 +360,8 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
                   lineTts.status !== 'idle' &&
                   lineTts.currentIndex === currentParaIdx;
 
-                const parsed = parseNumberedParagraph(block.text);
-                const badgeNum = parsed.badge ?? String(currentParaIdx + 1).padStart(2, '0');
+                const cleanBody = stripLeadingNumberPrefix(block.text);
+                const badgeNum = String(pageOffset + currentParaIdx + 1).padStart(2, '0');
 
                 if (block.kind === 'footnote') {
                   return (
@@ -389,6 +394,7 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
                     }`}
                   >
                     <span
+                      data-testid={`editorial-badge-${badgeNum}`}
                       style={{
                         backgroundColor: isLineActive ? '#D4AF37' : '#073C30',
                         color: isLineActive ? '#041B14' : '#F9E7B9',
@@ -404,7 +410,7 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
                         style={{ lineHeight: 1.85 }}
                         className="max-w-[72ch] text-base text-stone-900 sm:text-[17px]"
                       >
-                        {parsed.body}
+                        {cleanBody}
                       </p>
 
                       <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500">
@@ -433,6 +439,47 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
                   </div>
                 );
               })}
+
+              {/* Chapter / Page Pagination Controls for Full-Length Books */}
+              {totalPages > 1 && (
+                <div
+                  data-testid="library-reader-pagination"
+                  className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-stone-200/80 pt-4"
+                >
+                  <button
+                    type="button"
+                    data-testid="library-prev-page-btn"
+                    disabled={page <= 1}
+                    onClick={() => {
+                      lineTts.stop();
+                      setPage(p => Math.max(1, p - 1));
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-4 py-2 text-xs font-bold text-stone-800 shadow-2xs transition hover:border-[#073C30] disabled:opacity-40 cursor-pointer"
+                  >
+                    <span>← Previous Section</span>
+                  </button>
+
+                  <span className="font-mono text-xs font-bold text-stone-700">
+                    Section {page} of {totalPages} ({data.totalBlocks ?? blocks.length} passages)
+                  </span>
+
+                  <button
+                    type="button"
+                    data-testid="library-next-page-btn"
+                    disabled={page >= totalPages}
+                    onClick={() => {
+                      lineTts.stop();
+                      setPage(p => Math.min(totalPages, p + 1));
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    style={{ backgroundColor: '#073C30', color: '#FFFFFF' }}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-[#073C30] px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[#0A2E23] disabled:opacity-40 cursor-pointer"
+                  >
+                    <span>Next Section →</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
