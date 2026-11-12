@@ -14,7 +14,7 @@ import { HadithEncyclopedia } from './HadithEncyclopedia.tsx';
 import { KUTUB_AL_SITTAH } from './hadithEncyclopediaCopy.ts';
 import { ResearchDesk } from './ResearchDesk.tsx';
 
-const PAGE = 15;
+const PAGE = 8;
 
 function SectionReader({ collection, section, onBack }: { collection: string; section: HadithSection; onBack: () => void }) {
   const { t, lang } = useApp();
@@ -22,7 +22,6 @@ function SectionReader({ collection, section, onBack }: { collection: string; se
   const { data, error, loading, reload } = useRemote<{ items: Hadith[]; total: number }>(
     `/api/hadith/${collection}/section/${section.id}?lang=${lang}&limit=${shown}`,
   );
-  const rendered = data?.items.some(h => h.machineTranslation);
   return (
     <>
       <Button variant="ghost" onClick={onBack} className="-ml-3 mb-2">
@@ -31,7 +30,6 @@ function SectionReader({ collection, section, onBack }: { collection: string; se
       <SectionTitle sub={`${section.first}–${section.last}`}>
         {section.id}. {section.title}
       </SectionTitle>
-      {rendered && <Notice>{t.machineHadith}</Notice>}
       {loading && <Loading />}
       {error && <ErrorNote message={error} onRetry={reload} />}
       {data?.items.map(h => <HadithCard key={h.number} hadith={h} />)}
@@ -100,7 +98,7 @@ function CollectionBrowser({ book }: { book: string | null }) {
     }
   }, [book, setCollection]);
   const index = useRemote<{ sections: HadithSection[]; last: number; machineTranslation?: boolean }>(
-    `/api/hadith/${collection}/sections?lang=en`,
+    `/api/hadith/${collection}/sections?lang=${lang}`,
   );
   const info = HADITH_COLLECTIONS.find(c => c.id === collection) ?? HADITH_COLLECTIONS[0];
   const tamilName = KUTUB_AL_SITTAH.find(item => item.id === info.id)?.tamil;
@@ -133,6 +131,12 @@ function CollectionBrowser({ book }: { book: string | null }) {
                     setCollection(c.id);
                     setSection(null);
                     setFilter('');
+                    if (typeof window !== 'undefined') {
+                      const nextUrl = `#/hadith/collections?book=${encodeURIComponent(c.id)}`;
+                      if (window.location.hash !== nextUrl) {
+                        window.history.replaceState(null, '', nextUrl);
+                      }
+                    }
                   }}
                   className={`w-full rounded-xl px-3 py-2 text-left text-sm ${c.id === collection ? 'bg-[#0E382B] text-white' : 'hover:bg-[#E7F2EC]'}`}
                 >
@@ -156,10 +160,6 @@ function CollectionBrowser({ book }: { book: string | null }) {
               {tamilName && <span lang="ta" className="mt-1 block text-base font-medium text-[#3d4f47]">{tamilName}</span>}
             </SectionTitle>
             <Notice>{t.collectionsNote}</Notice>
-            {index.data && lang !== 'en' && !publishedTamil && (
-              <Notice>{index.data.machineTranslation ? t.machineHadith : t.fallbackEnglish}</Notice>
-            )}
-            {publishedTamil && index.data?.machineTranslation && <Notice>{t.machineTitles}</Notice>}
             <div className="mt-4">
               <Lookup key={collection} collection={collection} />
             </div>

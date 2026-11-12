@@ -86,6 +86,7 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
   const [wallOpen, setWallOpen] = useState(false);
   const [reflection, setReflection] = useState('');
   const [cardTheme, setCardTheme] = useState<WallPostTheme>('emerald');
+  const [postAnonymously, setPostAnonymously] = useState(false);
   const [wallToast, setWallToast] = useState<string | null>(null);
   const [wallPosts, setWallPosts] = useState<FaithWallPost[]>(() => listFaithWallPosts());
 
@@ -238,16 +239,27 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
       url,
       reflection,
       theme: cardTheme,
+      isAnonymous: postAnonymously,
       cardDataUrl: preview?.cards[0],
     });
     setWallPosts(listFaithWallPosts().length ? listFaithWallPosts() : [posted]);
     setReflection('');
-    setWallToast('Shared to the Public Faith Wall!');
+    setWallToast(
+      postAnonymously
+        ? 'Shared anonymously to the Public Faith Wall!'
+        : 'Shared to the Public Faith Wall!',
+    );
   };
 
-  const socialShareText = `${verse.arabic}\n\n${quotedTranslation}\n— Surah ${verse.surahName} ${verse.surah}:${verse.ayah}\n${url}`;
-  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(socialShareText)}`;
-  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`${quotedTranslation} — Surah ${verse.surahName} ${verse.surah}:${verse.ayah}`)}&url=${encodeURIComponent(url)}`;
+  const shareOrigin =
+    typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : 'https://dragon-dawwa-production.up.railway.app';
+  const shortShareLandingUrl = `${shareOrigin}/s/v/${verse.surah}/${verse.ayah}?lang=${lang}`;
+  const fullFormattedVerseText = `${verse.arabic}\n\n${quotedTranslation}\n— Surah ${verse.surahName} ${verse.surah}:${verse.ayah}\n${shortShareLandingUrl}`;
+  const shortWhatsAppText = `Surah ${verse.surahName} (${verse.surah}:${verse.ayah}) · Dragon Dawwa\n${shortShareLandingUrl}`;
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shortWhatsAppText)}`;
+  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`Surah ${verse.surahName} (${verse.surah}:${verse.ayah}) · Dragon Dawwa`)}&url=${encodeURIComponent(shortShareLandingUrl)}`;
 
   return (
     <div className="text-sm" data-verse-share-dock>
@@ -500,6 +512,12 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
                     href={whatsappUrl}
                     target="_blank"
                     rel="noreferrer"
+                    data-testid="verse-whatsapp-share-link"
+                    onClick={() => {
+                      void writeClipboard(fullFormattedVerseText).then(() =>
+                        setWallToast('Full verse also copied to clipboard — ready to paste!'),
+                      );
+                    }}
                     className="rounded-lg border border-[#D4AF37]/40 bg-[#0A2E23] px-3 py-1.5 font-semibold text-[#F3E8C8] hover:border-[#D4AF37]"
                   >
                     WhatsApp
@@ -514,7 +532,7 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
                   </a>
                   <button
                     type="button"
-                    onClick={() => void writeClipboard(socialShareText).then(() => setWallToast('Copied share text and link!'))}
+                    onClick={() => void writeClipboard(fullFormattedVerseText).then(() => setWallToast('Copied share text and link!'))}
                     className="rounded-lg border border-[#D4AF37]/40 bg-[#0A2E23] px-3 py-1.5 font-semibold text-[#F3E8C8] hover:border-[#D4AF37]"
                   >
                     Copy Text & Link
@@ -565,23 +583,36 @@ export function VerseShare({ verse, lang, mode }: { verse: ShareVerse; lang: Lan
                     className="mt-2 w-full rounded-xl border border-[#D4AF37]/35 bg-[#0A2E23]/70 px-3.5 py-2 text-sm text-[#F3E8C8] placeholder:text-[#F3E8C8]/45 focus:border-[#D4AF37] focus:outline-none"
                   />
                 </label>
-                <div className="mt-3 flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setWallOpen(false)}
-                    className="rounded-xl px-3 py-1.5 text-xs font-medium text-[#F3E8C8]/70 hover:text-white"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    data-wall-submit
-                    onClick={() => void submitToCommunityWall()}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-[#D4AF37] px-4 py-2 text-xs font-semibold text-[#031812] transition hover:bg-[#e3c14d]"
-                  >
-                    <Send className="h-3.5 w-3.5" aria-hidden />
-                    <span>{user ? 'Post to My Wall & Community' : 'Post to Public Faith Wall'}</span>
-                  </button>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                  <label className="inline-flex items-center gap-2 text-xs font-semibold text-[#F9E7B9] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      data-testid="verse-wall-anonymous-toggle"
+                      checked={postAnonymously}
+                      onChange={event => setPostAnonymously(event.target.checked)}
+                      className="rounded border-[#D4AF37]"
+                    />
+                    <span>Post as Anonymous Seeker</span>
+                  </label>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setWallOpen(false)}
+                      className="rounded-xl px-3 py-1.5 text-xs font-medium text-[#F3E8C8]/70 hover:text-white"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      data-wall-submit
+                      onClick={() => void submitToCommunityWall()}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-[#D4AF37] px-4 py-2 text-xs font-semibold text-[#031812] transition hover:bg-[#e3c14d]"
+                    >
+                      <Send className="h-3.5 w-3.5" aria-hidden />
+                      <span>{postAnonymously ? 'Post Anonymously' : user ? 'Post to My Wall & Community' : 'Post to Public Faith Wall'}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

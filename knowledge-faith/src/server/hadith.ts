@@ -1,4 +1,5 @@
 import { DAY, fetchJson, UpstreamError } from './http.ts';
+import { segmentHadithRecord } from '../shared/hadithSegmentation.ts';
 import { passageSupportsTopic } from '../shared/research.ts';
 import { findCollection, hadithEdition, type Lang } from '../shared/sources.ts';
 import type { Grade, Hadith, HadithSection } from '../shared/types.ts';
@@ -128,7 +129,23 @@ export async function getSection(
   ]);
   const merged = merge(collection.id, translated.hadiths, arabic?.hadiths ?? [], edition.lang, translated.metadata.section);
   const cap = limit && Number.isFinite(limit) ? Math.max(1, Math.min(Math.floor(limit), merged.length)) : merged.length;
-  return { items: await localizeHadith(merged.slice(0, cap), lang, edition.lang), total: merged.length };
+  const sliced = merged.slice(0, cap);
+  // Warm remaining section items in background if a page limit was requested
+  if (cap < merged.length && lang !== 'en' && edition.lang === 'en') {
+    const rest = merged.slice(cap);
+    setImmediate(() => {
+      void localizeHadith(rest, lang, edition.lang).catch(() => {});
+    });
+  }
+  const items = (await localizeHadith(sliced, lang, edition.lang)).map(item => ({
+    ...item,
+    segmented: segmentHadithRecord({
+      arabic: item.arabic,
+      text: item.text,
+      lang: item.lang,
+    }),
+  }));
+  return { items, total: merged.length };
 }
 
 export async function getHadith(collectionId: string, number: number, lang: Lang): Promise<Hadith | null> {
@@ -146,7 +163,15 @@ export async function getHadith(collectionId: string, number: number, lang: Lang
   const merged = merge(collection.id, translated.hadiths, arabic?.hadiths ?? [], edition.lang, translated.metadata.section);
   if (!merged[0]) return null;
   const [localized] = await localizeHadith(merged.slice(0, 1), lang, edition.lang);
-  return localized ?? null;
+  if (!localized) return null;
+  return {
+    ...localized,
+    segmented: segmentHadithRecord({
+      arabic: localized.arabic,
+      text: localized.text,
+      lang: localized.lang,
+    }),
+  };
 }
 
 export interface StudyHadith extends Hadith {

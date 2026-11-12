@@ -4,7 +4,10 @@ import { LineByLineTtsController, splitTextIntoSpeechLines } from '../src/lib/li
 import { loadLocalizedAyahStudy } from '../src/server/ayahStudyService.ts';
 import { getCuratedChaptersForPath, getCuratedLibraryDocument } from '../src/server/curatedKnowledgePaths.ts';
 import { getHadithTtsStatus, synthesizeHadithVoice } from '../src/server/elevenlabsTts.ts';
+import { getSection } from '../src/server/hadith.ts';
 import { loadKnowledgeShelf } from '../src/server/islamhouse.ts';
+import { buildVerseOgSvg } from '../src/server/shareLanding.ts';
+import { segmentHadithRecord, splitArabicHadith, splitTranslationHadith } from '../src/shared/hadithSegmentation.ts';
 import { HADITH_VOICE_PROFILES, resolveHadithVoiceProfile } from '../src/shared/hadithVoices.ts';
 import { HADITH_COLLECTIONS } from '../src/shared/sources.ts';
 import {
@@ -171,4 +174,55 @@ test('Localized Ayah Study returns Dragon Dawwa Tafsir and Word-by-Word for Tami
   assert.equal(studyTa.tafsirTitle.includes('Dragon Dawwa'), true);
   assert.equal(studyTa.tafsirText.length > 20, true);
   assert.equal(studyTa.words.length > 0, true);
+});
+
+test('Hadith Isnad vs Matn structural segmentation preserves Tashkeel on Sunan Ibn Majah 803 & 804 and prepares Mode B/A audio targets', () => {
+  const ibnMajah803Arabic =
+    'حَدَّثَنَا عَلِيُّ بْنُ مُحَمَّدٍ الطَّنَافِسِيُّ، حَدَّثَنَا أَبُو أُسَامَةَ، حَدَّثَنِي عَبْدُ الْحَمِيدِ بْنُ جَعْفَرٍ، حَدَّثَنِي مُحَمَّدُ بْنُ عَمْرِو بْنِ عَطَاءٍ، قَالَ سَمِعْتُ أَبَا حُمَيْدٍ السَّاعِدِيَّ، فِي عَشَرَةٍ مِنْ أَصْحَابِ النَّبِيِّ ـ صلى الله عليه وسلم ـ أَحَدُهُمْ أَبُو قَتَادَةَ بْنُ رِبْعِيٍّ يَقُولُ كَانَ رَسُولُ اللَّهِ ـ صلى الله عليه وسلم ـ إِذَا قَامَ إِلَى الصَّلَاةِ اعْتَدَلَ قَائِمًا وَرَفَعَ يَدَيْهِ حَتَّى يُحَاذِيَ بِهِمَا مَنْكِبَيْهِ فَإِذَا أَرَادَ أَنْ يَرْكَعَ رَفَعَ يَدَيْهِ حَتَّى يُحَاذِيَ بِهِمَا مَنْكِبَيْهِ';
+  const ibnMajah803Tamil =
+    'அபூ ஹுமைத் அஸ்-ஸாஇதீ (ரலி) அவர்கள் நபித்தோழர்கள் பத்துப் பேருக்கு மத்தியில் கூறினார்கள்: "அல்லாஹ்வின் தூதர் (ஸல்) அவர்கள் தொழுகைக்காக நின்றால் நேராக நிற்பார்கள்; தமது இரு தோள்பட்டைகளுக்கு நேராக இரு கைகளையும் உயர்த்துவார்கள்."';
+
+  const arSeg = splitArabicHadith(ibnMajah803Arabic);
+  assert.equal(arSeg.isnad.startsWith('حَدَّثَنَا عَلِيُّ بْنُ مُحَمَّدٍ الطَّنَافِسِيُّ'), true);
+  assert.equal(arSeg.matn.startsWith('كَانَ رَسُولُ اللَّهِ'), true);
+  assert.equal(arSeg.matn.includes('إِذَا قَامَ إِلَى الصَّلَاةِ'), true);
+
+  const taSeg = splitTranslationHadith(ibnMajah803Tamil, 'ta');
+  assert.equal(taSeg.companion_attribution.startsWith('அபூ ஹுமைத் அஸ்-ஸாஇதீ'), true);
+  assert.equal(taSeg.matn.startsWith('அல்லாஹ்வின் தூதர் (ஸல்)'), true);
+
+  const meta = segmentHadithRecord({
+    arabic: ibnMajah803Arabic,
+    text: ibnMajah803Tamil,
+    lang: 'ta',
+  });
+  assert.equal(meta.audio_targets.elevenlabs_short, arSeg.matn);
+  assert.equal(meta.audio_targets.elevenlabs_full, ibnMajah803Arabic);
+  assert.equal(meta.audio_targets.translation_short, taSeg.matn);
+  assert.equal(meta.audio_targets.elevenlabs_short.length < meta.audio_targets.elevenlabs_full.length, true);
+});
+
+test('Short WhatsApp share URL stays under 220 characters and OpenGraph SVG renders verse preview', () => {
+  const shortShareLandingUrl = 'https://dragon-dawwa-production.up.railway.app/s/v/8/1?lang=ta';
+  const shortWhatsAppText = `Surah Al-Anfaal (8:1) · Dragon Dawwa\n${shortShareLandingUrl}`;
+  const encodedWaParam = encodeURIComponent(shortWhatsAppText);
+  assert.equal(encodedWaParam.length < 220, true);
+
+  const svg = buildVerseOgSvg({
+    badge: 'SURAH AL-ANFAAL 8:1',
+    arabic: 'يَسْـَٔلُونَكَ عَنِ ٱلْأَنفَالِ',
+    translation: 'போர்க்களத்தில் எதிரிகளிடம் கைப்பற்றப்பட்ட பொருட்களைப் பற்றி உம்மிடம் கேட்கிறார்கள்.',
+  });
+  assert.equal(svg.includes('SURAH AL-ANFAAL 8:1'), true);
+  assert.equal(svg.includes('DRAGON DAWWA'), true);
+});
+
+test('Muwatta Malik Section 8 in Tamil returns segmented hadiths without hanging', async () => {
+  const t0 = Date.now();
+  const section8 = await getSection('malik', 8, 'ta', 8);
+  const elapsed = Date.now() - t0;
+  assert.equal(section8.items.length, 8);
+  assert.equal(section8.total > 20, true);
+  assert.ok(section8.items[0].segmented);
+  assert.equal(elapsed < 4500, true);
 });

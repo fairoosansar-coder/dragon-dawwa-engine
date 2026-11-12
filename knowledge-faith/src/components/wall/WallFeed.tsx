@@ -556,101 +556,104 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
             data-faith-wall-hero
             className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-2xs"
           >
-            {/* Top Row: Avatar + Interactive Social Prompt Trigger + Share CTA */}
-            <div className="flex items-center gap-3">
-              <a
-                href="#/profile"
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#073C30] text-[#F5EEDC] ring-2 ring-emerald-600/30"
-              >
-                <SeekerAvatar
-                  avatarUrl={user?.avatarUrl}
-                  name={user?.name}
-                  emblem={user?.emblem}
-                  size={18}
-                />
-              </a>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setComposerDoor('reflection');
-                  setComposerOpen(true);
-                  setGoodDeedOpen(false);
-                }}
-                className="flex min-w-0 flex-1 items-center justify-between rounded-full border border-stone-200 bg-stone-50/90 px-4 py-2 text-left text-xs text-stone-600 transition hover:border-stone-300 hover:bg-stone-100/80 sm:text-[13px]"
-              >
-                <span className="truncate">
-                  {wallView === 'mine'
-                    ? 'Share a verse reflection, good deed, or podcast…'
-                    : 'Share a Qur’an reflection, Sunnah good deed, or podcast…'}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                data-faith-wall-open-composer
-                data-open-reflection-modal
-                onClick={() => {
-                  setGoodDeedOpen(false);
-                  setComposerOpen(open => !open);
-                }}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#073C30] px-3.5 py-2 text-xs font-semibold text-[#F5EEDC] shadow-2xs transition hover:bg-[#0A2E23]"
-              >
-                <Plus className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-                <span>Share</span>
-              </button>
-            </div>
-
-            {/* Simple 3-Pill Share Bar: Ayah Card · Good Deed · Podcast */}
-            <div
-              data-testid="composer-three-pill-bar"
-              className="mt-3 grid grid-cols-3 gap-2"
-            >
-              <button
-                type="button"
-                data-testid="composer-ayah-card-btn"
-                onClick={() => {
-                  setGoodDeedOpen(false);
-                  setComposerDoor('reflection');
-                  setComposerOpen(true);
-                }}
-                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#D4AF37]/55 bg-[#FAF7F0] px-3 py-1.5 text-xs font-semibold text-stone-900 transition hover:border-[#073C30] hover:bg-emerald-50/50 cursor-pointer"
-              >
-                <BookOpen className="h-3.5 w-3.5 text-[#073C30]" aria-hidden />
-                <span>Ayah Card</span>
-              </button>
+            {/* Top Row: Avatar + Direct Allocated-Page Publishing Bar + Good Deed Toggle */}
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
+              <div className="flex min-w-0 items-center gap-3">
+                <a
+                  href="#/profile"
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#073C30] text-[#F5EEDC] ring-2 ring-emerald-600/30"
+                >
+                  <SeekerAvatar
+                    avatarUrl={user?.avatarUrl}
+                    name={user?.name}
+                    emblem={user?.emblem}
+                    size={18}
+                  />
+                </a>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-stone-900 sm:text-sm">
+                    Publish Directly from Study Desks
+                  </p>
+                  <p className="truncate text-[11px] text-stone-500">
+                    Open any of the 6,236 Qur’an Ayahs, Canonical Hadiths, or Research Podcasts to share directly to the Faith Wall.
+                  </p>
+                </div>
+              </div>
 
               <button
                 type="button"
                 data-testid="composer-good-deed-btn"
                 aria-expanded={goodDeedOpen}
-                onClick={() => {
-                  setComposerOpen(false);
-                  setGoodDeedOpen(open => !open);
+                onClick={() => setGoodDeedOpen(open => !open)}
+                style={{
+                  backgroundColor: goodDeedOpen ? '#D4AF37' : '#073C30',
+                  color: goodDeedOpen ? '#031812' : '#F5EEDC',
                 }}
-                className={`inline-flex items-center justify-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
-                  goodDeedOpen
-                    ? 'border-[#073C30] bg-[#073C30] text-[#FFFFFF]'
-                    : 'border-[#D4AF37]/55 bg-[#FAF7F0] text-stone-900 hover:border-[#073C30] hover:bg-emerald-50/50'
-                }`}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#073C30] px-3.5 py-2 text-xs font-bold text-[#F5EEDC] shadow-2xs transition hover:bg-[#0A2E23] cursor-pointer"
               >
-                <Heart className={`h-3.5 w-3.5 ${goodDeedOpen ? 'text-[#D4AF37]' : 'text-[#073C30]'}`} aria-hidden />
-                <span>Good Deed</span>
+                <Heart className={`h-3.5 w-3.5 ${goodDeedOpen ? 'text-[#031812]' : 'text-[#D4AF37]'}`} aria-hidden />
+                <span>+ Share Good Deed / Sunnah</span>
               </button>
+            </div>
 
-              <button
-                type="button"
-                data-testid="composer-podcast-btn"
-                onClick={() => {
-                  setGoodDeedOpen(false);
-                  setComposerDoor('podcast');
-                  setComposerOpen(true);
-                }}
-                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#D4AF37]/55 bg-[#FAF7F0] px-3 py-1.5 text-xs font-semibold text-stone-900 transition hover:border-[#073C30] hover:bg-emerald-50/50 cursor-pointer"
+            {/* Direct Allocated Desk Links (All 114 Surahs · Full Hadith Library · Research Podcasts) */}
+            <div
+              data-testid="allocated-pages-publish-bar"
+              className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3"
+            >
+              <a
+                href="#/quran"
+                data-testid="publish-from-quran-link"
+                className="group flex items-center gap-2.5 rounded-xl border border-[#D4AF37]/50 bg-[#FAF7F0] px-3 py-2 text-left transition hover:border-[#073C30] hover:bg-emerald-50/50"
               >
-                <Headphones className="h-3.5 w-3.5 text-[#073C30]" aria-hidden />
-                <span>Podcast</span>
-              </button>
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#073C30] text-[#D4AF37]">
+                  <BookOpen className="h-4 w-4" aria-hidden />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-bold text-stone-900 group-hover:text-[#073C30]">
+                    Share from Qur’an Reader →
+                  </p>
+                  <p className="truncate text-[10px] text-stone-600">
+                    All 114 Surahs · Illuminated Ayah Card
+                  </p>
+                </div>
+              </a>
+
+              <a
+                href="#/hadith"
+                data-testid="publish-from-hadith-link"
+                className="group flex items-center gap-2.5 rounded-xl border border-[#D4AF37]/50 bg-[#FAF7F0] px-3 py-2 text-left transition hover:border-[#073C30] hover:bg-emerald-50/50"
+              >
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#073C30] text-[#D4AF37]">
+                  <ScrollText className="h-4 w-4" aria-hidden />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-bold text-stone-900 group-hover:text-[#073C30]">
+                    Share from Hadith Library →
+                  </p>
+                  <p className="truncate text-[10px] text-stone-600">
+                    Kutub al-Sittah & HadeethEnc Cards
+                  </p>
+                </div>
+              </a>
+
+              <a
+                href="#/podcast"
+                data-testid="publish-from-podcast-link"
+                className="group flex items-center gap-2.5 rounded-xl border border-[#D4AF37]/50 bg-[#FAF7F0] px-3 py-2 text-left transition hover:border-[#073C30] hover:bg-emerald-50/50"
+              >
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#073C30] text-[#D4AF37]">
+                  <Headphones className="h-4 w-4" aria-hidden />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-bold text-stone-900 group-hover:text-[#073C30]">
+                    Share from Podcast Studio →
+                  </p>
+                  <p className="truncate text-[10px] text-stone-600">
+                    Generated Hadith & Research Episodes
+                  </p>
+                </div>
+              </a>
             </div>
 
             {/* Ultra-Simple 1-Tap Good Deed Composer Drawer (Anonymous Toggle + 3 Category Chips) */}
@@ -738,19 +741,6 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
                     <span>Post Good Deed</span>
                   </button>
                 </div>
-              </div>
-            )}
-
-            {/* Inline 2-Door Composer Drawer when opened */}
-            {composerOpen && (
-              <div className="mt-3.5">
-                <ReflectionModal
-                  open={composerOpen}
-                  inline
-                  initialDoor={composerDoor}
-                  onClose={() => setComposerOpen(false)}
-                  onPublish={handleCreatePost}
-                />
               </div>
             )}
 
