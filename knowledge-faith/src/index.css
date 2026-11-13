@@ -9,25 +9,50 @@
   --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Tamil', 'Noto Sans Sinhala', ui-sans-serif, system-ui, sans-serif;
   --font-arabic: 'Amiri Quran', 'Amiri', 'Scheherazade New', serif;
   --color-ink: #172720;
-  --color-muted: #637069;
+  --color-muted: #57534E;
   --color-pine: #073C30;
   --color-moss: #0B4B3A;
   --color-mint: #e7f2ec;
-  --color-sand: #F8F5EC;
+  --color-sand: #F7F3E8;
   --color-parchment: #F5EEDC;
   --color-gold: #C6A15A;
   --color-lapis: #244875;
   --color-dd-emerald: #073C30;
-  --color-dd-ivory: #F8F5EC;
+  --color-dd-ivory: #F7F3E8;
   --color-dd-gold: #C6A15A;
   --color-dd-gold-soft: #f3e6c2;
   --color-dd-lapis: #244875;
   --color-dd-ink: #172720;
 }
 
-:root {
+:root,
+html[data-ui-theme="parchment"],
+html[data-theme="parchment"] {
   --gold-leaf: #C6A15A;
   --gold-border: #C6A15A;
+  --color-sand: #F7F3E8;
+  --color-parchment: #F5EEDC;
+  --color-pine: #073C30;
+  --color-ink: #172720;
+  --color-muted: #57534E;
+}
+
+html[data-ui-theme="obsidian"],
+html[data-theme="obsidian"] {
+  --color-sand: #F4F1E6;
+  --color-parchment: #EFEAD8;
+  --color-pine: #073C30;
+  --color-ink: #14221D;
+  --color-muted: #4A5852;
+}
+
+html[data-ui-theme="sepia"],
+html[data-theme="sepia"] {
+  --color-sand: #F2EAD9;
+  --color-parchment: #E8DEC8;
+  --color-pine: #0B3B2D;
+  --color-ink: #1C1610;
+  --color-muted: #5C4B35;
 }
 
 html {

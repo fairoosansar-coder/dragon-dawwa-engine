@@ -24,7 +24,6 @@ import { useShell } from '../../lib/shell.tsx';
 import { UI_FONT_SCALES, UI_THEMES, useApp } from '../../lib/store.tsx';
 import { profileFontClass } from '../../lib/typography.ts';
 import { useAudioState } from '../../lib/audio.ts';
-import { BrandLockup } from './Brand.tsx';
 import { NavGlyph, type NavIconName } from './navIcons.tsx';
 import { AudioMiniPlayer, DeskHeaderTabs, isKnowledgeDomainPath } from './widgets.tsx';
 import { ProfileSettingsPanel } from '../ProfileSettingsPanel.tsx';
@@ -235,6 +234,7 @@ export function AppFrame({
 
   return (
     <div
+      style={{ backgroundColor: UI_THEMES[uiTheme]?.sand || '#F7F3E8' }}
       className={`${profileFontClass(lang)} flex w-full flex-col bg-sand text-ink ${
         quranBook ? 'h-dvh overflow-hidden' : 'min-h-dvh'
       }`}
@@ -428,19 +428,15 @@ export function AppFrame({
           quranBook ? 'min-h-0 items-stretch overflow-hidden' : 'items-start'
         }`}
       >
-        {/* TABLE 1 (Left Column on Desktop LG+): Brand + User Profile Summary Card (1, 2) + Faith Wall & Shortcuts Navigation (3) + Sticky Bottom Settings Footer */}
+        {/* TABLE 1 (Left Column on Desktop LG+): User Profile Summary Card (1, 2) + Faith Wall & Shortcuts Navigation (3) + Sticky Bottom Settings Footer */}
         {!focus && (
           <aside
             data-left-social-rail
             className="sticky top-14 z-30 hidden h-[calc(100vh-3.5rem-3.5rem)] w-[300px] shrink-0 flex-col overflow-y-auto no-scrollbar pt-4 text-stone-900 lg:flex xl:w-[310px]"
           >
-            {/* Scrollable Top & Middle Area */}
+            {/* Scrollable Top & Middle Area (starts directly with User Profile Summary Card to align top-edge with Center Feed & Right Rail) */}
             <div className="flex-1 overflow-y-auto no-scrollbar pr-1 pb-3">
-              <div className="px-1 pb-3">
-                <BrandLockup tone="ivory" />
-              </div>
-
-            {/* 1 & 2: User Profile Summary Card */}
+              {/* 1 & 2: User Profile Summary Card */}
             <div
               data-sidebar-profile-card
               className={`${profileFontClass(lang)} overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-2xs`}

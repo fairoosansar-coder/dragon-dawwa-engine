@@ -71,32 +71,32 @@ export const UI_THEMES: Record<UiThemeId, { label: string; subtitle: string; san
   parchment: {
     label: 'Parchment (Light)',
     subtitle: 'Warm ivory & classic emerald',
-    sand: '#F8F5EC',
+    sand: '#F7F3E8',
     parchment: '#F5EEDC',
     pine: '#073C30',
     ink: '#172720',
     muted: '#57534E',
-    swatch: 'linear-gradient(135deg, #F8F5EC 0%, #073C30 100%)',
+    swatch: 'linear-gradient(135deg, #F7F3E8 0%, #073C30 100%)',
   },
   obsidian: {
-    label: 'Obsidian Emerald (Dark)',
-    subtitle: 'Deep masjid emerald & gilded ivory',
-    sand: '#061F18',
-    parchment: '#0A2E23',
-    pine: '#E5C158',
-    ink: '#F5EEDC',
-    muted: '#C8D6CE',
-    swatch: 'linear-gradient(135deg, #04241C 0%, #C6A15A 100%)',
+    label: 'Obsidian Emerald (Accent)',
+    subtitle: 'Luminous sage-ivory canvas & deep emerald cards',
+    sand: '#F4F1E6',
+    parchment: '#EFEAD8',
+    pine: '#073C30',
+    ink: '#14221D',
+    muted: '#4A5852',
+    swatch: 'linear-gradient(135deg, #F4F1E6 0%, #04241C 60%, #C6A15A 100%)',
   },
   sepia: {
     label: 'Warm Sepia (Manuscript)',
     subtitle: 'Mushaf cream & gilded ink',
-    sand: '#EFE2C6',
-    parchment: '#E4D3AF',
+    sand: '#F2EAD9',
+    parchment: '#E8DEC8',
     pine: '#0B3B2D',
-    ink: '#1E1810',
+    ink: '#1C1610',
     muted: '#5C4B35',
-    swatch: 'linear-gradient(135deg, #F2E6CE 0%, #C6A15A 100%)',
+    swatch: 'linear-gradient(135deg, #F2EAD9 0%, #C6A15A 100%)',
   },
 };
 
@@ -125,7 +125,7 @@ const AppContext = createContext<AppState | null>(null);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [storedLang, setLang] = useStored<Lang>('kf-lang', 'en');
   const lang = toLang(storedLang);
-  const [storedTheme, setUiTheme] = useStored<UiThemeId>('kf-ui-theme', 'parchment');
+  const [storedTheme, setUiTheme] = useStored<UiThemeId>('kf-ui-theme-v2', 'parchment');
   const uiTheme: UiThemeId = storedTheme === 'obsidian' || storedTheme === 'sepia' ? storedTheme : 'parchment';
   const [storedScale, setFontScale] = useStored<UiFontScaleId>('kf-font-scale', 'standard');
   const fontScale: UiFontScaleId =
@@ -144,11 +144,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const themeSpec = UI_THEMES[uiTheme] ?? UI_THEMES.parchment;
     const root = document.documentElement;
     root.dataset.uiTheme = uiTheme;
+    root.dataset.theme = uiTheme;
     root.style.setProperty('--color-sand', themeSpec.sand);
     root.style.setProperty('--color-parchment', themeSpec.parchment);
     root.style.setProperty('--color-pine', themeSpec.pine);
     root.style.setProperty('--color-ink', themeSpec.ink);
     root.style.setProperty('--color-muted', themeSpec.muted);
+    root.style.backgroundColor = themeSpec.sand;
+    if (document.body) {
+      document.body.style.backgroundColor = themeSpec.sand;
+      document.body.style.color = themeSpec.ink;
+    }
   }, [uiTheme]);
 
   useEffect(() => {

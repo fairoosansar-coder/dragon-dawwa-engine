@@ -988,7 +988,7 @@ export function WallFeed({ compact = false }: { compact?: boolean }) {
         {/* TABLE 3 (Right Rail on Desktop LG+): Weekly Community Reading Circle + Asma-ul-Husna + Verified Contributors */}
         <aside
           data-faith-wall-right-rail
-          className="hidden space-y-4 lg:sticky lg:top-[72px] lg:block"
+          className="hidden space-y-4 lg:sticky lg:top-[70px] lg:block"
         >
           {/* 1. Weekly Community Reading Circle Card */}
           <div

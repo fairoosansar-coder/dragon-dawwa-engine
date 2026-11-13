@@ -233,6 +233,14 @@
   --shadow-gold-glow: 0 0 0 1px rgba(176, 138, 46, 0.25), 0 10px 30px -12px rgba(176, 138, 46, 0.35);
 }
 
+[data-ui-theme="obsidian"] [data-theme="mushaf"] {
+  --surface-body: #F4F1E6;
+  --surface-app: #F7F3E8;
+  --surface-header: #FBF8EF;
+  --surface-panel: #FFFFFF;
+  --surface-modal: #FFFFFF;
+}
+
 [data-ui-theme="sepia"] [data-theme="mushaf"] {
   --surface-body: #ede0c4;
   --surface-app: #f2e6ce;
