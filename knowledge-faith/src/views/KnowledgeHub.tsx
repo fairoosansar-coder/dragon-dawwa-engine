@@ -5,6 +5,7 @@ import { TOPICS, verseOfTheDay } from '../shared/topics.ts';
 import type { AskResult, Hadith, SurahInfo, Verse } from '../shared/types.ts';
 import { postJson, useRemote } from '../lib/api.ts';
 import { beginResearch, researchHref } from '../lib/researchDesk.ts';
+import { categoryById, RESEARCH_CATEGORIES } from '../shared/research/agentConfig.ts';
 import { useShell } from '../lib/shell.tsx';
 import { displayAyah, displaySurah, useReadingPlace } from '../lib/readingPlace.ts';
 import { useQuranEdition } from '../lib/quranEdition.ts';
@@ -189,6 +190,9 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
   const [askError, setAskError] = useState<string | null>(null);
   const [clarify, setClarify] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const askFrame = useRef<HTMLElement>(null);
+  const category = categoryById(categoryId);
   const topic = TOPICS.find(item => item.id === topicId);
   const today = useMemo(() => verseOfTheDay(new Date()), []);
   const savedRef = useRef<HTMLElement>(null);
@@ -215,7 +219,7 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
     setBusy(true);
     setAskError(null);
     try {
-      const started = await beginResearch({ question, entry: 'knowledge', lang, clarified });
+      const started = await beginResearch({ question, entry: 'knowledge', lang, clarified, domainContext: category?.label ?? null });
       if (started.action === 'clarify' || !started.id || !started.scope) {
         setClarify(true);
         return;
@@ -235,7 +239,7 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-gold/60 bg-white px-5 py-6 sm:px-8">
+      <section ref={askFrame} id="knowledge-ask" className="scroll-mt-24 rounded-3xl border border-gold/60 bg-white px-5 py-6 sm:px-8">
         <h1 className="font-display text-4xl font-bold leading-tight text-pine sm:text-5xl">{t.askIslam}</h1>
         <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink/75">{t.askIslamBody}</p>
         <form onSubmit={event => void research(event, clarify)} className="mt-5 space-y-3">
@@ -246,15 +250,56 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
             onChange={event => setAsked(event.target.value)}
             rows={4}
             maxLength={800}
-            placeholder={t.askIslamPlaceholder}
-            className="w-full rounded-3xl border border-pine/20 bg-sand px-4 py-4 text-base leading-relaxed"
+            placeholder={category?.placeholder ?? t.askIslamPlaceholder}
+            className="w-full rounded-3xl border border-gold bg-sand px-4 py-4 text-base leading-relaxed"
           />
+          {category && (
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Starter prompts" data-starter-chips={category.id}>
+              {category.starters.map(prompt => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => setAsked(prompt)}
+                  className="rounded-full border border-gold bg-white px-3 py-2 text-left text-sm text-pine hover:bg-sand"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          )}
           <Button type="submit" disabled={busy || asked.trim().length < 3} className="w-full py-3 sm:w-auto">
             {t.researchMyQuestion}
           </Button>
         </form>
         {clarify && <p className="mt-3 text-sm text-pine">{t.clarifyMeaning}</p>}
         {askError && <div className="mt-3"><ErrorNote message={askError} /></div>}
+      </section>
+      <section aria-label="Research categories" data-category-grid>
+        <h2 className="font-display text-2xl font-bold text-pine">Research categories</h2>
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {RESEARCH_CATEGORIES.map(item => {
+            const active = item.id === categoryId;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                aria-pressed={active}
+                data-category={item.id}
+                onClick={() => {
+                  const next = active ? null : item.id;
+                  setCategoryId(next);
+                  if (!next) return;
+                  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                  askFrame.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+                  window.requestAnimationFrame(() => document.getElementById('knowledge-question')?.focus());
+                }}
+                className={`min-h-24 rounded-3xl border px-4 py-3 text-left text-sm font-semibold leading-snug text-pine transition ${active ? 'border-gold bg-sand shadow-sm' : 'border-pine/15 bg-white hover:border-gold'}`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
       </section>
       <header>
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">{t.hubEyebrow}</p>

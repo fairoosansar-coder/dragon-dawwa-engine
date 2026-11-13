@@ -4,8 +4,9 @@ import { assessRelevance, geminiConfigured, generateJson, listWordings, suggestS
 import type { Evidence } from '../../shared/types.ts';
 import { findStudyHadiths } from '../hadith.ts';
 import { loadHadeeth, searchHadeeth } from '../hadeethenc.ts';
-import { loadKnowledgeShelf, loadLibrary } from '../islamhouse.ts';
+import { loadLibrary } from '../islamhouse.ts';
 import { readLibraryItem } from '../libraryRead.ts';
+import { loadBookShelf } from '../bookShelf.ts';
 import { getVerses, searchQuranAyahs } from '../quran.ts';
 import { loadMukhtasar } from '../quranenc.ts';
 import type { BookRead, ResearchPorts } from './engine.ts';
@@ -145,12 +146,25 @@ export function defaultResearchPorts(): ResearchPorts {
     async searchBooks(lang, question, signal) {
       if (signal.aborted) throw aborted(signal);
       const topic = worshipTopicForQuestion(question);
-      const page = topic ? await loadLibrary(topic, lang, 1) : await loadKnowledgeShelf('discover', lang, 1);
+      if (topic) {
+        const page = await loadLibrary(topic, lang, 1);
+        if (signal.aborted) throw aborted(signal);
+        return page.items
+          .filter(item => item.type === 'books' || item.type === 'articles')
+          .slice(0, 4)
+          .map(item => ({ id: item.id, title: item.title }));
+      }
+      const shelf = await loadBookShelf({
+        lang,
+        page: 1,
+        categoryId: null,
+        q: question.slice(0, 80),
+        essential: false,
+        format: 'any',
+        sort: 'newest',
+      });
       if (signal.aborted) throw aborted(signal);
-      return page.items
-        .filter(item => item.type === 'books' || item.type === 'articles')
-        .slice(0, 4)
-        .map(item => ({ id: item.id, title: item.title }));
+      return shelf.items.slice(0, 4).map(item => ({ id: item.id, title: item.title }));
     },
     async readBook(lang, id, signal): Promise<BookRead> {
       if (signal.aborted) throw aborted(signal);

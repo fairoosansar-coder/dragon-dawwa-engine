@@ -30,7 +30,7 @@ import { listNames, readName } from './src/server/names.ts';
 import { cancelSharedResearchJob, getSharedResearchJob, startSharedResearchJob } from './src/server/research/jobs.ts';
 import { listCommunityPodcasts, publishCommunityPodcast } from './src/server/research/communityPodcasts.ts';
 import { coordinateQuestion } from './src/shared/research/coordinator.ts';
-import type { ResearchScope } from './src/shared/contracts/v1.ts';
+import type { ResearchJobResponse, ResearchScope } from './src/shared/contracts/v1.ts';
 import { dossierEvidence, quoteFromEvidence, researchTopic } from './src/server/research.ts';
 import { attachVerification, verifyScript } from './src/shared/research.ts';
 import type { EncyclopediaHadith } from './src/shared/hadeethenc.ts';
@@ -44,7 +44,10 @@ import {
   writePodcast,
   type SourceFetchers,
 } from './src/server/gemini.ts';
+import { usesHadithAuthentication } from './src/engine/categories.ts';
 import { executeDragonDawwaAnalysis } from './src/engine/server/hadithEngine.ts';
+import { streamEpisodeAudio } from './src/server/r2Audio.ts';
+import { replayHadithAnalysis, replaySharedResearch } from './src/server/researchIdempotency.ts';
 import { randomUUID } from 'node:crypto';
 import { getResearchJob, seedResearchJob, startResearchJob } from './src/engine/server/researchJobs.ts';
 import { synthesizeRoundtableVoice } from './src/engine/server/geminiTtsService.ts';
@@ -388,6 +391,13 @@ app.get('/api/library/media', async (req, res, next) => {
   }
 });
 
+app.get(
+  '/api/episodes/:id/stream',
+  route(async (req, res) => {
+    await streamEpisodeAudio(res, String(req.params.id), req.headers.range);
+  }),
+);
+
 app.get('/api/names', route(async (_req, res) => res.json(await listNames())));
 app.get('/api/names/:id', route(async (req, res) => res.json(await readName(String(req.params.id)))));
 
@@ -398,7 +408,15 @@ app.post(
     const question = text(req.body?.question, 800, 'question');
     const lang = toLang(req.body?.lang);
     const entryRaw = typeof req.body?.entry === 'string' ? req.body.entry : '';
+    const force = req.body?.force === true;
     if (!entryRaw) {
+      if (!force) {
+        const replay = await replaySharedResearch(question, lang, 'knowledge', null);
+        if (replay) {
+          sendCompletedResearch(res, replay, {});
+          return;
+        }
+      }
       const id = startSharedResearchJob(question, lang);
       res.status(202).json({ id, contractVersion: '1.0.0' });
       return;
@@ -414,15 +432,27 @@ app.post(
       forwarded: req.body?.forwarded === true,
       clarified: req.body?.clarified === true,
       priorQuestion: typeof req.body?.priorQuestion === 'string' ? req.body.priorQuestion.slice(0, 800) : null,
+      domainContext: typeof req.body?.domainContext === 'string' ? req.body.domainContext.slice(0, 80) : null,
     });
     if (decision.action === 'clarify') {
       res.json({ action: 'clarify', clarificationId: decision.clarificationId, contractVersion: '1.0.0' });
       return;
     }
     const researched = decision.assignment.forwardedFrom ? `${question}` : question;
+    if (!force) {
+      const replay = await replaySharedResearch(researched, lang, entryRaw, decision.assignment);
+      if (replay) {
+        sendCompletedResearch(res, replay, {
+          action: decision.action,
+          scope: decision.assignment.scope,
+          noticeId: decision.assignment.noticeId,
+        });
+        return;
+      }
+    }
     const id = startSharedResearchJob(researched, lang, undefined, {
       assignment: decision.assignment,
-      force: req.body?.force === true,
+      force,
     });
     res.status(202).json({
       action: decision.action,
@@ -665,6 +695,17 @@ app.post(
   }),
 );
 
+function sendCompletedResearch(res: Response, replay: ResearchJobResponse, extra: Record<string, unknown>) {
+  res.status(200).json({
+    ...extra,
+    id: replay.job.id,
+    status: 'done',
+    contractVersion: '1.0.0',
+    job: replay.job,
+    dossier: replay.dossier,
+  });
+}
+
 function requireAi() {
   if (!geminiConfigured()) throw new UpstreamError('AI features are not configured on this server (GEMINI_API_KEY missing).', 503);
 }
@@ -684,8 +725,16 @@ app.post(
     const hadith = text(req.body?.hadith_input, 4000, 'hadith_input');
     const isnad = typeof req.body?.isnad_input === 'string' ? req.body.isnad_input.slice(0, 2000) : '';
     const category = typeof req.body?.category === 'string' ? req.body.category.slice(0, 120) : undefined;
+    const language = toLang(req.body?.preferred_language);
+    if (usesHadithAuthentication(category)) {
+      const replay = await replayHadithAnalysis(hadith, language);
+      if (replay) {
+        res.status(200).json(replay);
+        return;
+      }
+    }
     const id = startResearchJob(
-      () => executeDragonDawwaAnalysis(hadith, isnad, toLang(req.body?.preferred_language), undefined, category),
+      () => executeDragonDawwaAnalysis(hadith, isnad, language, undefined, category),
       err => engineFailure(err, 'The hadith research engine could not complete this request. Please retry.').message,
     );
     res.status(202).json({ id, status: 'running' });

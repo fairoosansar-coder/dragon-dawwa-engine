@@ -43,6 +43,28 @@ function remember(stored: StoredJob) {
   archiveResearchJob(stored.fingerprint, persisted(stored));
 }
 
+/** Publish a finished shared dossier without calling Gemini or Parallel. */
+export function rememberCompletedSharedJob(response: ResearchJobResponse, assignment: ResearchAssignmentView | null): void {
+  prune();
+  const current = jobs.get(response.job.id);
+  if (current && (current.job.status === 'running' || current.job.status === 'queued')) return;
+  const fingerprint = researchFingerprint(
+    response.job.question,
+    response.job.language,
+    assignment ?? { scope: 'knowledge', teams: [], bookId: null },
+  );
+  const stored: StoredJob = {
+    contractVersion: '1.0.0',
+    controller: new AbortController(),
+    createdAt: Date.now(),
+    fingerprint,
+    dossier: response.dossier,
+    job: { ...response.job, status: 'done' },
+  };
+  jobs.set(response.job.id, stored);
+  remember(stored);
+}
+
 export function getSharedResearchJob(id: string): ResearchJobResponse | undefined {
   prune();
   const job = jobs.get(id);

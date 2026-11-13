@@ -4,6 +4,8 @@
  * a religious certainty score, or human approval.
  */
 
+import { parallelTaskInput, type DomainSource } from '../../shared/research/agentConfig.ts';
+
 export interface ParallelFinding {
   claim: string;
   excerpt: string;
@@ -109,6 +111,8 @@ export async function consultParallel(input: {
   apiKey?: string | null;
   pollMs?: number;
   processor?: string;
+  domainContext?: string | null;
+  domainSource?: DomainSource;
 }): Promise<ParallelConsult> {
   const started = Date.now();
   const apiKey = input.apiKey === undefined ? parallelApiKey() : input.apiKey;
@@ -117,6 +121,7 @@ export async function consultParallel(input: {
   }
   const fetchImpl = input.fetchImpl ?? fetch;
   const processor = input.processor ?? 'pro-fast';
+  const domainSource = input.domainSource ?? (input.domainContext ? 'selected' : 'unclassified');
   const elapsed = () => Date.now() - started;
   try {
     const created = await fetchImpl('https://api.parallel.ai/v1/tasks/runs', {
@@ -125,7 +130,7 @@ export async function consultParallel(input: {
       signal: input.signal,
       body: JSON.stringify({
         processor,
-        input: input.question,
+        input: parallelTaskInput(input.question, input.domainContext ?? null, domainSource),
         task_spec: {
           output_schema: {
             type: 'json',
@@ -151,7 +156,12 @@ export async function consultParallel(input: {
             },
           },
         },
-        metadata: { language: input.language, confidence: CONFIDENCE_NOTE },
+        metadata: {
+          language: input.language,
+          confidence: CONFIDENCE_NOTE,
+          domainContext: input.domainContext ?? null,
+          domainSource,
+        },
       }),
     });
     if (!created.ok) {
