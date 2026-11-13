@@ -59,7 +59,7 @@ npm run build
 |---|---|---|
 | `GEMINI_API_KEY` | — | Enables Ask, podcast scripts and Gemini neural voices |
 | `PORT` | `3000` | HTTP port |
-| `GEMINI_TEXT_MODELS` | `gemini-3.8-flash,gemini-flash-latest,gemini-2.5-flash` | Fallback order for text |
+| `GEMINI_TEXT_MODELS` | `gemini-3.8-flash,gemini-flash-latest,gemini-3.5-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite` | Fallback order for text |
 | `GEMINI_TTS_MODELS` | `gemini-3.8-flash-tts,gemini-2.5-flash-preview-tts` | Fallback order for speech |
 | `AI_REQUESTS_PER_15_MIN` | `30` | Per-IP limit on AI endpoints |
 

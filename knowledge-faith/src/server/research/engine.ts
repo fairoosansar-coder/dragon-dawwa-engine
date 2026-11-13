@@ -39,6 +39,7 @@ import { buildAgentContributions, type OpenedBook, type TafsirAttempt } from './
 import { openHadeethEncForQuestion } from './hadeethOpen.ts';
 import { dedupePassages } from '../../shared/research/corroboration.ts';
 import { asksWhen, discussesApplication, materialParts, passageMatchesLanguage, recordsPractice, retainRelevantPassages, reviewMaterialCoverage, timingClause } from '../../shared/research/materialCoverage.ts';
+import { isPrayerDeedsQuestion, prayerDeedsInvestigation, prayerDeedsRole } from '../../shared/research/prayerDeeds.ts';
 import { CONFIDENCE_NOTE, consultParallel, type ParallelConsult } from './parallelTask.ts';
 import type { ScienceWork } from './science.ts';
 import type { ResearchAssignmentView } from '../../shared/contracts/v1.ts';
@@ -1354,7 +1355,7 @@ export async function executeResearch(input: {
                   contractVersion: VERSION,
                   id: `T${surah}-${hash.slice(0, 8)}`,
                   source: source({
-                    id: `tafsir-${surah}`,
+                    id: `tafsir-follow-${surah}`,
                     provider: 'QuranEnc',
                     language: input.language,
                     edition: 'mukhtasar',
@@ -1385,6 +1386,7 @@ export async function executeResearch(input: {
         }
       }
       const unused = plan.subquestions.flatMap(sub => sub.queries).find(phrase => phrase && !ranQueries.includes(phrase));
+      // Search and open are one investigation. A search that cannot be opened does not spend the remaining call.
       if (unused && mayHadith && followCalls === 0 && needsMore && allow('HadeethEnc')) {
         followCalls += 1;
         try {
@@ -1423,7 +1425,36 @@ export async function executeResearch(input: {
         });
         investigation = materialReview.investigation;
         pushCoverage({ kind: 'evidence_found', provider: 'dossier', detail: `A bounded follow-up kept ${added.length} passage(s) for a part that was still open.` });
+      } else if (followCalls > 0) {
+        pushCoverage({
+          kind: 'no_relevant_evidence',
+          provider: 'dossier',
+          detail: 'A bounded follow-up searched the unresolved parts and did not keep another passage.',
+        });
       }
+    }
+    if (isPrayerDeedsQuestion(input.question) && investigation !== 'blocked') {
+      const supportCount = passages.filter(passage => prayerDeedsRole({
+        id: passage.source.id,
+        text: passage.text,
+        arabic: passage.arabic,
+      }) === 'support').length;
+      investigation = prayerDeedsInvestigation({ supportCount, providerFailed: false });
+      const legalNote = input.language === 'ta'
+        ? 'நோன்பும் தர்மமும் ஏற்கப்படுமா என்பது இன்னும் சட்டக் கேள்வி. திறந்த பதிவுகள் அதைத் தீர்க்கவில்லை.'
+        : input.language === 'si'
+          ? 'උපවාසය සහ දානය පිළිගැනේද යන්න තවමත් නීතිමය ප්‍රශ්නයකි. විවෘත වාර්තා එය විසඳන්නේ නැත.'
+          : 'Whether fasting and charity are accepted is still a legal question. The opened records do not settle it.';
+      const parts = materialReview.parts.map(part => {
+        if (part.status === 'unresolved' || (part.kind !== 'meaning' && part.kind !== 'worship')) return part;
+        return { ...part, status: 'unresolved' as const, note: legalNote };
+      });
+      materialReview = {
+        ...materialReview,
+        investigation,
+        parts,
+        unresolved: parts.filter(part => part.status === 'unresolved').map(part => `${part.kind}: ${part.note}`),
+      };
     }
     if (!passages.length && !corpusSplit && investigation !== 'blocked') {
       const missingTranslation = coverage.some(note => note.kind === 'language_unavailable');
@@ -1883,6 +1914,33 @@ function ensureParallelCited(
   return integrateSupportedFindings(base, passages);
 }
 
+function reconcileParallelCoverage(job: ResearchJobView, consult: ParallelConsult, passageCount: number) {
+  const coverage = (job.coverage ?? []).filter(note => {
+    if (note.provider === 'Parallel' && (note.kind === 'budget_exhausted' || note.kind === 'source_unavailable' || note.kind === 'no_relevant_evidence')) return false;
+    if (note.provider === 'dossier' && note.kind === 'evidence_found' && /^\d+ passage\(s\) were opened/.test(note.detail)) return false;
+    if (consult.findings.length && note.provider === 'dossier' && note.kind === 'budget_exhausted' && /incomplete research/i.test(note.detail)) return false;
+    return true;
+  });
+  const push = (note: CoverageNote) => {
+    if (coverage.some(item => item.kind === note.kind && item.provider === note.provider && item.detail === note.detail)) return;
+    coverage.push(note);
+  };
+  const revision = job.parallel?.revision ?? 1;
+  if (consult.status === 'completed' && consult.findings.length) {
+    push({
+      kind: 'evidence_found',
+      provider: 'Parallel',
+      detail: `Parallel returned ${consult.findings.length} cited finding(s) in revision ${revision}. They are part of this answer. Confidence is provider metadata, not a hadith grade.`,
+    });
+    push({ kind: 'evidence_found', provider: 'dossier', detail: `${passageCount} passage(s) were opened and kept.` });
+  } else if (consult.status === 'failed') {
+    push({ kind: 'source_unavailable', provider: 'Parallel', detail: consult.setup ?? 'Parallel did not return findings.' });
+  } else if (consult.status === 'completed') {
+    push({ kind: 'no_relevant_evidence', provider: 'Parallel', detail: 'Parallel completed and returned no finding to cite.' });
+  }
+  job.coverage = coverage;
+}
+
 export function publishParallelRevision(run: ResearchRun, consult: ParallelConsult, now = new Date()): ResearchRun {
   const job = structuredClone(run.job);
   const dossier = structuredClone(run.dossier);
@@ -1903,7 +1961,10 @@ export function publishParallelRevision(run: ResearchRun, consult: ParallelConsu
       ? 'Parallel returned findings. Its confidence is provider metadata, not a hadith grade.'
       : 'Parallel was called. No finding is cited until the task returns one.');
   }
-  if (!consult.findings.length) return { job, dossier };
+  if (!consult.findings.length) {
+    reconcileParallelCoverage(job, consult, dossier.passages.length);
+    return { job, dossier };
+  }
   const passages = [...dossier.passages];
   for (const finding of consult.findings) {
     const text = finding.excerpt.trim();
@@ -1931,14 +1992,18 @@ export function publishParallelRevision(run: ResearchRun, consult: ParallelConsu
   }
   job.materialParts = review.parts;
   job.investigation = review.investigation;
+  reconcileParallelCoverage(job, consult, pool.length);
   const keptIds = new Set(pool.map(passage => passage.id));
   dossier.passages = pool;
   dossier.answer = answer;
   dossier.unresolved = review.unresolved;
-  dossier.claims = dossier.claims.map(claim => ({
-    ...claim,
-    passageIds: [...new Set(claim.passageIds.map(id => deduped.citationAliases[id] ?? id))].filter(id => keptIds.has(id)),
-  }));
+  dossier.claims = (job.subquestions ?? []).map(sub => claimFor(sub, pool, job.coverage, interpretation, null));
+  if (!dossier.claims.length) {
+    dossier.claims = run.dossier.claims.map(claim => ({
+      ...claim,
+      passageIds: [...new Set(claim.passageIds.map(id => deduped.citationAliases[id] ?? id))].filter(id => keptIds.has(id)),
+    }));
+  }
   dossier.verificationNote = [dossier.verificationNote, consult.findings.length ? CONFIDENCE_NOTE : ''].filter(Boolean).join(' ');
   return { job, dossier };
 }

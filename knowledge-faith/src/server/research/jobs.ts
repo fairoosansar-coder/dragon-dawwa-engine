@@ -3,6 +3,7 @@ import type { ResearchAssignmentView, ResearchJobResponse } from '../../shared/c
 import { researchFingerprint } from '../../shared/research/coordinator.ts';
 import type { Lang } from '../../shared/sources.ts';
 import { UpstreamError } from '../http.ts';
+import { archiveResearch, readArchivedJob } from './archive.ts';
 import { executeResearch, publishParallelRevision, type ResearchPorts } from './engine.ts';
 import { awaitParallelResult } from './parallelTask.ts';
 import { defaultResearchPorts } from './ports.ts';
@@ -40,7 +41,11 @@ function persisted(stored: StoredJob): ResearchJobResponse {
 }
 
 function remember(stored: StoredJob) {
-  archiveResearchJob(stored.fingerprint, persisted(stored));
+  if (!stored.dossier) return;
+  if (stored.job.status !== 'done' && stored.job.status !== 'error' && stored.job.status !== 'cancelled') return;
+  const response = persisted(stored);
+  archiveResearch(stored.fingerprint, response);
+  archiveResearchJob(stored.fingerprint, response);
 }
 
 /** Publish a finished shared dossier without calling Gemini or Parallel. */
@@ -69,7 +74,7 @@ export function getSharedResearchJob(id: string): ResearchJobResponse | undefine
   prune();
   const job = jobs.get(id);
   if (job) return persisted(job);
-  return readArchivedResearchJob(id);
+  return readArchivedJob(id) ?? readArchivedResearchJob(id);
 }
 
 export function cancelSharedResearchJob(id: string): ResearchJobResponse | undefined {

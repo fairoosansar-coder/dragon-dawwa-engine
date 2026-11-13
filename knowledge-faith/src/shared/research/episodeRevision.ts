@@ -1,3 +1,13 @@
+/** The episode id whose audio element is actually playing, or null. */
+export function readPlayingEpisodeId(
+  doc: { querySelector(selector: string): { paused: boolean; ended: boolean } | null },
+  episodeId: string,
+): string | null {
+  const node = doc.querySelector(`audio[data-episode="${episodeId}"]`);
+  if (!node || node.paused || node.ended) return null;
+  return episodeId;
+}
+
 /**
  * A later research result is a new revision.
  * The episode that is currently playing keeps its audio.

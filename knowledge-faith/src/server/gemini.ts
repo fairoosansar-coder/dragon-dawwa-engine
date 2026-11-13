@@ -19,7 +19,7 @@ import { UpstreamError } from './http.ts';
 import { hasGeminiApiKey } from './loadEnv.ts';
 import { narrationDirection, spokenTranscript } from './spokenLine.ts';
 
-const TEXT_MODELS = (process.env.GEMINI_TEXT_MODELS ?? 'gemini-3.8-flash,gemini-flash-latest,gemini-2.5-flash')
+const TEXT_MODELS = (process.env.GEMINI_TEXT_MODELS ?? 'gemini-3.8-flash,gemini-flash-latest,gemini-3.5-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
@@ -45,6 +45,11 @@ function isTemporary(err: unknown): boolean {
   return /429|503|UNAVAILABLE|RESOURCE_EXHAUSTED|high demand/i.test(msg);
 }
 
+function isDailyQuota(err: unknown): boolean {
+  const msg = String((err as Error)?.message ?? '');
+  return /PerDay|requests per day/i.test(msg);
+}
+
 export type JsonModel = <T>(prompt: string, schema: Schema, signal?: AbortSignal) => Promise<{ value: T; model: string }>;
 
 export const generateJson: JsonModel = async <T>(prompt: string, schema: Schema, signal?: AbortSignal) => {
@@ -63,7 +68,7 @@ export const generateJson: JsonModel = async <T>(prompt: string, schema: Schema,
       } catch (err) {
         lastError = err;
         if (signal?.aborted) throw err;
-        if (isTemporary(err) && attempt < 2) {
+        if (isTemporary(err) && !isDailyQuota(err) && attempt < 2) {
           await new Promise(r => setTimeout(r, 800 * attempt));
           continue;
         }

@@ -104,4 +104,48 @@ describe('not praying and the state of other deeds', () => {
       status: 'done',
     }), null);
   });
+
+  it('does not treat a fasting narration as a completed answer about other deeds', async () => {
+    const result = await executeResearch({
+      question: 'If a person does not pray, what is the state of their fasting, charity, and other deeds?',
+      language: 'en',
+      ports: ports({
+        searchHadeeth: async () => [{ id: '4542', title: 'Voluntary fasting' }],
+        loadHadeeth: async () => ({
+          id: '4542',
+          title: 'Voluntary fasting',
+          text: 'The Messenger spoke about fasting and charity. He did not say what happens to those deeds when a person does not pray.',
+          arabic: null,
+          grade: 'Authentic',
+          attribution: 'Bukhari and Muslim',
+          explanation: null,
+          url: 'https://hadeethenc.com/en/browse/hadith/4542',
+        }),
+      }),
+      assignment: { scope: 'knowledge', teams: ['quran', 'hadith'], bookId: null, noticeId: null, forwardedFrom: null },
+    });
+    assert.equal(result.job.investigation, 'partial');
+    assert.match(result.job.materialParts?.find(part => part.kind === 'worship')?.note ?? '', /do not settle it/i);
+    const answer = result.dossier.answer?.paragraphs.map(paragraph => paragraph.text).join(' ') ?? '';
+    const script = roundtableFromResearch({
+      question: result.job.question,
+      language: 'en',
+      answer,
+      passages: result.dossier.passages.map(passage => ({
+        locator: passage.locator,
+        text: passage.text,
+        context: passage.context,
+        provider: passage.source.provider,
+      })),
+      insufficientEvidence: result.dossier.answer?.insufficientEvidence === true,
+      unresolved: result.job.materialParts?.filter(part => part.status === 'unresolved').map(part => part.note),
+      status: 'done',
+      investigation: result.job.investigation,
+    });
+    assert.ok(script);
+    const spoken = script.lines.map(line => line.text).join(' ');
+    assert.match(spoken, /do not settle|legal question/i);
+    assert.doesNotMatch(spoken, /state a total/i);
+    assert.doesNotMatch(answer, /Practical suggestion recorded by a source/);
+  });
 });

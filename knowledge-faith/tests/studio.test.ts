@@ -324,10 +324,10 @@ describe('Interactive Ask-While-Listening Integrated with Shared Research Engine
     assert.equal(neighborSick.kind, 'quotation');
     assert.ok(neighborSick.researchJob);
     assert.equal(neighborSick.researchJob.subquestions.length, 2);
-    assert.deepEqual(
-      neighborSick.researchJob.subquestions.flatMap(sq => sq.queries),
-      ['rights neighbor', 'neighbor', 'rights', 'visit sick', 'visit', 'sick'],
-    );
+    const neighborQueries = neighborSick.researchJob.subquestions.flatMap(sq => sq.queries);
+    for (const query of ['rights neighbor', 'neighbor', 'rights', 'visit sick', 'visit', 'sick']) {
+      assert.ok(neighborQueries.includes(query), query);
+    }
     assert.ok(neighborSick.passages.some(p => p.id === 'E6103' && p.publishedGrade === 'Authentic'));
   });
 

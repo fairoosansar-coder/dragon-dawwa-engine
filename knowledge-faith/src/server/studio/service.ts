@@ -11,6 +11,7 @@ import {
 import {
   asksForScience,
   contentTokens,
+  passageSupportsTopic,
   referenceEvidence,
   type ResearchReference,
 } from '../../shared/research.ts';
@@ -758,16 +759,24 @@ export async function answerStudioQuestion(
     ports,
   });
 
-  const engineRefs = researchRun.dossier.passages.map(evidencePassageToReference);
-  const combinedRefs = [...matchingEpisodeRefs];
-  for (const er of engineRefs) {
+  const askedScience = asksForScience(rawQuestion);
+  const engineRefs = researchRun.dossier.passages
+    .filter(passage => askedScience || passage.role !== 'empirical')
+    .map(evidencePassageToReference);
+  const supportsQuestion = (ref: ResearchReference) =>
+    passageSupportsTopic(rawQuestion, ref.passage)
+    || (researchRun.job.subquestions ?? []).some(sub => passageSupportsTopic(sub.text, ref.passage));
+  const supportedEpisode = matchingEpisodeRefs.filter(supportsQuestion);
+  const supportedEngine = engineRefs.filter(supportsQuestion);
+  const combinedRefs = [...supportedEpisode];
+  for (const er of supportedEngine) {
     if (!combinedRefs.some(r => r.id === er.id)) {
       combinedRefs.push(er);
     }
   }
   const combinedPassages = [
-    ...matchingEpisodeRefs.map(referenceToEvidencePassage),
-    ...researchRun.dossier.passages.filter(p => !matchingEpisodeRefs.some(r => r.id === p.id)),
+    ...supportedEpisode.map(referenceToEvidencePassage),
+    ...researchRun.dossier.passages.filter(p => supportedEngine.some(r => r.id === p.id) && !supportedEpisode.some(r => r.id === p.id)),
   ];
 
   if (combinedRefs.length === 0) {
@@ -803,7 +812,8 @@ export async function answerStudioQuestion(
     };
   }
 
-  if (geminiConfigured()) {
+  const severalParts = (researchRun.job.subquestions?.length ?? 0) > 1;
+  if (geminiConfigured() && !severalParts) {
     try {
       const packet = combinedRefs.map(referenceEvidence);
       const written = await writeAnswer(rawQuestion, effectiveLang, packet);

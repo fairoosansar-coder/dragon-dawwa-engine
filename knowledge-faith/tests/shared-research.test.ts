@@ -131,6 +131,17 @@ describe('research outcomes', () => {
     );
     assert.equal(
       passageSupportsTopic(
+        'What is the population of Tokyo?',
+        'If Allah sends punishment upon a nation then it befalls upon the whole population indiscriminately',
+      ),
+      false,
+    );
+    assert.equal(
+      passageSupportsTopic('How tall is the lighthouse at Galle?', 'The lighthouse at the harbour was tall and white.'),
+      false,
+    );
+    assert.equal(
+      passageSupportsTopic(
         'What is the isnad of the narration in Sahih Bukhari about intentions?',
         'Verily, the reward of deeds depends on the intention, and a person will be rewarded according to what he intended.',
       ),
