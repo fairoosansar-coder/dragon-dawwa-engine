@@ -15,6 +15,7 @@ import {
   recordIsRelevant,
 } from './reportBinding.ts';
 import { buildAsrAgent7 } from './asrPrayerSources.ts';
+import { usesHadithAuthentication } from '../categories.ts';
 
 export type LangCode = 'en' | 'ta' | 'si';
 
@@ -729,6 +730,21 @@ export function attachAgent7ToAnalysis(
  * disagreements, unresolved questions, final synthesis, and the 7-participant roundtable script.
  */
 export function buildFullReportMarkdown(analysis: DragonDawwaAnalysis, lang: LangCode = 'en'): string {
+  if (!usesHadithAuthentication(analysis.research_category)) {
+    const synthesis = analysis.agent_6_synthesis;
+    return [
+      `# Dragon Dawwa · ${analysis.research_category} Research`,
+      '',
+      `## Question`,
+      analysis.query_hadith,
+      '',
+      `## Executive Report`,
+      synthesis.executive_report_markdown,
+      '',
+      `## Podcast Script`,
+      synthesis.podcast_script,
+    ].join('\n');
+  }
   const enriched = bindReport(analysis.agent_7_source_research ? analysis : attachAgent7ToAnalysis(analysis, lang));
   const a1 = enriched.agent_1_takhrij;
   const a2 = enriched.agent_2_isnad;

@@ -108,6 +108,15 @@ export const PODCAST_PERSONA_PROFILES: Record<string, SpeakerVoiceProfile> = {
     style: 'Clear, poised, evidence-grounded female researcher citing HadeethEnc records, published grades, explanations, and documented lessons with scholarly precision',
     description: 'The HadeethEnc Source Specialist feeding retrieved primary records into the roundtable'
   },
+  zayd: {
+    id: 'zayd',
+    personaName: 'Zayd (The Polymath Researcher)',
+    role: 'Polymath Researcher',
+    voiceName: 'Orus',
+    gender: 'M',
+    style: 'Clear, measured male researcher presenting sourced scientific and comparative findings without adopting the host voice',
+    description: 'Presents Parallel research beside the generated studio presenter'
+  },
   narrator: {
     id: 'narrator',
     personaName: 'Prime Dragon Radio Desk',
@@ -195,6 +204,11 @@ export function getGeminiVoiceForSpeaker(speaker: string): SpeakerVoiceProfile {
     s.includes('hadeethenc')
   ) {
     return PODCAST_PERSONA_PROFILES.amina;
+  }
+
+  // Zayd (Polymath Researcher). Orus is not the host voice.
+  if (s.includes('zayd') || s.includes('polymath') || s.includes('researcher')) {
+    return PODCAST_PERSONA_PROFILES.zayd;
   }
 
   // 6. Host (Brother Feroz / Agent 6 Synthesis Moderator / Anchor)

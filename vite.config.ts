@@ -21,14 +21,20 @@ function dragonDawwaApiPlugin(): Plugin {
           req.on('end', async () => {
             try {
               const parsed = JSON.parse(body || '{}');
-              const { hadith_input, isnad_input } = parsed;
+              const { hadith_input, isnad_input, preferred_language, category } = parsed;
               if (!hadith_input || typeof hadith_input !== 'string') {
                 res.statusCode = 400;
                 res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify({ error: 'hadith_input is required' }));
                 return;
               }
-              const result = await executeDragonDawwaAnalysis(hadith_input, isnad_input);
+              const lang = preferred_language === 'ta' || preferred_language === 'si' ? preferred_language : 'en';
+              const result = await executeDragonDawwaAnalysis(
+                hadith_input,
+                isnad_input,
+                lang,
+                typeof category === 'string' ? category : undefined,
+              );
               res.statusCode = 200;
               res.setHeader('Content-Type', 'application/json');
               res.end(JSON.stringify(result));

@@ -1,6 +1,7 @@
 import type { DragonDawwaAnalysis } from '../types/hadith.ts';
 import type { Lang } from '../../shared/sources.ts';
 import { toLang } from '../../shared/sources.ts';
+import { HADITH_AUTHENTICATION_CATEGORY } from '../categories.ts';
 
 export const SAVED_RESEARCH_KEY = 'dragon_dawwa_recent_searches';
 
@@ -13,6 +14,7 @@ export interface SavedResearchRecord {
   matn: string;
   isnad: string;
   language: Lang;
+  category?: string;
   timestamp: number;
   savedAt: number;
   status: SavedResearchStatus;
@@ -41,6 +43,7 @@ function asRecord(value: unknown): SavedResearchRecord | null {
     matn: question,
     isnad: String(raw.isnad ?? ''),
     language,
+    category: typeof raw.category === 'string' && raw.category.trim() ? raw.category : HADITH_AUTHENTICATION_CATEGORY,
     timestamp: Number(raw.timestamp ?? savedAt),
     savedAt,
     status: raw.status === 'researching' || raw.status === 'ready' || raw.status === 'failed' ? raw.status : raw.analysis ? 'ready' : 'idle',
@@ -95,6 +98,7 @@ export function upsertSavedResearch(
     matn: question,
     isnad: patch.isnad ?? existing?.isnad ?? '',
     language: patch.language,
+    category: patch.category ?? existing?.category ?? HADITH_AUTHENTICATION_CATEGORY,
     timestamp: now,
     savedAt: now,
     status: keepReady ? 'ready' : patch.status ?? existing?.status ?? 'idle',

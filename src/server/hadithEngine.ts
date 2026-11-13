@@ -1,4 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
+import { usesHadithAuthentication } from "../../knowledge-faith/src/engine/categories.ts";
+import { executeParallelResearch } from "../../knowledge-faith/src/server/research/categoryResearch.ts";
 import type { DragonDawwaAnalysis } from "../types/hadith.ts";
 import { SAMPLE_HADITHS } from "../data/sampleHadiths.ts";
 import { getLocalizedAnalysis } from "../utils/localizedAnalysis.ts";
@@ -236,8 +238,15 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export async function executeDragonDawwaAnalysis(
   hadithInput: string,
   isnadInput?: string,
-  preferredLanguage: 'en' | 'ta' | 'si' = 'en'
+  preferredLanguage: 'en' | 'ta' | 'si' = 'en',
+  category?: string,
 ): Promise<DragonDawwaAnalysis> {
+  if (!usesHadithAuthentication(category)) {
+    return executeParallelResearch(category!.trim(), hadithInput, preferredLanguage, {
+      geminiApiKey: process.env.GEMINI_API_KEY,
+    });
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
 
   // Language instructions for descriptions while preserving sacred Arabic script

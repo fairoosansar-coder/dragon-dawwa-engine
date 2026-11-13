@@ -32,6 +32,11 @@ export function scriptMatchesLanguage(text: string, lang: Lang): boolean {
   return LATIN.test(spoken) && !sinhala && !tamil;
 }
 
+export function generatedContentForLanguage(script: string, report: string): string {
+  const generatedReport = report.split(/\n## Sources returned by Parallel\.ai\s*\n/i, 1)[0];
+  return `${script}\n${generatedReport}`;
+}
+
 export function languageFailureMessage(lang: Lang): string {
   if (lang === 'si') {
     return 'Sinhala research did not return a Sinhala report. Tamil and English were not substituted. Please retry.';

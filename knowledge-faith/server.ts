@@ -44,6 +44,7 @@ import {
   writePodcast,
   type SourceFetchers,
 } from './src/server/gemini.ts';
+import { usesHadithAuthentication } from './src/engine/categories.ts';
 import { executeDragonDawwaAnalysis } from './src/engine/server/hadithEngine.ts';
 import { streamEpisodeAudio } from './src/server/r2Audio.ts';
 import { replayHadithAnalysis, replaySharedResearch } from './src/server/researchIdempotency.ts';
@@ -723,14 +724,17 @@ app.post(
   route(async (req, res) => {
     const hadith = text(req.body?.hadith_input, 4000, 'hadith_input');
     const isnad = typeof req.body?.isnad_input === 'string' ? req.body.isnad_input.slice(0, 2000) : '';
+    const category = typeof req.body?.category === 'string' ? req.body.category.slice(0, 120) : undefined;
     const language = toLang(req.body?.preferred_language);
-    const replay = await replayHadithAnalysis(hadith, language);
-    if (replay) {
-      res.status(200).json(replay);
-      return;
+    if (usesHadithAuthentication(category)) {
+      const replay = await replayHadithAnalysis(hadith, language);
+      if (replay) {
+        res.status(200).json(replay);
+        return;
+      }
     }
     const id = startResearchJob(
-      () => executeDragonDawwaAnalysis(hadith, isnad, language),
+      () => executeDragonDawwaAnalysis(hadith, isnad, language, undefined, category),
       err => engineFailure(err, 'The hadith research engine could not complete this request. Please retry.').message,
     );
     res.status(202).json({ id, status: 'running' });

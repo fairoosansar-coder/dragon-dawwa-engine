@@ -158,6 +158,8 @@ export interface DragonDawwaAnalysis {
   generated_at?: string;
   /** Language this live research was generated in. Example dossiers omit it and may be localised for display. */
   content_language?: 'en' | 'ta' | 'si';
+  /** Analyzer category used to produce this result. Missing values are legacy hadith research. */
+  research_category?: string;
   agent_1_takhrij: Agent1Takhrij;
   agent_2_isnad: Agent2Isnad;
   agent_3_rijal: Agent3Rijal;

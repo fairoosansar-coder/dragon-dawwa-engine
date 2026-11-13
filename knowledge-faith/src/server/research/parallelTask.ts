@@ -26,18 +26,20 @@ export interface ParallelConsult {
 }
 
 const SETUP =
-  'Set PARALLEL_API_KEY in the server environment. The browser never receives it. Direct source adapters still run. No Parallel verification is claimed until a task run returns.';
+  'Set PARALLEL_AI_API_KEY or PARALLEL_API_KEY in the server environment. The browser never receives it. Direct source adapters still run. No Parallel verification is claimed until a task run returns.';
 
 const CONFIDENCE_NOTE = 'Parallel confidence is provider metadata. It is not a hadith grade, a religious certainty score, or human approval.';
 
 export function parallelApiKey(env: NodeJS.ProcessEnv = process.env): string | null {
+  const dedicated = env.PARALLEL_AI_API_KEY?.trim();
+  if (dedicated) return dedicated;
   const key = env.PARALLEL_API_KEY?.trim();
   return key ? key : null;
 }
 
 export function parallelCredentialStatus(env: NodeJS.ProcessEnv = process.env): { configured: boolean; liveCallMade: false; setup: string } {
   const configured = Boolean(parallelApiKey(env));
-  return { configured, liveCallMade: false, setup: configured ? 'PARALLEL_API_KEY is set on the server. A task run is required before any Parallel finding is cited.' : SETUP };
+  return { configured, liveCallMade: false, setup: configured ? 'A Parallel API key is set on the server. A task run is required before any Parallel finding is cited.' : SETUP };
 }
 
 interface TaskRun {
@@ -45,6 +47,14 @@ interface TaskRun {
   status?: string;
   output?: { content?: unknown; basis?: BasisItem[] } | string;
   basis?: BasisItem[];
+}
+
+function taskStillRunning(status: string | undefined): boolean {
+  return status === 'running' || status === 'queued' || status === 'pending';
+}
+
+function taskFailed(status: string | undefined): boolean {
+  return status === 'failed' || status === 'cancelled' || status === 'error';
 }
 
 interface BasisItem {
@@ -160,6 +170,9 @@ export async function consultParallel(input: {
     const run = (await created.json()) as TaskRun;
     const runId = run.run_id ?? null;
     const immediate = findingsFrom(run);
+    if (taskFailed(run.status)) {
+      return { status: 'failed', liveCallMade: true, runId, findings: [], setup: 'Parallel task failed. No finding was invented.', processor, durationMs: elapsed() };
+    }
     if (immediate.length || run.status === 'completed') {
       return { status: 'completed', liveCallMade: true, runId, findings: immediate, setup: null, processor, durationMs: elapsed() };
     }
@@ -178,6 +191,12 @@ export async function consultParallel(input: {
       return { status: 'failed', liveCallMade: true, runId, findings: [], setup: `Parallel result returned HTTP ${result.status}. No finding was invented.`, processor, durationMs: elapsed() };
     }
     const body = (await result.json()) as TaskRun;
+    if (taskStillRunning(body.status)) {
+      return { status: 'running', liveCallMade: true, runId, findings: [], setup: 'Parallel is still running. A later poll will check this same task.', processor, durationMs: elapsed() };
+    }
+    if (taskFailed(body.status)) {
+      return { status: 'failed', liveCallMade: true, runId, findings: [], setup: 'Parallel task failed. No finding was invented.', processor, durationMs: elapsed() };
+    }
     return { status: 'completed', liveCallMade: true, runId, findings: findingsFrom(body), setup: null, processor, durationMs: elapsed() };
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') throw err;
@@ -242,6 +261,18 @@ export async function awaitParallelResult(input: {
       }
       const body = (await result.json()) as TaskRun;
       const findings = findingsFrom(body);
+      if (taskFailed(body.status)) {
+        return {
+          status: 'failed',
+          liveCallMade: true,
+          runId: input.runId,
+          findings: [],
+          setup: 'Parallel task failed. No finding was invented.',
+          processor,
+          durationMs: Date.now() - started,
+        };
+      }
+      if (taskStillRunning(body.status)) continue;
       if (body.status === 'completed' || findings.length > 0 || result.status === 200) {
         return { status: 'completed', liveCallMade: true, runId: input.runId, findings, setup: null, processor, durationMs: Date.now() - started };
       }
