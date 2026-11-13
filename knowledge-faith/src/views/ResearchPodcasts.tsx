@@ -5,10 +5,10 @@ import { prependEpisodeRevision, readPlayingEpisodeId } from '../shared/research
 import { roundtableFromResearch, scriptMayBeSpoken, type RoundtableScript } from '../shared/research/roundtable.ts';
 import { separateQuestions } from '../shared/research/questions.ts';
 import type { Lang } from '../shared/sources.ts';
-import { postJson, useRemote } from '../lib/api.ts';
+import { getJson, postJson, useRemote } from '../lib/api.ts';
 import { decodeBase64, downloadBytes, readResponseBytes } from '../lib/episodeWav.ts';
 import { readResearchHistory } from '../lib/researchDesk.ts';
-import { useApp } from '../lib/store.tsx';
+import { ContentText } from '../components/ContentText.tsx';
 import { Button, ErrorNote, Notice } from '../components/ui.tsx';
 
 type EpisodeState = 'script-ready' | 'audio-generating' | 'playable' | 'failed';
@@ -152,15 +152,14 @@ function writeEpisodes(items: LocalEpisode[]) {
   }
 }
 
-function stateLabel(state: EpisodeState, t: { podcastScriptReady: string; podcastGenerating: string; podcastPlayable: string; podcastFailed: string }) {
-  if (state === 'script-ready') return t.podcastScriptReady;
-  if (state === 'audio-generating') return t.podcastGenerating;
-  if (state === 'playable') return t.podcastPlayable;
-  return t.podcastFailed;
+function stateLabel(state: EpisodeState) {
+  if (state === 'script-ready') return 'Script ready';
+  if (state === 'audio-generating') return 'Generating audio';
+  if (state === 'playable') return 'Ready to play';
+  return 'Audio failed';
 }
 
 export default function ResearchPodcasts({ params }: { params?: URLSearchParams }) {
-  const { t, lang } = useApp();
   const jobId = params?.get('job') ?? '';
   const remote = useRemote<ResearchJobResponse>(jobId ? `/api/research/jobs/${jobId}` : null);
   const community = useRemote<{ episodes: CommunityEpisode[] }>('/api/research/podcasts');
@@ -168,7 +167,40 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
   const [error, setError] = useState<string | null>(null);
   const [download, setDownload] = useState<{ id: string; percent: number } | null>(null);
 
-  useEffect(() => setMine(readEpisodes()), []);
+  useEffect(() => {
+    setMine(readEpisodes());
+    let active = true;
+    getJson<{ episodes: { id: string }[] }>('/api/research/episodes')
+      .then(async data => {
+        const restored = await Promise.all(
+          data.episodes.map(async episode => {
+            const full = await getJson<LocalEpisode & { audioBase64?: string }>(`/api/research/episodes/${episode.id}`).catch(() => null);
+            if (!full) return null;
+            return {
+              ...full,
+              participants: full.participants ?? [],
+              state: full.audioBase64 ? ('playable' as const) : ('script-ready' as const),
+            };
+          }),
+        );
+        const savedEpisodes = restored.flatMap(item => (item ? [item] : []));
+        if (!active) return;
+        setMine(current => {
+          const known = new Set(current.map(item => item.id));
+          const extras = savedEpisodes.filter(item => !known.has(item.id) && scriptMayBeSpoken(item.lines ?? [], item.question ?? ''));
+          const merged = current.map(item => {
+            const saved = savedEpisodes.find(candidate => candidate.id === item.id);
+            if (!saved?.audioBase64 || item.audioBase64) return item;
+            return { ...item, audioBase64: saved.audioBase64, mimeType: saved.mimeType || item.mimeType, state: 'playable' as const };
+          });
+          return extras.length ? [...extras, ...merged] : merged;
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!jobId || readEpisodes().some(item => item.jobId === jobId)) return;
@@ -193,10 +225,14 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
       setError('The dossier did not produce a spoken script, so no episode was written.');
       return;
     }
-    const next = [created, ...readEpisodes()];
-    writeEpisodes(next);
-    void persistEpisode(created);
-    setMine(next);
+    setMine(current => {
+      if (current.some(item => item.jobId === response.job.id && item.audioBase64)) return current;
+      if (current.some(item => item.jobId === response.job.id)) return current;
+      const next = [created, ...current];
+      writeEpisodes(next);
+      void persistEpisode(created);
+      return next;
+    });
   }, [jobId, remote.data]);
 
   useEffect(() => {
@@ -232,6 +268,21 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
     writeEpisodes(next);
     for (const episode of next) void persistEpisode(episode);
     setMine(next);
+    for (const episode of next) {
+      if (!episode.lines.length || episode.state === 'audio-generating') continue;
+      void postJson('/api/research/episodes', {
+        id: episode.id,
+        jobId: episode.jobId,
+        question: episode.question,
+        language: episode.language,
+        participants: episode.participants,
+        lines: episode.lines,
+        sources: episode.sources ?? [],
+        reportHtml: episode.reportHtml,
+        mimeType: episode.mimeType,
+        audioBase64: episode.audioBase64,
+      }).catch(() => undefined);
+    }
   }
 
   useEffect(() => {
@@ -278,7 +329,9 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
         text: passage.text,
         context: passage.context,
         provider: passage.source.provider,
+        role: passage.role,
       })),
+      disagreements: dossier.disagreements,
       insufficientEvidence: dossier.answer?.insufficientEvidence === true,
       unresolved: (job.materialParts ?? []).filter(part => part.status === 'unresolved').map(part => part.note),
       status: job.status,
@@ -310,7 +363,18 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
     save([created, ...mine]);
   }
 
+  async function savedAudio(episode: LocalEpisode): Promise<{ audioBase64: string; mimeType: string } | null> {
+    if (episode.audioBase64) return { audioBase64: episode.audioBase64, mimeType: episode.mimeType || 'audio/wav' };
+    const saved = await getJson<LocalEpisode & { audioBase64?: string }>(`/api/research/episodes/${episode.id}`).catch(() => null);
+    if (!saved?.audioBase64) return null;
+    const ready = { audioBase64: saved.audioBase64, mimeType: saved.mimeType || 'audio/wav' };
+    setMine(current => current.map(item => (item.id === episode.id ? { ...item, ...ready, state: 'playable' as const, error: undefined } : item)));
+    return ready;
+  }
+
   async function generate(episode: LocalEpisode, onProgress?: (percent: number) => void): Promise<{ audioBase64: string; mimeType: string } | null> {
+    const kept = await savedAudio(episode);
+    if (kept) return kept;
     if (!scriptMayBeSpoken(episode.lines, episode.question)) {
       save(readEpisodes().map(item => (item.id === episode.id ? { ...item, state: 'failed', error: 'This script is not safe to speak.' } : item)));
       return null;
@@ -359,9 +423,7 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
     setError(null);
     setDownload({ id: episode.id, percent: 0 });
     try {
-      const ready = episode.audioBase64
-        ? { audioBase64: episode.audioBase64, mimeType: episode.mimeType || 'audio/wav' }
-        : await generate(episode, percent => setDownload({ id: episode.id, percent }));
+      const ready = (await savedAudio(episode)) ?? (await generate(episode, percent => setDownload({ id: episode.id, percent })));
       if (!ready?.audioBase64) return;
       const bytes = decodeBase64(ready.audioBase64);
       const step = 256 * 1024;
@@ -397,18 +459,18 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="font-display text-4xl font-bold text-pine">{t.navPodcast}</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink/75">{t.podcastPrivate}</p>
+        <h1 className="font-display text-4xl font-bold text-pine">Podcast</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink/75">Your questions stay on this device until you share an episode. The presenters are generated. They are not Brother Feroz and they are not scholars.</p>
       </header>
       {error && <ErrorNote message={error} />}
       {jobId && remote.data?.job.status === 'done' && !active && (
-        <Button type="button" onClick={ensureFromJob}>{t.makePodcast}</Button>
+        <Button type="button" onClick={ensureFromJob}>Make a roundtable episode</Button>
       )}
       {remote.error && !mine.some(item => item.jobId === jobId) && <ErrorNote message={remote.error} onRetry={remote.reload} />}
 
       <section>
-        <h2 className="font-display text-2xl font-bold text-pine">{t.myPodcasts}</h2>
-        {mine.length === 0 && <p className="mt-2 text-sm text-muted">{t.episodesEmpty}</p>}
+        <h2 className="font-display text-2xl font-bold text-pine">My Research Podcasts</h2>
+        {mine.length === 0 && <p className="mt-2 text-sm text-muted">No episode is saved on this device yet.</p>}
         <div className="mt-4 space-y-4">
           {mine.map(episode => (
             <EpisodeCard
@@ -420,7 +482,7 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
               lines={episode.lines}
               sources={episode.sources}
               reportHtml={episode.reportHtml}
-              stateLabel={stateLabel(episode.state, t)}
+              stateLabel={stateLabel(episode.state)}
               state={episode.state}
               error={episode.error}
               audioBase64={episode.audioBase64}
@@ -429,7 +491,7 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
               actions={
                 <div className="flex flex-wrap gap-2">
                   {episode.state !== 'audio-generating' && episode.state !== 'playable' && (
-                    <Button type="button" onClick={() => void generate(episode)}>{t.generateAudio}</Button>
+                    <Button type="button" onClick={() => void generate(episode)}>Generate audio</Button>
                   )}
                   <Button
                     type="button"
@@ -440,9 +502,9 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
                     Download .WAV
                   </Button>
                   {!episode.shared && (
-                    <Button type="button" variant="soft" onClick={() => void share(episode)}>{t.shareEpisode}</Button>
+                    <Button type="button" variant="soft" onClick={() => void share(episode)}>Share with the community</Button>
                   )}
-                  {episode.shared && <span className="text-sm text-pine">{t.sharedEpisode}</span>}
+                  {episode.shared && <span className="text-sm text-pine">Shared for the community</span>}
                 </div>
               }
             />
@@ -451,9 +513,9 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
       </section>
 
       <section>
-        <h2 className="font-display text-2xl font-bold text-pine">{t.communityPodcasts}</h2>
+        <h2 className="font-display text-2xl font-bold text-pine">Community Podcasts</h2>
         {community.error && <ErrorNote message={community.error} onRetry={community.reload} />}
-        {(community.data?.episodes.length ?? 0) === 0 && <p className="mt-2 text-sm text-muted">{t.communityEmpty}</p>}
+        {(community.data?.episodes.length ?? 0) === 0 && <p className="mt-2 text-sm text-muted">No episode has been shared for publication.</p>}
         <div className="mt-4 space-y-4">
           {community.data?.episodes.map(episode => (
             <EpisodeCard
@@ -464,7 +526,7 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
               participants={episode.participants}
               lines={episode.lines}
               reportHtml={episode.reportHtml}
-              stateLabel={t.podcastScriptReady}
+              stateLabel="Script ready"
               state="script-ready"
             />
           ))}
@@ -509,8 +571,8 @@ function EpisodeCard({
   return (
     <article className="rounded-3xl border border-pine/10 bg-parchment p-5">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">{label}</p>
-      <h3 className="mt-2 font-display text-2xl font-bold text-pine">{question}</h3>
-      <p className="mt-1 text-sm text-ink/70">Generated presenters. They are not scholars.</p>
+      <h3 className="mt-2 font-display text-2xl font-bold text-pine"><ContentText text={question} /></h3>
+      <p className="mt-1 text-sm text-ink/70">Generated presenters. Brother Feroz did not speak or approve these words. They are not scholars.</p>
       <ul className="mt-3 space-y-1 text-sm">
         {participants.map(agent => (
           <li key={agent.id}>
@@ -539,7 +601,7 @@ function EpisodeCard({
         {lines.map((line, index) => (
           <p key={`${line.speaker}-${index}`}>
             <span className="font-semibold text-pine">{line.speaker}. </span>
-            {line.text}
+            <ContentText text={line.text} />
           </p>
         ))}
       </div>

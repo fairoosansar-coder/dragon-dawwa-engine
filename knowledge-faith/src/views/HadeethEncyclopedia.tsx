@@ -125,6 +125,7 @@ function HadithReading({ id }: { id: string }) {
               </p>
             )}
             <p>HadeethEnc {hadith.id}</p>
+            {hadith.sourceVersion && <p>Source edition {hadith.sourceVersion}</p>}
             <p className="text-muted">{t.audioOmitted}</p>
             <p>
               <a className="text-pine underline" href={hadith.sourceUrl} target="_blank" rel="noreferrer">

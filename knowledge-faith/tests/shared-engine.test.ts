@@ -152,8 +152,14 @@ describe('shared research plan', () => {
     const idle = episodeIdForRevision({ currentEpisodeId: 'pod-1', playingEpisodeId: null, revision: 2 });
     assert.equal(idle.episodeId, 'pod-1');
     const playing = { id: 'pod-1', audioBase64: 'AAAA', state: 'playable' as const, revision: 1 };
-    const created = { id: 'pod-1', audioBase64: undefined, state: 'script-ready' as const, question: 'later' };
-    const merged = prependEpisodeRevision({ episodes: [playing], created, playingEpisodeId: 'pod-1', revision: 2 });
+    const created = { id: 'pod-1', audioBase64: undefined, state: 'script-ready' as const, question: 'later', revision: 2 };
+    const merged = prependEpisodeRevision<{
+      id: string;
+      audioBase64?: string;
+      state: 'playable' | 'script-ready';
+      question?: string;
+      revision: number;
+    }>({ episodes: [playing], created, playingEpisodeId: 'pod-1', revision: 2 });
     assert.equal(merged.changed, true);
     assert.equal(merged.episodes[0].id, 'pod-1-r2');
     assert.equal(merged.episodes[1], playing);
@@ -545,7 +551,7 @@ describe('shared engine against the current desks', () => {
       setup: null,
       findings: [{
         claim: 'A later note on Badr.',
-        excerpt: 'A later Parallel note says the campaign is remembered for restraint after victory.',
+        excerpt: 'A later note says the Battle of Badr is remembered for restraint after victory.',
         url: 'https://example.test/badr-later',
         title: 'Later Badr note',
         providerConfidence: 'low',

@@ -7,6 +7,7 @@ import { archiveResearch, readArchivedJob } from './archive.ts';
 import { executeResearch, publishParallelRevision, type ResearchPorts } from './engine.ts';
 import { awaitParallelResult } from './parallelTask.ts';
 import { defaultResearchPorts } from './ports.ts';
+import { archiveResearchJob, readArchivedResearchJob } from './savedWork.ts';
 
 interface StoredJob extends ResearchJobResponse {
   controller: AbortController;
@@ -35,17 +36,45 @@ export function clearSharedResearchJobs() {
   jobs.clear();
 }
 
+function persisted(stored: StoredJob): ResearchJobResponse {
+  return { contractVersion: '1.0.0', job: stored.job, dossier: stored.dossier };
+}
+
 function remember(stored: StoredJob) {
   if (!stored.dossier) return;
   if (stored.job.status !== 'done' && stored.job.status !== 'error' && stored.job.status !== 'cancelled') return;
-  archiveResearch(stored.fingerprint, { contractVersion: '1.0.0', job: stored.job, dossier: stored.dossier });
+  const response = persisted(stored);
+  archiveResearch(stored.fingerprint, response);
+  archiveResearchJob(stored.fingerprint, response);
+}
+
+/** Publish a finished shared dossier without calling Gemini or Parallel. */
+export function rememberCompletedSharedJob(response: ResearchJobResponse, assignment: ResearchAssignmentView | null): void {
+  prune();
+  const current = jobs.get(response.job.id);
+  if (current && (current.job.status === 'running' || current.job.status === 'queued')) return;
+  const fingerprint = researchFingerprint(
+    response.job.question,
+    response.job.language,
+    assignment ?? { scope: 'knowledge', teams: [], bookId: null },
+  );
+  const stored: StoredJob = {
+    contractVersion: '1.0.0',
+    controller: new AbortController(),
+    createdAt: Date.now(),
+    fingerprint,
+    dossier: response.dossier,
+    job: { ...response.job, status: 'done' },
+  };
+  jobs.set(response.job.id, stored);
+  remember(stored);
 }
 
 export function getSharedResearchJob(id: string): ResearchJobResponse | undefined {
   prune();
   const job = jobs.get(id);
-  if (job) return { contractVersion: '1.0.0', job: job.job, dossier: job.dossier };
-  return readArchivedJob(id);
+  if (job) return persisted(job);
+  return readArchivedJob(id) ?? readArchivedResearchJob(id);
 }
 
 export function cancelSharedResearchJob(id: string): ResearchJobResponse | undefined {
@@ -54,6 +83,7 @@ export function cancelSharedResearchJob(id: string): ResearchJobResponse | undef
   if (job.job.status !== 'running' && job.job.status !== 'queued') return getSharedResearchJob(id);
   job.controller.abort();
   job.job = { ...job.job, status: 'cancelled', finishedAt: new Date().toISOString() };
+  remember(job);
   return getSharedResearchJob(id);
 }
 
@@ -140,6 +170,7 @@ export function startSharedResearchJob(
         finishedAt: new Date().toISOString(),
         errors: [...current.job.errors, { provider: 'research', message: err instanceof Error ? err.message : 'Research failed.' }],
       };
+      remember(current);
     });
   return id;
 }
