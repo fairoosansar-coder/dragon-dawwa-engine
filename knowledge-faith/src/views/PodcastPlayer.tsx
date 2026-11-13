@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ContentText } from '../components/ContentText.tsx';
+import { LivingWavePlayer } from '../components/audio/LivingWavePlayer.tsx';
 import type { RoundtableLine } from '../shared/research/roundtable.ts';
 
 function stampSeconds(at?: string): number {
@@ -89,7 +90,31 @@ export function PodcastPlayer({
         data-playing={playing ? 'true' : 'false'}
         className="min-w-0 rounded-2xl border border-[#C9A14E]/55 bg-[#FAF6EC] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] sm:p-4"
       >
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <LivingWavePlayer
+          audioId={`podcast-ep-${episodeId}`}
+          durationLabel={clock(duration || planned)}
+          speakerLabel={lines[active]?.speaker ? `● ${lines[active].speaker}` : undefined}
+          externalControl={{
+            isPlaying: playing,
+            currentTime: current,
+            duration: duration || planned,
+            rate,
+            onRateChange: nextRate => setRate(nextRate),
+            onToggle: () => {
+              const node = audioRef.current;
+              if (!node || !src) return;
+              if (node.paused) void node.play();
+              else node.pause();
+            },
+            onSeek: targetSec => {
+              if (audioRef.current && src) {
+                audioRef.current.currentTime = targetSec;
+              }
+              setCurrent(targetSec);
+            },
+          }}
+        />
+        <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
           <button
             type="button"
             data-playing={playing ? 'true' : 'false'}

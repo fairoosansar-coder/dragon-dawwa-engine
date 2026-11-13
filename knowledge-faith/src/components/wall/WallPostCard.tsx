@@ -23,6 +23,7 @@ import {
 import { pauseAudio, playAudio, useAudioState } from '../../lib/audio.ts';
 import { profileFontClass, wallFontClass } from '../../lib/typography.ts';
 import { HadithVoiceBar } from '../HadithVoiceBar.tsx';
+import { LivingWavePlayer } from '../audio/LivingWavePlayer.tsx';
 import { SeekerAvatar } from '../SeekerAuthModal.tsx';
 import { ThemeSwatches } from './ReflectionModal.tsx';
 import {
@@ -553,46 +554,14 @@ export function WallPostCard({
             {post.podcastTitle || `Roundtable on Surah ${post.surahName} ${post.surah}:${post.ayah}`}
           </h4>
 
-          {/* Interactive Audio Waveform Bar */}
-          <div className="mt-2.5 flex items-center gap-2.5 rounded-xl border border-[#D4AF37]/30 bg-[#031812]/80 px-3 py-2">
-            <button
-              type="button"
-              data-wall-podcast-play={post.id}
-              aria-label={podcastPlaying ? 'Pause podcast' : 'Play podcast'}
-              onClick={() => {
-                if (podcastPlaying) pauseAudio();
-                else {
-                  void playAudio(
-                    podcastAudioId,
-                    post.podcastAudioUrl || 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/1.mp3',
-                  );
-                }
-              }}
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#D4AF37] text-[#031812] shadow-sm transition hover:bg-[#e3c14d]"
-            >
-              {podcastPlaying ? (
-                <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
-              ) : (
-                <Play className="h-3.5 w-3.5 fill-current" aria-hidden />
-              )}
-            </button>
-
-            <div className="flex flex-1 items-center gap-1 overflow-hidden" aria-hidden>
-              {[35, 65, 45, 80, 55, 90, 40, 70, 60, 85, 50, 75, 45, 65, 35, 60, 80, 50, 40, 72].map((h, idx) => (
-                <span
-                  key={idx}
-                  style={{ height: `${Math.round(h * 0.22)}px` }}
-                  className={`w-1.5 rounded-full transition-colors ${
-                    podcastPlaying && idx % 2 === 0 ? 'bg-emerald-400' : 'bg-[#D4AF37]/75'
-                  }`}
-                />
-              ))}
-            </div>
-
-            <span className="font-mono text-[11px] text-[#D4AF37]">
-              {post.podcastDuration || '06:42'}
-            </span>
-          </div>
+          {/* Living Acoustic Wave & Luminous Resonance Player */}
+          <LivingWavePlayer
+            audioId={podcastAudioId}
+            audioUrl={post.podcastAudioUrl || 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/1.mp3'}
+            durationLabel={post.podcastDuration || '06:42'}
+            lang={post.lang}
+            playButtonDataId={post.id}
+          />
 
           {/* Key Citations */}
           {(post.podcastCitations?.length ?? 0) > 0 && (

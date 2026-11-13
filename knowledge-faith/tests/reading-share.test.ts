@@ -694,6 +694,12 @@ test('curated user profiles, 2-door controlled posting engine, and institutional
     adminSeeker.user,
   );
   assert.equal(srvAnswered.status, 'answered');
+
+  const tamilPod = SEEDED_FAITH_WALL_POSTS.find(p => p.id === 'seed-wall-podcast-tamil-14-7');
+  assert.ok(tamilPod);
+  assert.equal(tamilPod.type, 'podcast');
+  assert.equal(tamilPod.podcastDuration, '05:50');
+  assert.match(tamilPod.podcastTitle ?? '', /சூரா இப்ராஹீம் 14:7/);
 });
 
 

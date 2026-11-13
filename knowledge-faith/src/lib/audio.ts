@@ -124,6 +124,25 @@ export function setAudioPlaybackRate(rate: number) {
       /* ignore */
     }
   }
+  emit();
+}
+
+export function getAudioPlaybackRate(): number {
+  return desiredPlaybackRate;
+}
+
+export function seekAudio(id: string, targetSeconds: number) {
+  if (!media || currentId !== id) return;
+  const timed = media as Playable & { currentTime?: number; duration?: number };
+  const dur = Number(timed.duration) || duration;
+  const safeTarget = Math.max(0, Number.isFinite(targetSeconds) ? targetSeconds : 0);
+  const clamped = dur > 0 ? Math.min(dur, safeTarget) : safeTarget;
+  try {
+    timed.currentTime = clamped;
+    setClock(clamped, dur);
+  } catch {
+    /* ignore */
+  }
 }
 
 export function playAudio(id: string, src: string, then?: () => void): Promise<void> {

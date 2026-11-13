@@ -12,6 +12,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react';
+import { LivingWavePlayer } from '../audio/LivingWavePlayer.tsx';
 import { SeekerAvatar } from '../SeekerAuthModal.tsx';
 import { useSeekerAuth } from '../../lib/seekerAuth.ts';
 import {
@@ -572,22 +573,14 @@ export function ReflectionModal({
               {selectedPodcast.summary}
             </p>
 
-            {/* Simulated Waveform Preview Bar */}
-            <div className="mt-3 flex items-center gap-3 rounded-xl border border-[#D4AF37]/30 bg-[#031812]/80 px-3 py-2">
-              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#D4AF37] text-[#031812]">
-                <Play className="h-3.5 w-3.5 fill-current" aria-hidden />
-              </span>
-              <div className="flex flex-1 items-center gap-1 overflow-hidden" aria-hidden>
-                {[35, 65, 45, 80, 55, 90, 40, 70, 60, 85, 50, 75, 45, 65, 35, 60, 80, 50].map((h, idx) => (
-                  <span
-                    key={idx}
-                    style={{ height: `${Math.round(h * 0.22)}px` }}
-                    className="w-1.5 rounded-full bg-[#D4AF37]/75"
-                  />
-                ))}
-              </div>
-              <span className="font-mono text-[11px] text-[#D4AF37]">{selectedPodcast.duration}</span>
-            </div>
+            {/* Living Acoustic Wave Preview Player */}
+            <LivingWavePlayer
+              audioId={`modal-pod-preview-${selectedPodcast.id}`}
+              audioUrl={selectedPodcast.audioUrl}
+              durationLabel={selectedPodcast.duration}
+              lang={selectedPodcast.lang}
+              compact
+            />
 
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
               {selectedPodcast.citations.map(cite => (

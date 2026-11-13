@@ -8,7 +8,8 @@ import type { Lang } from '../shared/sources.ts';
 import { getJson, postJson, useRemote } from '../lib/api.ts';
 import { decodeBase64, downloadBytes, readResponseBytes } from '../lib/episodeWav.ts';
 import { readResearchHistory } from '../lib/researchDesk.ts';
-import { publishFaithWallPost } from '../lib/verseShare.ts';
+import { publishFaithWallPost, SEEDED_COMPLETED_PODCASTS } from '../lib/verseShare.ts';
+import { LivingWavePlayer } from '../components/audio/LivingWavePlayer.tsx';
 import { PodcastHostChip } from '../components/PodcastHostChip.tsx';
 import { ContentText } from '../components/ContentText.tsx';
 import { Button, ErrorNote, Notice } from '../components/ui.tsx';
@@ -502,6 +503,53 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
         <Button type="button" onClick={ensureFromJob}>Make a roundtable episode</Button>
       )}
       {remote.error && !mine.some(item => item.jobId === jobId) && <ErrorNote message={remote.error} onRetry={remote.reload} />}
+
+      <section data-testid="featured-studio-podcasts" className="min-w-0">
+        <p className="text-[10px] font-semibold tracking-[0.18em] text-[#8A7340]">CURATED ROUNDTABLES</p>
+        <h2 className="mt-0.5 font-display text-base font-bold text-pine sm:text-lg">Featured Studio Episodes</h2>
+        <div className="mt-2 h-px w-14 bg-[#C9A14E]" aria-hidden />
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {SEEDED_COMPLETED_PODCASTS.map(ep => (
+            <article
+              key={ep.id}
+              data-featured-podcast-card={ep.id}
+              className="flex flex-col justify-between rounded-2xl border border-[#D4AF37]/40 bg-gradient-to-br from-[#04241C] via-[#073C30] to-[#0A2E23] p-4 text-[#F3E8C8] shadow-sm sm:p-5"
+            >
+              <div>
+                <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-wider text-[#D4AF37]">
+                  <span>✦ 4-Scholar Roundtable Studio</span>
+                  <span>{ep.duration}</span>
+                </div>
+                <h3 lang={ep.lang} className="mt-1.5 font-display text-sm font-bold text-white sm:text-base">
+                  {ep.title}
+                </h3>
+                <p lang={ep.lang} className="mt-1 text-xs leading-relaxed text-[#F5EEDC]/80">
+                  {ep.summary}
+                </p>
+              </div>
+
+              <div className="mt-2">
+                <LivingWavePlayer
+                  audioId={`studio-featured-${ep.id}`}
+                  audioUrl={ep.audioUrl}
+                  durationLabel={ep.duration}
+                  lang={ep.lang}
+                />
+                <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                  {ep.citations.map(cite => (
+                    <span
+                      key={cite}
+                      className="rounded-full border border-[#D4AF37]/40 bg-[#D4AF37]/15 px-2 py-0.5 text-[10px] font-semibold text-[#F9E7B9]"
+                    >
+                      ✦ {cite}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
 
       <section className="min-w-0">
         <p className="text-[10px] font-semibold tracking-[0.18em] text-[#8A7340]">ON THIS DEVICE</p>
