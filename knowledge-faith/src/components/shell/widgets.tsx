@@ -1,11 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Bookmark, BookmarkCheck, Search } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Search, X } from 'lucide-react';
 import { RubElHizb } from '../../engine/ds/ornaments.tsx';
 import type { RouteRoot } from '../../lib/route.ts';
 import { useRemote } from '../../lib/api.ts';
 import { prayerQueryDate } from '../../lib/prayerClock.ts';
-import { pauseAudio, resumeAudio, useAudioState, type AudioStatus } from '../../lib/audio.ts';
+import { pauseAudio, resumeAudio, stopAudio, useAudioState, type AudioStatus } from '../../lib/audio.ts';
 import { useShell } from '../../lib/shell.tsx';
 import { usePronunciation, type Pronunciation } from '../../lib/pronunciation.ts';
 import { useApp, useStored } from '../../lib/store.tsx';
@@ -817,30 +817,49 @@ export function AudioMiniPlayer({ safe }: { safe: boolean }) {
   const isLoading = audio.status === 'loading';
   return (
     <div
-      data-mini-player
-      className={`fixed right-0 left-0 z-30 shrink-0 border-t border-gold/40 bg-[#04241C] px-4 py-2.5 text-[#F5EEDC] shadow-lg ${
-        safe ? 'bottom-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]' : 'bottom-[56px]'
+      className={`pointer-events-none fixed right-0 left-0 z-40 flex justify-center px-3 ${
+        safe ? 'bottom-3 pb-[env(safe-area-inset-bottom)]' : 'bottom-[58px]'
       }`}
     >
-      <div className="mx-auto flex max-w-[680px] items-center justify-between gap-3">
-        <p className="min-w-0 flex items-center gap-2 text-sm leading-snug">
-          {isLoading && <AudioLoadingSpinner size={15} className="text-[#D4AF37]" />}
-          <span>{audioStatusLabel(t, audio.status, audio.id)}</span>
-        </p>
-        <Button variant="soft" onClick={active ? pauseAudio : resumeAudio}>
+      <div
+        data-mini-player
+        className="pointer-events-auto flex w-full max-w-[680px] items-center justify-between gap-3 rounded-2xl border border-[#D4AF37]/45 bg-[#04241C]/95 px-4 py-2 text-[#F5EEDC] shadow-xl backdrop-blur-xs"
+      >
+        <p className="min-w-0 flex items-center gap-2 text-xs font-medium leading-snug sm:text-sm">
           {isLoading ? (
-            <>
-              <AudioLoadingSpinner size={14} />
-              <span>{loadingAudioLabel(lang)}</span>
-            </>
+            <AudioLoadingSpinner size={15} className="text-[#D4AF37]" />
           ) : active ? (
-            t.pause
-          ) : meaning ? (
-            t.playMeaning
+            <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" aria-hidden />
           ) : (
-            t.play
+            <span className="h-2 w-2 shrink-0 rounded-full bg-[#D4AF37]" aria-hidden />
           )}
-        </Button>
+          <span className="truncate">{audioStatusLabel(t, audio.status, audio.id)}</span>
+        </p>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button variant="soft" onClick={active ? pauseAudio : resumeAudio}>
+            {isLoading ? (
+              <>
+                <AudioLoadingSpinner size={14} />
+                <span>{loadingAudioLabel(lang)}</span>
+              </>
+            ) : active ? (
+              t.pause
+            ) : meaning ? (
+              t.playMeaning
+            ) : (
+              t.play
+            )}
+          </Button>
+          <button
+            type="button"
+            data-testid="mini-player-close-btn"
+            aria-label="Dismiss audio player"
+            onClick={() => stopAudio()}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-white/5 text-[#F5EEDC]/80 transition hover:border-[#D4AF37]/50 hover:bg-white/10 hover:text-white cursor-pointer"
+          >
+            <X className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        </div>
       </div>
     </div>
   );

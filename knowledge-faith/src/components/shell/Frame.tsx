@@ -428,14 +428,14 @@ export function AppFrame({
           quranBook ? 'min-h-0 items-stretch overflow-hidden' : 'items-start'
         }`}
       >
-        {/* TABLE 1 (Left Column on Desktop LG+): User Profile Summary Card (1, 2) + Faith Wall & Shortcuts Navigation (3) + Sticky Bottom Settings Footer */}
+        {/* TABLE 1 (Left Column on Desktop LG+): User Profile Summary Card (1, 2) + Faith Wall & Shortcuts Navigation (3) */}
         {!focus && (
           <aside
             data-left-social-rail
             className="sticky top-14 z-30 hidden h-[calc(100vh-3.5rem-3.5rem)] w-[300px] shrink-0 flex-col overflow-y-auto no-scrollbar pt-4 text-stone-900 lg:flex xl:w-[310px]"
           >
             {/* Scrollable Top & Middle Area (starts directly with User Profile Summary Card to align top-edge with Center Feed & Right Rail) */}
-            <div className="flex-1 overflow-y-auto no-scrollbar pr-1 pb-3">
+            <div className="flex-1 overflow-y-auto no-scrollbar pr-1 pb-6">
               {/* 1 & 2: User Profile Summary Card */}
             <div
               data-sidebar-profile-card
@@ -691,101 +691,6 @@ export function AppFrame({
               </a>
             </nav>
           </div>
-
-          {/* 1ST TABLE BOTTOM FOOTER: Dedicated Settings & Platform Customization Button + Anchored Drawer */}
-          <div
-            ref={footerRef}
-            data-left-rail-footer
-            className="relative mt-auto shrink-0 pt-2 pb-3 pr-1"
-          >
-            {footerSettingsOpen && (
-              <div
-                role="dialog"
-                aria-label="Platform Customization Settings"
-                data-left-footer-settings-drawer
-                className="absolute bottom-full left-0 right-1 z-50 mb-2 rounded-2xl border border-stone-200 bg-white p-3.5 text-stone-900 shadow-2xl ring-1 ring-black/10"
-              >
-                <div className="mb-2.5 flex items-center justify-between border-b border-stone-100 pb-2">
-                  <div className="flex items-center gap-1.5">
-                    <Settings className="h-3.5 w-3.5 text-[#073C30]" aria-hidden />
-                    <span className="text-xs font-bold text-stone-900">
-                      Platform Customization
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setFooterSettingsOpen(false)}
-                    aria-label="Close customization settings"
-                    className="inline-flex h-6 w-6 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 hover:text-stone-700"
-                  >
-                    <X className="h-3.5 w-3.5" aria-hidden />
-                  </button>
-                </div>
-
-                <ProfileSettingsPanel compact />
-
-                <div className="mt-3 flex items-center justify-between border-t border-stone-100 pt-2.5 text-[11px]">
-                  <a
-                    href="#/profile"
-                    onClick={() => setFooterSettingsOpen(false)}
-                    className="font-semibold text-emerald-800 hover:underline"
-                  >
-                    My Profile & Account →
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFooterSettingsOpen(false);
-                      openModal();
-                    }}
-                    className="font-medium text-stone-600 hover:text-stone-900"
-                  >
-                    {isAuthenticated ? 'Edit Identity' : 'Sign In'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <button
-              type="button"
-              data-testid="left-footer-settings-btn"
-              aria-expanded={footerSettingsOpen}
-              onClick={() => setFooterSettingsOpen(open => !open)}
-              className="flex w-full items-center justify-between gap-2 rounded-2xl border border-stone-200/90 bg-white px-3 py-2.5 text-left shadow-2xs transition hover:border-[#073C30]/40 hover:bg-emerald-50/40"
-            >
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#073C30] text-[#D4AF37] shadow-2xs">
-                  <Settings className="h-4 w-4" aria-hidden />
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-bold text-stone-900">
-                    Settings & Customize
-                  </p>
-                  <p className="truncate text-[10px] text-stone-500">
-                    Language · Colour · Font Size
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex shrink-0 items-center gap-1.5">
-                <span className="rounded-md border border-stone-200 bg-stone-50 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-emerald-900">
-                  {LANGUAGE_NAMES[lang].native}
-                </span>
-                <span
-                  aria-hidden
-                  title={UI_THEMES[uiTheme].label}
-                  style={{ background: UI_THEMES[uiTheme].swatch }}
-                  className="inline-block h-3.5 w-3.5 rounded-full border border-black/20"
-                />
-                <ChevronUp
-                  className={`h-3.5 w-3.5 text-stone-400 transition-transform ${
-                    footerSettingsOpen ? 'rotate-180 text-stone-700' : ''
-                  }`}
-                  aria-hidden
-                />
-              </div>
-            </button>
-          </div>
         </aside>
         )}
 
@@ -812,13 +717,13 @@ export function AppFrame({
         </main>
       </div>
 
-      {/* Mobile Customization Bottom Sheet when opened on <1024px viewports */}
+      {/* Mobile Customization Bottom Sheet when opened on <768px viewports */}
       {footerSettingsOpen && (
         <div
           role="dialog"
           aria-label="Mobile Platform Customization"
           data-mobile-footer-settings-sheet
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 backdrop-blur-xs lg:hidden"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 backdrop-blur-xs md:hidden"
           onClick={() => setFooterSettingsOpen(false)}
         >
           <div
@@ -856,33 +761,151 @@ export function AppFrame({
         <AudioMiniPlayer safe={focus} />
       )}
 
-      {/* 5 Primary Navigation Links (Knowledge · Faith Wall · Podcast · Saved · Profile) fixed at the bottom of the viewport */}
+      {/* Fixed Bottom Footer Bar: Left Zone (Settings & Customize) + Center Zone (5 Primary Navigation Links) + Right Zone */}
       {!focus && (
         <nav
           aria-label="Sections"
           data-bottom-primary-nav
           className="fixed bottom-0 left-0 right-0 z-40 shrink-0 border-t border-gold/40 bg-[#073C30] pb-[env(safe-area-inset-bottom)] text-[#F5EEDC] shadow-[0_-4px_20px_rgba(3,24,18,0.18)]"
         >
-          <ul className="mx-auto grid max-w-[680px] grid-cols-5">
-            {NAV.map(item => {
-              const active = item.isActive(path, segments);
-              return (
-                <li key={item.id} className="min-w-0">
-                  <a
-                    href={item.href}
-                    data-primary-nav={item.id}
-                    data-dock-nav={item.id}
-                    aria-current={active ? 'page' : undefined}
-                    onClick={event => handleNavClick(event, item.href, item.label)}
-                    className={navLinkClass('dock')}
-                  >
-                    <NavGlyph name={item.mark} />
-                    <span className="max-w-full truncate">{item.label}</span>
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
+          <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-2 px-2 sm:px-5 lg:px-6 md:grid md:grid-cols-[minmax(230px,1fr)_minmax(0,680px)_minmax(230px,1fr)]">
+            {/* Left Zone (Desktop/Tablet md+): Dedicated Settings & Customize Button + Upward Popover Drawer */}
+            <div
+              ref={footerRef}
+              data-left-rail-footer
+              className="relative hidden items-center justify-self-start md:flex"
+            >
+              {footerSettingsOpen && (
+                <div
+                  role="dialog"
+                  aria-label="Platform Customization Settings"
+                  data-left-footer-settings-drawer
+                  data-testid="footer-settings-popover"
+                  className="absolute bottom-full left-0 z-50 mb-2.5 w-80 rounded-2xl border border-stone-200 bg-white p-3.5 text-stone-900 shadow-2xl ring-1 ring-black/15"
+                >
+                  <div className="mb-2.5 flex items-center justify-between border-b border-stone-100 pb-2">
+                    <div className="flex items-center gap-1.5">
+                      <Settings className="h-3.5 w-3.5 text-[#073C30]" aria-hidden />
+                      <span className="text-xs font-bold text-stone-900">
+                        Platform Customization
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFooterSettingsOpen(false)}
+                      aria-label="Close customization settings"
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 hover:text-stone-700"
+                    >
+                      <X className="h-3.5 w-3.5" aria-hidden />
+                    </button>
+                  </div>
+
+                  <ProfileSettingsPanel compact />
+
+                  <div className="mt-3 flex items-center justify-between border-t border-stone-100 pt-2.5 text-[11px]">
+                    <a
+                      href="#/profile"
+                      onClick={() => setFooterSettingsOpen(false)}
+                      className="font-semibold text-emerald-800 hover:underline"
+                    >
+                      My Profile & Account →
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFooterSettingsOpen(false);
+                        openModal();
+                      }}
+                      className="font-medium text-stone-600 hover:text-stone-900"
+                    >
+                      {isAuthenticated ? 'Edit Identity' : 'Sign In'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="button"
+                data-testid="left-footer-settings-btn"
+                aria-expanded={footerSettingsOpen}
+                onClick={() => setFooterSettingsOpen(open => !open)}
+                className="flex items-center justify-between gap-2.5 rounded-xl border border-[#D4AF37]/45 bg-[#04241C] px-2.5 py-1.5 text-left text-[#F5EEDC] shadow-2xs transition hover:border-[#D4AF37] hover:bg-[#0A2E23] cursor-pointer"
+              >
+                <span
+                  data-testid="footer-settings-customize-btn"
+                  className="flex items-center justify-between gap-2.5"
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#D4AF37]/15 text-[#D4AF37]">
+                      <Settings className="h-3.5 w-3.5" aria-hidden />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-[11px] font-bold leading-tight text-[#F9E7B9]">
+                        Settings & Customize
+                      </span>
+                      <span className="hidden truncate text-[9.5px] leading-tight text-[#C8D6CE] lg:block">
+                        Language · Colour · Font Size
+                      </span>
+                    </span>
+                  </span>
+
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    <span className="rounded-md border border-[#D4AF37]/35 bg-[#073C30] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[#F9E7B9]">
+                      {LANGUAGE_NAMES[lang].native}
+                    </span>
+                    <span
+                      aria-hidden
+                      title={UI_THEMES[uiTheme].label}
+                      style={{ background: UI_THEMES[uiTheme].swatch }}
+                      className="inline-block h-3 w-3 rounded-full border border-white/30"
+                    />
+                    <ChevronUp
+                      className={`h-3.5 w-3.5 text-[#D4AF37] transition-transform ${
+                        footerSettingsOpen ? 'rotate-180' : ''
+                      }`}
+                      aria-hidden
+                    />
+                  </span>
+                </span>
+              </button>
+            </div>
+
+            {/* Center Zone: 5 Primary Navigation Links aligned under Center Feed */}
+            <ul className="mx-auto grid min-w-0 flex-1 max-w-[680px] grid-cols-5 md:w-full md:justify-self-center">
+              {NAV.map(item => {
+                const active = item.isActive(path, segments);
+                return (
+                  <li key={item.id} className="min-w-0">
+                    <a
+                      href={item.href}
+                      data-primary-nav={item.id}
+                      data-dock-nav={item.id}
+                      aria-current={active ? 'page' : undefined}
+                      onClick={event => handleNavClick(event, item.href, item.label)}
+                      className={navLinkClass('dock')}
+                    >
+                      <NavGlyph name={item.mark} />
+                      <span className="max-w-full truncate">{item.label}</span>
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {/* Right Zone / Mobile Compact Settings Trigger */}
+            <div className="flex shrink-0 items-center justify-end md:justify-self-end">
+              <button
+                type="button"
+                data-testid="mobile-footer-settings-btn"
+                aria-label="Settings & Customize"
+                aria-expanded={footerSettingsOpen}
+                onClick={() => setFooterSettingsOpen(open => !open)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#D4AF37]/45 bg-[#04241C] text-[#D4AF37] shadow-2xs transition hover:border-[#D4AF37] md:hidden"
+              >
+                <Settings className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+          </div>
         </nav>
       )}
       <SeekerAuthModal />
