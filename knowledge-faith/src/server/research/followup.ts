@@ -97,7 +97,7 @@ async function writeRebuttal(input: {
   counter: string;
   sources: FollowUpOpenedSource[];
 }): Promise<{ reply: string; model: string; provider: FollowUpTurn['provider'] }> {
-  const system = followUpRebuttalSystemPrompt();
+  const system = followUpRebuttalSystemPrompt(input.language);
   const user = [
     `Write in ${LANGUAGE_NAMES[input.language].english}.`,
     'Respond to the seeker’s counter-argument with Hikmah. Steel-man first. Never invent a citation.',

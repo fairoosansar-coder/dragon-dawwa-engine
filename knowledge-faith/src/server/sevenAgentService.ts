@@ -28,7 +28,13 @@ import {
 import { modernWorldNativeRoundtable } from './modernWorldNativeRoundtables.ts';
 import { composeNativeRoundtableTurns } from './nativeRoundtable.ts';
 import { persistRoot } from './persist.ts';
-import { finalSynthesisSystemPrompt, parallelRequestForDesk } from './research/agentConfig.ts';
+import {
+  dossierLanguageInstruction,
+  finalSynthesisSystemPrompt,
+  LIVE_DOSSIER_OUTPUT_SCHEMA,
+  parallelRequestForDesk,
+  RATIONAL_CIVILIZATIONAL_PROOF_DNA,
+} from './research/agentConfig.ts';
 import { GEMINI_SYNTHESIS_FALLBACK_MODEL } from './research/finalSynthesis.ts';
 import { consultParallel } from './research/parallelTask.ts';
 
@@ -656,12 +662,16 @@ function dossierPayloadComplete(payload: GeneratedDossierPayload | null | undefi
   return true;
 }
 
-function dossierSynthesisUserPrompt(question: string, evidencePacket: string): string {
+function dossierSynthesisUserPrompt(question: string, evidencePacket: string, language: Lang): string {
   return [
     'Produce the Dragon Dawwa 7-Agent Islamic & Empirical Science Research dossier as JSON.',
     'Analyze with rigorous classical Islamic scholarship (Qur’an with Surah:Ayah, Kutub al-Sittah with collection numbers, Isnad authenticity, 4 Sunni Fiqh schools, Arabic Maqasid) AND Modern Science foresight (1 step ahead).',
+    RATIONAL_CIVILIZATIONAL_PROOF_DNA,
+    LIVE_DOSSIER_OUTPUT_SCHEMA,
+    dossierLanguageInstruction(language),
     'Cite specific Qur’an ayahs, Hadiths, and classical sources from the OPENED EVIDENCE PACKET when present. Never invent a citation that is not supported by opened evidence or well-established canonical references you are certain of from that packet.',
     `Seeker Question (user-facing only): ${JSON.stringify(userFacingResearchQuestion(question))}`,
+    `Active UI language code: ${language} (${LANGUAGE_NAMES[language]?.english ?? language}).`,
     `Internal evidence rubric (follow silently; never paste into spoken Host lines): ${JSON.stringify(
       researchSystemInstructionsForQuestion(question) || 'Opened sources only; never invent citations.',
     )}`,
@@ -670,11 +680,12 @@ function dossierSynthesisUserPrompt(question: string, evidencePacket: string): s
     evidencePacket || '(No Parallel excerpts returned yet — still produce a rigorous synthesis; mark uncertainty honestly and avoid fabricating collection numbers.)',
     '',
     'Return JSON with keys: verdictHeadline, verdictClassification, confidenceScore, executiveSummary, quransummary, quranArabic, quranRef, quranPoints, hadithSummary, hadithArabic, hadithRef, hadithPoints, isnadSummary, isnadPoints, fiqhSummary, fiqhPoints, maqasidSummary, maqasidPoints, scienceHeadline, scienceSummary, sciencePoints, sciencePillars[{domain,finding,oneStepAheadNote}], executivePoints.',
+    'All prose fields (summaries, points, science pillars, executive text) MUST be in the active UI language. Keep quranArabic/hadithArabic in original Arabic.',
   ].join('\n');
 }
 
-async function retrieveSevenAgentEvidencePacket(question: string): Promise<string> {
-  const request = parallelRequestForDesk('knowledge', question, 'en');
+async function retrieveSevenAgentEvidencePacket(question: string, language: Lang): Promise<string> {
+  const request = parallelRequestForDesk('knowledge', question, language);
   if (!request) {
     console.info('Seven-agent retrieval: no Parallel desk request for knowledge; continuing with synthesis.');
     return '';
@@ -682,7 +693,7 @@ async function retrieveSevenAgentEvidencePacket(question: string): Promise<strin
   try {
     const consult = await consultParallel({
       question,
-      language: 'en',
+      language,
       taskInput: request.taskInput,
       agents: request.agents,
       // Best-effort retrieval inside the sync seven-agents HTTP handler — keep short so Claude still has room.
@@ -717,12 +728,13 @@ async function retrieveSevenAgentEvidencePacket(question: string): Promise<strin
 async function synthesizeDynamicDossierPayload(
   question: string,
   evidencePacket: string,
+  language: Lang = 'en',
 ): Promise<{ payload: GeneratedDossierPayload; provider: 'anthropic' | 'gemini'; model: string } | null> {
   const system = [
-    finalSynthesisSystemPrompt(),
+    finalSynthesisSystemPrompt(language),
     'You are also the Dragon Dawwa 7-Agent Research Engine. Output ONLY the dossier JSON object described by the user.',
   ].join('\n\n');
-  const user = dossierSynthesisUserPrompt(question, evidencePacket);
+  const user = dossierSynthesisUserPrompt(question, evidencePacket, language);
 
   if (anthropicConfigured()) {
     try {
@@ -770,12 +782,16 @@ async function synthesizeDynamicDossierPayload(
   }
 }
 
-function agentsFromGeneratedPayload(generated: GeneratedDossierPayload): SpecialistAgentFinding[] {
+function agentsFromGeneratedPayload(
+  generated: GeneratedDossierPayload,
+  language: Lang = 'en',
+): SpecialistAgentFinding[] {
+  const headers = LOCALIZED_AGENT_HEADERS[language] ?? LOCALIZED_AGENT_HEADERS.en;
   return [
     {
       agentNumber: 1,
       agentId: 'quran_tafsir',
-      ...LOCALIZED_AGENT_HEADERS.en.quran_tafsir,
+      ...headers.quran_tafsir,
       verdictBadge: 'QUR’ANIC FOUNDATION',
       confidenceScore: '98.5%',
       arabicQuote: generated.quranArabic || 'وَقُل رَّبِّ زِدْنِى عِلْمًا',
@@ -787,7 +803,7 @@ function agentsFromGeneratedPayload(generated: GeneratedDossierPayload): Special
     {
       agentNumber: 2,
       agentId: 'hadith_sunnah',
-      ...LOCALIZED_AGENT_HEADERS.en.hadith_sunnah,
+      ...headers.hadith_sunnah,
       verdictBadge: 'PROPHETIC SUNNAH EVIDENCE',
       confidenceScore: '99.0%',
       arabicQuote: generated.hadithArabic,
@@ -799,7 +815,7 @@ function agentsFromGeneratedPayload(generated: GeneratedDossierPayload): Special
     {
       agentNumber: 3,
       agentId: 'isnad_rijal',
-      ...LOCALIZED_AGENT_HEADERS.en.isnad_rijal,
+      ...headers.isnad_rijal,
       verdictBadge: 'CHAIN & AUTHENTICITY AUDIT',
       confidenceScore: '98.0%',
       summary: generated.isnadSummary,
@@ -809,7 +825,7 @@ function agentsFromGeneratedPayload(generated: GeneratedDossierPayload): Special
     {
       agentNumber: 4,
       agentId: 'fiqh_consensus',
-      ...LOCALIZED_AGENT_HEADERS.en.fiqh_consensus,
+      ...headers.fiqh_consensus,
       verdictBadge: 'CLASSICAL FIQH & CONSENSUS',
       confidenceScore: '98.4%',
       summary: generated.fiqhSummary,
@@ -819,7 +835,7 @@ function agentsFromGeneratedPayload(generated: GeneratedDossierPayload): Special
     {
       agentNumber: 5,
       agentId: 'linguistic_maqasid',
-      ...LOCALIZED_AGENT_HEADERS.en.linguistic_maqasid,
+      ...headers.linguistic_maqasid,
       verdictBadge: 'MAQASID AL-SHARIAH',
       confidenceScore: '97.5%',
       summary: generated.maqasidSummary,
@@ -829,7 +845,7 @@ function agentsFromGeneratedPayload(generated: GeneratedDossierPayload): Special
     {
       agentNumber: 6,
       agentId: 'modern_science',
-      ...LOCALIZED_AGENT_HEADERS.en.modern_science,
+      ...headers.modern_science,
       verdictBadge: '🔬 1 STEP AHEAD OF MODERN SCIENCE',
       confidenceScore: '98.2%',
       isScienceSpotlight: true,
@@ -840,7 +856,7 @@ function agentsFromGeneratedPayload(generated: GeneratedDossierPayload): Special
     {
       agentNumber: 7,
       agentId: 'executive_synthesis',
-      ...LOCALIZED_AGENT_HEADERS.en.executive_synthesis,
+      ...headers.executive_synthesis,
       verdictBadge: generated.verdictClassification,
       confidenceScore: `${generated.confidenceScore || 98.5}%`,
       summary: generated.executiveSummary,
@@ -905,6 +921,7 @@ async function generateRoundtableAfterSynthesis(
   question: string,
   generated: GeneratedDossierPayload,
   agents: readonly SpecialistAgentFinding[],
+  language: Lang = 'en',
 ): Promise<RoundtableTurn[]> {
   const fallback = citedRoundtableFromAgents(question, generated, agents);
   const evidenceBrief = agents
@@ -914,18 +931,22 @@ async function generateRoundtableAfterSynthesis(
     })
     .join('\n\n');
   const system = [
-    finalSynthesisSystemPrompt(),
+    finalSynthesisSystemPrompt(language),
     'You are the Dragon Dawwa Roundtable Studio Director.',
     'Write a 5-turn scholarly roundtable that cites SPECIFIC Qur’an ayahs (Surah:Ayah), Hadith collection numbers, and classical sources from the completed synthesis below.',
+    RATIONAL_CIVILIZATIONAL_PROOF_DNA,
+    dossierLanguageInstruction(language),
     'Never invent citations absent from the synthesis. Never use generic placeholders like "awaiting live synthesis" or "opened sources only".',
     'Keep speaker display names exactly: Brother Feroz (Host), Dr. Tariq al-Mansoor, Shaykh Farhan al-Rashed, Dr. Zainab al-Mubarak, Brother Feroz (Host).',
   ].join('\n');
   const user = [
     `Question: ${userFacingResearchQuestion(question)}`,
+    `Active UI language: ${language}`,
     'Completed 7-agent synthesis (cite from this only):',
     evidenceBrief,
     '',
     'Return JSON { "turns": [ { "speaker": "...", "text": "..." }, ... ] } with exactly 5 turns in the speaker order above.',
+    'Every turn text MUST be written natively in the active UI language (keep Arabic quotes in Arabic).',
   ].join('\n');
 
   if (anthropicConfigured()) {
@@ -994,7 +1015,7 @@ function sevenAgentLiveSynthesisEnabled(): boolean {
   return process.env.NODE_TEST_CONTEXT == null;
 }
 
-async function buildDynamicEnglishDossier(question: string): Promise<SevenAgentResearchDossier> {
+async function buildDynamicDossier(question: string, language: Lang = 'en'): Promise<SevenAgentResearchDossier> {
   // Full custom-query path: Parallel retrieval → Claude Sonnet synthesis → Gemini fallback → post-synthesis roundtable.
   if (!sevenAgentLiveSynthesisEnabled()) {
     console.info(
@@ -1003,8 +1024,8 @@ async function buildDynamicEnglishDossier(question: string): Promise<SevenAgentR
     return buildGenericTopicFallbackDossier(question);
   }
 
-  const evidencePacket = await retrieveSevenAgentEvidencePacket(question);
-  const synthesized = await synthesizeDynamicDossierPayload(question, evidencePacket);
+  const evidencePacket = await retrieveSevenAgentEvidencePacket(question, language);
+  const synthesized = await synthesizeDynamicDossierPayload(question, evidencePacket, language);
   if (!synthesized) {
     console.error(
       'Seven-agent custom query fell through to static board: both Anthropic and Gemini synthesis unavailable or incomplete.',
@@ -1013,14 +1034,14 @@ async function buildDynamicEnglishDossier(question: string): Promise<SevenAgentR
   }
 
   const { payload: generated } = synthesized;
-  const agents = agentsFromGeneratedPayload(generated);
+  const agents = agentsFromGeneratedPayload(generated, language);
   // Roundtable runs AFTER live synthesis so speakers can cite the completed cards.
-  const turns = await generateRoundtableAfterSynthesis(question, generated, agents);
+  const turns = await generateRoundtableAfterSynthesis(question, generated, agents, language);
 
   return {
     id: `7agent-${Date.now()}`,
     question,
-    lang: 'en',
+    lang: language,
     verdictHeadline: generated.verdictHeadline,
     verdictClassification: generated.verdictClassification,
     confidenceScore: generated.confidenceScore || 98.5,
@@ -1378,8 +1399,9 @@ export async function runSevenAgentResearch(
   const cacheIdentity = modernMatch
     ? `modern:${modernMatch.id}`
     : `q:${normalizeResearchQuestion(cleanQ)}`;
+  // v8: native-language live schema + Rational & Civilizational Proof DNA in every synthesis.
   const hash = createHash('sha256')
-    .update(`seven-agent-v7|${lang}|${cacheIdentity}`)
+    .update(`seven-agent-v8|${lang}|${cacheIdentity}`)
     .digest('hex')
     .slice(0, 32);
   const stableId = modernMatch
@@ -1393,13 +1415,25 @@ export async function runSevenAgentResearch(
     return hydrated;
   }
 
+  // Custom live queries synthesize natively in the active language (no English-then-translate).
+  // Gold-ring + Modern World authored spines remain English templates localized below.
+  if (!modernMatch && !isGoldOrRingQuestion(cleanQ)) {
+    const live = {
+      ...(await buildDynamicDossier(cleanQ, lang)),
+      id: stableId,
+      question: cleanQ,
+      lang,
+    };
+    writeDiskDossier(hash, live);
+    recordInHistory(live);
+    return live;
+  }
+
   const baseEn = modernMatch
     ? resolveModernWorldDossierByQuestion(cleanQ) ??
       resolveModernWorldDossierByQuestion(question) ??
       resolveModernWorldDossierById(modernWorldReportId(modernMatch.id))!
-    : isGoldOrRingQuestion(cleanQ)
-      ? buildGoldAndRingsEnglishDossier(cleanQ)
-      : await buildDynamicEnglishDossier(cleanQ);
+    : buildGoldAndRingsEnglishDossier(cleanQ);
 
   const localized = {
     ...(await localizeDossierToLanguage(baseEn, lang)),

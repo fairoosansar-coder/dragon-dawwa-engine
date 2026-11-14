@@ -1,5 +1,9 @@
 /**
- * Qur'an & The Modern World Hub track — four deep-research benchmark cards.
+ * Rational & Civilizational Proof signatures for live-engine matching.
+ *
+ * Hub no longer renders these as static BENCHMARK DOSSIER cards — the three
+ * pillars live in agentConfig system prompts for every query. This module
+ * remains for question matching, cache isolation, and authored dossier spines.
  *
  * `question` is the user-facing / spoken prompt only.
  * `systemInstructions` holds internal QA rubrics that must never appear in the
