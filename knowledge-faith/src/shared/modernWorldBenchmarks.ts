@@ -45,3 +45,50 @@ export const MODERN_WORLD_BENCHMARKS: readonly ModernWorldBenchmark[] = [
     desk: 'quran',
   },
 ];
+
+/** Stable seven-agent report id for a Modern World hub card (never collides with gold-ring jobs). */
+export function modernWorldReportId(benchmarkId: string): string {
+  return `7agent-modern-${benchmarkId}`;
+}
+
+export function modernWorldBenchmarkById(id: string): ModernWorldBenchmark | null {
+  const clean = id.trim();
+  const bare = clean.startsWith('7agent-modern-') ? clean.slice('7agent-modern-'.length) : clean;
+  return MODERN_WORLD_BENCHMARKS.find(card => card.id === bare) ?? null;
+}
+
+/** Exact question match, or distinctive hub-card signature when the URL truncates the prompt. */
+export function matchModernWorldBenchmark(question: string): ModernWorldBenchmark | null {
+  const q = question.trim().toLowerCase();
+  if (!q) return null;
+  for (const card of MODERN_WORLD_BENCHMARKS) {
+    if (q === card.question.trim().toLowerCase()) return card;
+  }
+  const signatures: Array<{ id: string; re: RegExp }> = [
+    { id: 'twenty-three-year', re: /23[- ]?year|prophetic transformation|unlettered.*40|wahy.*civilization/i },
+    { id: 'primordial-universality', re: /primordial universality|fitrah|adam.*(humanity|father)|father of (all )?humanity/i },
+    { id: 'micro-sunnah-science', re: /micro[- ]?(level )?sunnah|dates.*fasting|mental resilience|step ahead of modern science/i },
+    { id: 'macro-governance', re: /macro[- ]?(justice|governance)|treaties.*governance|civilizational system/i },
+  ];
+  for (const sig of signatures) {
+    if (sig.re.test(question)) {
+      return MODERN_WORLD_BENCHMARKS.find(card => card.id === sig.id) ?? null;
+    }
+  }
+  return null;
+}
+
+export function normalizeResearchQuestion(question: string): string {
+  return question.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/** True when two prompts name the same research job (exact or Modern World signature). */
+export function researchQuestionsAlign(a: string, b: string): boolean {
+  const left = normalizeResearchQuestion(a);
+  const right = normalizeResearchQuestion(b);
+  if (!left || !right) return false;
+  if (left === right) return true;
+  const matchA = matchModernWorldBenchmark(a);
+  const matchB = matchModernWorldBenchmark(b);
+  return Boolean(matchA && matchB && matchA.id === matchB.id);
+}

@@ -13,6 +13,7 @@ import { RecentSevenAgentDossiers } from '../components/research/RecentSevenAgen
 import { SevenAgentCountdownCard } from '../components/research/SevenAgentCountdownCard.tsx';
 import { SevenAgentResearchBoard } from '../components/research/SevenAgentResearchBoard.tsx';
 import { ResearchActionRow, ResearchFrame } from '../engine/ResearchFrame.tsx';
+import { researchQuestionsAlign } from '../shared/modernWorldBenchmarks.ts';
 import type { SevenAgentResearchDossier } from '../shared/sevenAgentTypes.ts';
 import { DomainResearchForm } from './DomainResearchForm.tsx';
 import { questionsToResearch, separateQuestions } from '../shared/research/questions.ts';
@@ -74,9 +75,10 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
 
   const activeResearchQuery = useMemo(() => {
     if (instantDossier?.question) return instantDossier.question;
+    // Prefer the URL question so hub-card opens cannot inherit a prior job's gold-ring prompt.
+    if (askedParam?.trim()) return askedParam.trim();
     const fromJob = remote.data?.job.question?.trim();
     if (fromJob) return fromJob;
-    if (askedParam?.trim()) return askedParam.trim();
     return '';
   }, [instantDossier?.question, remote.data?.job.question, askedParam]);
 
@@ -87,11 +89,23 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
         ? `/api/research/seven-agents?q=${encodeURIComponent(activeResearchQuery)}&lang=${lang}`
         : null,
   );
+  const dossierMatchesActiveQuestion = (dossier: SevenAgentResearchDossier | null | undefined) => {
+    if (!dossier || dossier.lang !== lang) return false;
+    if (reportIdParam) {
+      if (dossier.id === reportIdParam) return true;
+      if (reportIdParam.startsWith('7agent-modern-') && dossier.id === reportIdParam) return true;
+    }
+    if (!activeResearchQuery) return Boolean(reportIdParam);
+    return researchQuestionsAlign(dossier.question, activeResearchQuery);
+  };
   const sevenAgentDossier =
-    (instantDossier && instantDossier.lang === lang ? instantDossier : null) ??
-    (sevenAgentRemote.data && sevenAgentRemote.data.lang === lang
-      ? sevenAgentRemote.data
-      : null);
+    (instantDossier && dossierMatchesActiveQuestion(instantDossier) ? instantDossier : null) ??
+    (dossierMatchesActiveQuestion(sevenAgentRemote.data) ? sevenAgentRemote.data : null);
+
+  useEffect(() => {
+    // Drop any prior card's instant payload when the URL question/report changes.
+    setInstantDossier(null);
+  }, [askedParam, reportIdParam, jobParam, lang]);
 
   const isCountdownActive =
     countdownHold ||

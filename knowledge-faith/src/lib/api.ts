@@ -50,7 +50,8 @@ export function useRemote<T>(url: string | null): Remote<T> {
       return;
     }
     let active = true;
-    setState(s => ({ ...s, error: null, loading: true }));
+    // Drop prior payload immediately so a new question/reportId cannot flash the previous dossier.
+    setState({ data: null, error: null, loading: true });
     getJson<T>(url)
       .then(data => active && setState({ data, error: null, loading: false }))
       .catch((err: Error) => active && setState({ data: null, error: err.message, loading: false }));

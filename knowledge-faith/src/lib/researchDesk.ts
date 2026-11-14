@@ -19,11 +19,20 @@ export function researchRoot(scope: ResearchScope): string {
   return scope === 'knowledge' ? 'hub' : scope;
 }
 
-export function researchHref(scope: ResearchScope, jobId: string, lang: Lang, forwarded: boolean, bookId?: number | null, question?: string): string {
+export function researchHref(
+  scope: ResearchScope,
+  jobId: string,
+  lang: Lang,
+  forwarded: boolean,
+  bookId?: number | null,
+  question?: string,
+  reportId?: string | null,
+): string {
   const params = new URLSearchParams({ job: jobId, lang });
   if (forwarded) params.set('fwd', '1');
   if (bookId && bookId > 0) params.set('book', String(bookId));
   if (question?.trim()) params.set('q', question.trim().slice(0, 4000));
+  if (reportId?.trim()) params.set('reportId', reportId.trim());
   return `#/${researchRoot(scope)}/research?${params.toString()}`;
 }
 
@@ -36,14 +45,16 @@ export function researchDeskHref(
   forwarded: boolean,
   bookId?: number | null,
   question?: string,
+  reportId?: string | null,
 ): string {
   if (desk === 'fiqh' || desk === 'seerah') {
     const params = new URLSearchParams({ job: jobId, lang });
     if (forwarded) params.set('fwd', '1');
     if (question?.trim()) params.set('q', question.trim().slice(0, 4000));
+    if (reportId?.trim()) params.set('reportId', reportId.trim());
     return `#/hub/${desk}?${params.toString()}`;
   }
-  return researchHref(scope, jobId, lang, forwarded, bookId, question);
+  return researchHref(scope, jobId, lang, forwarded, bookId, question, reportId);
 }
 
 export function readResearchHistory(): StoredResearch[] {
