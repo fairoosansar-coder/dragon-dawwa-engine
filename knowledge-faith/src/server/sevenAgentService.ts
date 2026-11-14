@@ -20,9 +20,11 @@ import { translateTextToLanguage } from './ayahStudyService.ts';
 import { completeJson, geminiConfigured } from './gemini.ts';
 import {
   looksLikeGoldRingDossierContent,
+  looksLikeMetaCacheIsolationDialogue,
   resolveModernWorldDossierById,
   resolveModernWorldDossierByQuestion,
 } from './modernWorldDossiers.ts';
+import { modernWorldNativeRoundtable } from './modernWorldNativeRoundtables.ts';
 import { composeNativeRoundtableTurns } from './nativeRoundtable.ts';
 import { persistRoot } from './persist.ts';
 
@@ -729,6 +731,7 @@ function buildGenericTopicFallbackDossier(question: string): SevenAgentResearchD
   const modern = resolveModernWorldDossierByQuestion(question);
   if (modern) return modern;
 
+  const cleanQ = userFacingResearchQuestion(question);
   const agents: SpecialistAgentFinding[] = (Object.keys(LOCALIZED_AGENT_HEADERS.en) as Array<
     SpecialistAgentFinding['agentId']
   >).map((agentId, index) => ({
@@ -740,14 +743,14 @@ function buildGenericTopicFallbackDossier(question: string): SevenAgentResearchD
     isScienceSpotlight: agentId === 'modern_science',
     summary:
       agentId === 'executive_synthesis'
-        ? `A full 7-agent dossier for “${question}” could not be generated with the live model just now. The board still opens all seven specialist sections for this exact question—never a leftover answer from a prior gold-ring (or other) research run. Retry when the synthesis model is available, or open a dedicated Modern World hub card for a preloaded topic dossier.`
-        : `Specialist section ${index + 1} remains bound to the seeker’s question: “${question}”. No gold-ring citations (Muslim 2089, Nasa’i 5148, Bukhari 5863) are pasted here unless the question itself is about gold or rings.`,
+        ? `A full 7-agent scholarly synthesis for “${cleanQ}” is awaiting the live model. All seven specialist sections remain open for this exact question—retry when synthesis is available.`
+        : `Specialist section ${index + 1} addresses the seeker’s question: “${cleanQ}”. Opened Qur’an, Hadith, and Seerah evidence will fill this card when live synthesis completes.`,
     keyPoints: [
-      `Question lock: ${question.slice(0, 220)}`,
-      'Cache and history keys include the normalized question so hub cards cannot collide with prior jobs.',
-      'Open all seven agent cards below for the structured report skeleton.',
+      `Question: ${cleanQ.slice(0, 220)}`,
+      'Seven specialist roles stay visible while the live model prepares citations.',
+      'Retry synthesis for a complete evidence-backed verdict.',
     ],
-    citations: ['Question-bound fallback · awaiting live 7-agent synthesis'],
+    citations: ['Awaiting live 7-agent synthesis'],
   }));
 
   const turns: RoundtableTurn[] = [
@@ -755,63 +758,63 @@ function buildGenericTopicFallbackDossier(question: string): SevenAgentResearchD
       speaker: 'Brother Feroz (Host)',
       role: 'Executive Roundtable Moderator',
       voiceProfile: 'tariq',
-      text: `Assalamu Alaikum. We stay on the seeker’s question: “${question}”. This roundtable will not recycle an unrelated prior dossier.`,
+      text: `Assalamu Alaikum. Today's roundtable opens on the seeker's question: “${cleanQ}”`,
     },
     {
       speaker: 'Dr. Tariq al-Mansoor',
       role: 'Agent 02 · Hadith Specialist',
       voiceProfile: 'tariq',
-      text: 'When the live model is offline, we still refuse to paste Sahih Muslim 2089 gold-ring material into a different topic.',
+      text: 'We will ground the answer in opened Hadith and Seerah once live retrieval finishes—reporting only authenticated reports for this topic.',
     },
     {
       speaker: 'Shaykh Farhan al-Rashed',
       role: 'Agent 04 · Fiqh Lead',
       voiceProfile: 'yusuf',
-      text: 'Each hub card and each typed question must keep its own evidence spine and fiqh scope.',
+      text: 'Classical fiqh will map any practical rulings to the schools’ consensus on this exact question, without inventing citations.',
     },
     {
       speaker: 'Dr. Zainab al-Mubarak',
       role: 'Agent 06 · Science Foresight',
       voiceProfile: 'noor',
-      text: 'Modern Science foresight must be regenerated for this question—never inherited from a previous gold-jewelry analysis.',
+      text: 'Modern Science foresight will highlight empirical hikmah that aligns with revelation for this topic when synthesis completes.',
     },
     {
       speaker: 'Brother Feroz (Host)',
       role: 'Executive Roundtable Moderator',
       voiceProfile: 'tariq',
-      text: 'Retry synthesis when ready. Until then, this board remains a full seven-section, question-keyed placeholder—not a one-paragraph wrong-topic leak.',
+      text: 'Please retry the 7-agent synthesis shortly for the full evidence-backed roundtable on this question.',
     },
   ];
 
   return {
-    id: `7agent-topic-${createHash('sha256').update(question.toLowerCase()).digest('hex').slice(0, 12)}`,
-    question,
+    id: `7agent-topic-${createHash('sha256').update(cleanQ.toLowerCase()).digest('hex').slice(0, 12)}`,
+    question: cleanQ,
     lang: 'en',
-    verdictHeadline: `7-Agent Synthesis Reserved for: “${question.slice(0, 160)}”`,
-    verdictClassification: 'QUESTION-BOUND FALLBACK · RETRY LIVE SYNTHESIS',
+    verdictHeadline: `7-Agent Synthesis Preparing for: “${cleanQ.slice(0, 160)}”`,
+    verdictClassification: 'AWAITING LIVE SYNTHESIS',
     confidenceScore: 90,
-    executiveSummary: `This report is locked to “${question}”. A prior “can man wear gold” research job cannot overwrite these seven agent sections. Retry when the live synthesis model is available, or use a Modern World hub card for a dedicated preloaded dossier.`,
+    executiveSummary: `The board is prepared for “${cleanQ}”. Retry when the live synthesis model is available for a complete seven-agent scholarly dossier, or open a Modern World hub card for a dedicated preloaded topic.`,
     agents,
     scienceForesight: {
-      headline: 'Science foresight will be regenerated for this exact question',
+      headline: 'Science foresight will address this exact question',
       badge: '🔬 MODERN SCIENCE ALIGNMENT · 1 STEP AHEAD',
       summary:
-        'Empirical foresight must match the seeker’s topic. Cached gold-ring toxicology notes are discarded when the question is not about gold or rings.',
+        'Empirical foresight will be generated for the seeker’s topic once live synthesis is available.',
       empiricalPillars: [
         {
-          domain: 'Question Isolation',
-          finding: 'Cache keys include language + normalized question (+ dossier id for hub cards).',
-          oneStepAheadNote: 'Prevents hub-card opens from colliding with prior jewelry research.',
+          domain: 'Topic-Bound Evidence',
+          finding: 'Each research job regenerates citations for the active question.',
+          oneStepAheadNote: 'Revelation-first answers stay matched to the seeker’s inquiry.',
         },
         {
           domain: 'Full 7-Agent Structure',
-          finding: 'All specialist sections remain visible even in fallback mode.',
-          oneStepAheadNote: 'Seekers never get a collapsed one-paragraph wrong-topic summary.',
+          finding: 'All specialist sections remain visible while synthesis prepares.',
+          oneStepAheadNote: 'Seekers keep a complete board layout, not a collapsed stub.',
         },
         {
-          domain: 'Topic-Faithful Science',
-          finding: 'Science pillars regenerate per question rather than reusing gold-ion notes.',
-          oneStepAheadNote: 'Keeps Modern World cards on Wahy, Fitrah, Sunnah, or governance.',
+          domain: 'Empirical Hikmah',
+          finding: 'Science pillars will illuminate hikmah relevant to this question.',
+          oneStepAheadNote: 'Modern observations illustrate guidance without replacing revelation.',
         },
       ],
       methodologicalNote:
@@ -944,6 +947,11 @@ async function localizeDossierToLanguage(
 
   const headers = LOCALIZED_AGENT_HEADERS[targetLang];
   const isGold = isGoldOrRingQuestion(enDossier.question);
+  const modernMatch = matchModernWorldBenchmark(enDossier.question);
+  // Hub cards ship authored native TA/SI roundtables — never LLM meta about cache isolation.
+  const cannedNative = modernMatch
+    ? modernWorldNativeRoundtable(modernMatch.id, targetLang, enDossier.question)
+    : null;
 
   const [verdictHeadline, executiveSummary, agentSummaries, nativeTurns] = await Promise.all([
     translateTextToLanguage(enDossier.verdictHeadline, targetLang, 'en'),
@@ -951,8 +959,10 @@ async function localizeDossierToLanguage(
     runWithConcurrency(enDossier.agents, 4, a =>
       translateTextToLanguage(a.summary, targetLang, 'en'),
     ),
-    // Native composition — not per-line string MT (avoids Tamil transliteration like "டீசிங் புக்").
-    composeNativeRoundtableTurns(enDossier.roundtableTurns, targetLang),
+    cannedNative
+      ? Promise.resolve(cannedNative)
+      : // Native composition — not per-line string MT (avoids Tamil transliteration like "டீசிங் புக்").
+        composeNativeRoundtableTurns(enDossier.roundtableTurns, targetLang),
   ]);
 
   const localizedAgents = await runWithConcurrency(enDossier.agents, 3, async (agent, idx) => {
@@ -1000,7 +1010,13 @@ async function localizeDossierToLanguage(
     };
   }
 
-  const localizedTurns: RoundtableTurn[] = nativeTurns ?? enDossier.roundtableTurns.map(turn => ({ ...turn }));
+  let localizedTurns: RoundtableTurn[] = nativeTurns ?? enDossier.roundtableTurns.map(turn => ({ ...turn }));
+  if (looksLikeMetaCacheIsolationDialogue(localizedTurns)) {
+    localizedTurns =
+      (modernMatch
+        ? modernWorldNativeRoundtable(modernMatch.id, targetLang, enDossier.question)
+        : null) ?? enDossier.roundtableTurns.map(turn => ({ ...turn }));
+  }
 
   return {
     ...enDossier,
@@ -1020,8 +1036,10 @@ function cacheAcceptableForQuestion(cached: SevenAgentResearchDossier, cleanQ: s
   if (!cached.agents || cached.agents.length !== 7) return false;
   if (normalizeResearchQuestion(cached.question) !== normalizeResearchQuestion(cleanQ)) return false;
   if (!isGoldOrRingQuestion(cleanQ) && looksLikeGoldRingDossierContent(cached)) return false;
+  if (looksLikeMetaCacheIsolationDialogue(cached.roundtableTurns)) return false;
   const modern = matchModernWorldBenchmark(cleanQ);
   if (modern && looksLikeGoldRingDossierContent(cached)) return false;
+  if (modern && looksLikeMetaCacheIsolationDialogue(cached.roundtableTurns)) return false;
   return true;
 }
 
@@ -1035,7 +1053,7 @@ export async function runSevenAgentResearch(
     ? `modern:${modernMatch.id}`
     : `q:${normalizeResearchQuestion(cleanQ)}`;
   const hash = createHash('sha256')
-    .update(`seven-agent-v5|${lang}|${cacheIdentity}`)
+    .update(`seven-agent-v6|${lang}|${cacheIdentity}`)
     .digest('hex')
     .slice(0, 32);
   const stableId = modernMatch
