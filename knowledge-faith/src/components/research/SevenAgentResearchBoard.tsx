@@ -159,7 +159,7 @@ export function SevenAgentResearchBoard({
   roundtableOpen?: boolean;
   onToggleRoundtable?: (open: boolean) => void;
 }) {
-  const { isDossierSaved, toggleDossier } = useApp();
+  const { isDossierSaved, toggleDossier, lang: uiLang, t } = useApp();
   const [internalRoundtableOpen, setInternalRoundtableOpen] = useState(roundtableOpen);
   const [voiceProfile, setVoiceProfile] = useStored<HadithVoiceProfileId>(
     'kf-hadith-voice-profile',
@@ -191,7 +191,10 @@ export function SevenAgentResearchBoard({
   const scienceSessionId = `${sessionPrefix}science`;
   const lineTts = useLineByLineTts(sessionPrefix);
   const profile = resolveHadithVoiceProfile(voiceProfile);
-  const langLabel = LANGUAGE_NAMES[lang]?.native ?? 'English';
+  // Chrome labels always follow the active UI language — never hardcode (English).
+  const labelLang: Lang = uiLang || lang;
+  const langLabel = LANGUAGE_NAMES[labelLang]?.native ?? 'English';
+  const listenLabel = t.listen;
 
   const playLines = (
     sessionId: string,
@@ -305,7 +308,7 @@ export function SevenAgentResearchBoard({
   const isRoundtableLoading = lineTts.isLoadingSession(roundtableSessionId);
   const isSciencePlaying = lineTts.isPlayingSession(scienceSessionId);
   const isScienceLoading = lineTts.isLoadingSession(scienceSessionId);
-  const loadingText = loadingAudioLabel(lang);
+  const loadingText = loadingAudioLabel(labelLang);
   const savedInLibrary = isDossierSaved(dossier.id) || isDossierSaved(dossier.question);
   const saveButtonLabel = savedInLibrary
     ? lang === 'ta'
@@ -429,8 +432,8 @@ export function SevenAgentResearchBoard({
                 {isScienceLoading
                   ? loadingText
                   : isSciencePlaying
-                    ? 'Pause Science Audio'
-                    : 'Listen: 1 Step Ahead of Science'}
+                    ? `${t.pause} · 1 Step Ahead`
+                    : `${listenLabel}: 1 Step Ahead of Science (${langLabel})`}
               </span>
             </button>
 
@@ -663,7 +666,11 @@ export function SevenAgentResearchBoard({
               <Volume2 className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
             )}
             <span>
-              {isScienceLoading ? loadingText : isSciencePlaying ? 'Pause' : `Listen (${langLabel})`}
+              {isScienceLoading
+                ? loadingText
+                : isSciencePlaying
+                  ? t.pause
+                  : `${listenLabel} (${langLabel})`}
             </span>
           </button>
         </div>
@@ -892,7 +899,11 @@ export function SevenAgentResearchBoard({
                           <Volume2 className="h-3 w-3 text-[#B45309]" aria-hidden />
                         )}
                         <span>
-                          {isAgentLoading ? loadingText : isAgentPlaying ? 'Pause' : 'Listen'}
+                          {isAgentLoading
+                            ? loadingText
+                            : isAgentPlaying
+                              ? t.pause
+                              : `${listenLabel} (${langLabel})`}
                         </span>
                       </button>
                     </div>

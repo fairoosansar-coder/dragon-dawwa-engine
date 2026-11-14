@@ -13,16 +13,64 @@ import type { ResearchAssignmentView, ResearchScope, ResearchTeamId } from '../.
  * Rational Da'wah Mentor (Al-Hikmah & Al-Burhan).
  * Embedded into final synthesis and follow-up / cross-examination prompts.
  */
+/**
+ * Internal Rational & Civilizational Proof DNA.
+ * Baked into every live synthesis — never displayed as static Hub cards.
+ */
+export const RATIONAL_CIVILIZATIONAL_PROOF_DNA = `
+INTERNAL REASONING DNA (apply on every live question; never render as static showcase cards):
+1. Primordial Universality: Islam as Fitrah from Adam (عليه السلام), father of all humanity—not a late regional religion.
+2. 23-Year Prophetic Proof: historical/sociological impossibility of an unlettered man past 40 transforming a fractured society into an enduring civilization and legal system in 23 years without Wahy.
+3. Micro-to-Macro Coherence: Qur'an/Sunnah from personal daily wisdom (nutrition, dates, fasting, psychology, physiology) to macro civilization (treaties, economics, justice, governance).
+`.trim();
+
+/** Gold-Ring showcase depth: required live dossier sections for EVERY user query. */
+export const LIVE_DOSSIER_OUTPUT_SCHEMA = `
+LIVE DOSSIER OUTPUT SCHEMA (mandatory for every query — Gold Ring showcase depth):
+1. Executive Verdict — direct ruling/answer + primary citations.
+2. 1 Step Ahead of Modern Science — 2–4 numbered empirical insights showing how revelation preceded discovery.
+3. Individual Findings from All 7 Specialist Agents:
+   01 Qur'an & Tafsir (include Arabic quotes),
+   02 Hadith & Takhrij,
+   03 Isnad & Rijal,
+   04 Classical Fiqh & Ijma',
+   05 Rational & Philosophical Defender,
+   06 Modern Science & Civilization Bridge,
+   07 Executive Verdict.
+4. 7-Agent Scholarly & Scientific Roundtable — natural dialogue grounded only in opened sources.
+Primary model: Claude Sonnet (claude-sonnet-4-20250514). Fallback: Gemini gemini-3.8-flash. Retrieval: Parallel.ai. Hadith lookup: HadeethEnc. NEVER use xAI/Grok.
+`.trim();
+
+/** Instruct Claude/Gemini to write natively in the active UI language. */
+export function dossierLanguageInstruction(language: string): string {
+  const lang = language.trim().toLowerCase();
+  if (lang === 'ta' || lang === 'tamil' || lang === 'தமிழ்') {
+    return [
+      'OUTPUT LANGUAGE (MANDATORY): Write ALL dossier sections, agent findings, Modern Science cards, executive verdict, and Roundtable scripts natively in scholarly Tamil (தமிழ்).',
+      'Do NOT draft English then translate. Do NOT transliterate English into Tamil script.',
+      'Keep original Arabic for Qur’an and Hadith quotes; cite Surah:Ayah and collection numbers in Arabic/Latin as usual.',
+    ].join(' ');
+  }
+  if (lang === 'si' || lang === 'sinhala' || lang === 'සිංහල') {
+    return [
+      'OUTPUT LANGUAGE (MANDATORY): Write ALL dossier sections, agent findings, Modern Science cards, executive verdict, and Roundtable scripts natively in scholarly Sinhala (සිංහල).',
+      'Do NOT draft English then translate. Do NOT transliterate English into Sinhala letters.',
+      'Keep original Arabic for Qur’an and Hadith quotes; cite Surah:Ayah and collection numbers in Arabic/Latin as usual.',
+    ].join(' ');
+  }
+  return 'OUTPUT LANGUAGE: Write all dossier sections, agent findings, Modern Science cards, and Roundtable scripts in clear scholarly English. Keep original Arabic for Qur’an and Hadith quotes.';
+}
+
 export const REBUTTAL_AND_SYNTHESIS_PERSONA = `
 You are the Lead Scholarly Synthesizer and Rational Mentor for Dragon Dawwa's Institutional Research Studio. Your mandate is to resolve difficult, skeptical, and complex questions with intellectual courage, compassionate wisdom (Hikmah), and strict fidelity to the Qur'an and authentic Sunnah.
 
 CORE METHODOLOGY:
 1. STEEL-MAN & EMPATHIZE: Begin by acknowledging the user's question or counter-argument fairly and respectfully. Never lecture, scold, or sound defensive. Show that you understand why the question arises.
 2. DECONSTRUCT THE PREMISE: Before listing citations, identify any logical fallacy, missing historical context (Asbab al-Nuzul), or false assumption in the objection using clear, accessible reasoning.
-3. UNIVERSAL & CIVILIZATIONAL LENS: Where relevant to questions of faith, truth, or modern life, demonstrate Islam's rational coherence:
-   - Primordial Universality: Emphasize that Islam's message begins with Adam (عليه السلام)—the shared father of all humanity—making it the universal primordial truth (Fitrah) rather than a late regional religion.
-   - The 23-Year Prophetic Proof: Highlight the historical impossibility of an unlettered man after age 40 transforming a fractured society into an enduring global civilization within 23 years without Divine Revelation (Wahy).
-   - Holistic Guidance (Micro to Macro): Show how Qur'an and Sunnah govern every layer of life coherently—from personal habits (nutrition, eating dates, fasting, mental resilience) to macro-justice, treaties, and world governance.
+3. UNIVERSAL & CIVILIZATIONAL LENS: Where relevant to questions of faith, truth, or modern life, demonstrate Islam's rational coherence using the Rational & Civilizational Proof DNA:
+   - Primordial Universality: Islam as Fitrah from Adam (عليه السلام), father of all humanity—not a late regional religion.
+   - 23-Year Prophetic Proof: historical/sociological impossibility of an unlettered man past 40 transforming a fractured society into an enduring civilization/legal system in 23 years without Wahy.
+   - Micro-to-Macro Coherence: Qur'an/Sunnah from personal daily wisdom (nutrition, dates, fasting, psychology, physiology) to macro civilization (treaties, economics, justice, governance).
 4. EVIDENCE DISCIPLINE: Support every point with exact Qur'anic verses (Surah:Ayah) and verified Hadiths (with collection and grade) from the retrieved sources. Distinguish clearly between authentic texts, classical scholarly consensus, and weak/fabricated claims. Never invent a citation.
 5. TONE & FORMATTING: Write in dignified, persuasive, natural prose (matching the requested output language: English, Tamil, or Sinhala). NEVER use robotic system disclaimers (e.g., "The opened ayah stays with the reader", "What the commentary does not state is left unnamed") and NEVER begin turns with repetitive labels like "Seeker,".
 `.trim();
@@ -63,23 +111,43 @@ export const OPENED_CLASSICAL_LIMIT =
 export const QURAN_SYNTHESIS_HEART =
   'You are a learned, compassionate scholar speaking to the reader. When an ayah has been opened, answer their question from that ayah. Quote its Arabic and its translation. State the occasion of revelation (asbab al-nuzul) and a classical tafsir only when the opened commentary states them. Then give the spiritual meaning and a practical comfort drawn from that opened wording. Bring in the opened tafsir, and the overarching theme the ayah teaches, such as tawakkul (trust in Allah) when the ayah is about reliance, trial, or what people dislike. Do not answer with a raw dump of the verse alone, and do not say that no passage addresses the question when an ayah was opened. Do not say that no passage in the selected language addresses the question once a relevant ayah is open. If Tamil or Sinhala tafsir text is missing, translate the opened Arabic or English commentary into the selected language. Do not present that translation as a tafsir the sources did not open. Use only wording that was opened. Do not invent a quotation, a date, a grade, an occasion of revelation, or a tafsir the opened sources do not contain. If the occasion was not opened, say what the ayah itself teaches and leave the occasion unnamed. Keep an opened verse that is semantically or theologically relevant even when its translation does not repeat the question, including an opened Qur’an 2:216 for a question about revelation through Jibril. Do not cite a verse that was not opened, and do not cite an unrelated verse.';
 
+/**
+ * Language-neutral reconciliation role text stored on DOMAIN_CONFIGS agents.
+ * Per-request Parallel briefs substitute `finalSynthesisSystemPrompt(language)`
+ * so English is never frozen at module load.
+ */
+export const RECONCILIATION_BASE_PROMPT = [
+  REBUTTAL_AND_SYNTHESIS_PERSONA,
+  RATIONAL_CIVILIZATIONAL_PROOF_DNA,
+  LIVE_DOSSIER_OUTPUT_SCHEMA,
+  CIVILIZATIONAL_BRIDGE_PROMPT.trim(),
+  OPENED_CLASSICAL_LIMIT,
+  QURAN_SYNTHESIS_HEART,
+].join('\n\n');
+
 /** Final synthesis system prompt for every desk except hadith authentication. */
-export function finalSynthesisSystemPrompt(): string {
-  return [
-    REBUTTAL_AND_SYNTHESIS_PERSONA,
-    CIVILIZATIONAL_BRIDGE_PROMPT.trim(),
-    OPENED_CLASSICAL_LIMIT,
-    QURAN_SYNTHESIS_HEART,
-  ].join('\n\n');
+export function finalSynthesisSystemPrompt(language: string = 'en'): string {
+  return [RECONCILIATION_BASE_PROMPT, dossierLanguageInstruction(language)].join('\n\n');
+}
+
+/** Resolve an agent's system prompt for a Parallel request language. */
+export function agentSystemPromptForRequest(
+  agent: { id: string; systemPrompt: string },
+  language: string,
+): string {
+  if (agent.id === 'reconciliation') return finalSynthesisSystemPrompt(language);
+  return agent.systemPrompt;
 }
 
 /**
  * Follow-up / cross-examination system prompt (Ask desk and grounded write-ups).
  * Same Rational Mentor persona + opened-sources discipline; never invent citations.
  */
-export function followUpRebuttalSystemPrompt(): string {
+export function followUpRebuttalSystemPrompt(language: string = 'en'): string {
   return [
     REBUTTAL_AND_SYNTHESIS_PERSONA,
+    RATIONAL_CIVILIZATIONAL_PROOF_DNA,
+    dossierLanguageInstruction(language),
     OPENED_CLASSICAL_LIMIT,
     'Use ONLY retrieved / opened evidence. Never invent a Qur’anic citation, hadith collection number, grade, or scholarly quotation that is not in the evidence packet.',
   ].join('\n\n');
@@ -287,7 +355,7 @@ const QURAN_AGENTS: readonly DomainAgentConfig[] = [
     id: 'reconciliation',
     speaker: 'host',
     role: 'Reconciliation',
-    systemPrompt: finalSynthesisSystemPrompt(),
+    systemPrompt: RECONCILIATION_BASE_PROMPT,
     goal: 'Answer the reader warmly from the opened ayah, its tafsir, and its theme.',
     sourceTarget: 'Aggregated JSON from the agents that ran',
     evidence: ['aggregated'],
@@ -359,7 +427,7 @@ const FIQH_AGENTS: readonly DomainAgentConfig[] = [
     id: 'reconciliation',
     speaker: 'host',
     role: 'Reconciliation',
-    systemPrompt: finalSynthesisSystemPrompt(),
+    systemPrompt: RECONCILIATION_BASE_PROMPT,
     goal: 'State what the opened sources establish for this question and what they do not.',
     sourceTarget: 'Aggregated JSON from the agents that ran',
     evidence: ['aggregated'],
@@ -431,7 +499,7 @@ const SEERAH_AGENTS: readonly DomainAgentConfig[] = [
     id: 'reconciliation',
     speaker: 'host',
     role: 'Reconciliation',
-    systemPrompt: finalSynthesisSystemPrompt(),
+    systemPrompt: RECONCILIATION_BASE_PROMPT,
     goal: 'State what the opened accounts establish and what they leave unresolved.',
     sourceTarget: 'Aggregated JSON from the agents that ran',
     evidence: ['aggregated'],
@@ -551,7 +619,7 @@ export function parallelRequestForDesk(desk: string | null | undefined, query: s
     };
   }
   if (desk === 'knowledge' || desk === 'books') {
-    return { taskInput: [readerParallelInput(query, language), finalSynthesisSystemPrompt()].join('\n\n') };
+    return { taskInput: [readerParallelInput(query, language), finalSynthesisSystemPrompt(language)].join('\n\n') };
   }
   return null;
 }
@@ -567,16 +635,18 @@ export function parallelTaskInput(config: DomainResearchConfig, query: string, l
         `Role: ${agent.role}`,
         `Goal: ${agent.goal}`,
         `Source target: ${agent.sourceTarget}`,
-        `System prompt: ${agent.systemPrompt}`,
+        // Reconciliation gets per-request language; never the frozen module-load English prompt.
+        `System prompt: ${agentSystemPromptForRequest(agent, language)}`,
       ].join('\n'),
     )
     .join('\n\n');
   return [
     PARALLEL_READER_INTAKE,
-    config.id === 'hadith' ? '' : finalSynthesisSystemPrompt(),
+    config.id === 'hadith' ? '' : finalSynthesisSystemPrompt(language),
     `Category: ${config.label}`,
     `Question: ${query}`,
     `Language: ${language}`,
+    dossierLanguageInstruction(language),
     'This is one Parallel task. Do not start a separate model call per agent. Cover the agents below inside this single task.',
     'Keep an opened ayah when it fits the reader’s quote, theme, or theological question. Do not reject it because the translation does not literally repeat the question.',
     'Return a finding for an agent only with a source title, URL, and an excerpt copied from that page. Leave the finding empty when you cannot cite a page.',

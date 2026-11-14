@@ -2,7 +2,19 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { passageSupportsTopic } from '../src/shared/research.ts';
 import { questionInvitesScripture } from '../src/shared/research/themes.ts';
-import { CIVILIZATIONAL_BRIDGE_PROMPT, OPENED_CLASSICAL_LIMIT, QURAN_SYNTHESIS_HEART, REBUTTAL_AND_SYNTHESIS_PERSONA, finalSynthesisSystemPrompt, followUpRebuttalSystemPrompt, parallelRequestForDesk, parallelTaskInput, DOMAIN_CONFIGS } from '../src/server/research/agentConfig.ts';
+import {
+  CIVILIZATIONAL_BRIDGE_PROMPT,
+  OPENED_CLASSICAL_LIMIT,
+  QURAN_SYNTHESIS_HEART,
+  REBUTTAL_AND_SYNTHESIS_PERSONA,
+  RECONCILIATION_BASE_PROMPT,
+  dossierLanguageInstruction,
+  finalSynthesisSystemPrompt,
+  followUpRebuttalSystemPrompt,
+  parallelRequestForDesk,
+  parallelTaskInput,
+  DOMAIN_CONFIGS,
+} from '../src/server/research/agentConfig.ts';
 import { answerPrompt, podcastPrompt } from '../src/server/grounding.ts';
 import { executeResearch, type ResearchPorts } from '../src/server/research/engine.ts';
 
@@ -152,7 +164,7 @@ describe('thematic tafsir synthesis', () => {
     assert.match(prompt, /practical comfort/);
     assert.match(prompt, /If Tamil or Sinhala tafsir text is missing, translate the opened Arabic or English commentary/);
     assert.match(QURAN_SYNTHESIS_HEART, /do not cite an unrelated verse/i);
-    const bridge = finalSynthesisSystemPrompt();
+    const bridge = finalSynthesisSystemPrompt('en');
     assert.equal(bridge.includes(REBUTTAL_AND_SYNTHESIS_PERSONA), true);
     assert.equal(bridge.includes(CIVILIZATIONAL_BRIDGE_PROMPT.trim()), true);
     assert.equal(bridge.includes(OPENED_CLASSICAL_LIMIT), true);
@@ -167,7 +179,12 @@ describe('thematic tafsir synthesis', () => {
     assert.equal(parallelRequestForDesk('hadith', QUESTION, 'en'), null);
     for (const id of ['quran', 'fiqh', 'seerah'] as const) {
       const reconciliation = DOMAIN_CONFIGS[id].agents.find(agent => agent.id === 'reconciliation');
-      assert.equal(reconciliation?.systemPrompt, bridge);
+      // Module-load prompt is language-neutral; Parallel briefs inject per-request language.
+      assert.equal(reconciliation?.systemPrompt.includes('Lead Scholarly Synthesizer'), true);
+      assert.equal(reconciliation?.systemPrompt.includes(dossierLanguageInstruction('en')), false);
+      const taBrief = parallelRequestForDesk(id, QUESTION, 'ta');
+      assert.equal(taBrief?.taskInput.includes(dossierLanguageInstruction('ta')), true, id);
+      assert.equal(taBrief?.taskInput.includes(dossierLanguageInstruction('en')), false, id);
     }
     assert.equal(DOMAIN_CONFIGS.hadith.agents.find(agent => agent.id === 'synthesis')?.systemPrompt.includes('Ibn Kathir'), false);
     const hadithPrompt = answerPrompt(QUESTION, 'en', [{

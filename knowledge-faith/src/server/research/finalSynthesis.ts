@@ -176,12 +176,14 @@ export async function writeHostReconciliation(input: {
   basePodcastScript: string;
   signal?: AbortSignal;
 }): Promise<HostReconciliationResult | null> {
-  const system = finalSynthesisSystemPrompt();
+  const system = finalSynthesisSystemPrompt(input.language);
   const user = hostReconciliationUserPrompt(input);
   return (await viaAnthropic(system, user, input.signal)) ?? (await viaGemini(system, user, input.signal));
 }
 
-/** Exported for tests — confirms reconciliation agents still receive the persona-bearing system prompt. */
+/** Exported for tests — reconciliation agents store the language-neutral base (language added per request). */
 export function reconciliationUsesFinalPrompt(agents: readonly DomainAgentConfig[]): boolean {
-  return agents.some(agent => agent.id === 'reconciliation' && agent.systemPrompt.includes(finalSynthesisSystemPrompt()));
+  return agents.some(
+    agent => agent.id === 'reconciliation' && agent.systemPrompt.includes('Lead Scholarly Synthesizer'),
+  );
 }

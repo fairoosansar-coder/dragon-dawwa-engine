@@ -5,16 +5,11 @@ import {
   ChevronDown,
   ChevronUp,
   FlaskConical,
-  Pause,
-  Radio,
   ScrollText,
   Sparkles,
   Trash2,
-  Volume2,
 } from 'lucide-react';
 import { useRemote } from '../lib/api.ts';
-import { setAudioPlaybackRate } from '../lib/audio.ts';
-import { splitTextIntoSpeechLines, useLineByLineTts } from '../lib/lineByLineTts.ts';
 import { usePronunciation, withPronunciation } from '../lib/pronunciation.ts';
 import { useQuranEdition } from '../lib/quranEdition.ts';
 import { useApp } from '../lib/store.tsx';
@@ -23,7 +18,6 @@ import { shownVerses, translationRequest } from '../shared/quranenc.ts';
 import type { SevenAgentResearchDossier } from '../shared/sevenAgentTypes.ts';
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
 import type { Hadith, Verse } from '../shared/types.ts';
-import { AudioLoadingSpinner, loadingAudioLabel } from '../components/AudioLoadingSpinner.tsx';
 import { HadithCard, VerseCard } from '../components/cards.tsx';
 import { SevenAgentResearchBoard } from '../components/research/SevenAgentResearchBoard.tsx';
 import { EmptyState } from '../components/shell/widgets.tsx';
@@ -70,10 +64,9 @@ export function SavedLibraryView() {
   const [filter, setFilter] = useState<'all' | 'research' | 'quran' | 'hadith'>('all');
   const [expandedDossierId, setExpandedDossierId] = useState<string | null>(null);
   const [openRoundtableForId, setOpenRoundtableForId] = useState<string | null>(null);
+  const activeLangLabel = LANGUAGE_NAMES[lang]?.native ?? 'English';
 
   const serverHistory = useRemote<HistoryPayload>(`/api/research/seven-agents/history?lang=${lang}`);
-  const lineTts = useLineByLineTts('saved-dossier-tts:');
-  const loadingText = loadingAudioLabel(lang);
 
   const savedDossiers = useMemo(() => {
     const map = new Map<string, SevenAgentResearchDossier>();
@@ -87,37 +80,14 @@ export function SavedLibraryView() {
     return [...map.values()];
   }, [saved.dossiers, serverHistory.data]);
 
-  // Auto-expand the first saved dossier if there is one and the user opened #/saved
+  // Do not auto-expand: collapsed card is Question + 2-line verdict + Expand Full Dossier.
   useEffect(() => {
-    if (savedDossiers.length > 0 && !expandedDossierId) {
-      setExpandedDossierId(savedDossiers[0].id);
-    }
-  }, [savedDossiers, expandedDossierId]);
+    setExpandedDossierId(null);
+    setOpenRoundtableForId(null);
+  }, [filter]);
 
   const totalCount =
     savedDossiers.length + saved.verses.length + saved.hadith.length;
-
-  const handleListenDossierSummary = (dossier: SevenAgentResearchDossier) => {
-    const sid = `saved-dossier-tts:${dossier.id}`;
-    if (lineTts.isPlayingSession(sid)) {
-      lineTts.pause();
-      return;
-    }
-    const lines = splitTextIntoSpeechLines(
-      [
-        dossier.verdictHeadline,
-        dossier.executiveSummary,
-        dossier.scienceForesight.headline,
-        dossier.scienceForesight.summary,
-      ].join('. '),
-    );
-    setAudioPlaybackRate(1);
-    void lineTts.start({
-      sessionId: sid,
-      lines,
-      lang: dossier.lang ?? lang,
-    });
-  };
 
   return (
     <div
@@ -223,10 +193,7 @@ export function SavedLibraryView() {
         <section className="space-y-4" data-testid="saved-dossiers-section">
           {savedDossiers.map(dossier => {
             const isExpanded = expandedDossierId === dossier.id;
-            const sid = `saved-dossier-tts:${dossier.id}`;
-            const isPlaying = lineTts.isPlayingSession(sid);
-            const isLoading = lineTts.isLoadingSession(sid);
-            const dLang: Lang = dossier.lang ?? lang;
+            const contentLang: Lang = dossier.lang ?? lang;
 
             return (
               <div
@@ -263,133 +230,109 @@ export function SavedLibraryView() {
                         }
                         className="rounded-full px-2.5 py-0.5 text-[11px] font-bold"
                       >
-                        {LANGUAGE_NAMES[dLang]?.native ?? 'English'}
+                        {activeLangLabel}
                       </span>
                     </div>
 
                     <h2
-                      lang={dLang}
+                      lang={contentLang}
                       style={{ color: isObsidian ? '#F9E7B9' : '#0F2922' }}
-                      className={`${wallFontClass(dLang, dossier.question)} text-lg font-extrabold sm:text-xl`}
+                      className={`${wallFontClass(contentLang, dossier.question)} text-lg font-extrabold sm:text-xl`}
                     >
                       “{dossier.question}”
                     </h2>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      data-testid="listen-saved-dossier-btn"
-                      onClick={() => handleListenDossierSummary(dossier)}
-                      style={{
-                        backgroundColor: isPlaying || isLoading ? '#D4AF37' : '#073C30',
-                        color: isPlaying || isLoading ? '#031812' : '#F9E7B9',
-                      }}
-                      className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-extrabold shadow-2xs cursor-pointer"
-                    >
-                      {isLoading ? (
-                        <AudioLoadingSpinner size={14} />
-                      ) : isPlaying ? (
-                        <Pause className="h-3.5 w-3.5 fill-current" aria-hidden />
-                      ) : (
-                        <Volume2 className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-                      )}
-                      <span>{isLoading ? loadingText : isPlaying ? 'Pause' : 'Listen'}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      data-testid="remove-saved-dossier-btn"
-                      title="Remove from Saved Library"
-                      onClick={() => toggleDossier(dossier)}
-                      style={
-                        isObsidian
-                          ? { backgroundColor: '#0D3529', color: '#FCA5A5', borderColor: 'rgba(248,113,113,0.35)' }
-                          : { backgroundColor: '#FEF2F2', color: '#991B1B', borderColor: '#FECACA' }
-                      }
-                      className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold cursor-pointer"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                      <span>Remove</span>
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    data-testid="remove-saved-dossier-btn"
+                    title="Remove from Saved Library"
+                    onClick={() => toggleDossier(dossier)}
+                    style={
+                      isObsidian
+                        ? { backgroundColor: '#0D3529', color: '#FCA5A5', borderColor: 'rgba(248,113,113,0.35)' }
+                        : { backgroundColor: '#FEF2F2', color: '#991B1B', borderColor: '#FECACA' }
+                    }
+                    className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold cursor-pointer"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                    <span>Remove</span>
+                  </button>
                 </div>
 
-                {/* Executive Verdict & Science Preview */}
-                <p
-                  lang={dLang}
-                  style={{ color: isObsidian ? '#F7F2E4' : '#1C1917' }}
-                  className="mt-2.5 text-sm font-bold leading-snug sm:text-base"
-                >
-                  {dossier.verdictHeadline}
-                </p>
-                <p
-                  lang={dLang}
-                  style={{ color: isObsidian ? '#EAE3D2' : '#44403C' }}
-                  className="mt-1.5 text-xs leading-relaxed sm:text-sm"
-                >
-                  {dossier.executiveSummary}
-                </p>
+                {/* Collapsed: Question + 2-line verdict only (no Listen / Roundtable chrome). */}
+                {!isExpanded && (
+                  <>
+                    <p
+                      lang={contentLang}
+                      style={{ color: isObsidian ? '#F7F2E4' : '#1C1917' }}
+                      className="mt-2.5 text-sm font-bold leading-snug sm:text-base"
+                    >
+                      {dossier.verdictHeadline}
+                    </p>
+                    <p
+                      lang={contentLang}
+                      style={{ color: isObsidian ? '#EAE3D2' : '#44403C' }}
+                      className="mt-1.5 line-clamp-2 text-xs leading-relaxed sm:text-sm"
+                    >
+                      {dossier.executiveSummary}
+                    </p>
+                  </>
+                )}
 
-                {/* Action Row: Reopen Full 7-Agent Report & Roundtable */}
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-stone-200/30 pt-3.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      data-testid="reopen-saved-dossier-btn"
-                      aria-expanded={isExpanded}
-                      onClick={() =>
-                        setExpandedDossierId(curr => (curr === dossier.id ? null : dossier.id))
-                      }
-                      style={{ backgroundColor: '#073C30', color: '#F9E7B9' }}
-                      className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-extrabold shadow-xs hover:opacity-95 cursor-pointer"
-                    >
-                      <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-                      <span>
-                        {isExpanded
-                          ? 'Hide Full 7-Agent Report & Roundtable'
-                          : 'Reopen Full 7-Agent Report & Roundtable →'}
-                      </span>
-                      {isExpanded ? (
-                        <ChevronUp className="h-3.5 w-3.5" aria-hidden />
-                      ) : (
-                        <ChevronDown className="h-3.5 w-3.5" aria-hidden />
-                      )}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setExpandedDossierId(dossier.id);
-                        setOpenRoundtableForId(dossier.id);
-                      }}
-                      style={{
-                        backgroundColor: isObsidian ? '#0D3529' : '#FFFBEB',
-                        color: isObsidian ? '#F9E7B9' : '#78350F',
-                        borderColor: '#D4AF37',
-                      }}
-                      className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-extrabold cursor-pointer"
-                    >
-                      <Radio className="h-3.5 w-3.5 text-[#B45309]" aria-hidden />
-                      <span>Open Roundtable Studio</span>
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    data-testid="reopen-saved-dossier-btn"
+                    aria-expanded={isExpanded}
+                    onClick={() => {
+                      setExpandedDossierId(curr => (curr === dossier.id ? null : dossier.id));
+                      if (isExpanded) setOpenRoundtableForId(null);
+                    }}
+                    style={{ backgroundColor: '#073C30', color: '#F9E7B9' }}
+                    className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-extrabold shadow-xs hover:opacity-95 cursor-pointer"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+                    <span>
+                      {isExpanded
+                        ? lang === 'ta'
+                          ? 'முழு அறிக்கையை மறை'
+                          : lang === 'si'
+                            ? 'සම්පූර්ණ වාර්තාව සඟවන්න'
+                            : 'Hide Full Dossier'
+                        : lang === 'ta'
+                          ? 'முழு 7-முகவர் அறிக்கையை விரிவாக்கு →'
+                          : lang === 'si'
+                            ? 'සම්පූර්ණ නියෝජිත 7 වාර්තාව විහිදුවන්න →'
+                            : 'Expand Full Dossier →'}
+                    </span>
+                    {isExpanded ? (
+                      <ChevronUp className="h-3.5 w-3.5" aria-hidden />
+                    ) : (
+                      <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+                    )}
+                  </button>
 
                   <a
-                    href={`#/hub/research?lang=${dLang}&q=${encodeURIComponent(dossier.question)}`}
+                    href={`#/hub/research?lang=${lang}&q=${encodeURIComponent(dossier.question)}`}
                     style={{ color: isObsidian ? '#E5C158' : '#073C30' }}
                     className="text-xs font-bold underline"
                   >
-                    Open in Research Studio →
+                    {lang === 'ta'
+                      ? 'ஆராய்ச்சி ஸ்டூடியோவில் திற →'
+                      : lang === 'si'
+                        ? 'පර්යේෂණ ස්ටුඩියෝවේ විවෘත කරන්න →'
+                        : 'Open in Research Studio →'}
                   </a>
                 </div>
 
-                {/* Inline Expanded Full 7-Agent Research Board & Roundtable Studio */}
+                {/* Expanded once: full 7-Agent + Modern Science (board owns Listen / Roundtable).
+                    Pass contentLang for TTS/playback of saved prose; board chrome still follows uiLang. */}
                 {isExpanded && (
-                  <div className="mt-5 border-t border-stone-200/40 pt-5">
+                  <div className="mt-5 border-t border-stone-200/40 pt-5" data-testid="saved-dossier-expanded-once">
                     <SevenAgentResearchBoard
                       dossier={dossier}
-                      lang={dLang}
+                      lang={contentLang}
                       roundtableOpen={openRoundtableForId === dossier.id}
                       onToggleRoundtable={open =>
                         setOpenRoundtableForId(open ? dossier.id : null)

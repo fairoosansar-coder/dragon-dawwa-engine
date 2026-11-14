@@ -31,7 +31,10 @@ describe('custom seven-agent synthesis path', () => {
     assert.match(sevenAgentSource, /generateRoundtableAfterSynthesis/);
     assert.match(sevenAgentSource, /sevenAgentLiveSynthesisEnabled/);
     assert.match(sevenAgentSource, /Anthropic→Gemini roundtable fallback reason/);
-    assert.match(sevenAgentSource, /seven-agent-v7/);
+    assert.match(sevenAgentSource, /seven-agent-v8/);
+    assert.match(sevenAgentSource, /RATIONAL_CIVILIZATIONAL_PROOF_DNA/);
+    assert.match(sevenAgentSource, /LIVE_DOSSIER_OUTPUT_SCHEMA/);
+    assert.match(sevenAgentSource, /dossierLanguageInstruction/);
     assert.match(sevenAgentSource, /AWAITING LIVE SYNTHESIS/);
   });
 
@@ -47,5 +50,13 @@ describe('custom seven-agent synthesis path', () => {
     assert.match(boardSource, /relative z-10 scroll-mt-20/);
     assert.equal(boardSource.includes("isRoundtableVisible ? 'relative z-50'"), false);
     assert.match(boardSource, /7-Agent Scholarly & Scientific Roundtable/);
+  });
+
+  it('syncs Listen / Roundtable chrome to active UI language (never hardcodes English)', () => {
+    assert.match(boardSource, /const \{ isDossierSaved, toggleDossier, lang: uiLang, t \} = useApp\(\)/);
+    assert.match(boardSource, /labelLang/);
+    assert.match(boardSource, /listenLabel/);
+    assert.match(boardSource, /Open & Play 7-Agent Roundtable \(\$\{langLabel\}\)/);
+    assert.equal(boardSource.includes('Open & Play 7-Agent Roundtable (English)'), false);
   });
 });

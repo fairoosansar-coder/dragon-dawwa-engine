@@ -7,6 +7,9 @@ import {
 } from '../src/server/anthropic.ts';
 import {
   REBUTTAL_AND_SYNTHESIS_PERSONA,
+  RATIONAL_CIVILIZATIONAL_PROOF_DNA,
+  LIVE_DOSSIER_OUTPUT_SCHEMA,
+  dossierLanguageInstruction,
   finalSynthesisSystemPrompt,
   followUpRebuttalSystemPrompt,
 } from '../src/server/research/agentConfig.ts';
@@ -33,8 +36,8 @@ describe('Claude synthesis hybrid wiring', () => {
     assert.match(REBUTTAL_AND_SYNTHESIS_PERSONA, /Lead Scholarly Synthesizer and Rational Mentor/);
     assert.match(REBUTTAL_AND_SYNTHESIS_PERSONA, /STEEL-MAN & EMPATHIZE/);
     assert.match(REBUTTAL_AND_SYNTHESIS_PERSONA, /Never invent a citation/);
-    assert.equal(finalSynthesisSystemPrompt().includes(REBUTTAL_AND_SYNTHESIS_PERSONA), true);
-    assert.equal(followUpRebuttalSystemPrompt().includes(REBUTTAL_AND_SYNTHESIS_PERSONA), true);
+    assert.equal(finalSynthesisSystemPrompt('en').includes(REBUTTAL_AND_SYNTHESIS_PERSONA), true);
+    assert.equal(followUpRebuttalSystemPrompt('en').includes(REBUTTAL_AND_SYNTHESIS_PERSONA), true);
     assert.equal(getDragonDawwaSystemInstruction('en').includes(REBUTTAL_AND_SYNTHESIS_PERSONA), true);
     assert.equal(getDragonDawwaSystemInstruction('ta').includes(REBUTTAL_AND_SYNTHESIS_PERSONA), true);
 
@@ -49,6 +52,26 @@ describe('Claude synthesis hybrid wiring', () => {
     }]);
     assert.equal(followUp.includes(REBUTTAL_AND_SYNTHESIS_PERSONA), true);
     assert.equal(podcastPrompt('Patience', 'en', [], 2).includes(REBUTTAL_AND_SYNTHESIS_PERSONA), true);
+  });
+
+  it('bakes Rational & Civilizational Proof DNA and live dossier schema into every synthesis prompt', () => {
+    assert.match(RATIONAL_CIVILIZATIONAL_PROOF_DNA, /Primordial Universality/);
+    assert.match(RATIONAL_CIVILIZATIONAL_PROOF_DNA, /23-Year Prophetic Proof/);
+    assert.match(RATIONAL_CIVILIZATIONAL_PROOF_DNA, /Micro-to-Macro Coherence/);
+    assert.match(LIVE_DOSSIER_OUTPUT_SCHEMA, /Executive Verdict/);
+    assert.match(LIVE_DOSSIER_OUTPUT_SCHEMA, /1 Step Ahead of Modern Science/);
+    assert.match(LIVE_DOSSIER_OUTPUT_SCHEMA, /Individual Findings from All 7 Specialist Agents/);
+    assert.match(LIVE_DOSSIER_OUTPUT_SCHEMA, /7-Agent Scholarly & Scientific Roundtable/);
+    assert.match(LIVE_DOSSIER_OUTPUT_SCHEMA, /NEVER use xAI\/Grok/);
+    const en = finalSynthesisSystemPrompt('en');
+    const ta = finalSynthesisSystemPrompt('ta');
+    const si = finalSynthesisSystemPrompt('si');
+    assert.equal(en.includes(RATIONAL_CIVILIZATIONAL_PROOF_DNA), true);
+    assert.equal(en.includes(LIVE_DOSSIER_OUTPUT_SCHEMA), true);
+    assert.match(dossierLanguageInstruction('ta'), /natively in scholarly Tamil/);
+    assert.match(dossierLanguageInstruction('si'), /natively in scholarly Sinhala/);
+    assert.equal(ta.includes(dossierLanguageInstruction('ta')), true);
+    assert.equal(si.includes(dossierLanguageInstruction('si')), true);
   });
 
   it('keeps opened-sources-only discipline in the host reconciliation brief', () => {
