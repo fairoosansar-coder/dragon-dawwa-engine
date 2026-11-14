@@ -40,6 +40,8 @@ import { openHadeethEncForQuestion } from './hadeethOpen.ts';
 import { dedupePassages } from '../../shared/research/corroboration.ts';
 import { asksWhen, commentaryAccompaniesOpenedAyah, discussesApplication, isOpenedAyah, materialParts, passageMatchesLanguage, recordsPractice, retainRelevantPassages, reviewMaterialCoverage, timingClause } from '../../shared/research/materialCoverage.ts';
 import { CONFIDENCE_NOTE, consultParallel, type ParallelConsult } from './parallelTask.ts';
+import { expandSemanticQuery, mergeExpansionQueries } from './semanticExpansion.ts';
+import { parseRefs } from '../../shared/refs.ts';
 import type { ScienceWork } from './science.ts';
 import type { ResearchAssignmentView } from '../../shared/contracts/v1.ts';
 
@@ -517,6 +519,23 @@ export async function executeResearch(input: {
     const host = religious[0];
     const suggestedAyahs: { surah: number; ayah: number }[] = [];
     const suggestedPhrases: string[] = [];
+    // Pre-retrieval semantic expansion (Gemini Flash) before HadeethEnc / Parallel catalogue opens.
+    try {
+      const expansion = await expandSemanticQuery(input.question, input.language, signal);
+      if (host && expansion.available) {
+        const merged = mergeExpansionQueries(host.queries, expansion, input.language, 10);
+        host.queries.splice(0, host.queries.length, ...merged);
+        for (const phrase of expansion.thematicPhrases) {
+          if (phrase && !suggestedPhrases.includes(phrase)) suggestedPhrases.push(phrase);
+        }
+        for (const hint of expansion.ayahHints) {
+          for (const ayah of parseRefs(hint)) suggestedAyahs.push(ayah);
+        }
+      }
+    } catch (err) {
+      if (isAbort(err, signal)) return finish('cancelled');
+      /* Expansion is best-effort; catalogue search continues on the question’s own words. */
+    }
     if (host && input.ports.suggestSearch) {
       try {
         const suggestion = await timed('Gemini', () => attempt(() => input.ports.suggestSearch!(input.question, input.language, signal), signal));
@@ -1268,6 +1287,33 @@ export async function executeResearch(input: {
       }
       if (parallelConsult.status === 'failed') {
         pushCoverage({ kind: 'source_unavailable', provider: 'Parallel', detail: parallelConsult.setup ?? 'Parallel did not return findings.' });
+      } else if (parallelConsult.status === 'running' && parallelConsult.runId) {
+        // Await Parallel deep research before answer / dossier finalization.
+        const { awaitParallelResult } = await import('./parallelTask.ts');
+        parallelConsult = await awaitParallelResult({
+          runId: parallelConsult.runId,
+          apiKey: input.parallel?.apiKey,
+          fetchImpl: input.parallel?.fetchImpl,
+          processor: parallelConsult.processor,
+          attempts: 8,
+          timeoutSec: Math.max(8, Math.ceil((input.parallel?.pollMs ?? 8_000) / 1000)),
+          signal,
+        });
+        timings.Parallel = (timings.Parallel ?? 0) + parallelConsult.durationMs;
+        for (const finding of parallelConsult.findings) {
+          const text = finding.excerpt.trim();
+          const hash = remember('Parallel', finding.url, 'parallel-task', text);
+          passages.push(parallelPassage(finding, input.language, clock().toISOString(), hash));
+        }
+        if (parallelConsult.findings.length) {
+          const withParallel = dedupePassages(passages);
+          passages.splice(0, passages.length, ...withParallel.passages);
+        }
+        if (parallelConsult.status === 'running') {
+          pushCoverage({ kind: 'budget_exhausted', provider: 'Parallel', detail: parallelConsult.setup ?? 'External research is still in progress. Its citations are not in this revision.' });
+        } else if (parallelConsult.status === 'failed') {
+          pushCoverage({ kind: 'source_unavailable', provider: 'Parallel', detail: parallelConsult.setup ?? 'Parallel did not return findings.' });
+        }
       } else if (parallelConsult.status === 'running') {
         pushCoverage({ kind: 'budget_exhausted', provider: 'Parallel', detail: parallelConsult.setup ?? 'External research is still in progress. Its citations are not in this revision.' });
       }

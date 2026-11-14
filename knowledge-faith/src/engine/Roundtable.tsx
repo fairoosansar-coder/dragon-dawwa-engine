@@ -6,6 +6,7 @@ import { EngineFrame } from './EngineFrame.tsx';
 import { useDossier } from './DossierContext.tsx';
 import { useApp } from '../lib/store.tsx';
 import { stopAudio } from '../lib/audio.ts';
+import { CrossExamineFollowUp } from './components/CrossExamineFollowUp.tsx';
 
 export default function Roundtable() {
   const { t, config } = useApp();
@@ -53,6 +54,17 @@ export default function Roundtable() {
         audioReady={d.audioReady}
         savedClips={d.savedClips}
         onClip={d.rememberClip}
+      />
+      <CrossExamineFollowUp
+        dossierId={d.displayed.research_job_id || d.displayed.query_hadith.slice(0, 80)}
+        originalQuestion={d.displayed.query_hadith}
+        previousSynthesis={`${s.consensus_and_disagreements}\n\n${s.executive_report_markdown}`}
+        openedSources={(d.displayed.agent_7_source_research?.retrieved_records ?? []).slice(0, 8).map(record => ({
+          id: record.id,
+          label: `HadeethEnc ${record.id}`,
+          text: [record.arabic, record.translation, record.published_grade].filter(Boolean).join('\n'),
+        }))}
+        language={d.displayed.content_language ?? d.lang}
       />
     </EngineFrame>
   );

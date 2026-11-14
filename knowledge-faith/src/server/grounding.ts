@@ -2,7 +2,7 @@ import type { EncyclopediaHadith } from '../shared/hadeethenc.ts';
 import { sanitizePodcastHostName } from '../shared/podcastHost.ts';
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
 import { withoutVanakkam } from '../engine/utils/tamilGreeting.ts';
-import { finalSynthesisSystemPrompt } from './research/agentConfig.ts';
+import { finalSynthesisSystemPrompt, followUpRebuttalSystemPrompt } from './research/agentConfig.ts';
 import type { AnswerParagraph, Evidence, Hadith, PodcastLine, PodcastSpeaker, Verse } from '../shared/types.ts';
 
 export function verseEvidence(verses: Verse[]): Evidence[] {
@@ -115,7 +115,8 @@ export const PODCAST_4_PERSONA_CAST = `THE 4-PERSONA STUDIO ROUNDTABLE CAST:
 export function answerPrompt(question: string, lang: Lang, evidence: Evidence[]): string {
   const hadithOnly = evidence.length > 0 && evidence.every(item => item.kind === 'hadith');
   const synthesis = hadithOnly
-    ? ''
+    ? `${followUpRebuttalSystemPrompt()}
+`
     : `${finalSynthesisSystemPrompt()}
 - An opened ayah is enough to answer the reader. Do not set insufficientEvidence only because the ayah’s words differ from the question. Set it only when the packet has no ayah and no commentary that can speak to the question.
 - Quote the Arabic and the translation. If Tamil or Sinhala tafsir text is missing, translate the opened Arabic or English commentary into the selected language. Do not say that no passage in the selected language addresses the question when an ayah is open.
@@ -152,6 +153,8 @@ export function podcastPrompt(
 The host profile name is in HOST NAME (${host}). Open with an authentic Islamic greeting (Assalamu Alaikum wa Rahmatullahi wa Barakatuh; in Tamil: அஸ்ஸலாமு அலைக்கும் வரஹ்மத்துல்லாஹி வபரகாத்துஹ்; in Sinhala: අස්සලාමු අලයිකුම් වරහ්මතුල්ලාහි වබරකාතුහු) and frame the seeker's question with genuine warmth and empathy. Do not add a spoken disclaimer about generation, scholarship, approval, a dossier, or citations. The page header already carries that note.
 
 If the episode language is Tamil, speak natural, dignified scholarly Tamil for the whole conversation, or smooth English with an intentional Tamil translation that you announce as a translation. Do not switch language mid-conversation without that reason. The same rule applies to Sinhala.
+
+${followUpRebuttalSystemPrompt()}
 
 ${PODCAST_4_PERSONA_CAST}
 

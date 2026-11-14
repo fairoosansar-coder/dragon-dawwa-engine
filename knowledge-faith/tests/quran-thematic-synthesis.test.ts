@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { passageSupportsTopic } from '../src/shared/research.ts';
 import { questionInvitesScripture } from '../src/shared/research/themes.ts';
-import { CIVILIZATIONAL_BRIDGE_PROMPT, OPENED_CLASSICAL_LIMIT, QURAN_SYNTHESIS_HEART, finalSynthesisSystemPrompt, parallelRequestForDesk, parallelTaskInput, DOMAIN_CONFIGS } from '../src/server/research/agentConfig.ts';
-import { answerPrompt } from '../src/server/grounding.ts';
+import { CIVILIZATIONAL_BRIDGE_PROMPT, OPENED_CLASSICAL_LIMIT, QURAN_SYNTHESIS_HEART, REBUTTAL_AND_SYNTHESIS_PERSONA, finalSynthesisSystemPrompt, followUpRebuttalSystemPrompt, parallelRequestForDesk, parallelTaskInput, DOMAIN_CONFIGS } from '../src/server/research/agentConfig.ts';
+import { answerPrompt, podcastPrompt } from '../src/server/grounding.ts';
 import { executeResearch, type ResearchPorts } from '../src/server/research/engine.ts';
 
 const QUESTION = 'Why does something we resent still hold a benefit we cannot see, and how does reliance fit that?';
@@ -153,12 +153,16 @@ describe('thematic tafsir synthesis', () => {
     assert.match(prompt, /If Tamil or Sinhala tafsir text is missing, translate the opened Arabic or English commentary/);
     assert.match(QURAN_SYNTHESIS_HEART, /do not cite an unrelated verse/i);
     const bridge = finalSynthesisSystemPrompt();
+    assert.equal(bridge.includes(REBUTTAL_AND_SYNTHESIS_PERSONA), true);
     assert.equal(bridge.includes(CIVILIZATIONAL_BRIDGE_PROMPT.trim()), true);
     assert.equal(bridge.includes(OPENED_CLASSICAL_LIMIT), true);
+    assert.match(bridge, /Lead Scholarly Synthesizer and Rational Mentor/);
+    assert.match(bridge, /Never invent a citation/);
     for (const desk of ['quran', 'fiqh', 'seerah', 'knowledge', 'books'] as const) {
       const request = parallelRequestForDesk(desk, QUESTION, 'en');
       assert.equal(request?.taskInput.includes(CIVILIZATIONAL_BRIDGE_PROMPT.trim()), true, desk);
       assert.equal(request?.taskInput.includes(OPENED_CLASSICAL_LIMIT), true, desk);
+      assert.equal(request?.taskInput.includes(REBUTTAL_AND_SYNTHESIS_PERSONA), true, desk);
     }
     assert.equal(parallelRequestForDesk('hadith', QUESTION, 'en'), null);
     for (const id of ['quran', 'fiqh', 'seerah'] as const) {
@@ -176,6 +180,10 @@ describe('thematic tafsir synthesis', () => {
       grades: [],
     }]);
     assert.equal(hadithPrompt.includes(CIVILIZATIONAL_BRIDGE_PROMPT.trim()), false);
+    assert.equal(hadithPrompt.includes(followUpRebuttalSystemPrompt()), true);
+    assert.equal(hadithPrompt.includes(REBUTTAL_AND_SYNTHESIS_PERSONA), true);
+    assert.equal(prompt.includes(REBUTTAL_AND_SYNTHESIS_PERSONA), true);
+    assert.equal(podcastPrompt(QUESTION, 'en', [], 2).includes(REBUTTAL_AND_SYNTHESIS_PERSONA), true);
     assert.match(prompt, /without inventing a quotation or attributing a sentence to Ibn Kathir/);
   });
 

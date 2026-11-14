@@ -19,6 +19,7 @@ import { RecentSevenAgentDossiers } from '../components/research/RecentSevenAgen
 import { SevenAgentCountdownCard } from '../components/research/SevenAgentCountdownCard.tsx';
 import { SevenAgentResearchBoard } from '../components/research/SevenAgentResearchBoard.tsx';
 import { languageLabel } from './utils/contentLanguage.ts';
+import { CrossExamineFollowUp } from './components/CrossExamineFollowUp.tsx';
 
 export function DossierActions() {
   const d = useDossier();
@@ -242,26 +243,52 @@ export default function DossierWorkbench() {
         {d.step === 'scholars' && <ScholarsVerdictMatrix verdicts={data.agent_5_scholars_verdict} />}
         {d.step === 'source_research' && <Agent7SourceResearchView analysis={data} currentLanguage={d.lang} />}
         {d.step === 'report' && (
-          <CompleteResearchReportView
-            analysis={data}
-            currentLanguage={d.lang}
-            onPrint={d.print}
-            onDownloadFullReport={d.downloadFullReport}
-            onOpenRoundtableTab={() => d.setStep('roundtable')}
-          />
+          <div className="space-y-4">
+            <CompleteResearchReportView
+              analysis={data}
+              currentLanguage={d.lang}
+              onPrint={d.print}
+              onDownloadFullReport={d.downloadFullReport}
+              onOpenRoundtableTab={() => d.setStep('roundtable')}
+            />
+            <CrossExamineFollowUp
+              dossierId={data.research_job_id || data.query_hadith.slice(0, 80)}
+              originalQuestion={data.query_hadith}
+              previousSynthesis={`${data.agent_6_synthesis.consensus_and_disagreements}\n\n${data.agent_6_synthesis.executive_report_markdown}`}
+              openedSources={(data.agent_7_source_research?.retrieved_records ?? []).slice(0, 8).map(record => ({
+                id: record.id,
+                label: `HadeethEnc ${record.id}`,
+                text: [record.arabic, record.translation, record.published_grade].filter(Boolean).join('\n'),
+              }))}
+              language={data.content_language ?? d.lang}
+            />
+          </div>
         )}
         {d.step === 'roundtable' && (
-          <PodcastScriptPlayer
-            key={`${data.query_hadith}-${data.content_language ?? d.lang}-${data.research_job_id ?? 'saved'}`}
-            script={data.agent_6_synthesis.podcast_script}
-            executiveReport={data.agent_6_synthesis.executive_report_markdown}
-            onShare={() => void d.share()}
-            neuralVoice={config == null || config.ai === true}
-            language={data.content_language ?? d.lang}
-            audioReady={d.audioReady}
-            savedClips={d.savedClips}
-            onClip={d.rememberClip}
-          />
+          <div className="space-y-4">
+            <PodcastScriptPlayer
+              key={`${data.query_hadith}-${data.content_language ?? d.lang}-${data.research_job_id ?? 'saved'}`}
+              script={data.agent_6_synthesis.podcast_script}
+              executiveReport={data.agent_6_synthesis.executive_report_markdown}
+              onShare={() => void d.share()}
+              neuralVoice={config == null || config.ai === true}
+              language={data.content_language ?? d.lang}
+              audioReady={d.audioReady}
+              savedClips={d.savedClips}
+              onClip={d.rememberClip}
+            />
+            <CrossExamineFollowUp
+              dossierId={data.research_job_id || data.query_hadith.slice(0, 80)}
+              originalQuestion={data.query_hadith}
+              previousSynthesis={`${data.agent_6_synthesis.consensus_and_disagreements}\n\n${data.agent_6_synthesis.executive_report_markdown}`}
+              openedSources={(data.agent_7_source_research?.retrieved_records ?? []).slice(0, 8).map(record => ({
+                id: record.id,
+                label: `HadeethEnc ${record.id}`,
+                text: [record.arabic, record.translation, record.published_grade].filter(Boolean).join('\n'),
+              }))}
+              language={data.content_language ?? d.lang}
+            />
+          </div>
         )}
       </div>}
         </>

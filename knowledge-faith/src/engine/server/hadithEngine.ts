@@ -5,19 +5,22 @@ import { attachAgent7ToAnalysis } from "../utils/agent7SourceResearch.ts";
 import { SAMPLE_HADITHS } from "../data/sampleHadiths.ts";
 import { loadHadeeth, searchHadeeth } from "../../server/hadeethenc.ts";
 import { hasGeminiApiKey } from "../../server/loadEnv.ts";
+import { anthropicConfigured, completeAnthropicJson } from "../../server/anthropic.ts";
 import { openHadeethEncForQuestion } from "../../server/research/hadeethOpen.ts";
 import { decomposeQuestion } from "../../shared/research/decompose.ts";
 import { bindReport, isAsrPrayerQuestion, isChinaQuestion, isIntentionsQuestion, isSaturdayFastingQuestion, questionBoundShell, recordIsRelevant } from "../utils/reportBinding.ts";
 import { ASR_LEGAL_NOTE, asrCitationSources } from "../utils/asrPrayerSources.ts";
 import { scriptMatchesLanguage } from "../utils/contentLanguage.ts";
 import { findCompletedResearch, storedAnalysisJson } from "../../server/researchIdempotency.ts";
-import { resolveDomainConfig } from "../../server/research/agentConfig.ts";
+import { REBUTTAL_AND_SYNTHESIS_PERSONA, resolveDomainConfig } from "../../server/research/agentConfig.ts";
 import { orchestrateDomainResearch } from "../../server/research/parallelOrchestrator.ts";
 
 export function getDragonDawwaSystemInstruction(targetLang: 'en' | 'ta' | 'si' = 'en'): string {
   const langName = targetLang === 'ta' ? 'Tamil (தமிழ்)' : targetLang === 'si' ? 'Sinhala (සිංහල)' : 'English';
 
   return `You are "Dragon Dawwa", the enterprise-grade AI Hadith Deep Search & Authentication Engine.
+
+${REBUTTAL_AND_SYNTHESIS_PERSONA}
 
 BRANDING & METADATA REQUIREMENT:
 - Core Platform Ownership: Prime Dragon Technologies (Pvt) Ltd
@@ -64,8 +67,8 @@ OPERATIONAL SCHOLARLY AGENT PERSONAS:
    - Scope: Compiles named historical and modern scholar gradings (Al-Albani, Al-Hakim, Shu'ayb al-Arna'ut, Ibn Baz, Ibn Hajar) into precise comparative evaluation matrices.
 
 6. AGENT 6: HOST & SYNTHESIS AGENT
-   - Persona Name: Dragon Dawwa Studio Host (Chief Authentication Officer)
-   - Scope: Reconciles all agent outputs under a strict verification gate. Calculates the Purity Confidence Score (0.0% to 100.0%), writes the final academic verdict in ${langName}, and produces the complete Radio Studio Podcast Script in ${langName}.
+   - Persona Name: Dragon Dawwa Studio Host (Chief Authentication Officer) — apply the Rational Da'wah Mentor (Al-Hikmah & Al-Burhan) methodology above when writing the final synthesis and podcast script.
+   - Scope: Reconciles all agent outputs under a strict verification gate. Calculates the Purity Confidence Score (0.0% to 100.0%), writes the final academic verdict in ${langName}, and produces the complete Radio Studio Podcast Script in ${langName}. Cite only opened HadeethEnc / agent findings; never invent a collection number, grade, or chain.
 
 7. AGENT 7: SOURCE RESEARCH AGENT (HADEETHENC SPECIALIST)
    - Persona Name: Dr. Amina al-Kindi (Source Research & HadeethEnc Encyclopedia Specialist)
@@ -467,6 +470,43 @@ export async function executeDragonDawwaAnalysis(
 
   const benchmark = isSaturdayFastingQuestion(hadithInput) || isIntentionsQuestion(hadithInput) || isChinaQuestion(hadithInput);
   // The Saturday, intentions, and China dossiers are the preserved specialist reports. A thin model reply must not replace them.
+  const prompt = `[DRAGON DAWWA 7-AGENT DEEP SEARCH REQUEST]
+Target Language for descriptions: ${preferredLanguage} (${preferredLanguage === 'ta' ? 'Tamil' : preferredLanguage === 'si' ? 'Sinhala' : 'English'})
+${langPromptGuidance}
+
+Hadith Text: ${hadithInput}
+Isnad / Chain (if provided): ${isnadInput && isnadInput.trim().length > 0 ? isnadInput : "None supplied. Leave narrator_sequence empty and chain_links empty. Do not build a chain from Qur’an text or from another narration."}${hadeethEncContext}
+
+Return one JSON object for the full 7-agent dossier. Required top-level keys include app_name, query_hadith, agent_1_takhrij, agent_2_isnad, agent_3_rijal, agent_4_shawahid_matn, agent_5_scholars_verdict, and agent_6_synthesis (with final_status, purity_confidence_score, consensus_and_disagreements, executive_report_markdown, podcast_script). Cite only opened HadeethEnc records and supplied text. Never invent a citation.`;
+
+  const finalizeModelDossier = (parsed: DragonDawwaAnalysis): DragonDawwaAnalysis | null => {
+    parsed.version = parsed.version || "2.5 Enterprise Engine";
+    parsed.platform_owner = parsed.platform_owner || "Prime Dragon Technologies (Pvt) Ltd";
+    parsed.designed_and_created_by = parsed.designed_and_created_by || "Aegis Intelligence Pvt Ltd, Sri Lanka";
+    if (parsed.agent_6_synthesis?.executive_report_markdown && !parsed.agent_6_synthesis.executive_report_markdown.includes("Aegis Intelligence")) {
+      parsed.agent_6_synthesis.executive_report_markdown += `\n\n---\n*Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prime Dragon Technologies*`;
+    }
+    const spoken = `${parsed.agent_6_synthesis?.podcast_script ?? ''}\n${parsed.agent_6_synthesis?.executive_report_markdown ?? ''}`;
+    parsed.content_language = scriptMatchesLanguage(spoken, preferredLanguage) ? preferredLanguage : undefined;
+    if (!parsed.content_language || !parsed.agent_6_synthesis) return null;
+    return stampDossier(enrichAnalysisWithHadeethEnc(parsed, preferredLanguage, liveRecords, liveActivity), preferredLanguage);
+  };
+
+  // Prefer Claude Sonnet for the multi-persona hadith synthesis write-up; fall back to Gemini.
+  if (anthropicConfigured() && !benchmark) {
+    try {
+      const { value } = await completeAnthropicJson<DragonDawwaAnalysis>({
+        system: getDragonDawwaSystemInstruction(preferredLanguage),
+        user: prompt,
+        maxTokens: 8192,
+      });
+      const stamped = finalizeModelDossier(value);
+      if (stamped) return stamped;
+    } catch (err) {
+      console.error('Claude hadith synthesis failed; falling back to Gemini:', (err as Error)?.message ?? err);
+    }
+  }
+
   if (hasGeminiApiKey(apiKey) && !benchmark) {
     const ai = new GoogleGenAI({
       apiKey: apiKey!.trim(),
@@ -477,13 +517,6 @@ export async function executeDragonDawwaAnalysis(
         },
       },
     });
-
-    const prompt = `[DRAGON DAWWA 7-AGENT DEEP SEARCH REQUEST]
-Target Language for descriptions: ${preferredLanguage} (${preferredLanguage === 'ta' ? 'Tamil' : preferredLanguage === 'si' ? 'Sinhala' : 'English'})
-${langPromptGuidance}
-
-Hadith Text: ${hadithInput}
-Isnad / Chain (if provided): ${isnadInput && isnadInput.trim().length > 0 ? isnadInput : "None supplied. Leave narrator_sequence empty and chain_links empty. Do not build a chain from Qur’an text or from another narration."}${hadeethEncContext}`;
 
     for (const modelName of MODEL_CANDIDATES) {
       for (let attempt = 1; attempt <= 2; attempt++) {
@@ -501,18 +534,9 @@ Isnad / Chain (if provided): ${isnadInput && isnadInput.trim().length > 0 ? isna
 
           const responseText = response.text;
           if (responseText && responseText.trim().startsWith("{")) {
-            const parsed = JSON.parse(responseText) as DragonDawwaAnalysis;
-            parsed.version = parsed.version || "2.5 Enterprise Engine";
-            parsed.platform_owner = parsed.platform_owner || "Prime Dragon Technologies (Pvt) Ltd";
-            parsed.designed_and_created_by = parsed.designed_and_created_by || "Aegis Intelligence Pvt Ltd, Sri Lanka";
-
-            if (parsed.agent_6_synthesis?.executive_report_markdown && !parsed.agent_6_synthesis.executive_report_markdown.includes("Aegis Intelligence")) {
-              parsed.agent_6_synthesis.executive_report_markdown += `\n\n---\n*Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prime Dragon Technologies*`;
-            }
-            const spoken = `${parsed.agent_6_synthesis?.podcast_script ?? ''}\n${parsed.agent_6_synthesis?.executive_report_markdown ?? ''}`;
-            parsed.content_language = scriptMatchesLanguage(spoken, preferredLanguage) ? preferredLanguage : undefined;
-            if (!parsed.content_language) break;
-            return stampDossier(enrichAnalysisWithHadeethEnc(parsed, preferredLanguage, liveRecords, liveActivity), preferredLanguage);
+            const stamped = finalizeModelDossier(JSON.parse(responseText) as DragonDawwaAnalysis);
+            if (stamped) return stamped;
+            break;
           }
         } catch (err: any) {
           const status = err.status || err.statusCode || (err.error && err.error.code);
