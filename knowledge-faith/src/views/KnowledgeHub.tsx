@@ -22,7 +22,7 @@ import { EmptyState, FeatureCard, PrayerStrip } from '../components/shell/widget
 import { Button, Card, ErrorNote, Loading, Notice, SectionTitle } from '../components/ui.tsx';
 import { DomainResearchForm } from './DomainResearchForm.tsx';
 import { readerQuestion } from './domainQuestion.ts';
-import { MODERN_WORLD_BENCHMARKS } from '../shared/modernWorldBenchmarks.ts';
+import { MODERN_WORLD_BENCHMARKS, modernWorldReportId } from '../shared/modernWorldBenchmarks.ts';
 
 function VerseList({ refs }: { refs: string[] }) {
   const { lang, t } = useApp();
@@ -348,6 +348,7 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
               data-testid={`modern-world-card-${card.id}`}
               onClick={() => {
                 setAsked(card.question);
+                const reportId = modernWorldReportId(card.id);
                 void (async () => {
                   setBusy(true);
                   setAskError(null);
@@ -359,13 +360,22 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
                       lang,
                       clarified: true,
                     });
+                    const fallbackHash = `#/hub/research?lang=${encodeURIComponent(lang)}&q=${encodeURIComponent(card.question)}&reportId=${encodeURIComponent(reportId)}`;
                     if (started.action === 'clarify' || !started.id || !started.scope) {
-                      window.location.hash = `#/hub/research?lang=${encodeURIComponent(lang)}&q=${encodeURIComponent(card.question)}`;
+                      window.location.hash = fallbackHash;
                       return;
                     }
-                    window.location.hash = researchHref(started.scope, started.id, lang, started.action === 'forward', null, card.question);
+                    window.location.hash = researchHref(
+                      started.scope,
+                      started.id,
+                      lang,
+                      started.action === 'forward',
+                      null,
+                      card.question,
+                      reportId,
+                    );
                   } catch {
-                    window.location.hash = `#/hub/research?lang=${encodeURIComponent(lang)}&q=${encodeURIComponent(card.question)}`;
+                    window.location.hash = `#/hub/research?lang=${encodeURIComponent(lang)}&q=${encodeURIComponent(card.question)}&reportId=${encodeURIComponent(reportId)}`;
                   } finally {
                     setBusy(false);
                   }

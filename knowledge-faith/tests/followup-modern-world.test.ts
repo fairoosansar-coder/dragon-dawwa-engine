@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { DOMAIN_CONFIGS, REBUTTAL_AND_SYNTHESIS_PERSONA, followUpRebuttalSystemPrompt } from '../src/server/research/agentConfig.ts';
-import { MODERN_WORLD_BENCHMARKS } from '../src/shared/modernWorldBenchmarks.ts';
+import { MODERN_WORLD_BENCHMARKS, matchModernWorldBenchmark } from '../src/shared/modernWorldBenchmarks.ts';
 import { anthropicSynthesisModel } from '../src/server/anthropic.ts';
 import { GEMINI_SYNTHESIS_FALLBACK_MODEL } from '../src/server/research/finalSynthesis.ts';
 import { mergeExpansionQueries, type SemanticExpansion } from '../src/server/research/semanticExpansion.ts';
@@ -85,4 +85,12 @@ describe('full upgrade: roles, models, follow-up persona, hub track', () => {
     assert.match(followUpRebuttalSystemPrompt(), /Lead Scholarly Synthesizer and Rational Mentor/);
     assert.equal(followUpRebuttalSystemPrompt().includes(REBUTTAL_AND_SYNTHESIS_PERSONA), true);
   });
+
+  it('keeps Modern World signature matching free of gold-ring collisions', () => {
+    const twentyThree = MODERN_WORLD_BENCHMARKS.find(item => item.id === 'twenty-three-year');
+    assert.ok(twentyThree);
+    assert.equal(matchModernWorldBenchmark(twentyThree.question)?.id, 'twenty-three-year');
+    assert.equal(matchModernWorldBenchmark('Can man wear gold ? or small ring or related in gold ?'), null);
+  });
 });
+
