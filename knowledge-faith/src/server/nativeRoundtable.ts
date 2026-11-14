@@ -8,6 +8,7 @@ import type { RoundtableTurn } from '../shared/sevenAgentTypes.ts';
 import type { Lang } from '../shared/sources.ts';
 import { anthropicConfigured, completeAnthropicJson } from './anthropic.ts';
 import { generateJsonWithModels, geminiConfigured } from './gemini.ts';
+import { looksLikeMetaCacheIsolationDialogue } from './modernWorldNativeRoundtables.ts';
 
 const turnSchema: Schema = {
   type: Type.OBJECT,
@@ -54,6 +55,8 @@ function systemPrompt(lang: Lang): string {
     'Rewrite the English scholarly roundtable as a native dialogue in the target language.',
     'Preserve meaning, speakers, and evidence references. Do not invent new citations.',
     'Do NOT produce a literal machine translation; write as native panelists speaking.',
+    'FORBIDDEN in spoken dialogue: QA/debug narration, cache isolation talk, “we refuse to paste gold-ring / Muslim 2089 / prior dossier” meta, software placeholders, or comments about unrelated previous research jobs.',
+    'Answer only the seeker’s scholarly question with Qur’an, Seerah, Hadith, fiqh, and hikmah evidence.',
     nativeLanguageRules(lang),
   ].join('\n');
 }
@@ -125,5 +128,7 @@ function mergeNativeTurns(
       text,
     });
   }
+  // Never ship QA/cache-isolation meta as user-facing dialogue.
+  if (looksLikeMetaCacheIsolationDialogue(out)) return null;
   return out;
 }

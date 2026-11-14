@@ -16,6 +16,12 @@ import {
   userFacingResearchQuestion,
   type ModernWorldBenchmark,
 } from '../shared/modernWorldBenchmarks.ts';
+import {
+  looksLikeMetaCacheIsolationDialogue,
+  modernWorldNativeRoundtable,
+} from './modernWorldNativeRoundtables.ts';
+
+export { looksLikeMetaCacheIsolationDialogue } from './modernWorldNativeRoundtables.ts';
 
 const AGENT_HEADERS = {
   quran_tafsir: {
@@ -185,11 +191,10 @@ function twentyThreeYearDossier(question: string): SevenAgentResearchDossier {
       verdictBadge: 'FINAL VERDICT · WAHY-DRIVEN 23-YEAR CIVILIZATION',
       confidenceScore: '98.6%',
       summary:
-        'The 23-year Prophetic transformation is the Qur’an-and-Seerah account of how Wahy taught an unlettered messenger after age forty to purify a people, build institutions, and seed a lasting global civilization—without inventing citations or collapsing the dossier into an unrelated topic.',
+        'The 23-year Prophetic transformation is the Qur’an-and-Seerah account of how Wahy taught an unlettered messenger after age forty to purify a people, build institutions, and seed a lasting global civilization.',
       keyPoints: [
         'Direct answer: Revelation enabled moral, legal, and institutional reform across ~13 Makkan + ~10 Madinan years.',
         'Evidence spine: Qur’an 42:52, 62:2, 96:1–5 plus authentic Seerah chronology and jawami‘ al-kalim reports.',
-        'Topic lock: this hub card stays on Wahy and the 23-year civilizational arc—never a leftover jewelry ruling from another research run.',
         'Seeker takeaway: study Wahy as pedagogy—creed, character, then institutions—mirroring the Prophetic sequence.',
       ],
       citations: ['Qur’an 62:2', 'Qur’an 42:52', 'Sahih al-Bukhari 2977', 'Classical Seerah'],
@@ -228,38 +233,8 @@ function twentyThreeYearDossier(question: string): SevenAgentResearchDossier {
       'Islamic history is grounded in opened Qur’an and Seerah; social-science parallels illustrate hikmah without replacing revelation.',
   };
 
-  const roundtableTurns: RoundtableTurn[] = [
-    {
-      speaker: 'Brother Feroz (Host)',
-      role: 'Executive Roundtable Moderator',
-      voiceProfile: 'tariq',
-      text: `Assalamu Alaikum. Today's 7-Agent Roundtable examines: "${userFacingResearchQuestion(question)}"`,
-    },
-    {
-      speaker: 'Dr. Tariq al-Mansoor',
-      role: 'Agent 02 · Hadith & Seerah Specialist',
-      voiceProfile: 'tariq',
-      text: 'The authentic Seerah places the mission after age forty across roughly thirteen Makkan and ten Madinan years. Bukhari 2977 notes jawami‘ al-kalim—concise speech with vast reforming power—fitting an ummi messenger taught by Wahy.',
-    },
-    {
-      speaker: 'Shaykh Farhan al-Rashed',
-      role: 'Agent 04 · Classical Fiqh & Consensus Lead',
-      voiceProfile: 'yusuf',
-      text: 'Usul scholars highlight tadrij: creed and character first, then detailed law. That sequence is how a fractured Arabian society could absorb a coherent Shariah without social collapse.',
-    },
-    {
-      speaker: 'Dr. Zainab al-Mubarak',
-      role: 'Agent 06 · Modern Science & 1-Step-Ahead Foresight',
-      voiceProfile: 'noor',
-      text: 'Contemporary staged-change and social-capital research rediscovers what the Seerah already practiced: stabilize identity and sacred norms, then institutionalize justice. Revelation led; empirical models followed.',
-    },
-    {
-      speaker: 'Brother Feroz (Host)',
-      role: 'Executive Roundtable Moderator',
-      voiceProfile: 'tariq',
-      text: 'Synthesis: the 23-year transformation is Wahy teaching Book and Wisdom (62:2)—Prophetic civilization shaped by revelation across Makkah and Madinah.',
-    },
-  ];
+  const roundtableTurns =
+    modernWorldNativeRoundtable('twenty-three-year', 'en', question) ?? [];
 
   return packDossier({
     id: modernWorldReportId('twenty-three-year'),
@@ -269,7 +244,7 @@ function twentyThreeYearDossier(question: string): SevenAgentResearchDossier {
     verdictClassification: 'QUR’AN + SEERAH · CIVILIZATIONAL PEDAGOGY',
     confidenceScore: 98.4,
     executiveSummary:
-      'Across roughly thirteen Makkan and ten Madinan years, Wahy enabled the Prophet ﷺ—unlettered and beginning after age forty—to purify belief, form character, and build institutions. Qur’an 42:52, 62:2, and 96:1–5 with authentic Seerah chronology explain this transformation. This dedicated hub dossier stays on the 23-year prophetic arc and must never reuse an unrelated prior research topic.',
+      'Across roughly thirteen Makkan and ten Madinan years, Wahy enabled the Prophet ﷺ—unlettered and beginning after age forty—to purify belief, form character, and build institutions. Qur’an 42:52, 62:2, and 96:1–5 with authentic Seerah chronology explain this transformation.',
     agents,
     scienceForesight,
     roundtableTurns,
@@ -384,7 +359,7 @@ function primordialUniversalityDossier(question: string): SevenAgentResearchDoss
       keyPoints: [
         'Cite 4:1, 7:172, 30:30 and Bukhari 1358 / Muslim 2658.',
         'Reject racial or ethnic monopolies on guidance (49:13).',
-        'Topic lock: keep this dossier on Adam, Fitrah, and universal humanity.',
+        'Seeker takeaway: live Fitrah as universal dignity under one Creator.',
       ],
       citations: ['Qur’an 4:1', 'Qur’an 30:30', 'Sahih al-Bukhari 1358'],
     },
@@ -416,38 +391,8 @@ function primordialUniversalityDossier(question: string): SevenAgentResearchDoss
       'Science may illustrate Fitrah; creed remains grounded in opened revelation.',
   };
 
-  const roundtableTurns: RoundtableTurn[] = [
-    {
-      speaker: 'Brother Feroz (Host)',
-      role: 'Executive Roundtable Moderator',
-      voiceProfile: 'tariq',
-      text: `Assalamu Alaikum. Our question: "${userFacingResearchQuestion(question)}" We examine Adam, Fitrah, and universal humanity.`,
-    },
-    {
-      speaker: 'Dr. Tariq al-Mansoor',
-      role: 'Agent 02 · Hadith Specialist',
-      voiceProfile: 'tariq',
-      text: 'Bukhari 1358 and Muslim 2658 state every child is born upon the Fitrah. That Prophetic teaching pairs with Qur’an 4:1 on creation from one soul.',
-    },
-    {
-      speaker: 'Shaykh Farhan al-Rashed',
-      role: 'Agent 04 · Fiqh Lead',
-      voiceProfile: 'yusuf',
-      text: 'Because humanity shares Adam’s origin, fiqh rejects racial supremacy and measures nobility by taqwa (49:13).',
-    },
-    {
-      speaker: 'Dr. Zainab al-Mubarak',
-      role: 'Agent 06 · Science Foresight',
-      voiceProfile: 'noor',
-      text: 'Genetics and moral psychology rediscover shared origins and early predispositions—echoing Fitrah while revelation remains first.',
-    },
-    {
-      speaker: 'Brother Feroz (Host)',
-      role: 'Executive Roundtable Moderator',
-      voiceProfile: 'tariq',
-      text: 'Verdict: Islam is primordial Fitrah for the children of Adam—not a late tribal invention.',
-    },
-  ];
+  const roundtableTurns =
+    modernWorldNativeRoundtable('primordial-universality', 'en', question) ?? [];
 
   return packDossier({
     id: modernWorldReportId('primordial-universality'),
@@ -457,7 +402,7 @@ function primordialUniversalityDossier(question: string): SevenAgentResearchDoss
     verdictClassification: 'QUR’AN + SAHIH · FITRAH UNIVERSALISM',
     confidenceScore: 98.3,
     executiveSummary:
-      'Qur’an 4:1, 7:172, and 30:30 with Sahihayn Fitrah reports present Adam as the shared father of humanity and Islam as restoration of Fitrah. This dedicated hub dossier never substitutes an unrelated prior research topic.',
+      'Qur’an 4:1, 7:172, and 30:30 with Sahihayn Fitrah reports present Adam as the shared father of humanity and Islam as restoration of Fitrah.',
     agents,
     scienceForesight,
     roundtableTurns,
@@ -573,7 +518,7 @@ function microSunnahScienceDossier(question: string): SevenAgentResearchDossier 
       keyPoints: [
         'Follow opened Sahihayn dietary and fasting guidance.',
         'Treat science as illustration, not a second revelation.',
-        'Topic lock: keep this dossier on micro-Sunnah wellness practices.',
+        'Seeker takeaway: practice micro-Sunnah with sincerity, moderation, and gratitude.',
       ],
       citations: ['Qur’an 2:183', 'Sahih al-Bukhari 5445', 'Sahih Muslim 2047'],
     },
@@ -605,38 +550,8 @@ function microSunnahScienceDossier(question: string): SevenAgentResearchDossier 
       'Empirical notes are general; Dragon Dawwa never invents paper titles or grades.',
   };
 
-  const roundtableTurns: RoundtableTurn[] = [
-    {
-      speaker: 'Brother Feroz (Host)',
-      role: 'Executive Roundtable Moderator',
-      voiceProfile: 'tariq',
-      text: `Assalamu Alaikum. Question: "${userFacingResearchQuestion(question)}" We focus on dates, fasting, sleep, and resilience.`,
-    },
-    {
-      speaker: 'Dr. Tariq al-Mansoor',
-      role: 'Agent 02 · Hadith Specialist',
-      voiceProfile: 'tariq',
-      text: 'Sahihayn preserve prophetic food and fasting guidance. We cite opened collections only and refuse invented medical chains.',
-    },
-    {
-      speaker: 'Shaykh Farhan al-Rashed',
-      role: 'Agent 04 · Fiqh Lead',
-      voiceProfile: 'yusuf',
-      text: 'Ramadan is obligatory; micro-sunnahs are recommended within adab and moderation, with medical concessions when needed.',
-    },
-    {
-      speaker: 'Dr. Zainab al-Mubarak',
-      role: 'Agent 06 · Science Foresight',
-      voiceProfile: 'noor',
-      text: 'Nutrition and intermittent metabolic research illuminate hikmah in these habits, while revelation remains the reason we practice them.',
-    },
-    {
-      speaker: 'Brother Feroz (Host)',
-      role: 'Executive Roundtable Moderator',
-      voiceProfile: 'tariq',
-      text: 'Verdict: micro-Sunnah wellness—dates, fasting, sleep, and resilience—embodies hikmah that revelation taught and science continues to rediscover.',
-    },
-  ];
+  const roundtableTurns =
+    modernWorldNativeRoundtable('micro-sunnah-science', 'en', question) ?? [];
 
   return packDossier({
     id: modernWorldReportId('micro-sunnah-science'),
@@ -646,7 +561,7 @@ function microSunnahScienceDossier(question: string): SevenAgentResearchDossier 
     verdictClassification: 'SUNNAH ADAB · EMPIRICAL HIKMAH',
     confidenceScore: 97.9,
     executiveSummary:
-      'Opened Qur’an and Sahihayn guidance on wholesome food, fasting, and calming remembrance form micro-habits whose hikmah resonates with modern nutrition and mental-health insights. This hub dossier stays on that topic and never reuses an unrelated prior research text.',
+      'Opened Qur’an and Sahihayn guidance on wholesome food, fasting, and calming remembrance form micro-habits whose hikmah resonates with modern nutrition and mental-health insights.',
     agents,
     scienceForesight,
     roundtableTurns,
@@ -761,7 +676,7 @@ function macroGovernanceDossier(question: string): SevenAgentResearchDossier {
       keyPoints: [
         'Anchor in 16:90, 42:38, 5:1 and Bukhari 893.',
         'Treat Seerah treaties carefully without invention.',
-        'Topic lock: keep this dossier on justice, treaties, and governance.',
+        'Seeker takeaway: pursue justice, consultation, and covenant fidelity in public life.',
       ],
       citations: ['Qur’an 16:90', 'Qur’an 42:38', 'Sahih al-Bukhari 893'],
     },
@@ -793,38 +708,8 @@ function macroGovernanceDossier(question: string): SevenAgentResearchDossier {
       'Social-science parallels illustrate hikmah; law remains revelation-based.',
   };
 
-  const roundtableTurns: RoundtableTurn[] = [
-    {
-      speaker: 'Brother Feroz (Host)',
-      role: 'Executive Roundtable Moderator',
-      voiceProfile: 'tariq',
-      text: `Assalamu Alaikum. Today: "${userFacingResearchQuestion(question)}" Macro-justice, treaties, and civilizational governance.`,
-    },
-    {
-      speaker: 'Dr. Tariq al-Mansoor',
-      role: 'Agent 02 · Hadith Specialist',
-      voiceProfile: 'tariq',
-      text: 'Bukhari 893 teaches every steward is accountable. Seerah treaty practice shows diplomacy under revelation when carefully sourced.',
-    },
-    {
-      speaker: 'Shaykh Farhan al-Rashed',
-      role: 'Agent 04 · Fiqh Lead',
-      voiceProfile: 'yusuf',
-      text: 'Siyasah shar‘iyyah pursues public welfare within Shariah: courts of justice, binding covenants, and limits on tyranny.',
-    },
-    {
-      speaker: 'Dr. Zainab al-Mubarak',
-      role: 'Agent 06 · Science Foresight',
-      voiceProfile: 'noor',
-      text: 'Institutional trust research rediscovers credible commitments and impartial justice—ethics the Qur’an already commanded.',
-    },
-    {
-      speaker: 'Brother Feroz (Host)',
-      role: 'Executive Roundtable Moderator',
-      voiceProfile: 'tariq',
-      text: 'Verdict: Qur’an and Sunnah form a coherent civilizational frame of justice, consultation, and covenant-keeping.',
-    },
-  ];
+  const roundtableTurns =
+    modernWorldNativeRoundtable('macro-governance', 'en', question) ?? [];
 
   return packDossier({
     id: modernWorldReportId('macro-governance'),
@@ -834,7 +719,7 @@ function macroGovernanceDossier(question: string): SevenAgentResearchDossier {
     verdictClassification: 'SIYASAH SHAR‘IYYAH · COVENANTAL JUSTICE',
     confidenceScore: 98.1,
     executiveSummary:
-      'Justice (16:90), consultation (42:38), covenant-keeping (5:1), and accountable stewardship (Bukhari 893) form the macro-governance spine of Islam. This dedicated hub dossier must never display leftovers from an unrelated prior research run.',
+      'Justice (16:90), consultation (42:38), covenant-keeping (5:1), and accountable stewardship (Bukhari 893) form the macro-governance spine of Islam.',
     agents,
     scienceForesight,
     roundtableTurns,
