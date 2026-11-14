@@ -8,6 +8,7 @@ import type { Schema } from '@google/genai';
 import { Type } from '@google/genai';
 import { anthropicConfigured, completeAnthropicJson } from '../anthropic.ts';
 import { generateJsonWithModels, geminiConfigured } from '../gemini.ts';
+import { researchSystemInstructionsForQuestion, userFacingResearchQuestion } from '../../shared/modernWorldBenchmarks.ts';
 import type { Lang } from '../../shared/sources.ts';
 import { finalSynthesisSystemPrompt, SPEAKER_LABEL, type DomainAgentConfig } from './agentConfig.ts';
 
@@ -72,11 +73,27 @@ export function hostReconciliationUserPrompt(input: {
   baseExecutiveReport: string;
   basePodcastScript: string;
 }): string {
+  const languageRules =
+    input.language === 'ta'
+      ? [
+          'Compose podcast_script DIRECTLY in natural scholarly Tamil (தமிழ்). Do not draft English then translate.',
+          'Never transliterate English into Tamil script (ban: "டீசிங் புக் அண்ட் விஸ்டம்", Latin "Wahy", "முகவர்").',
+          'Use: வஹீ, வேதத்தையும் ஞானத்தையும் கற்பித்தல், ஆய்வுக் குழு, நாகரிக எழுச்சி.',
+          'Greeting: அஸ்ஸலாமு அலைக்கும் only — never வணக்கம்.',
+        ].join(' ')
+      : input.language === 'si'
+        ? 'Compose podcast_script DIRECTLY in natural scholarly Sinhala. Do not draft English then translate. Do not transliterate English into Sinhala letters.'
+        : 'Compose podcast_script in natural English.';
+
   return [
     'Write the final multi-persona host reconciliation for Dragon Dawwa Institutional Research Studio.',
     `Category: ${input.categoryLabel}`,
     `Output language: ${input.language} (en = English, ta = Tamil, si = Sinhala). Write podcast_script and narrative fields in that language.`,
-    `Question: ${input.question}`,
+    languageRules,
+    `Question: ${userFacingResearchQuestion(input.question)}`,
+    researchSystemInstructionsForQuestion(input.question)
+      ? `Internal evidence rubric (never read aloud / never paste into spoken Host lines): ${researchSystemInstructionsForQuestion(input.question)}`
+      : '',
     '',
     'OPENED AGENT FINDINGS (cite only these; never invent a verse, hadith, grade, or URL):',
     agentBrief(input.agents),
@@ -84,7 +101,7 @@ export function hostReconciliationUserPrompt(input: {
     'BASE EXECUTIVE REPORT (you may refine; keep the category/dispatch/source lists accurate):',
     input.baseExecutiveReport,
     '',
-    'BASE PODCAST SCRIPT (refine into natural multi-persona dialogue; keep player labels such as',
+    'BASE PODCAST SCRIPT (compose/refine as native multi-persona dialogue in the output language; keep player labels such as',
     `${SPEAKER_LABEL.host} ${SPEAKER_LABEL.tariq} ${SPEAKER_LABEL.layla} etc.):`,
     input.basePodcastScript,
     '',

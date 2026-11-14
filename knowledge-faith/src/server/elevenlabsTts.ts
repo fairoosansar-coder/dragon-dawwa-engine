@@ -11,7 +11,13 @@ import {
   type HadithTtsResponse,
   type HadithTtsStatusResponse,
 } from '../shared/hadithVoices.ts';
+import {
+  geminiVoiceNameForSpeaker,
+  isGeminiPrebuiltVoiceName,
+  type GeminiPrebuiltVoiceName,
+} from '../shared/geminiVoices.ts';
 import type { Lang } from '../shared/sources.ts';
+import { synthesizeRoundtableVoice } from '../engine/server/geminiTtsService.ts';
 import { geminiConfigured, narrate } from './gemini.ts';
 import { persistRoot } from './persist.ts';
 import { createR2Client } from './r2Audio.ts';
@@ -331,12 +337,27 @@ async function synthesizeWithNeuralStreamFallback(
   };
 }
 
+function resolveSpeakerGeminiVoice(
+  speaker?: string,
+  voiceName?: string,
+): { speaker: string; voice: GeminiPrebuiltVoiceName } | null {
+  const label = typeof speaker === 'string' ? speaker.trim().slice(0, 80) : '';
+  if (!label) return null;
+  const voice = isGeminiPrebuiltVoiceName(voiceName)
+    ? voiceName
+    : geminiVoiceNameForSpeaker(label);
+  return { speaker: label, voice };
+}
+
 export async function synthesizeHadithVoice(input: {
   text: string;
   lang?: unknown;
   voiceProfile?: string;
   speed?: unknown;
   modelId?: string;
+  /** Roundtable / 7-agent speaker label → distinct Gemini voice (bypasses single Hadith profile). */
+  speaker?: string;
+  voiceName?: string;
 }): Promise<HadithTtsResponse> {
   const cleaned = cleanHadithTextForSpeech(input.text);
   if (!cleaned) {
@@ -345,7 +366,11 @@ export async function synthesizeHadithVoice(input: {
   const profile = resolveHadithVoiceProfile(input.voiceProfile);
   const lang = normalizeHadithSpeechLang(input.lang);
   const speed = normalizeSpeed(input.speed);
-  const hash = computeCacheHash(profile.id, lang, speed, cleaned);
+  const speakerVoice = resolveSpeakerGeminiVoice(input.speaker, input.voiceName);
+  const cacheIdentity = speakerVoice
+    ? `speaker:${speakerVoice.speaker}:${speakerVoice.voice}`
+    : profile.id;
+  const hash = computeCacheHash(cacheIdentity, lang, speed, cleaned);
 
   const memHit = memoryTtsCache.get(hash);
   if (memHit) {
@@ -364,15 +389,50 @@ export async function synthesizeHadithVoice(input: {
       audioBase64: r2Hit.audioBase64,
       mimeType: r2Hit.mimeType,
       voiceProfile: profile.id,
-      voiceLabel: profile.label,
-      modelUsed: 'eleven_v4',
-      engine: 'elevenlabs-v4',
+      voiceLabel: speakerVoice ? `${speakerVoice.speaker} · ${speakerVoice.voice}` : profile.label,
+      modelUsed: speakerVoice ? speakerVoice.voice : 'eleven_v4',
+      engine: speakerVoice ? 'gemini-tts' : 'elevenlabs-v4',
       lang,
       cached: true,
     };
     memoryTtsCache.set(hash, entry);
     writeDiskCache(hash, entry);
     return entry;
+  }
+
+  // Speaker-aware path: always use Gemini persona voice so each agent is distinct.
+  if (speakerVoice) {
+    const targetLang: Lang = lang === 'ta' ? 'ta' : lang === 'si' ? 'si' : 'en';
+    try {
+      const generated = await synthesizeRoundtableVoice(
+        cleaned,
+        speakerVoice.speaker,
+        speakerVoice.voice,
+        targetLang,
+      );
+      if (generated?.audioBase64) {
+        const entry: HadithTtsResponse = {
+          audioBase64: generated.audioBase64,
+          mimeType: generated.mimeType || 'audio/wav',
+          voiceProfile: profile.id,
+          voiceLabel: `${speakerVoice.speaker} · ${generated.voiceName}`,
+          modelUsed: generated.modelUsed || generated.voiceName,
+          engine: 'gemini-tts',
+          lang,
+          cached: false,
+        };
+        if (memoryTtsCache.size >= 150) {
+          const oldest = memoryTtsCache.keys().next().value;
+          if (oldest) memoryTtsCache.delete(oldest);
+        }
+        memoryTtsCache.set(hash, entry);
+        writeDiskCache(hash, entry);
+        void writeR2Cache(hash, entry.audioBase64, entry.mimeType);
+        return entry;
+      }
+    } catch {
+      /* fall through to Hadith profile path */
+    }
   }
 
   // 1. Try ElevenLabs v4 -> v3 -> multilingual_v2

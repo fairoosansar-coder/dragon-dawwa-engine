@@ -36,6 +36,10 @@ describe('Modern World hub dossiers stay topic-bound', () => {
     assert.equal(looksLikeGoldRingDossierContent(en), false);
     assert.doesNotMatch(en.executiveSummary, /Muslim 2089|Nasa.?i 5148|Bukhari 5863/i);
     assert.equal(en.agents.every(agent => agent.summary.trim().length > 40), true);
+    const hostIntro = en.roundtableTurns[0]?.text ?? '';
+    assert.equal(/never invent|Use opened|jewelry rulings|gold-ring/i.test(hostIntro), false);
+    assert.equal(/never invent|Use opened/i.test(en.question), false);
+    assert.equal(en.question, card.question);
   });
 
   it('localizes the 23-year dossier to Tamil without pasting gold content', async () => {

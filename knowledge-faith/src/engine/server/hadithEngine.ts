@@ -34,8 +34,8 @@ TARGET LANGUAGE: ${langName}
 STRICT MULTILINGUAL GENERATION RULES:
 1. DESCRIPTIONS, DIALOGUES, AND SUMMARIES:
    - ALL dialogue lines in the podcast script (podcast_script), executive summaries (executive_report_markdown), Rijal critic notes (critic_verdicts, critic_quotes_translated), and agent findings MUST be written in fluent, native ${langName} script when ${langName} is selected.
-   - For Tamil ('ta'): Write all spoken dialogue lines, narrator evaluations, and synthesis summaries in authentic, high-quality, grammatical Tamil script (தமிழ்). Do NOT use English transliteration for dialogue or explanations.
-   - For Sinhala ('si'): Write all spoken dialogue lines and summaries in authentic Sinhala script (සිංහල).
+   - For Tamil ('ta'): Compose dialogue DIRECTLY in natural scholarly Tamil (தமிழ்). Never draft English then translate. NEVER transliterate English into Tamil letters (forbidden: "டீசிங் புக் அண்ட் விஸ்டம்", Latin "Wahy", "முகவர்"). Prefer: வஹீ, வேதத்தையும் ஞானத்தையும் கற்பித்தல், ஆய்வுக் குழு, நாகரிக எழுச்சி.
+   - For Sinhala ('si'): Compose dialogue DIRECTLY in natural scholarly Sinhala (සිංහල). Never draft English then translate. Do not transliterate English into Sinhala letters.
 
 2. ARABIC IN WRITTEN FIELDS:
    - In written fields (exact wording, reports, critic quotes, and the sources list), Quranic verses, Hadith Matn, and Islamic core formulas (e.g., "إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ", "صَلَّى اللهُ عَلَيْهِ وَسَلَّمَ") stay in pristine, fully-vocalized ARABIC text, followed by a translation in ${langName}.

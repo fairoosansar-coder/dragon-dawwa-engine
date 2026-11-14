@@ -236,8 +236,8 @@ export const PodcastScriptPlayer: React.FC<PodcastScriptPlayerProps> = ({
     'Sheikh Yusuf al-Azhari': {
       name: 'Sheikh Yusuf al-Azhari',
       role: 'Legal Weight & Verdicts Specialist (Agent 5)',
-      geminiVoice: 'Fenrir',
-      voiceTag: 'Gemini Fenrir (Measured, authoritative scholar)',
+      geminiVoice: 'Charon',
+      voiceTag: 'Gemini Charon (Measured, authoritative scholar)',
       gender: 'M',
       color: 'text-indigo-400',
       bg: 'bg-indigo-950/60',

@@ -94,6 +94,11 @@ describe('7-Agent Hadith Research & Roundtable with HadeethEnc (Agent 7)', () =>
     const amina = getGeminiVoiceForSpeaker('DR. AMINA');
     assert.equal(amina.personaName, 'Dr. Amina al-Kindi');
     assert.equal(amina.voiceName, 'Aoede');
+    const yusuf = getGeminiVoiceForSpeaker('SHEIKH YUSUF');
+    assert.equal(yusuf.voiceName, 'Charon');
+    const tariq = getGeminiVoiceForSpeaker('DR. TARIQ');
+    assert.equal(tariq.voiceName, 'Fenrir');
+    assert.notEqual(yusuf.voiceName, tariq.voiceName);
     const presets = SAMPLE_HADITHS.map(p => getLocalizedAnalysis(p.defaultData, 'ta'));
     for (const loc of presets) {
       assert.ok(loc.agent_7_source_research);

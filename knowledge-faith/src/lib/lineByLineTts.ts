@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { base64ToObjectUrl, pauseAudio, playAudio, stopAudio, useAudioState } from './audio.ts';
+import { geminiVoiceNameForSpeaker } from '../shared/geminiVoices.ts';
 import type {
   HadithPlaybackSpeed,
   HadithSpeechLang,
@@ -63,6 +64,8 @@ export function splitTextIntoSpeechLines(rawText: string): string[] {
 export interface LineByLineSessionState {
   sessionId: string | null;
   lines: string[];
+  /** Parallel speaker labels for multi-voice roundtables; null = use session voiceProfile. */
+  lineSpeakers: Array<string | null>;
   currentIndex: number;
   status: 'idle' | 'loading' | 'playing' | 'paused';
   lang: HadithSpeechLang;
@@ -78,6 +81,7 @@ export interface LineByLineDeps {
     lang: HadithSpeechLang,
     voiceProfile: HadithVoiceProfileId,
     speed: HadithPlaybackSpeed,
+    speaker?: string | null,
   ) => Promise<string | null>;
   playAudioLine: (
     audioId: string,
@@ -91,15 +95,23 @@ export interface LineByLineDeps {
 
 const audioUrlMemoryCache = new Map<string, string>();
 
+/**
+ * When a speaker is set (roundtable / agent Listen), use Gemini persona TTS via /api/tts
+ * so each agent gets a distinct prebuilt voice. Otherwise keep the Hadith voice bar path.
+ */
 async function defaultFetchLineAudio(
   lineText: string,
   lang: HadithSpeechLang,
   voiceProfile: HadithVoiceProfileId,
   speed: HadithPlaybackSpeed,
+  speaker?: string | null,
 ): Promise<string | null> {
   const clean = lineText.trim().slice(0, 800);
   if (!clean) return null;
-  const key = `${voiceProfile}|${lang}|${speed}|${clean}`;
+  const speakerKey = speaker?.trim() || '';
+  const key = speakerKey
+    ? `speaker:${speakerKey}|${lang}|${speed}|${clean}`
+    : `${voiceProfile}|${lang}|${speed}|${clean}`;
   const cached = audioUrlMemoryCache.get(key);
   if (cached) return cached;
 
@@ -113,6 +125,10 @@ async function defaultFetchLineAudio(
         voiceProfile,
         speed,
         modelId: 'eleven_v4',
+        // When set, server maps speaker → distinct Gemini prebuilt voice (7-agent cast).
+        ...(speakerKey
+          ? { speaker: speakerKey, voiceName: geminiVoiceNameForSpeaker(speakerKey) }
+          : {}),
       }),
     });
     if (!res.ok) return null;
@@ -148,6 +164,7 @@ export class LineByLineTtsController {
   private state: LineByLineSessionState = {
     sessionId: null,
     lines: [],
+    lineSpeakers: [],
     currentIndex: -1,
     status: 'idle',
     lang: 'en',
@@ -192,7 +209,8 @@ export class LineByLineTtsController {
     if (existing) return existing;
 
     const lineText = this.state.lines[index];
-    const { lang, voiceProfile, speed } = this.state;
+    const { lang, voiceProfile, speed, lineSpeakers } = this.state;
+    const speaker = lineSpeakers[index] ?? null;
 
     if (!this.state.requestedIndices.includes(index)) {
       this.emit({
@@ -201,7 +219,7 @@ export class LineByLineTtsController {
     }
 
     const promise = this.deps
-      .fetchLineAudio(lineText, lang, voiceProfile, speed)
+      .fetchLineAudio(lineText, lang, voiceProfile, speed, speaker)
       .then(url => {
         if (token !== this.runToken) return null;
         if (url) {
@@ -223,6 +241,8 @@ export class LineByLineTtsController {
     sessionId: string;
     text?: string;
     lines?: string[];
+    /** Per-line speaker for distinct Gemini voices (roundtable / agent Listen). */
+    lineSpeakers?: Array<string | null | undefined>;
     startIndex?: number;
     lang: HadithSpeechLang;
     voiceProfile?: HadithVoiceProfileId;
@@ -237,9 +257,14 @@ export class LineByLineTtsController {
     this.resolvedUrls.clear();
 
     const startIndex = Math.max(0, Math.min(lines.length - 1, input.startIndex ?? 0));
+    const lineSpeakers = lines.map((_, i) => {
+      const raw = input.lineSpeakers?.[i];
+      return typeof raw === 'string' && raw.trim() ? raw.trim() : null;
+    });
     this.emit({
       sessionId: input.sessionId,
       lines,
+      lineSpeakers,
       currentIndex: startIndex,
       status: 'loading',
       lang: input.lang,
@@ -357,6 +382,7 @@ export class LineByLineTtsController {
     this.emit({
       sessionId: null,
       lines: [],
+      lineSpeakers: [],
       currentIndex: -1,
       status: 'idle',
       prefetchedIndices: [],
