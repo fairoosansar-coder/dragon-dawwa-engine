@@ -111,17 +111,32 @@ export const OPENED_CLASSICAL_LIMIT =
 export const QURAN_SYNTHESIS_HEART =
   'You are a learned, compassionate scholar speaking to the reader. When an ayah has been opened, answer their question from that ayah. Quote its Arabic and its translation. State the occasion of revelation (asbab al-nuzul) and a classical tafsir only when the opened commentary states them. Then give the spiritual meaning and a practical comfort drawn from that opened wording. Bring in the opened tafsir, and the overarching theme the ayah teaches, such as tawakkul (trust in Allah) when the ayah is about reliance, trial, or what people dislike. Do not answer with a raw dump of the verse alone, and do not say that no passage addresses the question when an ayah was opened. Do not say that no passage in the selected language addresses the question once a relevant ayah is open. If Tamil or Sinhala tafsir text is missing, translate the opened Arabic or English commentary into the selected language. Do not present that translation as a tafsir the sources did not open. Use only wording that was opened. Do not invent a quotation, a date, a grade, an occasion of revelation, or a tafsir the opened sources do not contain. If the occasion was not opened, say what the ayah itself teaches and leave the occasion unnamed. Keep an opened verse that is semantically or theologically relevant even when its translation does not repeat the question, including an opened Qur’an 2:216 for a question about revelation through Jibril. Do not cite a verse that was not opened, and do not cite an unrelated verse.';
 
+/**
+ * Language-neutral reconciliation role text stored on DOMAIN_CONFIGS agents.
+ * Per-request Parallel briefs substitute `finalSynthesisSystemPrompt(language)`
+ * so English is never frozen at module load.
+ */
+export const RECONCILIATION_BASE_PROMPT = [
+  REBUTTAL_AND_SYNTHESIS_PERSONA,
+  RATIONAL_CIVILIZATIONAL_PROOF_DNA,
+  LIVE_DOSSIER_OUTPUT_SCHEMA,
+  CIVILIZATIONAL_BRIDGE_PROMPT.trim(),
+  OPENED_CLASSICAL_LIMIT,
+  QURAN_SYNTHESIS_HEART,
+].join('\n\n');
+
 /** Final synthesis system prompt for every desk except hadith authentication. */
 export function finalSynthesisSystemPrompt(language: string = 'en'): string {
-  return [
-    REBUTTAL_AND_SYNTHESIS_PERSONA,
-    RATIONAL_CIVILIZATIONAL_PROOF_DNA,
-    LIVE_DOSSIER_OUTPUT_SCHEMA,
-    dossierLanguageInstruction(language),
-    CIVILIZATIONAL_BRIDGE_PROMPT.trim(),
-    OPENED_CLASSICAL_LIMIT,
-    QURAN_SYNTHESIS_HEART,
-  ].join('\n\n');
+  return [RECONCILIATION_BASE_PROMPT, dossierLanguageInstruction(language)].join('\n\n');
+}
+
+/** Resolve an agent's system prompt for a Parallel request language. */
+export function agentSystemPromptForRequest(
+  agent: { id: string; systemPrompt: string },
+  language: string,
+): string {
+  if (agent.id === 'reconciliation') return finalSynthesisSystemPrompt(language);
+  return agent.systemPrompt;
 }
 
 /**
@@ -340,7 +355,7 @@ const QURAN_AGENTS: readonly DomainAgentConfig[] = [
     id: 'reconciliation',
     speaker: 'host',
     role: 'Reconciliation',
-    systemPrompt: finalSynthesisSystemPrompt(),
+    systemPrompt: RECONCILIATION_BASE_PROMPT,
     goal: 'Answer the reader warmly from the opened ayah, its tafsir, and its theme.',
     sourceTarget: 'Aggregated JSON from the agents that ran',
     evidence: ['aggregated'],
@@ -412,7 +427,7 @@ const FIQH_AGENTS: readonly DomainAgentConfig[] = [
     id: 'reconciliation',
     speaker: 'host',
     role: 'Reconciliation',
-    systemPrompt: finalSynthesisSystemPrompt(),
+    systemPrompt: RECONCILIATION_BASE_PROMPT,
     goal: 'State what the opened sources establish for this question and what they do not.',
     sourceTarget: 'Aggregated JSON from the agents that ran',
     evidence: ['aggregated'],
@@ -484,7 +499,7 @@ const SEERAH_AGENTS: readonly DomainAgentConfig[] = [
     id: 'reconciliation',
     speaker: 'host',
     role: 'Reconciliation',
-    systemPrompt: finalSynthesisSystemPrompt(),
+    systemPrompt: RECONCILIATION_BASE_PROMPT,
     goal: 'State what the opened accounts establish and what they leave unresolved.',
     sourceTarget: 'Aggregated JSON from the agents that ran',
     evidence: ['aggregated'],
@@ -620,7 +635,8 @@ export function parallelTaskInput(config: DomainResearchConfig, query: string, l
         `Role: ${agent.role}`,
         `Goal: ${agent.goal}`,
         `Source target: ${agent.sourceTarget}`,
-        `System prompt: ${agent.systemPrompt}`,
+        // Reconciliation gets per-request language; never the frozen module-load English prompt.
+        `System prompt: ${agentSystemPromptForRequest(agent, language)}`,
       ].join('\n'),
     )
     .join('\n\n');

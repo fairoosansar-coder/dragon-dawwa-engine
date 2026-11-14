@@ -932,28 +932,74 @@ function citedRoundtableFromAgents(
   ];
 }
 
+/**
+ * Body prose only — never host-open roundtable intros.
+ * Language-aware host templates inject ta/si script even when Claude/Gemini bodies stayed English.
+ */
+export function dossierBodyProseSample(dossier: SevenAgentResearchDossier): string {
+  return [
+    dossier.verdictHeadline,
+    dossier.executiveSummary,
+    dossier.verdictClassification,
+    ...dossier.agents.flatMap(a => [a.summary, ...(a.keyPoints ?? [])]),
+    dossier.scienceForesight?.headline ?? '',
+    dossier.scienceForesight?.summary ?? '',
+    ...(dossier.scienceForesight?.empiricalPillars ?? []).flatMap(p => [
+      p.domain,
+      p.finding,
+      p.oneStepAheadNote,
+    ]),
+    // Skip turn[0] host open (always language-aware templates).
+    ...dossier.roundtableTurns.slice(1).map(t => t.text),
+  ].join(' ');
+}
+
+function bodyLacksTargetScript(body: string, requestedLang: Lang): boolean {
+  if (requestedLang === 'ta') {
+    return !/[\u0B80-\u0BFF]/.test(body) && /[A-Za-z]{12,}/.test(body);
+  }
+  if (requestedLang === 'si') {
+    return !/[\u0D80-\u0DFF]/.test(body) && /[A-Za-z]{12,}/.test(body);
+  }
+  return false;
+}
+
+function bodyLooksMixedEnglish(body: string, requestedLang: Lang): boolean {
+  const latinChars = (body.match(/[A-Za-z]/g) ?? []).length;
+  const scriptRe = requestedLang === 'ta' ? /[\u0B80-\u0BFF]/g : /[\u0D80-\u0DFF]/g;
+  const scriptChars = (body.match(scriptRe) ?? []).length;
+  // Substantial Latin prose with little target script → still needs localization.
+  return latinChars >= 120 && scriptChars < Math.max(40, latinChars * 0.25);
+}
+
 /** True when a board is still English prose despite a non-English request (fallback / failed synthesis). */
-function dossierNeedsLocalization(
+export function dossierNeedsLocalization(
   dossier: SevenAgentResearchDossier,
   requestedLang: Lang,
 ): boolean {
   if (requestedLang === 'en') return false;
   if (dossier.lang === 'en') return true;
-  // Host intros / awaiting boards that stayed English after a ta/si request.
-  const sample = [
-    dossier.verdictHeadline,
-    dossier.executiveSummary,
-    dossier.roundtableTurns[0]?.text ?? '',
-  ].join(' ');
-  if (/AWAITING LIVE SYNTHESIS|board is prepared for|Today's 7-Agent|Assalamu Alaikum\. Today's/i.test(sample)) {
+  const body = dossierBodyProseSample(dossier);
+  if (/AWAITING LIVE SYNTHESIS|board is prepared for|Retry when the live synthesis/i.test(body)) {
     return true;
   }
-  if (requestedLang === 'ta' && !/[\u0B80-\u0BFF]/.test(sample) && /[A-Za-z]{12,}/.test(sample)) {
+  if (bodyLacksTargetScript(body, requestedLang)) return true;
+  if (bodyLooksMixedEnglish(body, requestedLang)) return true;
+  return false;
+}
+
+/** Specialist + closing turns only — host open must not short-circuit native composition. */
+export function roundtableTurnsNeedNativeComposition(
+  turns: readonly RoundtableTurn[],
+  language: Lang,
+): boolean {
+  if (language === 'en' || turns.length === 0) return false;
+  const body = turns.slice(1).map(t => t.text).join(' ');
+  if (/Today's 7-Agent|We ground this in|Classical schools read|Assalamu Alaikum\. Today's/i.test(body)) {
     return true;
   }
-  if (requestedLang === 'si' && !/[\u0D80-\u0DFF]/.test(sample) && /[A-Za-z]{12,}/.test(sample)) {
-    return true;
-  }
+  if (bodyLacksTargetScript(body, language)) return true;
+  if (bodyLooksMixedEnglish(body, language)) return true;
   return false;
 }
 
@@ -994,14 +1040,7 @@ async function generateRoundtableAfterSynthesis(
   ].join('\n');
 
   async function finalizeTurns(turns: RoundtableTurn[]): Promise<RoundtableTurn[]> {
-    if (language === 'en') return turns;
-    // If LLM/deterministic turns still look English, compose natively before return.
-    const sample = turns.map(t => t.text).join(' ');
-    const hasTargetScript =
-      language === 'ta' ? /[\u0B80-\u0BFF]/.test(sample) : /[\u0D80-\u0DFF]/.test(sample);
-    if (hasTargetScript && !/Today's 7-Agent|We ground this in|Classical schools read/i.test(sample)) {
-      return turns;
-    }
+    if (!roundtableTurnsNeedNativeComposition(turns, language)) return turns;
     const native = await composeNativeRoundtableTurns(turns, language);
     return native ?? turns;
   }
