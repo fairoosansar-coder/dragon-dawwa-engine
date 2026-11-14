@@ -634,6 +634,28 @@ function normalizeGeneratedDossier(raw: Partial<GeneratedDossierPayload> | null 
   };
 }
 
+/** Reject partial Claude/Gemini JSON so incomplete boards never cache as successful synthesis. */
+function dossierPayloadComplete(payload: GeneratedDossierPayload | null | undefined): payload is GeneratedDossierPayload {
+  if (!payload) return false;
+  const summaries = [
+    payload.executiveSummary,
+    payload.quransummary,
+    payload.hadithSummary,
+    payload.isnadSummary,
+    payload.fiqhSummary,
+    payload.maqasidSummary,
+    payload.scienceHeadline,
+    payload.scienceSummary,
+  ];
+  if (summaries.some(text => text.trim().length < 24)) return false;
+  if (!payload.quranPoints.length || !payload.hadithPoints.length) return false;
+  if (!payload.isnadPoints.length || !payload.fiqhPoints.length) return false;
+  if (!payload.maqasidPoints.length || !payload.sciencePoints.length) return false;
+  if (!payload.executivePoints.length) return false;
+  if (!payload.sciencePillars.length) return false;
+  return true;
+}
+
 function dossierSynthesisUserPrompt(question: string, evidencePacket: string): string {
   return [
     'Produce the Dragon Dawwa 7-Agent Islamic & Empirical Science Research dossier as JSON.',
@@ -710,12 +732,12 @@ async function synthesizeDynamicDossierPayload(
         maxTokens: 8192,
       });
       const payload = normalizeGeneratedDossier(value);
-      if (payload?.executiveSummary && payload.quransummary && payload.hadithSummary) {
+      if (dossierPayloadComplete(payload)) {
         console.info(`Seven-agent synthesis: Anthropic ok (model=${model}).`);
         return { payload, provider: 'anthropic', model };
       }
       console.error(
-        'Anthropic→Gemini fallback reason: Claude returned incomplete dossier JSON (missing required scholarly fields).',
+        'Anthropic→Gemini fallback reason: Claude returned incomplete dossier JSON (missing required specialist fields).',
       );
     } catch (err) {
       console.error('Anthropic→Gemini fallback reason:', (err as Error)?.message ?? err);
@@ -736,11 +758,11 @@ async function synthesizeDynamicDossierPayload(
       [GEMINI_SYNTHESIS_FALLBACK_MODEL, 'gemini-flash-latest', 'gemini-2.5-flash'],
     );
     const payload = normalizeGeneratedDossier(value);
-    if (payload?.executiveSummary) {
+    if (dossierPayloadComplete(payload)) {
       console.info(`Seven-agent synthesis: Gemini fallback ok (model=${model}).`);
       return { payload, provider: 'gemini', model };
     }
-    console.error('Gemini seven-agent synthesis returned incomplete dossier JSON.');
+    console.error('Gemini seven-agent synthesis returned incomplete dossier JSON (missing required specialist fields).');
     return null;
   } catch (err) {
     console.error('Gemini seven-agent synthesis failed:', (err as Error)?.message ?? err);

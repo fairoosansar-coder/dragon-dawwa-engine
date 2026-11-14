@@ -23,6 +23,7 @@ describe('custom seven-agent synthesis path', () => {
     assert.match(sevenAgentSource, /GEMINI_SYNTHESIS_FALLBACK_MODEL/);
     assert.match(sevenAgentSource, /Anthropic→Gemini fallback reason/);
     assert.match(sevenAgentSource, /finalSynthesisSystemPrompt/);
+    assert.match(sevenAgentSource, /dossierPayloadComplete/);
     assert.match(REBUTTAL_AND_SYNTHESIS_PERSONA, /Lead Scholarly Synthesizer/);
     assert.equal(/Promise\.race\(\[[\s\S]*5500/.test(sevenAgentSource), false);
     assert.match(sevenAgentSource, /consultParallel/);
@@ -41,9 +42,10 @@ describe('custom seven-agent synthesis path', () => {
     assert.equal(questionsToResearch(prompt, null, false).length, 1);
   });
 
-  it('keeps sticky-nav clearance on the roundtable studio', () => {
+  it('keeps sticky-nav clearance without covering shell navigation', () => {
     assert.match(boardSource, /scroll-mt-20/);
-    assert.match(boardSource, /isRoundtableVisible \? 'relative z-50'/);
+    assert.match(boardSource, /relative z-10 scroll-mt-20/);
+    assert.equal(boardSource.includes("isRoundtableVisible ? 'relative z-50'"), false);
     assert.match(boardSource, /7-Agent Scholarly & Scientific Roundtable/);
   });
 });

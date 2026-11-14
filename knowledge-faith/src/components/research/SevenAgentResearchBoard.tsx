@@ -1015,9 +1015,7 @@ export function SevenAgentResearchBoard({
           color: '#1C1917',
           borderColor: '#E2D5B5',
         }}
-        className={`scroll-mt-20 rounded-3xl border p-5 shadow-sm sm:scroll-mt-24 sm:p-7 ${
-          isRoundtableVisible ? 'relative z-50' : 'relative z-10'
-        }`}
+        className="relative z-10 scroll-mt-20 rounded-3xl border p-5 shadow-sm sm:scroll-mt-24 sm:p-7"
       >
         <div
           style={{ borderColor: '#E5DEC9' }}
