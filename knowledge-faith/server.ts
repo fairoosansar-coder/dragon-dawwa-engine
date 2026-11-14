@@ -80,6 +80,7 @@ import {
   writePodcast,
   type SourceFetchers,
 } from './src/server/gemini.ts';
+import { anthropicConfigured } from './src/server/anthropic.ts';
 import { executeDragonDawwaAnalysis } from './src/engine/server/hadithEngine.ts';
 import { streamEpisodeAudio } from './src/server/r2Audio.ts';
 import { replayCategoryAnalysis, replayHadithAnalysis, replaySharedResearch } from './src/server/researchIdempotency.ts';
@@ -195,7 +196,13 @@ function releaseInfo(): { sha: string; builtAt: string } {
 }
 
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', app: 'DRAGON DAWWA', ai: geminiConfigured(), release: releaseInfo() });
+  res.json({
+    status: 'ok',
+    app: 'DRAGON DAWWA',
+    ai: geminiConfigured(),
+    anthropic: anthropicConfigured(),
+    release: releaseInfo(),
+  });
 });
 
 app.get('/s/v/:surah/:ayah', route(serveVerseShareLanding));
@@ -208,6 +215,7 @@ app.get('/s/h/:id', route(serveHadithShareLanding));
 app.get('/api/config', (_req, res) => {
   res.json({
     ai: geminiConfigured(),
+    anthropic: anthropicConfigured(),
     reciters: RECITERS,
     voices: VOICES,
     prayerMethods: PRAYER_METHODS,
@@ -1483,6 +1491,6 @@ if (isProduction) {
 
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(
-    `DRAGON DAWWA running on ${publicAppUrl(PORT)} (${isProduction ? 'production' : 'development'}); Gemini neural TTS ${geminiConfigured() ? 'on' : 'off'}`,
+    `DRAGON DAWWA running on ${publicAppUrl(PORT)} (${isProduction ? 'production' : 'development'}); Gemini neural TTS ${geminiConfigured() ? 'on' : 'off'}; Claude synthesis ${anthropicConfigured() ? 'on' : 'off'}`,
   );
 });
