@@ -39,11 +39,24 @@ describe('question integrity', () => {
     assert.deepEqual(next, ['how many prophets in islam?']);
   });
 
-  it('researches both questions when the field was empty', () => {
+  it('researches both questions when the field was empty (newline = intentional chapter split)', () => {
     const next = questionsToResearch('how many wars mentions in quran?\nhow many prophets in islam?', null, false);
     assert.equal(next.length, 2);
     assert.match(next[0], /wars/);
     assert.match(next[1], /prophets/);
+  });
+
+  it('keeps a single multi-sentence / multi-? submission as one unified research question', () => {
+    const related =
+      'How did an unlettered Prophet transform Arabia in 23 years? And how does Islam begin with Adam as the father of all humanity?';
+    const parts = separateQuestions(related);
+    assert.equal(parts.length, 1);
+    assert.match(parts[0], /23 years/);
+    assert.match(parts[0], /Adam/);
+    const next = questionsToResearch(related, null, false);
+    assert.equal(next.length, 1);
+    assert.match(next[0], /23 years/);
+    assert.match(next[0], /Adam/);
   });
 });
 
