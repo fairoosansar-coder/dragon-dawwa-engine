@@ -24,12 +24,26 @@ interface FollowUpResponse {
   thread: { turns: FollowUpTurn[] };
 }
 
-const CHIPS = [
-  'Isn’t this historically contingent?',
-  'How is this universal for all humanity?',
-  'Doesn’t modern science contradict this?',
-  'Where is the Hikmah in this ruling?',
-] as const;
+const CHIP_COPY: Record<Lang, readonly string[]> = {
+  en: [
+    'Isn’t this historically contingent?',
+    'How is this universal for all humanity?',
+    'Doesn’t modern science contradict this?',
+    'Where is the Hikmah in this ruling?',
+  ],
+  ta: [
+    'இது வரலாற்றுச் சூழலுக்கே உரியது அல்லவா?',
+    'இது அனைத்து மனிதருக்கும் உலகளாவியதாக எப்படி இருக்கும்?',
+    'நவீன அறிவியல் இதற்கு முரண்படவில்லையா?',
+    'இந்தத் தீர்ப்பில் ஹிக்மா எங்கே?',
+  ],
+  si: [
+    'මේක ඓතිහාසික සන්දර්භයට පමණක් අදාළ නේද?',
+    'මේක සියලු මනුෂ්‍යත්වයට විශ්වීය වන්නේ කෙසේද?',
+    'නූතන විද්‍යාව මේකට පටහැනි නොවේද?',
+    'මේ තීරණයේ හික්මාව කොහෙද?',
+  ],
+};
 
 export function CrossExamineFollowUp(props: {
   dossierId: string;
@@ -43,6 +57,7 @@ export function CrossExamineFollowUp(props: {
   const [error, setError] = useState<string | null>(null);
   const [turns, setTurns] = useState<FollowUpTurn[]>([]);
 
+  const chips = CHIP_COPY[props.language] ?? CHIP_COPY.en;
   const canSubmit = useMemo(() => draft.trim().length >= 3 && !busy && Boolean(props.dossierId), [draft, busy, props.dossierId]);
 
   async function submit(text: string) {
@@ -91,9 +106,9 @@ export function CrossExamineFollowUp(props: {
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        {CHIPS.map(chip => (
+        {chips.map((chip, index) => (
           <button
-            key={chip}
+            key={`${props.language}-${index}`}
             type="button"
             disabled={busy}
             onClick={() => void submit(chip)}
@@ -108,9 +123,16 @@ export function CrossExamineFollowUp(props: {
         {turns.map(turn => (
           <div key={turn.id} className="space-y-2 rounded-xl border border-[#D4AF37]/25 bg-black/20 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-[#E6C665]">Your challenge</p>
-            <p className="text-sm text-[#F7F1E4]">{turn.userCounterArgument}</p>
-            <p className="pt-2 text-xs font-semibold uppercase tracking-wide text-[#A7F3D0]">Mentor reply</p>
-            <p className="text-sm leading-relaxed text-[#E7E5E4]">{turn.reply}</p>
+            <p className="whitespace-pre-line text-sm text-[#F7F1E4]">{turn.userCounterArgument}</p>
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#A7F3D0]">Mentor reply</p>
+              {turn.provider ? (
+                <span className="rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[#A8A29E]">
+                  {turn.provider}
+                </span>
+              ) : null}
+            </div>
+            <p className="whitespace-pre-line text-sm leading-relaxed text-[#E7E5E4]">{turn.reply}</p>
           </div>
         ))}
       </div>
