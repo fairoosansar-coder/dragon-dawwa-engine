@@ -22,6 +22,7 @@ import { EmptyState, FeatureCard, PrayerStrip } from '../components/shell/widget
 import { Button, Card, ErrorNote, Loading, Notice, SectionTitle } from '../components/ui.tsx';
 import { DomainResearchForm } from './DomainResearchForm.tsx';
 import { readerQuestion } from './domainQuestion.ts';
+import { MODERN_WORLD_BENCHMARKS } from '../shared/modernWorldBenchmarks.ts';
 
 function VerseList({ refs }: { refs: string[] }) {
   const { lang, t } = useApp();
@@ -331,6 +332,55 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
           <FeatureCard href="#/hub/discover" title={t.discoverTitle} body={t.discoverBody} icon={<StudioMark name="discover" className="h-9 w-9 rounded-xl" />} />
           <FeatureCard href="#/hub/deepen" title={t.deepenTitle} body={t.deepenBody} icon={<StudioMark name="deepen" className="h-9 w-9 rounded-xl" />} />
           <FeatureCard href="#/hub/prophet" title={t.prophetTitle} body={t.prophetBody} icon={<StudioMark name="prophet" className="h-9 w-9 rounded-xl" />} />
+        </div>
+      </section>
+
+      <section data-testid="modern-world-hub-track" className="space-y-2.5">
+        <SectionTitle sub="Preloaded deep-research dossiers for the Institutional Research Studio">
+          Qur&apos;an &amp; The Modern World
+        </SectionTitle>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {MODERN_WORLD_BENCHMARKS.map(card => (
+            <button
+              key={card.id}
+              type="button"
+              disabled={busy}
+              data-testid={`modern-world-card-${card.id}`}
+              onClick={() => {
+                setAsked(card.question);
+                void (async () => {
+                  setBusy(true);
+                  setAskError(null);
+                  try {
+                    const started = await beginResearch({
+                      question: card.question,
+                      entry: 'knowledge',
+                      desk: card.desk,
+                      lang,
+                      clarified: true,
+                    });
+                    if (started.action === 'clarify' || !started.id || !started.scope) {
+                      window.location.hash = `#/hub/research?lang=${encodeURIComponent(lang)}&q=${encodeURIComponent(card.question)}`;
+                      return;
+                    }
+                    window.location.hash = researchHref(started.scope, started.id, lang, started.action === 'forward', null, card.question);
+                  } catch {
+                    window.location.hash = `#/hub/research?lang=${encodeURIComponent(lang)}&q=${encodeURIComponent(card.question)}`;
+                  } finally {
+                    setBusy(false);
+                  }
+                })();
+              }}
+              className="rounded-2xl border border-[#D4AF37]/40 bg-gradient-to-br from-[#F7F1E4] via-[#F4EFE4] to-[#E8F2EC] p-4 text-left shadow-[0_0_18px_rgba(7,60,48,0.06)] transition hover:border-[#073C30]/50 hover:shadow-[0_0_22px_rgba(212,175,55,0.18)] disabled:opacity-60"
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-[#0B4B3A]">Benchmark dossier</p>
+              <h3 className="mt-1 font-serif text-base font-bold text-[#073C30]">{card.title}</h3>
+              <p className="mt-1.5 text-xs leading-relaxed text-[#3F3F46]">{card.blurb}</p>
+              <span className="mt-3 inline-flex rounded-full bg-[#073C30] px-3 py-1 text-[11px] font-bold text-[#F9E7B9]">
+                Open deep research
+              </span>
+            </button>
+          ))}
         </div>
       </section>
 

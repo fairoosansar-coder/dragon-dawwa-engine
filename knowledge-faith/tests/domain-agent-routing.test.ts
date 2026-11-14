@@ -40,11 +40,14 @@ describe('domain agent map', () => {
 
   test('hadith keeps matn, isnad, and the six-plus-synthesis roles', () => {
     const instruction = getDragonDawwaSystemInstruction('en').toLowerCase();
-    const blob = agentText('hadith').toLowerCase();
+    const ids = DOMAIN_CONFIGS.hadith.agents.map(agent => agent.id).join(' ').toLowerCase();
+    const blob = `${ids}\n${agentText('hadith')}`.toLowerCase();
     for (const token of HADITH_TOKENS) {
       assert.match(blob, new RegExp(token));
       assert.match(instruction, new RegExp(token));
     }
+    assert.match(blob, /rational & philosophical defender/);
+    assert.match(blob, /modern world & civilizational bridge/);
     assert.equal(DOMAIN_CONFIGS.hadith.controller, 'gemini');
     assert.equal(usesHadithAuthentication(undefined), true);
     assert.equal(usesHadithAuthentication(''), true);
@@ -232,6 +235,17 @@ describe('Parallel category dispatch', () => {
         pollMs: 1,
         ports,
         lookup: async () => null,
+        writeHostReconciliation: async () => null,
+        expandSemanticQuery: async () => ({
+          arabicRoots: [],
+          keywordsEn: [],
+          keywordsTa: [],
+          keywordsSi: [],
+          thematicPhrases: [],
+          ayahHints: [],
+          model: null,
+          available: false,
+        }),
         fetchImpl: async (url, init) => {
           calls.push({ url: String(url), body: String(init?.body ?? '') });
           return Response.json({
@@ -254,7 +268,22 @@ describe('Parallel category dispatch', () => {
             },
           });
         },
-        runResearch: input => executeResearch(input),
+        runResearch: async input => {
+          const previous = process.env.DD_SKIP_SEMANTIC_EXPANSION;
+          process.env.DD_SKIP_SEMANTIC_EXPANSION = '1';
+          try {
+            return await executeResearch({
+              ...input,
+              ports: {
+                ...input.ports,
+                suggestSearch: async () => ({ available: false, failed: false, phrases: [], ayahs: [] }),
+              },
+            });
+          } finally {
+            if (previous === undefined) delete process.env.DD_SKIP_SEMANTIC_EXPANSION;
+            else process.env.DD_SKIP_SEMANTIC_EXPANSION = previous;
+          }
+        },
       },
     });
     assert.equal(calls.length, 1);

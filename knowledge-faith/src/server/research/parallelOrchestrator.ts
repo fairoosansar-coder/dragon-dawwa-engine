@@ -25,7 +25,9 @@ import {
 import { agentsThatRan, writeBroadcastScript, type BroadcastAgent } from './broadcastScript.ts';
 import type { ResearchPorts, ResearchRun } from './engine.ts';
 import { findCompletedResearch, storedAnalysisJson, type LookupOptions } from '../researchIdempotency.ts';
-import type { ParallelAgentReport, ParallelConsult } from './parallelTask.ts';
+import { awaitParallelResult, type ParallelAgentReport, type ParallelConsult } from './parallelTask.ts';
+import { writeHostReconciliation, type HostReconciliationResult } from './finalSynthesis.ts';
+import { expandSemanticQuery, mergeExpansionQueries } from './semanticExpansion.ts';
 
 export const PARALLEL_DISPATCH_NOTE =
   'Parallel.ai runs one task for the seven configured agents. That task does not start seven separate model calls. The research engine opens each configured source, and the same Parallel task returns the web citations.';
@@ -37,6 +39,16 @@ export interface OrchestratorDeps {
   ports?: ResearchPorts;
   lookup?: typeof findCompletedResearch;
   lookupOptions?: LookupOptions;
+  /** When set, replaces live Claude/Gemini host reconciliation (tests pass null to keep the local script). */
+  writeHostReconciliation?: (input: {
+    question: string;
+    language: Lang;
+    categoryLabel: string;
+    agents: readonly DomainAgentRecord[];
+    baseExecutiveReport: string;
+    basePodcastScript: string;
+  }) => Promise<HostReconciliationResult | null>;
+  expandSemanticQuery?: typeof expandSemanticQuery;
   runResearch?: (input: {
     question: string;
     language: Lang;
@@ -254,15 +266,33 @@ function executiveReport(config: DomainResearchConfig, agents: readonly DomainAg
   ].filter(line => line !== undefined).join('\n');
 }
 
-function analysisFrom(
+async function analysisFrom(
   config: DomainResearchConfig,
   query: string,
   language: Lang,
   agents: DomainAgentRecord[],
   parallel: ParallelConsult | null,
-): DragonDawwaAnalysis {
-  const script = writeBroadcastScript({ question: query, language, agents });
-  const report = executiveReport(config, agents, parallel);
+  synthesize: OrchestratorDeps['writeHostReconciliation'] = writeHostReconciliation,
+): Promise<DragonDawwaAnalysis> {
+  const baseScript = writeBroadcastScript({ question: query, language, agents });
+  const baseReport = executiveReport(config, agents, parallel);
+  // Parallel already gathered evidence. Claude (then Gemini) writes the multi-persona host reconciliation.
+  const llm = synthesize
+    ? await synthesize({
+      question: query,
+      language,
+      categoryLabel: config.label,
+      agents,
+      baseExecutiveReport: baseReport,
+      basePodcastScript: baseScript,
+    })
+    : null;
+  const script = llm?.podcast_script?.trim() || baseScript;
+  const report = llm?.executive_report_markdown?.trim() || baseReport;
+  const consensus =
+    llm?.consensus_and_disagreements?.trim()
+    || 'Only disagreements present in the agents that ran are included. None were added.';
+  const finalStatus = llm?.final_status?.trim() || 'Not a hadith grade';
   const spoken = `${script}\n${report}`;
   const dossier: DragonDawwaAnalysis = {
     app_name: 'Dragon Dawwa',
@@ -280,9 +310,9 @@ function analysisFrom(
     agent_4_shawahid_matn: { supporting_reports: [], hidden_defects_ilal: [], contradictions: [] },
     agent_5_scholars_verdict: { gradings: [] },
     agent_6_synthesis: {
-      final_status: 'Not a hadith grade',
+      final_status: finalStatus,
       purity_confidence_score: 0,
-      consensus_and_disagreements: 'Only disagreements present in the agents that ran are included. None were added.',
+      consensus_and_disagreements: consensus,
       executive_report_markdown: report,
       podcast_script: script,
     },
@@ -322,6 +352,15 @@ export async function orchestrateDomainResearch(input: {
 
   const runResearch = input.deps?.runResearch ?? defaultRun;
   const ports = input.deps?.ports ?? (await import('./ports.ts')).defaultResearchPorts();
+  const expand = input.deps?.expandSemanticQuery ?? expandSemanticQuery;
+  // Pre-retrieval: Gemini Flash expands roots / thematic keywords before Parallel + local opens.
+  const expansion = await expand(question, input.language);
+  const expansionSeed = mergeExpansionQueries([], expansion, input.language, 8);
+  const baseTask = parallelTaskInput(config, question, input.language);
+  const taskInput = expansionSeed.length
+    ? `${baseTask}\n\nSEMANTIC SEARCH SEEDS (pre-retrieval; not citations):\n${expansionSeed.join('\n')}`
+    : baseTask;
+
   const run = await runResearch({
     question,
     language: input.language,
@@ -331,7 +370,7 @@ export async function orchestrateDomainResearch(input: {
       apiKey: input.deps?.apiKey,
       fetchImpl: input.deps?.fetchImpl,
       pollMs: input.deps?.pollMs ?? 8_000,
-      taskInput: parallelTaskInput(config, question, input.language),
+      taskInput,
       agents: config.agents.map(agent => ({
         id: agent.id,
         role: agent.role,
@@ -341,9 +380,27 @@ export async function orchestrateDomainResearch(input: {
     },
   });
   if (run.job.status === 'cancelled') throw new Error('Research was cancelled. An unfinished result was not marked as a completed answer.');
-  const agents = buildDomainAgents(config, run.dossier.passages, run.parallelConsult?.agentReports ?? [], input.language);
+
+  // Await Parallel deep research before finalizing the dossier or podcast script.
+  let parallel = run.parallelConsult ?? null;
+  if (parallel?.status === 'running' && parallel.runId) {
+    parallel = await awaitParallelResult({
+      runId: parallel.runId,
+      apiKey: input.deps?.apiKey,
+      fetchImpl: input.deps?.fetchImpl,
+      processor: parallel.processor,
+      attempts: 8,
+      timeoutSec: Math.max(8, Math.ceil((input.deps?.pollMs ?? 8_000) / 1000)),
+    });
+  }
+
+  const agents = buildDomainAgents(config, run.dossier.passages, parallel?.agentReports ?? run.parallelConsult?.agentReports ?? [], input.language);
   if (!agentsThatRan(agents).some(agent => !config.agents.find(item => item.id === agent.id)?.evidence.includes('aggregated'))) {
     throw new Error('The research engine and Parallel returned no sourced agent findings. An empty result was not marked as a completed answer.');
   }
-  return analysisFrom(config, question, input.language, agents, run.parallelConsult ?? null);
+  const synthesize = input.deps && 'writeHostReconciliation' in input.deps
+    ? input.deps.writeHostReconciliation
+    : writeHostReconciliation;
+  return analysisFrom(config, question, input.language, agents, parallel, synthesize);
 }
+

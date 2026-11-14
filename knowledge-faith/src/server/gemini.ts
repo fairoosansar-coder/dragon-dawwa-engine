@@ -47,10 +47,16 @@ function isTemporary(err: unknown): boolean {
 
 export type JsonModel = <T>(prompt: string, schema: Schema, signal?: AbortSignal) => Promise<{ value: T; model: string }>;
 
-export const generateJson: JsonModel = async <T>(prompt: string, schema: Schema, signal?: AbortSignal) => {
+export async function generateJsonWithModels<T>(
+  prompt: string,
+  schema: Schema,
+  models: readonly string[],
+  signal?: AbortSignal,
+): Promise<{ value: T; model: string }> {
   const ai = client();
   let lastError: unknown;
-  for (const model of TEXT_MODELS) {
+  const candidates = models.map(item => item.trim()).filter(Boolean);
+  for (const model of candidates.length ? candidates : TEXT_MODELS) {
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         if (signal?.aborted) throw Object.assign(new Error('aborted'), { name: 'AbortError' });
@@ -73,7 +79,10 @@ export const generateJson: JsonModel = async <T>(prompt: string, schema: Schema,
   }
   console.error('Gemini text generation failed:', (lastError as Error)?.message);
   throw new UpstreamError('The AI service is busy or unavailable. Please try again shortly.', 503);
-};
+}
+
+export const generateJson: JsonModel = async <T>(prompt: string, schema: Schema, signal?: AbortSignal) =>
+  generateJsonWithModels<T>(prompt, schema, TEXT_MODELS, signal);
 
 export async function completeJson<T>(prompt: string, schema: Schema): Promise<T> {
   const { value } = await generateJson<T>(prompt, schema);

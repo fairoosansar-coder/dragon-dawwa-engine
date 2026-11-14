@@ -376,8 +376,13 @@ function definesSubject(question: string, passage: EvidencePassage): boolean {
   return DEFINES.test(`${passage.text}\n${passage.context ?? ''}`);
 }
 
+function isOpenedHadith(passage: EvidencePassage): boolean {
+  return passage.source.provider === 'HadeethEnc' || passage.source.provider === 'hadith-api';
+}
+
 function relevantTo(questions: readonly string[], passage: EvidencePassage): boolean {
-  if (isOpenedAyah(passage)) return true;
+  // Opened ayahs and opened hadiths stay. Missing verbatim user words are not a reason to drop them.
+  if (isOpenedAyah(passage) || isOpenedHadith(passage)) return true;
   if (questions.some(question => isNamedReference(question, passage))) return true;
   const blob = passageRecord(passage);
   const topical = questions.some(question => passageSupportsTopic(question, blob) || themeWordingSupports(question, blob));

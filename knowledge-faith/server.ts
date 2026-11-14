@@ -84,6 +84,7 @@ import { executeDragonDawwaAnalysis } from './src/engine/server/hadithEngine.ts'
 import { streamEpisodeAudio } from './src/server/r2Audio.ts';
 import { replayCategoryAnalysis, replayHadithAnalysis, replaySharedResearch } from './src/server/researchIdempotency.ts';
 import { resolveDomainConfig } from './src/server/research/agentConfig.ts';
+import { getResearchFollowUpThread, runResearchFollowUp } from './src/server/research/followup.ts';
 import { randomUUID } from 'node:crypto';
 import { getResearchJob, seedResearchJob, startResearchJob } from './src/engine/server/researchJobs.ts';
 import { synthesizeRoundtableVoice } from './src/engine/server/geminiTtsService.ts';
@@ -1231,6 +1232,53 @@ function engineFailure(err: unknown, fallback: string): UpstreamError {
   if (/503|UNAVAILABLE|high demand|overloaded/i.test(message)) return new UpstreamError('Gemini is temporarily unavailable. Please retry.', 503);
   return new UpstreamError(fallback, 502);
 }
+
+app.post(
+  '/api/research/followup',
+  requireSeekerAuth,
+  aiLimiter,
+  route(async (req, res) => {
+    const dossierId = text(req.body?.dossierId, 160, 'dossierId');
+    const originalQuestion = typeof req.body?.originalQuestion === 'string' ? req.body.originalQuestion.slice(0, 4000) : '';
+    const previousSynthesis = typeof req.body?.previousSynthesis === 'string' ? req.body.previousSynthesis.slice(0, 12000) : '';
+    const userCounterArgument = text(req.body?.userCounterArgument, 1200, 'userCounterArgument');
+    const language = toLang(req.body?.language);
+    const openedSources = Array.isArray(req.body?.openedSources)
+      ? (req.body.openedSources as unknown[]).slice(0, 12).map(item => {
+          const row = item && typeof item === 'object' ? (item as Record<string, unknown>) : {};
+          return {
+            id: typeof row.id === 'string' ? row.id.slice(0, 80) : undefined,
+            label: typeof row.label === 'string' ? row.label.slice(0, 200) : 'Opened source',
+            text: typeof row.text === 'string' ? row.text.slice(0, 2000) : undefined,
+            url: typeof row.url === 'string' ? row.url.slice(0, 500) : undefined,
+          };
+        })
+      : [];
+    res.json(
+      await runResearchFollowUp({
+        dossierId,
+        originalQuestion,
+        previousSynthesis,
+        openedSources,
+        userCounterArgument,
+        language,
+      }),
+    );
+  }),
+);
+
+app.get(
+  '/api/research/followup/:dossierId',
+  route(async (req, res) => {
+    const dossierId = String(req.params.dossierId ?? '').slice(0, 160);
+    const thread = getResearchFollowUpThread(dossierId);
+    if (!thread) {
+      res.status(404).json({ error: 'No follow-up thread for this dossier yet.' });
+      return;
+    }
+    res.json(thread);
+  }),
+);
 
 app.post(
   '/api/analyze',
