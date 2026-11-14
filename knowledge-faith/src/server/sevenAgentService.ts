@@ -17,7 +17,8 @@ import type {
 } from '../shared/sevenAgentTypes.ts';
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
 import { translateTextToLanguage } from './ayahStudyService.ts';
-import { completeJson, geminiConfigured } from './gemini.ts';
+import { anthropicConfigured, completeAnthropicJson } from './anthropic.ts';
+import { generateJsonWithModels, geminiConfigured } from './gemini.ts';
 import {
   looksLikeGoldRingDossierContent,
   looksLikeMetaCacheIsolationDialogue,
@@ -27,6 +28,9 @@ import {
 import { modernWorldNativeRoundtable } from './modernWorldNativeRoundtables.ts';
 import { composeNativeRoundtableTurns } from './nativeRoundtable.ts';
 import { persistRoot } from './persist.ts';
+import { finalSynthesisSystemPrompt, parallelRequestForDesk } from './research/agentConfig.ts';
+import { GEMINI_SYNTHESIS_FALLBACK_MODEL } from './research/finalSynthesis.ts';
+import { consultParallel } from './research/parallelTask.ts';
 
 function dossierCachePath(hash: string): string {
   const dir = path.join(persistRoot(), 'seven-agent-cache');
@@ -543,188 +547,484 @@ const geminiDossierSchema: Schema = {
   ],
 };
 
-async function buildDynamicEnglishDossier(question: string): Promise<SevenAgentResearchDossier> {
+type GeneratedDossierPayload = {
+  verdictHeadline: string;
+  verdictClassification: string;
+  confidenceScore: number;
+  executiveSummary: string;
+  quransummary: string;
+  quranArabic?: string;
+  quranRef?: string;
+  quranPoints: string[];
+  hadithSummary: string;
+  hadithArabic?: string;
+  hadithRef?: string;
+  hadithPoints: string[];
+  isnadSummary: string;
+  isnadPoints: string[];
+  fiqhSummary: string;
+  fiqhPoints: string[];
+  maqasidSummary: string;
+  maqasidPoints: string[];
+  scienceHeadline: string;
+  scienceSummary: string;
+  sciencePoints: string[];
+  sciencePillars: Array<{ domain: string; finding: string; oneStepAheadNote: string }>;
+  executivePoints: string[];
+};
+
+const roundtableAfterSynthesisSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    turns: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          speaker: { type: Type.STRING },
+          text: { type: Type.STRING },
+        },
+        required: ['speaker', 'text'],
+      },
+    },
+  },
+  required: ['turns'],
+};
+
+function asStringList(value: unknown, fallback: string[] = []): string[] {
+  if (!Array.isArray(value)) return fallback;
+  return value.map(item => String(item ?? '').trim()).filter(Boolean);
+}
+
+function normalizeGeneratedDossier(raw: Partial<GeneratedDossierPayload> | null | undefined): GeneratedDossierPayload | null {
+  if (!raw || !String(raw.verdictHeadline ?? '').trim()) return null;
+  const pillars = Array.isArray(raw.sciencePillars)
+    ? raw.sciencePillars
+        .map(p => ({
+          domain: String(p?.domain ?? '').trim(),
+          finding: String(p?.finding ?? '').trim(),
+          oneStepAheadNote: String(p?.oneStepAheadNote ?? '').trim(),
+        }))
+        .filter(p => p.domain && p.finding && p.oneStepAheadNote)
+    : [];
+  return {
+    verdictHeadline: String(raw.verdictHeadline).trim(),
+    verdictClassification: String(raw.verdictClassification ?? 'SCHOLARLY SYNTHESIS').trim() || 'SCHOLARLY SYNTHESIS',
+    confidenceScore: Number(raw.confidenceScore) || 98.5,
+    executiveSummary: String(raw.executiveSummary ?? '').trim(),
+    quransummary: String(raw.quransummary ?? '').trim(),
+    quranArabic: raw.quranArabic ? String(raw.quranArabic).trim() : undefined,
+    quranRef: raw.quranRef ? String(raw.quranRef).trim() : undefined,
+    quranPoints: asStringList(raw.quranPoints),
+    hadithSummary: String(raw.hadithSummary ?? '').trim(),
+    hadithArabic: raw.hadithArabic ? String(raw.hadithArabic).trim() : undefined,
+    hadithRef: raw.hadithRef ? String(raw.hadithRef).trim() : undefined,
+    hadithPoints: asStringList(raw.hadithPoints),
+    isnadSummary: String(raw.isnadSummary ?? '').trim(),
+    isnadPoints: asStringList(raw.isnadPoints),
+    fiqhSummary: String(raw.fiqhSummary ?? '').trim(),
+    fiqhPoints: asStringList(raw.fiqhPoints),
+    maqasidSummary: String(raw.maqasidSummary ?? '').trim(),
+    maqasidPoints: asStringList(raw.maqasidPoints),
+    scienceHeadline: String(raw.scienceHeadline ?? '').trim(),
+    scienceSummary: String(raw.scienceSummary ?? '').trim(),
+    sciencePoints: asStringList(raw.sciencePoints),
+    sciencePillars: pillars,
+    executivePoints: asStringList(raw.executivePoints),
+  };
+}
+
+function dossierSynthesisUserPrompt(question: string, evidencePacket: string): string {
+  return [
+    'Produce the Dragon Dawwa 7-Agent Islamic & Empirical Science Research dossier as JSON.',
+    'Analyze with rigorous classical Islamic scholarship (Qur’an with Surah:Ayah, Kutub al-Sittah with collection numbers, Isnad authenticity, 4 Sunni Fiqh schools, Arabic Maqasid) AND Modern Science foresight (1 step ahead).',
+    'Cite specific Qur’an ayahs, Hadiths, and classical sources from the OPENED EVIDENCE PACKET when present. Never invent a citation that is not supported by opened evidence or well-established canonical references you are certain of from that packet.',
+    `Seeker Question (user-facing only): ${JSON.stringify(userFacingResearchQuestion(question))}`,
+    `Internal evidence rubric (follow silently; never paste into spoken Host lines): ${JSON.stringify(
+      researchSystemInstructionsForQuestion(question) || 'Opened sources only; never invent citations.',
+    )}`,
+    '',
+    'OPENED EVIDENCE PACKET (retrieval / Parallel findings — prefer these):',
+    evidencePacket || '(No Parallel excerpts returned yet — still produce a rigorous synthesis; mark uncertainty honestly and avoid fabricating collection numbers.)',
+    '',
+    'Return JSON with keys: verdictHeadline, verdictClassification, confidenceScore, executiveSummary, quransummary, quranArabic, quranRef, quranPoints, hadithSummary, hadithArabic, hadithRef, hadithPoints, isnadSummary, isnadPoints, fiqhSummary, fiqhPoints, maqasidSummary, maqasidPoints, scienceHeadline, scienceSummary, sciencePoints, sciencePillars[{domain,finding,oneStepAheadNote}], executivePoints.',
+  ].join('\n');
+}
+
+async function retrieveSevenAgentEvidencePacket(question: string): Promise<string> {
+  const request = parallelRequestForDesk('knowledge', question, 'en');
+  if (!request) {
+    console.info('Seven-agent retrieval: no Parallel desk request for knowledge; continuing with synthesis.');
+    return '';
+  }
+  try {
+    const consult = await consultParallel({
+      question,
+      language: 'en',
+      taskInput: request.taskInput,
+      agents: request.agents,
+      // Best-effort retrieval inside the sync seven-agents HTTP handler — keep short so Claude still has room.
+      pollMs: 15_000,
+      processor: 'pro-fast',
+    });
+    if (consult.status !== 'completed' || (!consult.findings.length && !(consult.agentReports ?? []).some(r => r.status === 'ran'))) {
+      console.info(
+        `Seven-agent retrieval: Parallel status=${consult.status}; findings=${consult.findings.length}; setup=${consult.setup ?? 'none'}`,
+      );
+      return '';
+    }
+    const lines: string[] = [];
+    for (const finding of consult.findings.slice(0, 12)) {
+      lines.push(`- ${finding.title}: ${finding.excerpt}${finding.url ? ` (${finding.url})` : ''}`);
+    }
+    for (const report of consult.agentReports ?? []) {
+      if (report.status !== 'ran' || !report.finding.trim()) continue;
+      lines.push(`Agent ${report.id}: ${report.finding}`);
+      for (const source of report.sources.slice(0, 3)) {
+        lines.push(`  · ${source.title}: ${source.excerpt}${source.url ? ` (${source.url})` : ''}`);
+      }
+    }
+    console.info(`Seven-agent retrieval: Parallel completed with ${lines.length} evidence lines (runId=${consult.runId ?? 'n/a'}).`);
+    return lines.join('\n');
+  } catch (err) {
+    console.error('Seven-agent Parallel retrieval failed (continuing to Claude/Gemini):', (err as Error)?.message ?? err);
+    return '';
+  }
+}
+
+async function synthesizeDynamicDossierPayload(
+  question: string,
+  evidencePacket: string,
+): Promise<{ payload: GeneratedDossierPayload; provider: 'anthropic' | 'gemini'; model: string } | null> {
+  const system = [
+    finalSynthesisSystemPrompt(),
+    'You are also the Dragon Dawwa 7-Agent Research Engine. Output ONLY the dossier JSON object described by the user.',
+  ].join('\n\n');
+  const user = dossierSynthesisUserPrompt(question, evidencePacket);
+
+  if (anthropicConfigured()) {
+    try {
+      const { value, model } = await completeAnthropicJson<Partial<GeneratedDossierPayload>>({
+        system,
+        user,
+        maxTokens: 8192,
+      });
+      const payload = normalizeGeneratedDossier(value);
+      if (payload?.executiveSummary && payload.quransummary && payload.hadithSummary) {
+        console.info(`Seven-agent synthesis: Anthropic ok (model=${model}).`);
+        return { payload, provider: 'anthropic', model };
+      }
+      console.error(
+        'Anthropic→Gemini fallback reason: Claude returned incomplete dossier JSON (missing required scholarly fields).',
+      );
+    } catch (err) {
+      console.error('Anthropic→Gemini fallback reason:', (err as Error)?.message ?? err);
+    }
+  } else {
+    console.error('Anthropic→Gemini fallback reason: ANTHROPIC_API_KEY not configured');
+  }
+
+  if (!geminiConfigured()) {
+    console.error('Seven-agent synthesis unavailable: Gemini not configured after Anthropic miss/failure.');
+    return null;
+  }
+
+  try {
+    const { value, model } = await generateJsonWithModels<GeneratedDossierPayload>(
+      `${system}\n\n${user}`,
+      geminiDossierSchema,
+      [GEMINI_SYNTHESIS_FALLBACK_MODEL, 'gemini-flash-latest', 'gemini-2.5-flash'],
+    );
+    const payload = normalizeGeneratedDossier(value);
+    if (payload?.executiveSummary) {
+      console.info(`Seven-agent synthesis: Gemini fallback ok (model=${model}).`);
+      return { payload, provider: 'gemini', model };
+    }
+    console.error('Gemini seven-agent synthesis returned incomplete dossier JSON.');
+    return null;
+  } catch (err) {
+    console.error('Gemini seven-agent synthesis failed:', (err as Error)?.message ?? err);
+    return null;
+  }
+}
+
+function agentsFromGeneratedPayload(generated: GeneratedDossierPayload): SpecialistAgentFinding[] {
+  return [
+    {
+      agentNumber: 1,
+      agentId: 'quran_tafsir',
+      ...LOCALIZED_AGENT_HEADERS.en.quran_tafsir,
+      verdictBadge: 'QUR’ANIC FOUNDATION',
+      confidenceScore: '98.5%',
+      arabicQuote: generated.quranArabic || 'وَقُل رَّبِّ زِدْنِى عِلْمًا',
+      arabicReference: generated.quranRef || 'Primary Qur’anic Guidance',
+      summary: generated.quransummary,
+      keyPoints: generated.quranPoints.slice(0, 4),
+      citations: [generated.quranRef || 'Al-Qur’an & Classical Tafsir'],
+    },
+    {
+      agentNumber: 2,
+      agentId: 'hadith_sunnah',
+      ...LOCALIZED_AGENT_HEADERS.en.hadith_sunnah,
+      verdictBadge: 'PROPHETIC SUNNAH EVIDENCE',
+      confidenceScore: '99.0%',
+      arabicQuote: generated.hadithArabic,
+      arabicReference: generated.hadithRef || 'Kutub al-Sittah',
+      summary: generated.hadithSummary,
+      keyPoints: generated.hadithPoints.slice(0, 4),
+      citations: [generated.hadithRef || 'Kutub al-Sittah'],
+    },
+    {
+      agentNumber: 3,
+      agentId: 'isnad_rijal',
+      ...LOCALIZED_AGENT_HEADERS.en.isnad_rijal,
+      verdictBadge: 'CHAIN & AUTHENTICITY AUDIT',
+      confidenceScore: '98.0%',
+      summary: generated.isnadSummary,
+      keyPoints: generated.isnadPoints.slice(0, 3),
+      citations: ['Rijal & Isnad Verification'],
+    },
+    {
+      agentNumber: 4,
+      agentId: 'fiqh_consensus',
+      ...LOCALIZED_AGENT_HEADERS.en.fiqh_consensus,
+      verdictBadge: 'CLASSICAL FIQH & CONSENSUS',
+      confidenceScore: '98.4%',
+      summary: generated.fiqhSummary,
+      keyPoints: generated.fiqhPoints.slice(0, 4),
+      citations: ['Four Sunni Schools & Classical Fiqh Encyclopedias'],
+    },
+    {
+      agentNumber: 5,
+      agentId: 'linguistic_maqasid',
+      ...LOCALIZED_AGENT_HEADERS.en.linguistic_maqasid,
+      verdictBadge: 'MAQASID AL-SHARIAH',
+      confidenceScore: '97.5%',
+      summary: generated.maqasidSummary,
+      keyPoints: generated.maqasidPoints.slice(0, 3),
+      citations: ['Maqasid al-Shariah & Classical Lexicons'],
+    },
+    {
+      agentNumber: 6,
+      agentId: 'modern_science',
+      ...LOCALIZED_AGENT_HEADERS.en.modern_science,
+      verdictBadge: '🔬 1 STEP AHEAD OF MODERN SCIENCE',
+      confidenceScore: '98.2%',
+      isScienceSpotlight: true,
+      summary: generated.scienceSummary,
+      keyPoints: generated.sciencePoints.slice(0, 4),
+      citations: ['Empirical Physiology, Medicine & Behavioral Science'],
+    },
+    {
+      agentNumber: 7,
+      agentId: 'executive_synthesis',
+      ...LOCALIZED_AGENT_HEADERS.en.executive_synthesis,
+      verdictBadge: generated.verdictClassification,
+      confidenceScore: `${generated.confidenceScore || 98.5}%`,
+      summary: generated.executiveSummary,
+      keyPoints: generated.executivePoints.slice(0, 4),
+      citations: ['7-Agent Integrated Synthesis'],
+    },
+  ];
+}
+
+/** Deterministic post-synthesis roundtable that weaves opened citations into speech. */
+function citedRoundtableFromAgents(
+  question: string,
+  generated: GeneratedDossierPayload,
+  agents: readonly SpecialistAgentFinding[],
+): RoundtableTurn[] {
+  const cleanQ = userFacingResearchQuestion(question);
+  const quranAgent = agents.find(a => a.agentId === 'quran_tafsir');
+  const hadithAgent = agents.find(a => a.agentId === 'hadith_sunnah');
+  const fiqhAgent = agents.find(a => a.agentId === 'fiqh_consensus');
+  const scienceAgent = agents.find(a => a.agentId === 'modern_science');
+  const quranCite = quranAgent?.citations?.[0] || generated.quranRef || 'opened Qur’anic guidance';
+  const hadithCite = hadithAgent?.citations?.[0] || generated.hadithRef || 'opened Prophetic reports';
+  return [
+    {
+      speaker: 'Brother Feroz (Host)',
+      role: 'Executive Roundtable Moderator',
+      voiceProfile: 'tariq',
+      text: `Assalamu Alaikum. Today's 7-Agent Scholarly & Scientific Roundtable examines: “${cleanQ}”. Our verdict: ${generated.verdictHeadline}`,
+    },
+    {
+      speaker: 'Dr. Tariq al-Mansoor',
+      role: 'Agent 02 · Hadith & Takhrij Specialist',
+      voiceProfile: 'tariq',
+      text: `${generated.hadithSummary} We ground this in ${hadithCite}${generated.hadithArabic ? ` — ${generated.hadithArabic}` : ''}.`,
+    },
+    {
+      speaker: 'Shaykh Farhan al-Rashed',
+      role: 'Agent 04 · Classical Fiqh & Consensus Lead',
+      voiceProfile: 'yusuf',
+      text: `${generated.fiqhSummary} Classical schools read this alongside ${quranCite}. ${(fiqhAgent?.keyPoints?.[0] ?? '').trim()}`.trim(),
+    },
+    {
+      speaker: 'Dr. Zainab al-Mubarak',
+      role: 'Agent 06 · Modern Science & 1-Step-Ahead Foresight',
+      voiceProfile: 'noor',
+      text: `${generated.scienceSummary} ${(scienceAgent?.keyPoints?.[0] ?? generated.sciencePoints[0] ?? '').trim()}`.trim(),
+    },
+    {
+      speaker: 'Brother Feroz (Host)',
+      role: 'Executive Roundtable Moderator',
+      voiceProfile: 'tariq',
+      text: generated.executiveSummary,
+    },
+  ];
+}
+
+/**
+ * Roundtable generator runs AFTER live synthesis so speakers cite specific
+ * Qur’an ayahs, Hadiths, and classical sources from the completed agent cards.
+ */
+async function generateRoundtableAfterSynthesis(
+  question: string,
+  generated: GeneratedDossierPayload,
+  agents: readonly SpecialistAgentFinding[],
+): Promise<RoundtableTurn[]> {
+  const fallback = citedRoundtableFromAgents(question, generated, agents);
+  const evidenceBrief = agents
+    .map(agent => {
+      const cites = (agent.citations ?? []).filter(Boolean).join('; ');
+      return `${agent.personaName} (${agent.title}): ${agent.summary}\nCitations: ${cites || 'none'}\nKey points: ${(agent.keyPoints ?? []).join(' | ')}`;
+    })
+    .join('\n\n');
+  const system = [
+    finalSynthesisSystemPrompt(),
+    'You are the Dragon Dawwa Roundtable Studio Director.',
+    'Write a 5-turn scholarly roundtable that cites SPECIFIC Qur’an ayahs (Surah:Ayah), Hadith collection numbers, and classical sources from the completed synthesis below.',
+    'Never invent citations absent from the synthesis. Never use generic placeholders like "awaiting live synthesis" or "opened sources only".',
+    'Keep speaker display names exactly: Brother Feroz (Host), Dr. Tariq al-Mansoor, Shaykh Farhan al-Rashed, Dr. Zainab al-Mubarak, Brother Feroz (Host).',
+  ].join('\n');
+  const user = [
+    `Question: ${userFacingResearchQuestion(question)}`,
+    'Completed 7-agent synthesis (cite from this only):',
+    evidenceBrief,
+    '',
+    'Return JSON { "turns": [ { "speaker": "...", "text": "..." }, ... ] } with exactly 5 turns in the speaker order above.',
+  ].join('\n');
+
+  if (anthropicConfigured()) {
+    try {
+      const { value } = await completeAnthropicJson<{ turns?: Array<{ speaker?: string; text?: string }> }>({
+        system,
+        user,
+        maxTokens: 4096,
+      });
+      const merged = mergePostSynthesisTurns(fallback, value?.turns);
+      if (merged) {
+        console.info('Seven-agent roundtable: Anthropic post-synthesis script ok.');
+        return merged;
+      }
+      console.error(
+        'Anthropic→Gemini roundtable fallback reason: Claude returned unusable post-synthesis turns.',
+      );
+    } catch (err) {
+      console.error('Anthropic→Gemini roundtable fallback reason:', (err as Error)?.message ?? err);
+    }
+  } else {
+    console.error('Anthropic→Gemini roundtable fallback reason: ANTHROPIC_API_KEY not configured');
+  }
+
   if (geminiConfigured()) {
     try {
-      const prompt = `You are the Dragon Dawwa 7-Agent Islamic & Empirical Science Research Engine.
-Analyze the seeker's question with rigorous classical Islamic scholarship (Qur'an, Kutub al-Sittah Hadith with exact collection numbers, Isnad authenticity, 4 Sunni Fiqh schools, Arabic Maqasid) AND deep Modern Scientific & Biomedical/Psychological Foresight showing how Qur'anic and Prophetic wisdom aligns with and stands 1 step ahead of modern science.
-
-Seeker Question (user-facing only): ${JSON.stringify(userFacingResearchQuestion(question))}
-Internal evidence rubric (follow silently; never paste into spoken Host lines or the visible question field): ${JSON.stringify(
-        researchSystemInstructionsForQuestion(question) || 'Opened sources only; never invent citations.',
-      )}
-
-Return a structured JSON object matching the schema.`;
-      const generated = await Promise.race([
-        completeJson<{
-          verdictHeadline: string;
-          verdictClassification: string;
-          confidenceScore: number;
-          executiveSummary: string;
-          quransummary: string;
-          quranArabic?: string;
-          quranRef?: string;
-          quranPoints: string[];
-          hadithSummary: string;
-          hadithArabic?: string;
-          hadithRef?: string;
-          hadithPoints: string[];
-          isnadSummary: string;
-          isnadPoints: string[];
-          fiqhSummary: string;
-          fiqhPoints: string[];
-          maqasidSummary: string;
-          maqasidPoints: string[];
-          scienceHeadline: string;
-          scienceSummary: string;
-          sciencePoints: string[];
-          sciencePillars: Array<{ domain: string; finding: string; oneStepAheadNote: string }>;
-          executivePoints: string[];
-        }>(prompt, geminiDossierSchema),
-        new Promise<null>(resolve => setTimeout(() => resolve(null), 5500)),
-      ]);
-
-      if (generated && generated.verdictHeadline) {
-        const agents: SpecialistAgentFinding[] = [
-          {
-            agentNumber: 1,
-            agentId: 'quran_tafsir',
-            ...LOCALIZED_AGENT_HEADERS.en.quran_tafsir,
-            verdictBadge: 'QUR’ANIC FOUNDATION',
-            confidenceScore: '98.5%',
-            arabicQuote: generated.quranArabic || 'وَقُل رَّبِّ زِدْنِى عِلْمًا',
-            arabicReference: generated.quranRef || 'Primary Qur’anic Guidance',
-            summary: generated.quransummary,
-            keyPoints: generated.quranPoints.slice(0, 4),
-            citations: [generated.quranRef || 'Al-Qur’an & Classical Tafsir'],
-          },
-          {
-            agentNumber: 2,
-            agentId: 'hadith_sunnah',
-            ...LOCALIZED_AGENT_HEADERS.en.hadith_sunnah,
-            verdictBadge: 'PROPHETIC SUNNAH EVIDENCE',
-            confidenceScore: '99.0%',
-            arabicQuote: generated.hadithArabic,
-            arabicReference: generated.hadithRef || 'Kutub al-Sittah',
-            summary: generated.hadithSummary,
-            keyPoints: generated.hadithPoints.slice(0, 4),
-            citations: [generated.hadithRef || 'Kutub al-Sittah'],
-          },
-          {
-            agentNumber: 3,
-            agentId: 'isnad_rijal',
-            ...LOCALIZED_AGENT_HEADERS.en.isnad_rijal,
-            verdictBadge: 'CHAIN & AUTHENTICITY AUDIT',
-            confidenceScore: '98.0%',
-            summary: generated.isnadSummary,
-            keyPoints: generated.isnadPoints.slice(0, 3),
-            citations: ['Rijal & Isnad Verification'],
-          },
-          {
-            agentNumber: 4,
-            agentId: 'fiqh_consensus',
-            ...LOCALIZED_AGENT_HEADERS.en.fiqh_consensus,
-            verdictBadge: 'CLASSICAL FIQH & CONSENSUS',
-            confidenceScore: '98.4%',
-            summary: generated.fiqhSummary,
-            keyPoints: generated.fiqhPoints.slice(0, 4),
-            citations: ['Four Sunni Schools & Classical Fiqh Encyclopedias'],
-          },
-          {
-            agentNumber: 5,
-            agentId: 'linguistic_maqasid',
-            ...LOCALIZED_AGENT_HEADERS.en.linguistic_maqasid,
-            verdictBadge: 'MAQASID AL-SHARIAH',
-            confidenceScore: '97.5%',
-            summary: generated.maqasidSummary,
-            keyPoints: generated.maqasidPoints.slice(0, 3),
-            citations: ['Maqasid al-Shariah & Classical Lexicons'],
-          },
-          {
-            agentNumber: 6,
-            agentId: 'modern_science',
-            ...LOCALIZED_AGENT_HEADERS.en.modern_science,
-            verdictBadge: '🔬 1 STEP AHEAD OF MODERN SCIENCE',
-            confidenceScore: '98.2%',
-            isScienceSpotlight: true,
-            summary: generated.scienceSummary,
-            keyPoints: generated.sciencePoints.slice(0, 4),
-            citations: ['Empirical Physiology, Medicine & Behavioral Science'],
-          },
-          {
-            agentNumber: 7,
-            agentId: 'executive_synthesis',
-            ...LOCALIZED_AGENT_HEADERS.en.executive_synthesis,
-            verdictBadge: generated.verdictClassification,
-            confidenceScore: `${generated.confidenceScore || 98.5}%`,
-            summary: generated.executiveSummary,
-            keyPoints: generated.executivePoints.slice(0, 4),
-            citations: ['7-Agent Integrated Synthesis'],
-          },
-        ];
-
-        const turns: RoundtableTurn[] = [
-          {
-            speaker: 'Brother Feroz (Host)',
-            role: 'Executive Roundtable Moderator',
-            voiceProfile: 'tariq',
-            text: `Assalamu Alaikum! Today our 7-Agent Roundtable examines: “${question}”. ${generated.verdictHeadline}`,
-          },
-          {
-            speaker: 'Dr. Tariq al-Mansoor',
-            role: 'Agent 02 · Hadith & Takhrij Specialist',
-            voiceProfile: 'tariq',
-            text: generated.hadithSummary,
-          },
-          {
-            speaker: 'Shaykh Farhan al-Rashed',
-            role: 'Agent 04 · Classical Fiqh & Consensus Lead',
-            voiceProfile: 'yusuf',
-            text: generated.fiqhSummary,
-          },
-          {
-            speaker: 'Dr. Zainab al-Mubarak',
-            role: 'Agent 06 · Modern Science & 1-Step-Ahead Foresight',
-            voiceProfile: 'noor',
-            text: generated.scienceSummary,
-          },
-          {
-            speaker: 'Brother Feroz (Host)',
-            role: 'Executive Roundtable Moderator',
-            voiceProfile: 'tariq',
-            text: generated.executiveSummary,
-          },
-        ];
-
-        return {
-          id: `7agent-${Date.now()}`,
-          question,
-          lang: 'en',
-          verdictHeadline: generated.verdictHeadline,
-          verdictClassification: generated.verdictClassification,
-          confidenceScore: generated.confidenceScore || 98.5,
-          executiveSummary: generated.executiveSummary,
-          agents,
-          scienceForesight: {
-            headline: generated.scienceHeadline,
-            badge: '🔬 MODERN SCIENCE ALIGNMENT · 1 STEP AHEAD',
-            summary: generated.scienceSummary,
-            empiricalPillars: generated.sciencePillars.slice(0, 3),
-            methodologicalNote:
-              'Believers follow revelation out of sincere devotion to Allah, while empirical science continually uncovers physiological, psychological, and ecological layers of wisdom in Prophetic guidance.',
-          },
-          roundtableTurns: turns,
-          roundtableScriptText: turns.map(t => `${t.speaker.toUpperCase()}: ${t.text}`).join('\n\n'),
-          createdAt: new Date().toISOString(),
-        };
+      const { value } = await generateJsonWithModels<{ turns: Array<{ speaker: string; text: string }> }>(
+        `${system}\n\n${user}`,
+        roundtableAfterSynthesisSchema,
+        [GEMINI_SYNTHESIS_FALLBACK_MODEL, 'gemini-flash-latest', 'gemini-2.5-flash'],
+      );
+      const merged = mergePostSynthesisTurns(fallback, value?.turns);
+      if (merged) {
+        console.info('Seven-agent roundtable: Gemini post-synthesis script ok.');
+        return merged;
       }
-    } catch {
-      /* fall through to deterministic synthesis */
+    } catch (err) {
+      console.error('Gemini post-synthesis roundtable failed:', (err as Error)?.message ?? err);
     }
   }
 
-  // Deterministic topic-faithful fallback — never reuse the gold-ring benchmark for other questions.
-  return buildGenericTopicFallbackDossier(question);
+  console.info('Seven-agent roundtable: using citation-woven deterministic script after synthesis.');
+  return fallback;
+}
+
+function mergePostSynthesisTurns(
+  template: readonly RoundtableTurn[],
+  generated: Array<{ speaker?: string; text?: string }> | undefined,
+): RoundtableTurn[] | null {
+  if (!Array.isArray(generated) || generated.length !== template.length) return null;
+  const out: RoundtableTurn[] = [];
+  for (let i = 0; i < template.length; i++) {
+    const text = String(generated[i]?.text ?? '').trim();
+    if (text.length < 24) return null;
+    if (/awaiting live synthesis|opened sources only|retry when the live/i.test(text)) return null;
+    out.push({ ...template[i], text });
+  }
+  if (looksLikeMetaCacheIsolationDialogue(out)) return null;
+  return out;
+}
+
+/** Live Parallel + Claude/Gemini for custom queries. Off under node:test unless SEVEN_AGENT_LIVE_SYNTHESIS=1. */
+function sevenAgentLiveSynthesisEnabled(): boolean {
+  if (process.env.SEVEN_AGENT_LIVE_SYNTHESIS === '1') return true;
+  if (process.env.SEVEN_AGENT_LIVE_SYNTHESIS === '0') return false;
+  return process.env.NODE_TEST_CONTEXT == null;
+}
+
+async function buildDynamicEnglishDossier(question: string): Promise<SevenAgentResearchDossier> {
+  // Full custom-query path: Parallel retrieval → Claude Sonnet synthesis → Gemini fallback → post-synthesis roundtable.
+  if (!sevenAgentLiveSynthesisEnabled()) {
+    console.info(
+      'Seven-agent custom query: live synthesis skipped (unit test / SEVEN_AGENT_LIVE_SYNTHESIS=0); using topic-bound offline board.',
+    );
+    return buildGenericTopicFallbackDossier(question);
+  }
+
+  const evidencePacket = await retrieveSevenAgentEvidencePacket(question);
+  const synthesized = await synthesizeDynamicDossierPayload(question, evidencePacket);
+  if (!synthesized) {
+    console.error(
+      'Seven-agent custom query fell through to static board: both Anthropic and Gemini synthesis unavailable or incomplete.',
+    );
+    return buildGenericTopicFallbackDossier(question);
+  }
+
+  const { payload: generated } = synthesized;
+  const agents = agentsFromGeneratedPayload(generated);
+  // Roundtable runs AFTER live synthesis so speakers can cite the completed cards.
+  const turns = await generateRoundtableAfterSynthesis(question, generated, agents);
+
+  return {
+    id: `7agent-${Date.now()}`,
+    question,
+    lang: 'en',
+    verdictHeadline: generated.verdictHeadline,
+    verdictClassification: generated.verdictClassification,
+    confidenceScore: generated.confidenceScore || 98.5,
+    executiveSummary: generated.executiveSummary,
+    agents,
+    scienceForesight: {
+      headline: generated.scienceHeadline || generated.verdictHeadline,
+      badge: '🔬 MODERN SCIENCE ALIGNMENT · 1 STEP AHEAD',
+      summary: generated.scienceSummary,
+      empiricalPillars: (generated.sciencePillars.length
+        ? generated.sciencePillars
+        : [
+            {
+              domain: 'Revelation-First Guidance',
+              finding: generated.scienceSummary || generated.executiveSummary,
+              oneStepAheadNote: 'Empirical observations illustrate hikmah without replacing revelation.',
+            },
+          ]
+      ).slice(0, 3),
+      methodologicalNote:
+        'Believers follow revelation out of sincere devotion to Allah, while empirical science continually uncovers physiological, psychological, and ecological layers of wisdom in Prophetic guidance.',
+    },
+    roundtableTurns: turns,
+    roundtableScriptText: turns.map(t => `${t.speaker.toUpperCase()}: ${t.text}`).join('\n\n'),
+    createdAt: new Date().toISOString(),
+  };
 }
 
 function buildGenericTopicFallbackDossier(question: string): SevenAgentResearchDossier {
@@ -1035,6 +1335,10 @@ async function localizeDossierToLanguage(
 function cacheAcceptableForQuestion(cached: SevenAgentResearchDossier, cleanQ: string): boolean {
   if (!cached.agents || cached.agents.length !== 7) return false;
   if (normalizeResearchQuestion(cached.question) !== normalizeResearchQuestion(cleanQ)) return false;
+  if (cached.verdictClassification === 'AWAITING LIVE SYNTHESIS') return false;
+  if (/board is prepared for|Retry when the live synthesis model/i.test(cached.executiveSummary ?? '')) {
+    return false;
+  }
   if (!isGoldOrRingQuestion(cleanQ) && looksLikeGoldRingDossierContent(cached)) return false;
   if (looksLikeMetaCacheIsolationDialogue(cached.roundtableTurns)) return false;
   const modern = matchModernWorldBenchmark(cleanQ);
@@ -1053,7 +1357,7 @@ export async function runSevenAgentResearch(
     ? `modern:${modernMatch.id}`
     : `q:${normalizeResearchQuestion(cleanQ)}`;
   const hash = createHash('sha256')
-    .update(`seven-agent-v6|${lang}|${cacheIdentity}`)
+    .update(`seven-agent-v7|${lang}|${cacheIdentity}`)
     .digest('hex')
     .slice(0, 32);
   const stableId = modernMatch

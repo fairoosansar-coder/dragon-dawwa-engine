@@ -178,6 +178,7 @@ export function SevenAgentResearchBoard({
     onToggleRoundtable?.(next);
     if (next) {
       window.setTimeout(() => {
+        // scroll-mt on the studio clears the sticky top header (h-14 / z-40).
         document
           .getElementById('seven-agent-roundtable-studio')
           ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1014,7 +1015,9 @@ export function SevenAgentResearchBoard({
           color: '#1C1917',
           borderColor: '#E2D5B5',
         }}
-        className="rounded-3xl border p-5 shadow-sm sm:p-7"
+        className={`scroll-mt-20 rounded-3xl border p-5 shadow-sm sm:scroll-mt-24 sm:p-7 ${
+          isRoundtableVisible ? 'relative z-50' : 'relative z-10'
+        }`}
       >
         <div
           style={{ borderColor: '#E5DEC9' }}

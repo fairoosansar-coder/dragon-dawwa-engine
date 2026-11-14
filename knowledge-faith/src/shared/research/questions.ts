@@ -17,16 +17,17 @@ function canonical(text: string): string {
 }
 
 /**
- * Split questions that were typed together.
- * A curly quote glued to a second question word is a join, not one title.
+ * Split only accidental concatenations (newlines or a curly quote glued onto a
+ * second question word). Do NOT split a single submission at `?` — multi-sentence
+ * or two related questions (e.g. 23-year + Adam universality) stay one unified
+ * research question.
  */
 export function separateQuestions(raw: string): string[] {
   const normalized = raw.replace(/\r/g, '\n').trim();
   if (!normalized) return [];
   const chunks = normalized
     .split(/\n+/)
-    .flatMap(chunk => chunk.split(/(?<=\S)[“”"«»„]\s*(?=(?:how|what|why|when|where|who|which)\b)/i))
-    .flatMap(chunk => chunk.split(/(?<=[?؟])\s+(?=\S)/));
+    .flatMap(chunk => chunk.split(/(?<=\S)[“”"«»„]\s*(?=(?:how|what|why|when|where|who|which)\b)/i));
   const questions: string[] = [];
   for (const chunk of chunks) {
     const text = tidy(chunk);
