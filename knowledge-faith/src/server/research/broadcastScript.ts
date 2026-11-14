@@ -5,6 +5,7 @@
  * The host line is a generated presenter, not a research agent.
  */
 
+import { userFacingResearchQuestion } from '../../shared/modernWorldBenchmarks.ts';
 import { sanitizePodcastHostName } from '../../shared/podcastHost.ts';
 import type { Lang } from '../../shared/sources.ts';
 
@@ -74,7 +75,7 @@ function inConversation(language: Lang, lesson: string): string {
 /** Islamic greeting, then the question. Disclaimers stay in the page header. */
 export function generatedHostLine(question: string, language: Lang, hostName?: string | null): string {
   const host = sanitizePodcastHostName(hostName);
-  const asked = everydayQuestion(question);
+  const asked = everydayQuestion(userFacingResearchQuestion(question));
   if (language === 'ta') return `அஸ்ஸலாமு அலைக்கும் வரஹ்மத்துல்லாஹி வபரகாத்துஹ், ${host}. இன்று நாம் உங்கள் கேள்வியுடன் அமர்கிறோம்: ${asked}`;
   if (language === 'si') return `අස්සලාමු අලයිකුම් වරහ්මතුල්ලාහි වබරකාතුහු, ${host}. අද අපි ඔබේ ප්‍රශ්නය සමඟ වාඩි වෙමු: ${asked}`;
   return `Assalamu Alaikum wa Rahmatullahi wa Barakatuh, ${host}. Today we sit with your question: ${asked}`;

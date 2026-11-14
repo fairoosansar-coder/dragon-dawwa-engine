@@ -1,4 +1,5 @@
 import type { AgentContribution } from '../contracts/v1.ts';
+import { userFacingResearchQuestion } from '../modernWorldBenchmarks.ts';
 import { sanitizePodcastHostName } from '../podcastHost.ts';
 import type { Lang } from '../sources.ts';
 import { asksWhen, recordsPractice, timingClause } from './materialCoverage.ts';
@@ -71,7 +72,7 @@ const PERSONAS: readonly Persona[] = [
 
 /** Authentic Islamic greeting and warm framing of the question. The page header carries any presenter note. */
 function generatedHost(question: string, language: Lang, hostName: string): string {
-  const asked = everydayQuestion(question);
+  const asked = everydayQuestion(userFacingResearchQuestion(question));
   if (language === 'ta') {
     return `அஸ்ஸலாமு அலைக்கும் வரஹ்மத்துல்லாஹி வபரகாத்துஹ், ${hostName}. இன்று நாம் ஆராயும் முக்கியமான கேள்வி: ${asked} டாக்டர் லைலா, மூல ஆதாரங்களின் வழிகாட்டலோடு நாம் ஆரம்பிக்கலாமா?`;
   }

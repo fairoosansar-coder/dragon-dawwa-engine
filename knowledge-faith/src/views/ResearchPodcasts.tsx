@@ -14,6 +14,7 @@ import { PodcastHostChip } from '../components/PodcastHostChip.tsx';
 import { ContentText } from '../components/ContentText.tsx';
 import { Button, ErrorNote, Notice } from '../components/ui.tsx';
 import { getPodcastHostLabel, PODCAST_HOST_EVENT } from '../lib/podcastHost.ts';
+import { geminiVoiceNameForSpeaker } from '../shared/geminiVoices.ts';
 import { PodcastPlayer } from './PodcastPlayer.tsx';
 
 type EpisodeState = 'script-ready' | 'audio-generating' | 'playable' | 'failed';
@@ -47,15 +48,8 @@ interface CommunityEpisode {
 const KEY = 'kf-research-podcasts';
 
 function voiceFor(speaker: string, hostName: string): string {
-  if (speaker === hostName || /feroz|^host\b|brother tariq|seeker guide/i.test(speaker)) return 'Puck';
-  if (/layla|passage reader|qur['’]?an specialist/i.test(speaker)) return 'Kore';
-  if (/farhan|fatwa|field research/i.test(speaker)) return 'Charon';
-  if (/tariq/i.test(speaker)) return 'Fenrir';
-  if (/imran/i.test(speaker)) return 'Orus';
-  if (/zainab|distinction|hadith & fiqh/i.test(speaker)) return 'Zephyr';
-  if (/yusuf/i.test(speaker)) return 'Fenrir';
-  if (/amina|deep research/i.test(speaker)) return 'Aoede';
-  return 'Kore';
+  if (speaker === hostName) return 'Puck';
+  return geminiVoiceNameForSpeaker(speaker);
 }
 
 /** One episode, several generated voices. Each clip is a standard 16-bit mono WAV. */

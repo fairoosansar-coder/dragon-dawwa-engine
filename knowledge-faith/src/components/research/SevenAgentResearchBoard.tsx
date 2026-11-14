@@ -192,7 +192,11 @@ export function SevenAgentResearchBoard({
   const profile = resolveHadithVoiceProfile(voiceProfile);
   const langLabel = LANGUAGE_NAMES[lang]?.native ?? 'English';
 
-  const playLines = (sessionId: string, lines: string[]) => {
+  const playLines = (
+    sessionId: string,
+    lines: string[],
+    lineSpeakers?: Array<string | null | undefined>,
+  ) => {
     if (!lines.length) return;
     if (lineTts.sessionId === sessionId && lineTts.status === 'playing') {
       lineTts.pause();
@@ -206,6 +210,7 @@ export function SevenAgentResearchBoard({
     void lineTts.start({
       sessionId,
       lines,
+      lineSpeakers,
       lang,
       voiceProfile: profile.id,
       speed,
@@ -217,7 +222,12 @@ export function SevenAgentResearchBoard({
     const lines = splitTextIntoSpeechLines(
       [agent.title, agent.summary, ...agent.keyPoints].join('. '),
     );
-    playLines(sid, lines);
+    // One speaker for every line of this agent card → distinct Gemini voice.
+    playLines(
+      sid,
+      lines,
+      lines.map(() => agent.personaName),
+    );
   };
 
   const handlePlayScienceSpotlight = () => {
@@ -229,11 +239,18 @@ export function SevenAgentResearchBoard({
         p => `${p.domain}: ${p.finding} ${p.oneStepAheadNote}`,
       ),
     ];
-    playLines(scienceSessionId, lines);
+    // Science spotlight is Zainab's foresight lane.
+    playLines(
+      scienceSessionId,
+      lines,
+      lines.map(() => 'Dr. Zainab al-Mubarak'),
+    );
   };
 
   const handlePlayRoundtable = (startIdx = 0) => {
-    const lines = dossier.roundtableTurns.map(t => `${t.speaker}: ${t.text}`);
+    // Speak turn text only (no "Speaker:" prefix); voice comes from lineSpeakers.
+    const lines = dossier.roundtableTurns.map(t => t.text);
+    const lineSpeakers = dossier.roundtableTurns.map(t => t.speaker);
     if (
       startIdx === 0 &&
       lineTts.sessionId === roundtableSessionId &&
@@ -246,6 +263,7 @@ export function SevenAgentResearchBoard({
     void lineTts.start({
       sessionId: roundtableSessionId,
       lines,
+      lineSpeakers,
       startIndex: startIdx,
       lang,
       voiceProfile: profile.id,

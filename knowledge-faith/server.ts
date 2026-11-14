@@ -1350,12 +1350,17 @@ const hadithTtsHandler = route(async (req, res) => {
   const lang = req.body?.lang ?? 'en';
   const speed = req.body?.speed ?? 1;
   const modelId = typeof req.body?.modelId === 'string' ? req.body.modelId.slice(0, 40) : undefined;
+  const speaker = typeof req.body?.speaker === 'string' ? req.body.speaker.slice(0, 80) : undefined;
+  const voiceName =
+    typeof req.body?.voiceName === 'string' ? req.body.voiceName.slice(0, 40) : undefined;
   const result = await synthesizeHadithVoice({
     text: body,
     lang,
     voiceProfile,
     speed,
     modelId,
+    speaker,
+    voiceName,
   });
   res.json(result);
 });

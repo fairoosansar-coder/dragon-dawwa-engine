@@ -2,7 +2,13 @@ import { Type, type Schema } from '@google/genai';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { matchModernWorldBenchmark, normalizeResearchQuestion } from '../shared/modernWorldBenchmarks.ts';
+import {
+  matchModernWorldBenchmark,
+  modernWorldReportId,
+  normalizeResearchQuestion,
+  researchSystemInstructionsForQuestion,
+  userFacingResearchQuestion,
+} from '../shared/modernWorldBenchmarks.ts';
 import type {
   ModernScienceForesight,
   RoundtableTurn,
@@ -17,6 +23,7 @@ import {
   resolveModernWorldDossierById,
   resolveModernWorldDossierByQuestion,
 } from './modernWorldDossiers.ts';
+import { composeNativeRoundtableTurns } from './nativeRoundtable.ts';
 import { persistRoot } from './persist.ts';
 
 function dossierCachePath(hash: string): string {
@@ -540,7 +547,10 @@ async function buildDynamicEnglishDossier(question: string): Promise<SevenAgentR
       const prompt = `You are the Dragon Dawwa 7-Agent Islamic & Empirical Science Research Engine.
 Analyze the seeker's question with rigorous classical Islamic scholarship (Qur'an, Kutub al-Sittah Hadith with exact collection numbers, Isnad authenticity, 4 Sunni Fiqh schools, Arabic Maqasid) AND deep Modern Scientific & Biomedical/Psychological Foresight showing how Qur'anic and Prophetic wisdom aligns with and stands 1 step ahead of modern science.
 
-Seeker Question: ${JSON.stringify(question)}
+Seeker Question (user-facing only): ${JSON.stringify(userFacingResearchQuestion(question))}
+Internal evidence rubric (follow silently; never paste into spoken Host lines or the visible question field): ${JSON.stringify(
+        researchSystemInstructionsForQuestion(question) || 'Opened sources only; never invent citations.',
+      )}
 
 Return a structured JSON object matching the schema.`;
       const generated = await Promise.race([
@@ -935,15 +945,14 @@ async function localizeDossierToLanguage(
   const headers = LOCALIZED_AGENT_HEADERS[targetLang];
   const isGold = isGoldOrRingQuestion(enDossier.question);
 
-  const [verdictHeadline, executiveSummary, agentSummaries, turnTexts] = await Promise.all([
+  const [verdictHeadline, executiveSummary, agentSummaries, nativeTurns] = await Promise.all([
     translateTextToLanguage(enDossier.verdictHeadline, targetLang, 'en'),
     translateTextToLanguage(enDossier.executiveSummary, targetLang, 'en'),
     runWithConcurrency(enDossier.agents, 4, a =>
       translateTextToLanguage(a.summary, targetLang, 'en'),
     ),
-    runWithConcurrency(enDossier.roundtableTurns, 4, t =>
-      translateTextToLanguage(t.text, targetLang, 'en'),
-    ),
+    // Native composition — not per-line string MT (avoids Tamil transliteration like "டீசிங் புக்").
+    composeNativeRoundtableTurns(enDossier.roundtableTurns, targetLang),
   ]);
 
   const localizedAgents = await runWithConcurrency(enDossier.agents, 3, async (agent, idx) => {
@@ -991,10 +1000,7 @@ async function localizeDossierToLanguage(
     };
   }
 
-  const localizedTurns: RoundtableTurn[] = enDossier.roundtableTurns.map((turn, idx) => ({
-    ...turn,
-    text: turnTexts[idx] || turn.text,
-  }));
+  const localizedTurns: RoundtableTurn[] = nativeTurns ?? enDossier.roundtableTurns.map(turn => ({ ...turn }));
 
   return {
     ...enDossier,
@@ -1023,13 +1029,13 @@ export async function runSevenAgentResearch(
   question: string,
   lang: Lang,
 ): Promise<SevenAgentResearchDossier> {
-  const cleanQ = question.trim().slice(0, 1200);
-  const modernMatch = matchModernWorldBenchmark(cleanQ);
+  const cleanQ = userFacingResearchQuestion(question.trim().slice(0, 1200));
+  const modernMatch = matchModernWorldBenchmark(cleanQ) ?? matchModernWorldBenchmark(question);
   const cacheIdentity = modernMatch
     ? `modern:${modernMatch.id}`
     : `q:${normalizeResearchQuestion(cleanQ)}`;
   const hash = createHash('sha256')
-    .update(`seven-agent-v4|${lang}|${cacheIdentity}`)
+    .update(`seven-agent-v5|${lang}|${cacheIdentity}`)
     .digest('hex')
     .slice(0, 32);
   const stableId = modernMatch
@@ -1044,7 +1050,9 @@ export async function runSevenAgentResearch(
   }
 
   const baseEn = modernMatch
-    ? resolveModernWorldDossierByQuestion(cleanQ)!
+    ? resolveModernWorldDossierByQuestion(cleanQ) ??
+      resolveModernWorldDossierByQuestion(question) ??
+      resolveModernWorldDossierById(modernWorldReportId(modernMatch.id))!
     : isGoldOrRingQuestion(cleanQ)
       ? buildGoldAndRingsEnglishDossier(cleanQ)
       : await buildDynamicEnglishDossier(cleanQ);

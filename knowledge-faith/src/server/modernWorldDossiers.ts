@@ -13,6 +13,7 @@ import {
   matchModernWorldBenchmark,
   modernWorldBenchmarkById,
   modernWorldReportId,
+  userFacingResearchQuestion,
   type ModernWorldBenchmark,
 } from '../shared/modernWorldBenchmarks.ts';
 
@@ -232,7 +233,7 @@ function twentyThreeYearDossier(question: string): SevenAgentResearchDossier {
       speaker: 'Brother Feroz (Host)',
       role: 'Executive Roundtable Moderator',
       voiceProfile: 'tariq',
-      text: `Assalamu Alaikum. Today’s 7-Agent Roundtable examines the hub question: “${question}” We will stay on Wahy and the 23-year civilizational arc—not unrelated jewelry rulings.`,
+      text: `Assalamu Alaikum. Today's 7-Agent Roundtable examines: "${userFacingResearchQuestion(question)}"`,
     },
     {
       speaker: 'Dr. Tariq al-Mansoor',
@@ -256,13 +257,13 @@ function twentyThreeYearDossier(question: string): SevenAgentResearchDossier {
       speaker: 'Brother Feroz (Host)',
       role: 'Executive Roundtable Moderator',
       voiceProfile: 'tariq',
-      text: 'Synthesis: the 23-year transformation is Wahy teaching Book and Wisdom (62:2)—a full seven-agent dossier on Prophetic civilization, never a leftover gold-ring paragraph.',
+      text: 'Synthesis: the 23-year transformation is Wahy teaching Book and Wisdom (62:2)—Prophetic civilization shaped by revelation across Makkah and Madinah.',
     },
   ];
 
   return packDossier({
     id: modernWorldReportId('twenty-three-year'),
-    question,
+    question: userFacingResearchQuestion(question),
     verdictHeadline:
       'Revelation (Wahy) Taught an Unlettered Messenger After Age 40 to Reform a Fractured Society Across ~23 Years into an Enduring Civilization',
     verdictClassification: 'QUR’AN + SEERAH · CIVILIZATIONAL PEDAGOGY',
@@ -420,7 +421,7 @@ function primordialUniversalityDossier(question: string): SevenAgentResearchDoss
       speaker: 'Brother Feroz (Host)',
       role: 'Executive Roundtable Moderator',
       voiceProfile: 'tariq',
-      text: `Assalamu Alaikum. Our question: “${question}” We examine Adam, Fitrah, and universal humanity.`,
+      text: `Assalamu Alaikum. Our question: "${userFacingResearchQuestion(question)}" We examine Adam, Fitrah, and universal humanity.`,
     },
     {
       speaker: 'Dr. Tariq al-Mansoor',
@@ -444,13 +445,13 @@ function primordialUniversalityDossier(question: string): SevenAgentResearchDoss
       speaker: 'Brother Feroz (Host)',
       role: 'Executive Roundtable Moderator',
       voiceProfile: 'tariq',
-      text: 'Verdict: Islam is primordial Fitrah for the children of Adam—not a late tribal invention, and not an unrelated jewelry dossier.',
+      text: 'Verdict: Islam is primordial Fitrah for the children of Adam—not a late tribal invention.',
     },
   ];
 
   return packDossier({
     id: modernWorldReportId('primordial-universality'),
-    question,
+    question: userFacingResearchQuestion(question),
     verdictHeadline:
       'Islam Teaches Primordial Universality from Adam: One Humanity, Fitrah, and a Shared Covenant—Not a Late Regional Religion',
     verdictClassification: 'QUR’AN + SAHIH · FITRAH UNIVERSALISM',
@@ -609,7 +610,7 @@ function microSunnahScienceDossier(question: string): SevenAgentResearchDossier 
       speaker: 'Brother Feroz (Host)',
       role: 'Executive Roundtable Moderator',
       voiceProfile: 'tariq',
-      text: `Assalamu Alaikum. Question: “${question}” We focus on dates, fasting, sleep, and resilience—not unrelated jewelry law.`,
+      text: `Assalamu Alaikum. Question: "${userFacingResearchQuestion(question)}" We focus on dates, fasting, sleep, and resilience.`,
     },
     {
       speaker: 'Dr. Tariq al-Mansoor',
@@ -633,13 +634,13 @@ function microSunnahScienceDossier(question: string): SevenAgentResearchDossier 
       speaker: 'Brother Feroz (Host)',
       role: 'Executive Roundtable Moderator',
       voiceProfile: 'tariq',
-      text: 'Verdict: micro-Sunnah wellness is a full seven-agent topic dossier—never a single leftover paragraph from another query.',
+      text: 'Verdict: micro-Sunnah wellness—dates, fasting, sleep, and resilience—embodies hikmah that revelation taught and science continues to rediscover.',
     },
   ];
 
   return packDossier({
     id: modernWorldReportId('micro-sunnah-science'),
-    question,
+    question: userFacingResearchQuestion(question),
     verdictHeadline:
       'Micro-Sunnah Practices (Dates, Fasting, Sleep, Resilience) Embody Hikmah that Aligns with—and Often Anticipates—Modern Wellness Science',
     verdictClassification: 'SUNNAH ADAB · EMPIRICAL HIKMAH',
@@ -797,7 +798,7 @@ function macroGovernanceDossier(question: string): SevenAgentResearchDossier {
       speaker: 'Brother Feroz (Host)',
       role: 'Executive Roundtable Moderator',
       voiceProfile: 'tariq',
-      text: `Assalamu Alaikum. Today: “${question}” Macro-justice and treaties—not leftover micro-fiqh from another search.`,
+      text: `Assalamu Alaikum. Today: "${userFacingResearchQuestion(question)}" Macro-justice, treaties, and civilizational governance.`,
     },
     {
       speaker: 'Dr. Tariq al-Mansoor',
@@ -821,13 +822,13 @@ function macroGovernanceDossier(question: string): SevenAgentResearchDossier {
       speaker: 'Brother Feroz (Host)',
       role: 'Executive Roundtable Moderator',
       voiceProfile: 'tariq',
-      text: 'Verdict: a full seven-agent governance dossier—coherent civilizational frame, never a single wrong-topic paragraph.',
+      text: 'Verdict: Qur’an and Sunnah form a coherent civilizational frame of justice, consultation, and covenant-keeping.',
     },
   ];
 
   return packDossier({
     id: modernWorldReportId('macro-governance'),
-    question,
+    question: userFacingResearchQuestion(question),
     verdictHeadline:
       'Qur’an and Sunnah Guide Macro-Justice, Treaties, and Governance as a Coherent Civilizational System',
     verdictClassification: 'SIYASAH SHAR‘IYYAH · COVENANTAL JUSTICE',
