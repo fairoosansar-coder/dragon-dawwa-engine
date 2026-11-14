@@ -46,5 +46,14 @@ describe('DD-145 hub live cleanup', () => {
     assert.match(savedSource, /line-clamp-2/);
     // Board is the single Listen/Roundtable owner when expanded.
     assert.match(savedSource, /SevenAgentResearchBoard/);
+    // TTS/playback uses saved dossier language; chrome still follows uiLang via useApp.
+    assert.match(savedSource, /lang=\{contentLang\}/);
+  });
+
+  it('localizes English fallback boards before stamping ta/si', () => {
+    assert.match(sevenAgentSource, /dossierNeedsLocalization/);
+    assert.match(sevenAgentSource, /localizeDossierToLanguage\(\{ \.\.\.built, lang: 'en' \}, lang\)/);
+    assert.match(sevenAgentSource, /composeNativeRoundtableTurns/);
+    assert.match(sevenAgentSource, /citedRoundtableFromAgents\(question, generated, agents, language\)/);
   });
 });

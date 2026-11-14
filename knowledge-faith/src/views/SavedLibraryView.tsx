@@ -326,12 +326,13 @@ export function SavedLibraryView() {
                   </a>
                 </div>
 
-                {/* Expanded once: full 7-Agent + Modern Science (board owns Listen / Roundtable). */}
+                {/* Expanded once: full 7-Agent + Modern Science (board owns Listen / Roundtable).
+                    Pass contentLang for TTS/playback of saved prose; board chrome still follows uiLang. */}
                 {isExpanded && (
                   <div className="mt-5 border-t border-stone-200/40 pt-5" data-testid="saved-dossier-expanded-once">
                     <SevenAgentResearchBoard
                       dossier={dossier}
-                      lang={lang}
+                      lang={contentLang}
                       roundtableOpen={openRoundtableForId === dossier.id}
                       onToggleRoundtable={open =>
                         setOpenRoundtableForId(open ? dossier.id : null)
