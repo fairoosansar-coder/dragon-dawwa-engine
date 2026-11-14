@@ -110,6 +110,37 @@ describe('Modern World hub dossiers stay topic-bound', () => {
     assert.match(dossier.roundtableTurns[0]?.text ?? '', /sincerity|intention|Assalamu Alaikum/i);
   });
 
+  it('does not treat legitimate gold-ring Tamil/Sinhala evidence as cache-isolation meta', () => {
+    assert.equal(
+      looksLikeMetaCacheIsolationDialogue([
+        {
+          text: 'முஸ்லிம் 2089இல் நபி (ஸல்) ஒரு ஆணின் கையிலிருந்து தங்க மோதிரத்தை அகற்றினார்கள்.',
+        },
+      ]),
+      false,
+    );
+    assert.equal(
+      looksLikeMetaCacheIsolationDialogue([
+        { text: 'මුස්ලිම් 2089 අනුව නබි (ﷺ) පිරිමියෙකුගේ අතින් රන් මුදුව ඉවත් කළහ.' },
+      ]),
+      false,
+    );
+    assert.equal(
+      looksLikeMetaCacheIsolationDialogue([
+        {
+          text: 'When the live model is offline, we still refuse to paste Sahih Muslim 2089 gold-ring material into a different topic.',
+        },
+      ]),
+      true,
+    );
+    assert.equal(
+      looksLikeMetaCacheIsolationDialogue([
+        { text: 'முந்தைய தங்க ஆய்வு ஆவணத்தை வேறு தலைப்பில் ஒட்ட மாட்டோம்.' },
+      ]),
+      true,
+    );
+  });
+
   it('isolates each hub card from the gold-ring benchmark cache', async () => {
     const gold = await runSevenAgentResearch('Can man wear gold ? or small ring or related in gold ?', 'en');
     assert.equal(looksLikeGoldRingDossierContent(gold), true);

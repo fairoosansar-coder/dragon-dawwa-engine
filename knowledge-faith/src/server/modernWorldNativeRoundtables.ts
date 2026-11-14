@@ -364,21 +364,38 @@ export function modernWorldNativeRoundtable(
 }
 
 /**
- * True when spoken turns narrate QA / cache-isolation / gold-ring refusal meta
- * instead of answering the seeker's scholarly question.
+ * True when spoken turns narrate QA / cache-isolation meta instead of answering
+ * the seeker's question. Bare gold-ring evidence (Muslim 2089, தங்க மோதிரம்,
+ * රන් මුදු) on a gold topic is legitimate scholarly dialogue — not meta.
  */
 export function looksLikeMetaCacheIsolationDialogue(
   turns: readonly Pick<RoundtableTurn, 'text'>[] | undefined,
 ): boolean {
   if (!turns?.length) return false;
   const blob = turns.map(t => t.text).join('\n');
-  return (
-    /refuse to paste|Sahih Muslim 2089 gold-ring|gold-jewelry analysis|unrelated prior dossier|previous gold|cache(?:d)? gold|question-keyed placeholder|never recycle an unrelated|leftover answer from a prior gold|gold-ring (?:material|citations|toxicology)|QUESTION-BOUND FALLBACK|Retry synthesis when ready/i.test(
+  // English: require refusal / prior-job / placeholder framing — not citations alone.
+  if (
+    /refuse to paste|Sahih Muslim 2089 gold-ring material|gold-jewelry analysis|unrelated prior dossier|previous gold(?:-jewelry|-ring)?|cache(?:d)? gold|question-keyed placeholder|never recycle an unrelated|leftover answer from a prior gold|gold-ring (?:material|citations|toxicology)|QUESTION-BOUND FALLBACK|Retry synthesis when ready\. Until then/i.test(
       blob,
-    ) ||
-    /தங்க\s*மோதிர|முஸ்லிம்\s*2089|முந்தைய\s*(?:தங்க|ஆவண|ஆய்வு)|தங்க\s*ஆபரண|புறக்கணி(?:க்க|ப்)|மறு(?:க்க|ப்).{0,40}தங்க/i.test(
+    )
+  ) {
+    return true;
+  }
+  // Tamil: prior-job / refuse-to-inject framing only (not ordinary தங்க மோதிரம் rulings).
+  if (
+    /முந்தைய\s*(?:தங்க|ஆவண|ஆய்வு|டாஸியர்)|(?:ஒட்டா|ஒட்டி|போட|செருக).{0,40}தங்க|தங்க.{0,40}(?:மறுக்க|புறக்கணி)|கேச்|cache\s*isolation|முந்தைய\s*தங்க\s*மோதிர/i.test(
       blob,
-    ) ||
-    /රන්\s*මුදු|මුස්ලිම්\s*2089|පෙර\s*(?:රන්|ලේඛන|පර්යේෂණ)|රන්\s*ආභරණ/i.test(blob)
-  );
+    )
+  ) {
+    return true;
+  }
+  // Sinhala: prior-job / refuse-to-inject framing only (not ordinary රන් මුදු rulings).
+  if (
+    /පෙර\s*(?:රන්|ලේඛන|පර්යේෂණ|ඩොසියේ)|(?:එකතු|ඇලවු|අලව).{0,40}රන්|රන්.{0,40}ප්‍රතික්ෂේප|cache\s*isolation/i.test(
+      blob,
+    )
+  ) {
+    return true;
+  }
+  return false;
 }
