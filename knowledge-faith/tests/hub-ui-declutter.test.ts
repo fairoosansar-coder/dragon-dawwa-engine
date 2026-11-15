@@ -36,6 +36,22 @@ describe('DD-146 Hub research UI declutter', () => {
     assert.equal(boardSource.includes('roundtable-save-report-btn'), false);
   });
 
+  it('does not clip the More menu under executive-verdict overflow-hidden', () => {
+    // Section uses overflow-visible so the absolute More menu can paint below the card;
+    // decorative top stripe keeps its own overflow-hidden + rounded clip.
+    assert.match(
+      boardSource,
+      /data-testid="seven-agent-executive-banner"[\s\S]{0,220}?overflow-visible rounded-3xl/,
+    );
+    assert.equal(
+      /data-testid="seven-agent-executive-banner"[\s\S]{0,220}?overflow-hidden rounded-3xl/.test(
+        boardSource,
+      ),
+      false,
+    );
+    assert.match(boardSource, /board-more-menu/);
+  });
+
   it('hides ResearchFrame Full Report / Roundtable CTAs while idle or when 7-agent board owns actions', () => {
     assert.match(deskSource, /!sevenAgentDossier && liveModel && finished/);
     assert.match(deskSource, /ResearchActionRow/);

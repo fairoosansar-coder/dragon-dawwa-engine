@@ -390,15 +390,15 @@ export function SevenAgentResearchBoard({
       <section
         data-testid="seven-agent-executive-banner"
         style={{ backgroundColor: '#FFFFFF', color: '#1C1917', borderColor: '#E2D5B5' }}
-        className="relative overflow-hidden rounded-3xl border bg-white p-5 text-stone-900 shadow-sm sm:p-7"
+        className="relative overflow-visible rounded-3xl border bg-white p-5 text-stone-900 shadow-sm sm:p-7"
       >
-        {/* Top Gilded Accent Bar */}
+        {/* Top Gilded Accent Bar — clip here so the More menu is not trapped by section overflow */}
         <div
           aria-hidden
           style={{
             background: 'linear-gradient(90deg, #073C30 0%, #C89D54 50%, #073C30 100%)',
           }}
-          className="absolute inset-x-0 top-0 h-1.5"
+          className="pointer-events-none absolute inset-x-0 top-0 h-1.5 overflow-hidden rounded-t-[1.4rem]"
         />
 
         <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
@@ -515,7 +515,7 @@ export function SevenAgentResearchBoard({
                   borderColor: '#E2D5B5',
                   color: '#1C1917',
                 }}
-                className="absolute right-0 z-20 mt-1.5 w-56 rounded-xl border p-2 shadow-md"
+                className="absolute right-0 z-30 mt-1.5 w-56 rounded-xl border p-2 shadow-md"
               >
                 <button
                   type="button"
