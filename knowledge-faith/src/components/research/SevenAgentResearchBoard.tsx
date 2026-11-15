@@ -1,14 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Award,
   Bookmark,
   BookmarkCheck,
   BookOpen,
   Check,
+  ChevronDown,
+  ChevronUp,
   FlaskConical,
   Headphones,
   Layers,
   Mic,
+  MoreHorizontal,
   Pause,
   Play,
   Radio,
@@ -161,6 +164,10 @@ export function SevenAgentResearchBoard({
 }) {
   const { isDossierSaved, toggleDossier, lang: uiLang, t } = useApp();
   const [internalRoundtableOpen, setInternalRoundtableOpen] = useState(roundtableOpen);
+  // Progressive disclosure: verdict first; full 7-agent + science + roundtable on Expand.
+  const [detailExpanded, setDetailExpanded] = useState(Boolean(roundtableOpen));
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement | null>(null);
   const [voiceProfile, setVoiceProfile] = useStored<HadithVoiceProfileId>(
     'kf-hadith-voice-profile',
     'tariq',
@@ -170,13 +177,24 @@ export function SevenAgentResearchBoard({
 
   useEffect(() => {
     setInternalRoundtableOpen(roundtableOpen);
+    if (roundtableOpen) setDetailExpanded(true);
   }, [roundtableOpen]);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const close = (event: MouseEvent) => {
+      if (!moreMenuRef.current?.contains(event.target as Node)) setMoreOpen(false);
+    };
+    window.addEventListener('mousedown', close);
+    return () => window.removeEventListener('mousedown', close);
+  }, [moreOpen]);
 
   const isRoundtableVisible = onToggleRoundtable ? roundtableOpen : internalRoundtableOpen;
   const setRoundtableVisible = (next: boolean) => {
     setInternalRoundtableOpen(next);
     onToggleRoundtable?.(next);
     if (next) {
+      setDetailExpanded(true);
       window.setTimeout(() => {
         // scroll-mt on the studio clears the sticky top header (h-14 / z-40).
         document
@@ -231,6 +249,19 @@ export function SevenAgentResearchBoard({
       sid,
       lines,
       lines.map(() => agent.personaName),
+    );
+  };
+
+  const verdictSessionId = `${sessionPrefix}verdict`;
+
+  const handlePlayVerdict = () => {
+    const lines = splitTextIntoSpeechLines(
+      [dossier.verdictHeadline, dossier.executiveSummary].join('. '),
+    );
+    playLines(
+      verdictSessionId,
+      lines,
+      lines.map(() => 'Sheikh Yusuf al-Azhari'),
     );
   };
 
@@ -308,6 +339,8 @@ export function SevenAgentResearchBoard({
   const isRoundtableLoading = lineTts.isLoadingSession(roundtableSessionId);
   const isSciencePlaying = lineTts.isPlayingSession(scienceSessionId);
   const isScienceLoading = lineTts.isLoadingSession(scienceSessionId);
+  const isVerdictPlaying = lineTts.isPlayingSession(verdictSessionId);
+  const isVerdictLoading = lineTts.isLoadingSession(verdictSessionId);
   const loadingText = loadingAudioLabel(labelLang);
   const savedInLibrary = isDossierSaved(dossier.id) || isDossierSaved(dossier.question);
   const saveButtonLabel = savedInLibrary
@@ -321,6 +354,35 @@ export function SevenAgentResearchBoard({
       : lang === 'si'
         ? 'පර්යේෂණය සුරකින්න'
         : 'Save Research to Library';
+  const expandDetailLabel = detailExpanded
+    ? lang === 'ta'
+      ? 'விவரத்தை மறை'
+      : lang === 'si'
+        ? 'විස්තර සඟවන්න'
+        : 'Hide full detail'
+    : lang === 'ta'
+      ? 'முழு 7-முகவர் விவரத்தை விரிவாக்கு →'
+      : lang === 'si'
+        ? 'සම්පූර්ණ නියෝජිත 7 විස්තරය විහිදුවන්න →'
+        : 'Expand for full 7-agent detail →';
+  const roundtableLabel = isRoundtableLoading
+    ? loadingText
+    : isRoundtablePlaying
+      ? lang === 'ta'
+        ? 'வட்டமேசையை இடைநிறுத்து'
+        : lang === 'si'
+          ? 'වටමේසය විරාම කරන්න'
+          : 'Pause Roundtable'
+      : lang === 'ta'
+        ? 'வட்டமேசை'
+        : lang === 'si'
+          ? 'වටමේසය'
+          : 'Open Roundtable';
+  const listenVerdictLabel = isVerdictLoading
+    ? loadingText
+    : isVerdictPlaying
+      ? t.pause
+      : listenLabel;
 
   return (
     <div data-testid="seven-agent-research-board" className={`${profileFontClass(lang)} space-y-6`}>
@@ -346,13 +408,13 @@ export function SevenAgentResearchBoard({
               className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold tracking-wider"
             >
               <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-              <span>7-AGENT MULTIDISCIPLINARY DOSSIER</span>
+              <span>Executive Verdict</span>
             </span>
             <span
               style={{ backgroundColor: '#FEF3C7', color: '#78350F', borderColor: '#F59E0B' }}
               className="rounded-full border px-3 py-1 font-mono text-xs font-extrabold"
             >
-              {dossier.confidenceScore}% CONFIDENCE · {dossier.verdictClassification}
+              {dossier.confidenceScore}% · {dossier.verdictClassification}
             </span>
           </div>
 
@@ -380,171 +442,222 @@ export function SevenAgentResearchBoard({
           {dossier.executiveSummary}
         </p>
 
-        {/* Voice Selector + Primary Action Bar */}
+        {/* Compact secondary actions — Listen / Roundtable visible; Save / Share / voice in More */}
         <div
+          data-testid="board-secondary-actions"
           style={{ borderColor: '#EDE6D6' }}
-          className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t pt-4"
+          className="mt-5 flex flex-wrap items-center gap-2 border-t pt-4"
         >
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              data-testid="board-open-roundtable-btn"
-              onClick={() => {
-                setRoundtableVisible(true);
-                handlePlayRoundtable(0);
-              }}
-              style={{ backgroundColor: '#073C30', color: '#F9E7B9' }}
-              className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-extrabold shadow-sm transition hover:opacity-95 cursor-pointer"
-            >
-              {isRoundtableLoading ? (
-                <AudioLoadingSpinner size={15} className="text-[#D4AF37]" />
-              ) : (
-                <Radio className="h-4 w-4 text-[#D4AF37]" aria-hidden />
-              )}
-              <span>
-                {isRoundtableLoading
-                  ? loadingText
-                  : isRoundtablePlaying
-                    ? `Pause Roundtable (${langLabel})`
-                    : `Open & Play 7-Agent Roundtable (${langLabel})`}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              data-testid="board-listen-science-btn"
-              onClick={handlePlayScienceSpotlight}
-              style={{
-                backgroundColor: '#FFFBEB',
-                color: '#78350F',
-                borderColor: '#F59E0B',
-              }}
-              className="inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold transition hover:bg-amber-100/70 cursor-pointer"
-            >
-              {isScienceLoading ? (
-                <AudioLoadingSpinner size={14} className="text-[#B45309]" />
-              ) : isSciencePlaying ? (
-                <Pause className="h-3.5 w-3.5 fill-current text-[#B45309]" aria-hidden />
-              ) : (
-                <FlaskConical className="h-3.5 w-3.5 text-[#B45309]" aria-hidden />
-              )}
-              <span>
-                {isScienceLoading
-                  ? loadingText
-                  : isSciencePlaying
-                    ? `${t.pause} · 1 Step Ahead`
-                    : `${listenLabel}: 1 Step Ahead of Science (${langLabel})`}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              data-testid="save-seven-agent-report-btn"
-              aria-pressed={savedInLibrary}
-              onClick={() => toggleDossier(dossier)}
-              style={
-                savedInLibrary
-                  ? {
-                      backgroundColor: '#FEF3C7',
-                      color: '#78350F',
-                      borderColor: '#D4AF37',
-                    }
-                  : {
-                      backgroundColor: '#FFFFFF',
-                      color: '#073C30',
-                      borderColor: '#D6C8A9',
-                    }
-              }
-              className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-extrabold shadow-2xs transition hover:bg-amber-50/70 cursor-pointer"
-            >
-              {savedInLibrary ? (
-                <BookmarkCheck className="h-3.5 w-3.5 text-[#B45309]" aria-hidden />
-              ) : (
-                <Bookmark className="h-3.5 w-3.5 text-[#073C30]" aria-hidden />
-              )}
-              <span>{saveButtonLabel}</span>
-            </button>
-
-            {savedInLibrary && (
-              <a
-                href="#/saved"
-                data-testid="view-in-saved-link"
-                style={{ color: '#073C30' }}
-                className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-extrabold underline hover:bg-emerald-100"
-              >
-                {lang === 'ta'
-                  ? 'சேமித்தவற்றில் காண்க →'
-                  : lang === 'si'
-                    ? 'සුරැකි ලැයිස්තුව බලන්න →'
-                    : 'View in Saved →'}
-              </a>
+          <button
+            type="button"
+            data-testid="board-listen-verdict-btn"
+            onClick={handlePlayVerdict}
+            style={{
+              backgroundColor: isVerdictPlaying || isVerdictLoading ? '#FEF3C7' : '#FFFFFF',
+              color: '#073C30',
+              borderColor: '#D6C8A9',
+            }}
+            className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition hover:bg-stone-50 cursor-pointer"
+          >
+            {isVerdictLoading ? (
+              <AudioLoadingSpinner size={14} className="text-[#B45309]" />
+            ) : isVerdictPlaying ? (
+              <Pause className="h-3.5 w-3.5 fill-current text-[#B45309]" aria-hidden />
+            ) : (
+              <Volume2 className="h-3.5 w-3.5 text-[#B45309]" aria-hidden />
             )}
+            <span>{listenVerdictLabel}</span>
+          </button>
 
+          <button
+            type="button"
+            data-testid="board-open-roundtable-btn"
+            onClick={() => {
+              setRoundtableVisible(true);
+              handlePlayRoundtable(0);
+            }}
+            style={{ backgroundColor: '#073C30', color: '#F9E7B9' }}
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold shadow-sm transition hover:opacity-95 cursor-pointer"
+          >
+            {isRoundtableLoading ? (
+              <AudioLoadingSpinner size={14} className="text-[#D4AF37]" />
+            ) : (
+              <Radio className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
+            )}
+            <span>{roundtableLabel}</span>
+          </button>
+
+          <div className="relative" ref={moreMenuRef}>
             <button
               type="button"
-              data-testid="board-share-wall-btn"
-              onClick={() => void handleShareToFaithWall()}
+              data-testid="board-more-actions-btn"
+              aria-expanded={moreOpen}
+              aria-haspopup="menu"
+              onClick={() => setMoreOpen(open => !open)}
               style={{
-                backgroundColor: '#F8F5EC',
+                backgroundColor: '#FFFFFF',
                 color: '#073C30',
                 borderColor: '#D6C8A9',
               }}
-              className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-bold transition hover:bg-stone-100 cursor-pointer"
+              className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition hover:bg-stone-50 cursor-pointer"
             >
-              <Sparkles className="h-3.5 w-3.5 text-[#B45309]" aria-hidden />
-              <span>Share to Faith Wall</span>
+              <MoreHorizontal className="h-3.5 w-3.5" aria-hidden />
+              <span>
+                {lang === 'ta' ? 'மேலும்' : lang === 'si' ? 'තවත්' : 'More'}
+              </span>
             </button>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <select
-              aria-label="Select ElevenLabs v4 Voice"
-              value={profile.id}
-              onChange={e => setVoiceProfile(e.target.value as HadithVoiceProfileId)}
-              style={{
-                backgroundColor: '#FAF7F0',
-                color: '#1C1917',
-                borderColor: '#D6C8A9',
-              }}
-              className="rounded-xl border px-2.5 py-1 text-xs font-semibold outline-none"
-            >
-              {HADITH_VOICE_PROFILES.map(v => (
-                <option
-                  key={v.id}
-                  value={v.id}
-                  style={{ backgroundColor: '#FFFFFF', color: '#1C1917' }}
+            {moreOpen && (
+              <div
+                role="menu"
+                data-testid="board-more-menu"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderColor: '#E2D5B5',
+                  color: '#1C1917',
+                }}
+                className="absolute right-0 z-20 mt-1.5 w-56 rounded-xl border p-2 shadow-md"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid="save-seven-agent-report-btn"
+                  aria-pressed={savedInLibrary}
+                  onClick={() => {
+                    toggleDossier(dossier);
+                    setMoreOpen(false);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-[#073C30] hover:bg-stone-50 cursor-pointer"
                 >
-                  {v.label}
-                </option>
-              ))}
-            </select>
-
-            <div
-              style={{ backgroundColor: '#F5EFE2', borderColor: '#E2D5B5' }}
-              className="inline-flex items-center gap-1 rounded-xl border p-0.5"
-            >
-              {HADITH_PLAYBACK_SPEEDS.map(rate => {
-                const active = speed === rate;
-                return (
-                  <button
-                    key={rate}
-                    type="button"
-                    onClick={() => {
-                      setSpeed(rate);
-                      setAudioPlaybackRate(rate);
-                    }}
-                    style={{
-                      backgroundColor: active ? '#073C30' : 'transparent',
-                      color: active ? '#F9E7B9' : '#3F3A32',
-                    }}
-                    className="rounded-lg px-2 py-0.5 font-mono text-[11px] font-bold cursor-pointer"
+                  {savedInLibrary ? (
+                    <BookmarkCheck className="h-3.5 w-3.5 text-[#B45309]" aria-hidden />
+                  ) : (
+                    <Bookmark className="h-3.5 w-3.5" aria-hidden />
+                  )}
+                  <span>{saveButtonLabel}</span>
+                </button>
+                {savedInLibrary && (
+                  <a
+                    href="#/saved"
+                    role="menuitem"
+                    data-testid="view-in-saved-link"
+                    onClick={() => setMoreOpen(false)}
+                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-[#073C30] underline hover:bg-stone-50"
                   >
-                    {rate}x
-                  </button>
-                );
-              })}
-            </div>
+                    {lang === 'ta'
+                      ? 'சேமித்தவற்றில் காண்க →'
+                      : lang === 'si'
+                        ? 'සුරැකි ලැයිස්තුව බලන්න →'
+                        : 'View in Saved →'}
+                  </a>
+                )}
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid="board-share-wall-btn"
+                  onClick={() => {
+                    void handleShareToFaithWall();
+                    setMoreOpen(false);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-[#073C30] hover:bg-stone-50 cursor-pointer"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-[#B45309]" aria-hidden />
+                  <span>
+                    {lang === 'ta'
+                      ? 'Faith Wall-இல் பகிர்'
+                      : lang === 'si'
+                        ? 'Faith Wall වෙත බෙදාගන්න'
+                        : 'Share to Faith Wall'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid="board-listen-science-btn"
+                  onClick={() => {
+                    setDetailExpanded(true);
+                    handlePlayScienceSpotlight();
+                    setMoreOpen(false);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-[#073C30] hover:bg-stone-50 cursor-pointer"
+                >
+                  <FlaskConical className="h-3.5 w-3.5 text-[#B45309]" aria-hidden />
+                  <span>
+                    {isSciencePlaying
+                      ? `${t.pause} · Science`
+                      : `${listenLabel} · Science`}
+                  </span>
+                </button>
+                <div
+                  style={{ borderColor: '#EDE6D6' }}
+                  className="mt-1 border-t pt-2"
+                >
+                  <label className="block px-2.5 pb-1 text-[10px] font-bold uppercase tracking-wide text-stone-500">
+                    Voice · Speed
+                  </label>
+                  <select
+                    aria-label="Select voice profile"
+                    value={profile.id}
+                    onChange={e => setVoiceProfile(e.target.value as HadithVoiceProfileId)}
+                    style={{
+                      backgroundColor: '#FAF7F0',
+                      color: '#1C1917',
+                      borderColor: '#D6C8A9',
+                    }}
+                    className="mx-2 mb-2 w-[calc(100%-1rem)] rounded-lg border px-2 py-1 text-xs font-semibold outline-none"
+                  >
+                    {HADITH_VOICE_PROFILES.map(v => (
+                      <option key={v.id} value={v.id}>
+                        {v.label}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="mx-2 flex flex-wrap gap-1 pb-1">
+                    {HADITH_PLAYBACK_SPEEDS.map(rate => {
+                      const active = speed === rate;
+                      return (
+                        <button
+                          key={rate}
+                          type="button"
+                          onClick={() => {
+                            setSpeed(rate);
+                            setAudioPlaybackRate(rate);
+                          }}
+                          style={{
+                            backgroundColor: active ? '#073C30' : '#FAF7F0',
+                            color: active ? '#F9E7B9' : '#3F3A32',
+                            borderColor: '#D6C8A9',
+                          }}
+                          className="rounded-md border px-2 py-0.5 font-mono text-[11px] font-bold cursor-pointer"
+                        >
+                          {rate}x
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
+
+          <button
+            type="button"
+            data-testid="board-expand-detail-btn"
+            aria-expanded={detailExpanded}
+            onClick={() => setDetailExpanded(open => !open)}
+            style={{
+              backgroundColor: detailExpanded ? '#F5EFE2' : '#073C30',
+              color: detailExpanded ? '#073C30' : '#F9E7B9',
+              borderColor: detailExpanded ? '#D6C8A9' : '#073C30',
+            }}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-extrabold transition hover:opacity-95 cursor-pointer"
+          >
+            <span>{expandDetailLabel}</span>
+            {detailExpanded ? (
+              <ChevronUp className="h-3.5 w-3.5" aria-hidden />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+            )}
+          </button>
         </div>
 
         {wallToast && (
@@ -577,7 +690,7 @@ export function SevenAgentResearchBoard({
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <span className="inline-flex h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-600" />
               <span className="font-mono text-[11px] font-bold">
-                ElevenLabs v4 · Reading Line {lineTts.currentIndex + 1} of {lineTts.lines.length}
+                Reading line {lineTts.currentIndex + 1} of {lineTts.lines.length}
               </span>
               {lineTts.nextLineReady && (
                 <span
@@ -625,6 +738,8 @@ export function SevenAgentResearchBoard({
         )}
       </section>
 
+      {detailExpanded && (
+      <div data-testid="seven-agent-expanded-detail" className="space-y-6">
       {/* 2. Luminous Warm Ivory Spotlight Card: Modern Science & Prophetic Foresight (1 Step Ahead of Modern Science) */}
       <section
         data-testid="modern-science-foresight-card"
@@ -883,13 +998,27 @@ export function SevenAgentResearchBoard({
                       <button
                         type="button"
                         data-testid={`listen-agent-${agent.agentNumber}-btn`}
+                        aria-label={
+                          isAgentLoading
+                            ? loadingText
+                            : isAgentPlaying
+                              ? t.pause
+                              : `${listenLabel} · ${agent.personaName}`
+                        }
+                        title={
+                          isAgentLoading
+                            ? loadingText
+                            : isAgentPlaying
+                              ? t.pause
+                              : `${listenLabel} (${langLabel})`
+                        }
                         onClick={() => handlePlayAgent(agent)}
                         style={{
                           backgroundColor: isAgentPlaying || isAgentLoading ? '#FEF3C7' : '#FAF7F0',
                           color: isAgentPlaying || isAgentLoading ? '#78350F' : '#073C30',
                           borderColor: isAgentPlaying || isAgentLoading ? '#F59E0B' : '#D6C8A9',
                         }}
-                        className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold cursor-pointer"
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-lg border cursor-pointer"
                       >
                         {isAgentLoading ? (
                           <AudioLoadingSpinner size={12} className="text-[#B45309]" />
@@ -898,13 +1027,6 @@ export function SevenAgentResearchBoard({
                         ) : (
                           <Volume2 className="h-3 w-3 text-[#B45309]" aria-hidden />
                         )}
-                        <span>
-                          {isAgentLoading
-                            ? loadingText
-                            : isAgentPlaying
-                              ? t.pause
-                              : `${listenLabel} (${langLabel})`}
-                        </span>
                       </button>
                     </div>
                   </div>
@@ -1061,7 +1183,7 @@ export function SevenAgentResearchBoard({
               data-testid="roundtable-play-all-btn"
               onClick={() => handlePlayRoundtable(0)}
               style={{ backgroundColor: '#073C30', color: '#F9E7B9' }}
-              className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-extrabold shadow-xs transition hover:opacity-95 cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-extrabold shadow-xs transition hover:opacity-95 cursor-pointer"
             >
               {isRoundtableLoading ? (
                 <AudioLoadingSpinner size={15} className="text-[#D4AF37]" />
@@ -1074,55 +1196,29 @@ export function SevenAgentResearchBoard({
                 {isRoundtableLoading
                   ? loadingText
                   : isRoundtablePlaying
-                    ? 'Pause Roundtable Broadcast'
-                    : `Play Roundtable Broadcast (${dossier.roundtableTurns.length} Speakers)`}
+                    ? 'Pause'
+                    : `Play (${dossier.roundtableTurns.length})`}
               </span>
             </button>
 
             <button
               type="button"
-              data-testid="roundtable-save-report-btn"
-              aria-pressed={savedInLibrary}
-              onClick={() => toggleDossier(dossier)}
-              style={
-                savedInLibrary
-                  ? {
-                      backgroundColor: '#FEF3C7',
-                      color: '#78350F',
-                      borderColor: '#D4AF37',
-                    }
-                  : {
-                      backgroundColor: '#FFFFFF',
-                      color: '#073C30',
-                      borderColor: '#D6C8A9',
-                    }
-              }
-              className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-extrabold transition hover:bg-amber-50/70 cursor-pointer"
-            >
-              {savedInLibrary ? (
-                <BookmarkCheck className="h-3.5 w-3.5 text-[#B45309]" aria-hidden />
-              ) : (
-                <Bookmark className="h-3.5 w-3.5 text-[#073C30]" aria-hidden />
-              )}
-              <span>{saveButtonLabel}</span>
-            </button>
-
-            <button
-              type="button"
+              data-testid="roundtable-toggle-transcript-btn"
               onClick={() => setRoundtableVisible(!isRoundtableVisible)}
               style={{
                 backgroundColor: '#FFFFFF',
                 color: '#073C30',
                 borderColor: '#D6C8A9',
               }}
-              className="rounded-full border px-3.5 py-1.5 text-xs font-bold hover:bg-stone-50 cursor-pointer"
+              className="rounded-lg border px-3 py-1.5 text-xs font-bold hover:bg-stone-50 cursor-pointer"
             >
-              {isRoundtableVisible ? 'Compact View' : 'Expand Transcript'}
+              {isRoundtableVisible ? 'Hide speakers' : 'Show speakers'}
             </button>
           </div>
         </div>
 
-        <div className="mt-4 space-y-3">
+        {isRoundtableVisible && (
+        <div className="mt-4 space-y-3" data-testid="roundtable-speaker-list">
           {dossier.roundtableTurns.map((turn, idx) => {
             const isTurnActive =
               lineTts.sessionId === roundtableSessionId &&
@@ -1180,17 +1276,20 @@ export function SevenAgentResearchBoard({
                   <span
                     style={{ color: isTurnActive ? '#B45309' : '#073C30' }}
                     className="inline-flex items-center gap-1.5 text-[11px] font-bold"
+                    aria-hidden={!isTurnActive}
                   >
                     {isTurnLoading ? (
                       <>
                         <AudioLoadingSpinner size={13} className="text-[#B45309]" />
                         <span>{loadingText}</span>
                       </>
-                    ) : (
+                    ) : isTurnActive ? (
                       <>
                         <Headphones className="h-3 w-3" aria-hidden />
-                        <span>{isTurnActive ? 'Speaking now…' : 'Tap to hear speaker'}</span>
+                        <span>Speaking…</span>
                       </>
+                    ) : (
+                      <Headphones className="h-3.5 w-3.5 opacity-60" aria-hidden />
                     )}
                   </span>
                 </div>
@@ -1206,7 +1305,10 @@ export function SevenAgentResearchBoard({
             );
           })}
         </div>
+        )}
       </section>
+      </div>
+      )}
     </div>
   );
 }

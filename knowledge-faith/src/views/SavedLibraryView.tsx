@@ -4,7 +4,6 @@ import {
   BookOpen,
   ChevronDown,
   ChevronUp,
-  FlaskConical,
   ScrollText,
   Sparkles,
   Trash2,
@@ -213,14 +212,7 @@ export function SavedLibraryView() {
                         style={{ backgroundColor: '#FEF3C7', color: '#78350F', borderColor: '#F59E0B' }}
                         className="rounded-full border px-2.5 py-0.5 font-mono text-[11px] font-extrabold"
                       >
-                        {dossier.confidenceScore}% CONFIDENCE · 7/7 AGENTS
-                      </span>
-                      <span
-                        style={{ backgroundColor: '#CCFBF1', color: '#115E59', borderColor: '#14B8A6' }}
-                        className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-extrabold"
-                      >
-                        <FlaskConical className="h-3 w-3" aria-hidden />
-                        <span>1 Step Ahead of Modern Science</span>
+                        {dossier.confidenceScore}% · Verdict
                       </span>
                       <span
                         style={
@@ -280,7 +272,7 @@ export function SavedLibraryView() {
                   </>
                 )}
 
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-stone-200/30 pt-3.5">
+                <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-stone-200/30 pt-3.5">
                   <button
                     type="button"
                     data-testid="reopen-saved-dossier-btn"
@@ -290,7 +282,7 @@ export function SavedLibraryView() {
                       if (isExpanded) setOpenRoundtableForId(null);
                     }}
                     style={{ backgroundColor: '#073C30', color: '#F9E7B9' }}
-                    className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-extrabold shadow-xs hover:opacity-95 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-extrabold shadow-xs hover:opacity-95 cursor-pointer"
                   >
                     <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
                     <span>
@@ -313,17 +305,21 @@ export function SavedLibraryView() {
                     )}
                   </button>
 
-                  <a
-                    href={`#/hub/research?lang=${lang}&q=${encodeURIComponent(dossier.question)}`}
-                    style={{ color: isObsidian ? '#E5C158' : '#073C30' }}
-                    className="text-xs font-bold underline"
-                  >
-                    {lang === 'ta'
-                      ? 'ஆராய்ச்சி ஸ்டூடியோவில் திற →'
-                      : lang === 'si'
-                        ? 'පර්යේෂණ ස්ටුඩියෝවේ විවෘත කරන්න →'
-                        : 'Open in Research Studio →'}
-                  </a>
+                  {/* Studio deep-link only after expand — keeps collapsed card to one CTA */}
+                  {isExpanded && (
+                    <a
+                      href={`#/hub/research?lang=${lang}&q=${encodeURIComponent(dossier.question)}`}
+                      data-testid="saved-open-studio-link"
+                      style={{ color: isObsidian ? '#E5C158' : '#57534E' }}
+                      className="text-xs font-medium underline"
+                    >
+                      {lang === 'ta'
+                        ? 'ஸ்டூடியோவில் மீண்டும் கேள் →'
+                        : lang === 'si'
+                          ? 'ස්ටුඩියෝවේ නැවත අසන්න →'
+                          : 'Ask again in Studio →'}
+                    </a>
+                  )}
                 </div>
 
                 {/* Expanded once: full 7-Agent + Modern Science (board owns Listen / Roundtable).

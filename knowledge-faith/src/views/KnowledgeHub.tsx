@@ -283,13 +283,13 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
         <div className="relative flex min-h-[116px] flex-col justify-between gap-3 px-4 py-3.5 sm:max-h-[128px] sm:flex-row sm:items-center sm:px-6 sm:py-4">
           <div className="min-w-0 max-w-xl text-left">
             <p style={{ color: '#E6C665' }} className="text-[11px] font-semibold tracking-widest text-[#E6C665]">
-              ✦ INSTITUTIONAL RESEARCH STUDIO
+              ✦ Knowledge Hub
             </p>
             <h1 style={{ color: '#FFFFFF' }} className="mt-1 font-serif text-lg font-bold tracking-tight text-[#FFFFFF] sm:text-xl">
-              Explore Deep Foundations, Sources & Evidence
+              Ask a question. Read the verdict.
             </h1>
             <p style={{ color: '#D6D3D1' }} className="mt-0.5 text-xs leading-snug text-stone-300">
-              Multidisciplinary AI synthesis across classical Tafsir, Kutub al-Sittah, Fiqh, and verified chains.
+              Expand for full 7-agent detail when you want the evidence matrix.
             </p>
           </div>
           <div className="flex shrink-0 flex-col items-start sm:items-end sm:text-right">
