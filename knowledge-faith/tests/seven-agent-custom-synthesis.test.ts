@@ -56,7 +56,9 @@ describe('custom seven-agent synthesis path', () => {
     assert.match(boardSource, /const \{ isDossierSaved, toggleDossier, lang: uiLang, t \} = useApp\(\)/);
     assert.match(boardSource, /labelLang/);
     assert.match(boardSource, /listenLabel/);
-    assert.match(boardSource, /Open & Play 7-Agent Roundtable \(\$\{langLabel\}\)/);
+    assert.match(boardSource, /roundtableLabel/);
     assert.equal(boardSource.includes('Open & Play 7-Agent Roundtable (English)'), false);
+    assert.equal(boardSource.includes('Open & Play 7-Agent Roundtable (${langLabel})'), false);
   });
 });
+

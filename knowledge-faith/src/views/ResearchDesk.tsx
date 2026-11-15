@@ -314,34 +314,38 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
           actions={
             <>
               <PodcastHostChip tone="plate" />
-              <ResearchActionRow
-                onFullReport={() => {
-                  const target =
-                    document.querySelector('[data-testid="seven-agent-research-board"]') ??
-                    document.getElementById('research-full-report');
-                  target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }}
-                onRoundtable={() => {
-                  if (!activeResearchQuery && question.trim().length >= 3) {
-                    setRoundtableOpen(true);
-                    void submit(undefined, { asked: question.trim() });
-                    return;
-                  }
-                  setRoundtableOpen(true);
-                  window.setTimeout(() => {
-                    const studio = document.getElementById('seven-agent-roundtable-studio');
-                    if (studio) {
-                      studio.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      const playBtn = studio.querySelector(
-                        '[data-testid="roundtable-play-all-btn"]',
-                      ) as HTMLButtonElement | null;
-                      playBtn?.click();
-                    } else if (job && offersPodcast) {
-                      window.location.hash = `#/podcast?job=${job.id}&lang=${lang}`;
+              {/* Idle: input + primary Ask only. Legacy full-report row appears only when
+                  a finished desk report exists without a 7-agent board (board owns CTAs). */}
+              {!sevenAgentDossier && liveModel && finished ? (
+                <ResearchActionRow
+                  onFullReport={() => {
+                    const target =
+                      document.querySelector('[data-testid="seven-agent-research-board"]') ??
+                      document.getElementById('research-full-report');
+                    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                  onRoundtable={() => {
+                    if (!activeResearchQuery && question.trim().length >= 3) {
+                      setRoundtableOpen(true);
+                      void submit(undefined, { asked: question.trim() });
+                      return;
                     }
-                  }, 80);
-                }}
-              />
+                    setRoundtableOpen(true);
+                    window.setTimeout(() => {
+                      const studio = document.getElementById('seven-agent-roundtable-studio');
+                      if (studio) {
+                        studio.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        const playBtn = studio.querySelector(
+                          '[data-testid="roundtable-play-all-btn"]',
+                        ) as HTMLButtonElement | null;
+                        playBtn?.click();
+                      } else if (job && offersPodcast) {
+                        window.location.hash = `#/podcast?job=${job.id}&lang=${lang}`;
+                      }
+                    }, 80);
+                  }}
+                />
+              ) : null}
             </>
           }
         >

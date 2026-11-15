@@ -477,17 +477,16 @@ export function ResearchCapture({
                 <AudioLoadingSpinner size={14} className="text-[#D4AF37]" />
                 <span style={{ color: '#FFFFFF' }}>
                   {lang === 'ta'
-                    ? `7-முகவர் ஆய்வு · ${remainingSeconds}s…`
+                    ? `ஆய்வு நடக்கிறது · ${remainingSeconds}s…`
                     : lang === 'si'
-                      ? `නියෝජිත 7 පර්යේෂණය · ${remainingSeconds}s…`
-                      : `Running 7-Agent Research · ${remainingSeconds}s…`}
+                      ? `පර්යේෂණය ක්‍රියාත්මකයි · ${remainingSeconds}s…`
+                      : `Researching · ${remainingSeconds}s…`}
                 </span>
               </>
             ) : (
-              <>
-                <span aria-hidden>✨</span>
-                <span style={{ color: '#FFFFFF' }}>Run 7-Agent Research →</span>
-              </>
+              <span style={{ color: '#FFFFFF' }}>
+                {lang === 'ta' ? 'கேள் →' : lang === 'si' ? 'අසන්න →' : 'Ask →'}
+              </span>
             )}
           </button>
         </div>
