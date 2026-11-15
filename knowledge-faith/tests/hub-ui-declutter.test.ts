@@ -17,11 +17,36 @@ const hubSource = readFileSync(path.join(root, 'src/views/KnowledgeHub.tsx'), 'u
 describe('DD-146 Hub research UI declutter', () => {
   it('defaults the board to Executive Verdict with Expand for full 7-agent detail', () => {
     assert.match(boardSource, /detailExpanded/);
+    assert.match(boardSource, /initialDetailExpanded/);
     assert.match(boardSource, /board-expand-detail-btn/);
     assert.match(boardSource, /seven-agent-expanded-detail/);
     assert.match(boardSource, /Executive Verdict/);
     assert.match(boardSource, /Expand for full 7-agent detail/);
-    assert.match(boardSource, /useState\(Boolean\(roundtableOpen\)\)/);
+    assert.match(boardSource, /Boolean\(initialDetailExpanded \|\| roundtableOpen\)/);
+    assert.match(savedSource, /initialDetailExpanded/);
+  });
+
+  it('keeps chrome labels on UI language (labelLang), not dossier content lang', () => {
+    assert.match(boardSource, /labelLang === 'ta'/);
+    assert.match(boardSource, /const moreLabel = labelLang/);
+    assert.match(boardSource, /const shareLabel =/);
+    assert.match(boardSource, /const expandDetailLabel = detailExpanded/);
+    // Expand / Roundtable / More / Share branches must not key off dossier `lang ===`.
+    const chromeBlock = boardSource.slice(
+      boardSource.indexOf('const expandDetailLabel'),
+      boardSource.indexOf('const listenVerdictLabel'),
+    );
+    assert.equal(/[^a-zA-Z]lang === 'ta'/.test(chromeBlock), false);
+  });
+
+  it('uses a disclosure More panel (not ARIA menu) with Escape close', () => {
+    assert.match(boardSource, /aria-controls="board-more-panel"/);
+    assert.match(boardSource, /id="board-more-panel"/);
+    assert.match(boardSource, /event\.key === 'Escape'/);
+    assert.match(boardSource, /closeMorePanel\(true\)/);
+    assert.equal(boardSource.includes('role="menu"'), false);
+    assert.equal(boardSource.includes('role="menuitem"'), false);
+    assert.equal(boardSource.includes('aria-haspopup="menu"'), false);
   });
 
   it('keeps Listen + Roundtable as compact secondary actions; Save/Share live in More menu', () => {

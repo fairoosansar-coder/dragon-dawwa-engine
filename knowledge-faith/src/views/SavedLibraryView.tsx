@@ -329,6 +329,7 @@ export function SavedLibraryView() {
                     <SevenAgentResearchBoard
                       dossier={dossier}
                       lang={contentLang}
+                      initialDetailExpanded
                       roundtableOpen={openRoundtableForId === dossier.id}
                       onToggleRoundtable={open =>
                         setOpenRoundtableForId(open ? dossier.id : null)

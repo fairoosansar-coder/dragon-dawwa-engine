@@ -156,24 +156,37 @@ export function SevenAgentResearchBoard({
   lang,
   roundtableOpen = false,
   onToggleRoundtable,
+  /** When true (e.g. Saved Library already expanded), show full 7-agent detail without a second Expand gate. */
+  initialDetailExpanded = false,
 }: {
   dossier: SevenAgentResearchDossier;
   lang: Lang;
   roundtableOpen?: boolean;
   onToggleRoundtable?: (open: boolean) => void;
+  initialDetailExpanded?: boolean;
 }) {
   const { isDossierSaved, toggleDossier, lang: uiLang, t } = useApp();
   const [internalRoundtableOpen, setInternalRoundtableOpen] = useState(roundtableOpen);
-  // Progressive disclosure: verdict first; full 7-agent + science + roundtable on Expand.
-  const [detailExpanded, setDetailExpanded] = useState(Boolean(roundtableOpen));
+  // Progressive disclosure: Studio defaults to verdict; Saved Library can open detail immediately.
+  const [detailExpanded, setDetailExpanded] = useState(
+    Boolean(initialDetailExpanded || roundtableOpen),
+  );
   const [moreOpen, setMoreOpen] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement | null>(null);
+  const moreTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [voiceProfile, setVoiceProfile] = useStored<HadithVoiceProfileId>(
     'kf-hadith-voice-profile',
     'tariq',
   );
   const [speed, setSpeed] = useStored<HadithPlaybackSpeed>('kf-hadith-voice-speed', 1);
   const [wallToast, setWallToast] = useState<string | null>(null);
+
+  const closeMorePanel = (restoreFocus = false) => {
+    setMoreOpen(false);
+    if (restoreFocus) {
+      window.setTimeout(() => moreTriggerRef.current?.focus(), 0);
+    }
+  };
 
   useEffect(() => {
     setInternalRoundtableOpen(roundtableOpen);
@@ -182,11 +195,21 @@ export function SevenAgentResearchBoard({
 
   useEffect(() => {
     if (!moreOpen) return;
-    const close = (event: MouseEvent) => {
-      if (!moreMenuRef.current?.contains(event.target as Node)) setMoreOpen(false);
+    const onPointerDown = (event: MouseEvent) => {
+      if (!moreMenuRef.current?.contains(event.target as Node)) closeMorePanel();
     };
-    window.addEventListener('mousedown', close);
-    return () => window.removeEventListener('mousedown', close);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeMorePanel(true);
+      }
+    };
+    window.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('mousedown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
+    };
   }, [moreOpen]);
 
   const isRoundtableVisible = onToggleRoundtable ? roundtableOpen : internalRoundtableOpen;
@@ -343,41 +366,55 @@ export function SevenAgentResearchBoard({
   const isVerdictLoading = lineTts.isLoadingSession(verdictSessionId);
   const loadingText = loadingAudioLabel(labelLang);
   const savedInLibrary = isDossierSaved(dossier.id) || isDossierSaved(dossier.question);
+  // Chrome copy follows active UI language (labelLang), never dossier content lang.
   const saveButtonLabel = savedInLibrary
-    ? lang === 'ta'
+    ? labelLang === 'ta'
       ? 'நூலகத்தில் சேமிக்கப்பட்டது ✓'
-      : lang === 'si'
+      : labelLang === 'si'
         ? 'පුස්තකාලයේ සුරකින ලදී ✓'
         : 'Saved in Library ✓'
-    : lang === 'ta'
+    : labelLang === 'ta'
       ? 'ஆய்வை சேமி'
-      : lang === 'si'
+      : labelLang === 'si'
         ? 'පර්යේෂණය සුරකින්න'
         : 'Save Research to Library';
   const expandDetailLabel = detailExpanded
-    ? lang === 'ta'
+    ? labelLang === 'ta'
       ? 'விவரத்தை மறை'
-      : lang === 'si'
+      : labelLang === 'si'
         ? 'විස්තර සඟවන්න'
         : 'Hide full detail'
-    : lang === 'ta'
+    : labelLang === 'ta'
       ? 'முழு 7-முகவர் விவரத்தை விரிவாக்கு →'
-      : lang === 'si'
+      : labelLang === 'si'
         ? 'සම්පූර්ණ නියෝජිත 7 විස්තරය විහිදුවන්න →'
         : 'Expand for full 7-agent detail →';
   const roundtableLabel = isRoundtableLoading
     ? loadingText
     : isRoundtablePlaying
-      ? lang === 'ta'
+      ? labelLang === 'ta'
         ? 'வட்டமேசையை இடைநிறுத்து'
-        : lang === 'si'
+        : labelLang === 'si'
           ? 'වටමේසය විරාම කරන්න'
           : 'Pause Roundtable'
-      : lang === 'ta'
+      : labelLang === 'ta'
         ? 'வட்டமேசை'
-        : lang === 'si'
+        : labelLang === 'si'
           ? 'වටමේසය'
           : 'Open Roundtable';
+  const moreLabel = labelLang === 'ta' ? 'மேலும்' : labelLang === 'si' ? 'තවත්' : 'More';
+  const shareLabel =
+    labelLang === 'ta'
+      ? 'Faith Wall-இல் பகிர்'
+      : labelLang === 'si'
+        ? 'Faith Wall වෙත බෙදාගන්න'
+        : 'Share to Faith Wall';
+  const viewSavedLabel =
+    labelLang === 'ta'
+      ? 'சேமித்தவற்றில் காண்க →'
+      : labelLang === 'si'
+        ? 'සුරැකි ලැයිස්තුව බලන්න →'
+        : 'View in Saved →';
   const listenVerdictLabel = isVerdictLoading
     ? loadingText
     : isVerdictPlaying
@@ -490,9 +527,11 @@ export function SevenAgentResearchBoard({
           <div className="relative" ref={moreMenuRef}>
             <button
               type="button"
+              ref={moreTriggerRef}
               data-testid="board-more-actions-btn"
+              id="board-more-actions-btn"
               aria-expanded={moreOpen}
-              aria-haspopup="menu"
+              aria-controls="board-more-panel"
               onClick={() => setMoreOpen(open => !open)}
               style={{
                 backgroundColor: '#FFFFFF',
@@ -502,14 +541,13 @@ export function SevenAgentResearchBoard({
               className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition hover:bg-stone-50 cursor-pointer"
             >
               <MoreHorizontal className="h-3.5 w-3.5" aria-hidden />
-              <span>
-                {lang === 'ta' ? 'மேலும்' : lang === 'si' ? 'තවත්' : 'More'}
-              </span>
+              <span>{moreLabel}</span>
             </button>
             {moreOpen && (
               <div
-                role="menu"
+                id="board-more-panel"
                 data-testid="board-more-menu"
+                aria-labelledby="board-more-actions-btn"
                 style={{
                   backgroundColor: '#FFFFFF',
                   borderColor: '#E2D5B5',
@@ -519,12 +557,11 @@ export function SevenAgentResearchBoard({
               >
                 <button
                   type="button"
-                  role="menuitem"
                   data-testid="save-seven-agent-report-btn"
                   aria-pressed={savedInLibrary}
                   onClick={() => {
                     toggleDossier(dossier);
-                    setMoreOpen(false);
+                    closeMorePanel(true);
                   }}
                   className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-[#073C30] hover:bg-stone-50 cursor-pointer"
                 >
@@ -538,45 +575,32 @@ export function SevenAgentResearchBoard({
                 {savedInLibrary && (
                   <a
                     href="#/saved"
-                    role="menuitem"
                     data-testid="view-in-saved-link"
-                    onClick={() => setMoreOpen(false)}
+                    onClick={() => closeMorePanel()}
                     className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-[#073C30] underline hover:bg-stone-50"
                   >
-                    {lang === 'ta'
-                      ? 'சேமித்தவற்றில் காண்க →'
-                      : lang === 'si'
-                        ? 'සුරැකි ලැයිස්තුව බලන්න →'
-                        : 'View in Saved →'}
+                    {viewSavedLabel}
                   </a>
                 )}
                 <button
                   type="button"
-                  role="menuitem"
                   data-testid="board-share-wall-btn"
                   onClick={() => {
                     void handleShareToFaithWall();
-                    setMoreOpen(false);
+                    closeMorePanel(true);
                   }}
                   className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-[#073C30] hover:bg-stone-50 cursor-pointer"
                 >
                   <Sparkles className="h-3.5 w-3.5 text-[#B45309]" aria-hidden />
-                  <span>
-                    {lang === 'ta'
-                      ? 'Faith Wall-இல் பகிர்'
-                      : lang === 'si'
-                        ? 'Faith Wall වෙත බෙදාගන්න'
-                        : 'Share to Faith Wall'}
-                  </span>
+                  <span>{shareLabel}</span>
                 </button>
                 <button
                   type="button"
-                  role="menuitem"
                   data-testid="board-listen-science-btn"
                   onClick={() => {
                     setDetailExpanded(true);
                     handlePlayScienceSpotlight();
-                    setMoreOpen(false);
+                    closeMorePanel(true);
                   }}
                   className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-[#073C30] hover:bg-stone-50 cursor-pointer"
                 >
