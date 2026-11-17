@@ -285,7 +285,7 @@ export function AyahStudyPanel({
                 const active =
                   lineTts.sessionId === tafsirSessionId &&
                   lineTts.status !== 'idle' &&
-                  lineTts.currentIndex === idx;
+                  lineTts.currentSourceIndex === idx;
                 return (
                   <p
                     key={idx}

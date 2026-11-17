@@ -188,7 +188,53 @@ test('startSession maps startIndex to the first chunk of that original turn', as
   assert.equal(fetched[0], firstTariq);
   // After expansion, turn 1's first chunk is at index = length of turn 0 chunks (=1).
   assert.equal(controller.getSnapshot().currentIndex, 1);
+  assert.equal(controller.getSnapshot().lineSourceIndices[1], 1);
   finishCurrent();
   await new Promise(r => setTimeout(r, 15));
   assert.ok(controller.getSnapshot().currentIndex >= 2);
+});
+
+test('currentSourceIndex stays on the original paragraph while multi-sentence chunks play', async () => {
+  const multiSentencePara =
+    'First sentence of the paragraph. Second sentence keeps reading. Third sentence finishes the block.';
+  const shortNext = 'Next paragraph only.';
+  let finishCurrent: () => void = () => {};
+  const sourceTrail: number[] = [];
+
+  const controller = new LineByLineTtsController({
+    fetchLineAudio: async () => 'blob:mock',
+    playAudioLine: async (_id, _src, onStarted, onEnded) => {
+      onStarted();
+      const snap = controller.getSnapshot();
+      sourceTrail.push(snap.lineSourceIndices[snap.currentIndex] ?? -1);
+      finishCurrent = onEnded;
+    },
+    pauseCurrent: () => {},
+    stopCurrent: () => {},
+  });
+
+  await controller.startSession({
+    sessionId: 'library-para-highlight',
+    lines: [multiSentencePara, shortNext],
+    lang: 'en',
+  });
+  await new Promise(r => setTimeout(r, 15));
+
+  const paraChunks = splitTextIntoSpeechLines(multiSentencePara).length;
+  assert.ok(paraChunks >= 2);
+  assert.equal(controller.getSnapshot().lineSourceIndices[0], 0);
+  assert.equal(controller.getSnapshot().sourceStartLineIndices[1], paraChunks);
+
+  for (let i = 0; i < paraChunks - 1; i++) {
+    finishCurrent();
+    await new Promise(r => setTimeout(r, 15));
+  }
+  assert.deepEqual(sourceTrail, Array(paraChunks).fill(0));
+  assert.equal(controller.getSnapshot().currentIndex, paraChunks - 1);
+  assert.equal(controller.getSnapshot().lineSourceIndices[controller.getSnapshot().currentIndex], 0);
+
+  finishCurrent();
+  await new Promise(r => setTimeout(r, 15));
+  assert.equal(controller.getSnapshot().lineSourceIndices[controller.getSnapshot().currentIndex], 1);
+  assert.ok(sourceTrail.includes(1));
 });

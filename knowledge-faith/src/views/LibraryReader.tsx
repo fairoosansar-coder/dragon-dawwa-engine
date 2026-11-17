@@ -292,8 +292,8 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
                       <button
                         type="button"
                         aria-label="Previous section"
-                        disabled={lineTts.currentIndex <= 0}
-                        onClick={() => void lineTts.jumpToLine(lineTts.currentIndex - 1)}
+                        disabled={lineTts.currentSourceIndex <= 0}
+                        onClick={() => void lineTts.jumpToSource(lineTts.currentSourceIndex - 1)}
                         className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-white/25 disabled:opacity-40 cursor-pointer"
                       >
                         <SkipBack className="h-3 w-3" aria-hidden />
@@ -301,8 +301,11 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
                       <button
                         type="button"
                         aria-label="Next section"
-                        disabled={lineTts.currentIndex + 1 >= lineTts.lines.length}
-                        onClick={() => void lineTts.jumpToLine(lineTts.currentIndex + 1)}
+                        disabled={
+                          lineTts.currentSourceIndex < 0 ||
+                          lineTts.currentSourceIndex + 1 >= lineTts.sourceStartLineIndices.length
+                        }
+                        onClick={() => void lineTts.jumpToSource(lineTts.currentSourceIndex + 1)}
                         className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-white/25 disabled:opacity-40 cursor-pointer"
                       >
                         <SkipForward className="h-3 w-3" aria-hidden />
@@ -373,7 +376,7 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
                 const isLineActive =
                   lineTts.sessionId === sessionId &&
                   lineTts.status !== 'idle' &&
-                  lineTts.currentIndex === currentParaIdx;
+                  lineTts.currentSourceIndex === currentParaIdx;
 
                 const cleanBody = stripLeadingNumberPrefix(block.text);
                 const badgeNum = String(pageOffset + currentParaIdx + 1).padStart(2, '0');

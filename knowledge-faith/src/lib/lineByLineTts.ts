@@ -144,6 +144,14 @@ export interface LineByLineSessionState {
   lines: string[];
   /** Parallel speaker labels for multi-voice roundtables; null = use session voiceProfile. */
   lineSpeakers: Array<string | null>;
+  /**
+   * For each speech chunk (`lines[i]`), the original caller item index
+   * (paragraph / lesson / Roundtable turn) before expandSpeakerTurnsToSpeechLines.
+   */
+  lineSourceIndices: number[];
+  /** First speech-chunk index for each original caller item (−1 if empty). */
+  sourceStartLineIndices: number[];
+  /** Speech-chunk index currently loading/playing. */
   currentIndex: number;
   status: 'idle' | 'loading' | 'playing' | 'paused';
   lang: HadithSpeechLang;
@@ -245,6 +253,8 @@ export class LineByLineTtsController {
     sessionId: null,
     lines: [],
     lineSpeakers: [],
+    lineSourceIndices: [],
+    sourceStartLineIndices: [],
     currentIndex: -1,
     status: 'idle',
     lang: 'en',
@@ -359,6 +369,8 @@ export class LineByLineTtsController {
       sessionId: input.sessionId,
       lines,
       lineSpeakers,
+      lineSourceIndices: expanded.lineTurnIndices,
+      sourceStartLineIndices: expanded.turnStartLineIndices,
       currentIndex: startIndex,
       status: 'loading',
       lang: input.lang,
@@ -468,6 +480,14 @@ export class LineByLineTtsController {
     await this.playLineAtIndex(index, token);
   }
 
+  /** Jump to the first speech chunk of an original caller item (paragraph / lesson / turn). */
+  async jumpToSource(sourceIndex: number): Promise<void> {
+    if (!this.state.sessionId) return;
+    const start = this.state.sourceStartLineIndices[sourceIndex];
+    if (start == null || start < 0) return;
+    await this.jumpToLine(start);
+  }
+
   stop(): void {
     this.runToken++;
     this.prefetchPromises.clear();
@@ -477,6 +497,8 @@ export class LineByLineTtsController {
       sessionId: null,
       lines: [],
       lineSpeakers: [],
+      lineSourceIndices: [],
+      sourceStartLineIndices: [],
       currentIndex: -1,
       status: 'idle',
       prefetchedIndices: [],
@@ -513,6 +535,11 @@ export function useLineByLineTts(sessionPrefix?: string) {
   const isPlayingSession = (targetSessionId: string): boolean =>
     snapshot.sessionId === targetSessionId && effectiveStatus === 'playing';
 
+  const currentSourceIndex =
+    isMatchingSession && snapshot.currentIndex >= 0
+      ? (snapshot.lineSourceIndices[snapshot.currentIndex] ?? -1)
+      : -1;
+
   return {
     ...snapshot,
     active: isMatchingSession && snapshot.status !== 'idle',
@@ -521,6 +548,8 @@ export function useLineByLineTts(sessionPrefix?: string) {
     isPlaying: isMatchingSession && effectiveStatus === 'playing',
     isLoadingSession,
     isPlayingSession,
+    /** Original caller item (paragraph / lesson / turn) for the active speech chunk. */
+    currentSourceIndex,
     currentLineText:
       isMatchingSession && snapshot.currentIndex >= 0
         ? snapshot.lines[snapshot.currentIndex] ?? null
@@ -534,5 +563,6 @@ export function useLineByLineTts(sessionPrefix?: string) {
     pause: () => sharedLineTts.pause(),
     stop: () => sharedLineTts.stop(),
     jumpToLine: (idx: number) => sharedLineTts.jumpToLine(idx),
+    jumpToSource: (sourceIdx: number) => sharedLineTts.jumpToSource(sourceIdx),
   };
 }

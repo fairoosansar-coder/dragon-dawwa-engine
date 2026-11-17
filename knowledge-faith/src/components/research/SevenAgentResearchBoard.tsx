@@ -25,11 +25,7 @@ import {
   Volume2,
 } from 'lucide-react';
 import { setAudioPlaybackRate } from '../../lib/audio.ts';
-import {
-  expandSpeakerTurnsToSpeechLines,
-  splitTextIntoSpeechLines,
-  useLineByLineTts,
-} from '../../lib/lineByLineTts.ts';
+import { splitTextIntoSpeechLines, useLineByLineTts } from '../../lib/lineByLineTts.ts';
 import { useApp, useStored } from '../../lib/store.tsx';
 import { profileFontClass, wallFontClass } from '../../lib/typography.ts';
 import { publishFaithWallPost } from '../../lib/verseShare.ts';
@@ -312,16 +308,13 @@ export function SevenAgentResearchBoard({
     );
   };
 
-  /** Flat speech queue for the roundtable — long turns become sequential same-speaker chunks. */
-  const roundtableSpeech = expandSpeakerTurnsToSpeechLines(
-    dossier.roundtableTurns.map(t => ({ text: t.text, speaker: t.speaker })),
-  );
-
   const handlePlayRoundtable = (startTurnIdx = 0) => {
     // Speak turn text only (no "Speaker:" prefix); voice comes from lineSpeakers.
-    // Long Tamil/Sinhala/English turns are chunked; all chunks of a turn play before the next speaker.
-    const { lines, lineSpeakers, turnStartLineIndices } = roundtableSpeech;
-    if (!lines.length) return;
+    // Controller expands long turns into sequential same-speaker chunks and maps
+    // currentSourceIndex → original turn for highlight / click-to-play.
+    const lines = dossier.roundtableTurns.map(t => t.text);
+    const lineSpeakers = dossier.roundtableTurns.map(t => t.speaker);
+    if (!lines.some(t => t.trim())) return;
     if (
       startTurnIdx === 0 &&
       lineTts.sessionId === roundtableSessionId &&
@@ -330,16 +323,12 @@ export function SevenAgentResearchBoard({
       lineTts.pause();
       return;
     }
-    const startLine =
-      turnStartLineIndices[startTurnIdx] >= 0
-        ? turnStartLineIndices[startTurnIdx]
-        : 0;
     setAudioPlaybackRate(speed);
     void lineTts.start({
       sessionId: roundtableSessionId,
       lines,
       lineSpeakers,
-      startIndex: startLine,
+      startIndex: startTurnIdx,
       lang,
       voiceProfile: profile.id,
       speed,
@@ -1261,13 +1250,10 @@ export function SevenAgentResearchBoard({
         {isRoundtableVisible && (
         <div className="mt-4 space-y-3" data-testid="roundtable-speaker-list">
           {dossier.roundtableTurns.map((turn, idx) => {
-            const activeTurnIdx =
+            const isTurnActive =
               lineTts.sessionId === roundtableSessionId &&
               lineTts.status !== 'idle' &&
-              lineTts.currentIndex >= 0
-                ? roundtableSpeech.lineTurnIndices[lineTts.currentIndex]
-                : undefined;
-            const isTurnActive = activeTurnIdx === idx;
+              lineTts.currentSourceIndex === idx;
             const isTurnLoading =
               isTurnActive && lineTts.status === 'loading';
             const turnAccent =
