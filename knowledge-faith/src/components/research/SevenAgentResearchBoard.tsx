@@ -290,13 +290,16 @@ export function SevenAgentResearchBoard({
 
   const handlePlayScienceSpotlight = () => {
     const sci = dossier.scienceForesight;
-    const lines = [
-      sci.headline,
-      sci.summary,
-      ...sci.empiricalPillars.map(
-        p => `${p.domain}: ${p.finding} ${p.oneStepAheadNote}`,
-      ),
-    ];
+    // Line-by-line: split long summary / pillars so TTS never truncates a paragraph.
+    const lines = splitTextIntoSpeechLines(
+      [
+        sci.headline,
+        sci.summary,
+        ...sci.empiricalPillars.map(
+          p => `${p.domain}: ${p.finding} ${p.oneStepAheadNote}`,
+        ),
+      ].join('\n\n'),
+    );
     // Science spotlight is Zainab's foresight lane.
     playLines(
       scienceSessionId,
@@ -305,12 +308,15 @@ export function SevenAgentResearchBoard({
     );
   };
 
-  const handlePlayRoundtable = (startIdx = 0) => {
+  const handlePlayRoundtable = (startTurnIdx = 0) => {
     // Speak turn text only (no "Speaker:" prefix); voice comes from lineSpeakers.
+    // Controller expands long turns into sequential same-speaker chunks and maps
+    // currentSourceIndex → original turn for highlight / click-to-play.
     const lines = dossier.roundtableTurns.map(t => t.text);
     const lineSpeakers = dossier.roundtableTurns.map(t => t.speaker);
+    if (!lines.some(t => t.trim())) return;
     if (
-      startIdx === 0 &&
+      startTurnIdx === 0 &&
       lineTts.sessionId === roundtableSessionId &&
       lineTts.status === 'playing'
     ) {
@@ -322,7 +328,7 @@ export function SevenAgentResearchBoard({
       sessionId: roundtableSessionId,
       lines,
       lineSpeakers,
-      startIndex: startIdx,
+      startIndex: startTurnIdx,
       lang,
       voiceProfile: profile.id,
       speed,
@@ -1247,7 +1253,7 @@ export function SevenAgentResearchBoard({
             const isTurnActive =
               lineTts.sessionId === roundtableSessionId &&
               lineTts.status !== 'idle' &&
-              lineTts.currentIndex === idx;
+              lineTts.currentSourceIndex === idx;
             const isTurnLoading =
               isTurnActive && lineTts.status === 'loading';
             const turnAccent =

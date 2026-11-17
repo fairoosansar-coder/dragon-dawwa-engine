@@ -197,7 +197,7 @@ function HadithReading({ id }: { id: string }) {
                   const isLineActive =
                     lineTts.sessionId === exSessionId &&
                     lineTts.status !== 'idle' &&
-                    lineTts.currentIndex === idx;
+                    lineTts.currentSourceIndex === idx;
                   return (
                     <p
                       key={idx}
@@ -281,7 +281,7 @@ function HadithReading({ id }: { id: string }) {
                   const isLineActive =
                     lineTts.sessionId === lsSessionId &&
                     lineTts.status !== 'idle' &&
-                    lineTts.currentIndex === idx;
+                    lineTts.currentSourceIndex === idx;
                   return (
                     <li
                       key={lesson}
