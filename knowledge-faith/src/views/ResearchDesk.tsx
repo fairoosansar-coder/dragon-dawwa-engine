@@ -67,7 +67,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<StoredResearch[]>([]);
   const [chapters, setChapters] = useState<{ id: string; scope: ResearchScope; question: string; forwarded?: boolean }[]>([]);
-  const [roundtableOpen, setRoundtableOpen] = useState(false);
+  const [roundtableOpen, setRoundtableOpen] = useState(() => params.get('roundtable') === '1');
   const reportIdParam = params.get('reportId');
   /**
    * Sticky in-flight lock. Seed true when the route already names a run so the first paint
@@ -86,6 +86,11 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     `${job ?? ''}|${q?.trim() ?? ''}|${reportId ?? ''}`;
   const [instantDossier, setInstantDossier] = useState<SevenAgentResearchDossier | null>(null);
   const remote = useRemote<ResearchJobResponse>(jobId ? `/api/research/jobs/${jobId}` : null);
+  const roundtableParam = params.get('roundtable') === '1';
+  // Prefer hash lang for fetches so dossier reopen does not start a wrong-lang live run
+  // before setLang(paramLang) commits on the next effect tick.
+  const researchLang: Lang =
+    paramLang === 'en' || paramLang === 'ta' || paramLang === 'si' ? paramLang : lang;
 
   const activeResearchQuery = useMemo(() => {
     // Prefer the in-flight Ask so a prior dossier cannot keep matching the old URL question.
@@ -100,13 +105,13 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
 
   const sevenAgentRemote = useRemote<SevenAgentResearchDossier>(
     reportIdParam
-      ? `/api/research/seven-agents/${encodeURIComponent(reportIdParam)}?lang=${lang}`
+      ? `/api/research/seven-agents/${encodeURIComponent(reportIdParam)}?lang=${researchLang}`
       : activeResearchQuery
-        ? `/api/research/seven-agents?q=${encodeURIComponent(activeResearchQuery)}&lang=${lang}`
+        ? `/api/research/seven-agents?q=${encodeURIComponent(activeResearchQuery)}&lang=${researchLang}`
         : null,
   );
   const dossierMatchesActiveQuestion = (dossier: SevenAgentResearchDossier | null | undefined) => {
-    if (!dossier || dossier.lang !== lang) return false;
+    if (!dossier || dossier.lang !== researchLang) return false;
     if (reportIdParam) {
       if (dossier.id === reportIdParam) return true;
       if (reportIdParam.startsWith('7agent-modern-') && dossier.id === reportIdParam) return true;
@@ -123,7 +128,13 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   useEffect(() => {
     // Drop any prior card's instant payload when the URL question/report changes.
     setInstantDossier(null);
-  }, [askedParam, reportIdParam, jobParam, lang]);
+  }, [askedParam, reportIdParam, jobParam, researchLang]);
+
+  useEffect(() => {
+    // One-shot open from ?roundtable=1 (Hadith dossier reopen). Never force-close when absent —
+    // job/report param changes must not wipe a locally opened roundtable.
+    if (roundtableParam) setRoundtableOpen(true);
+  }, [askedParam, reportIdParam, jobParam, roundtableParam]);
 
   // After hash-only navigation (no remount), clear askPending only when the route moved
   // off the Ask-start snapshot — stale prior job/q/reportId must not unlock mid-POST.

@@ -148,6 +148,8 @@ const en = {
   cardQuranBody: 'Read and listen. An explanation can be opened in the reader.',
   cardHadith: 'Hadith & Wisdom',
   cardHadithBody: 'Collections, references, and grades as the source supplies them.',
+  cardBooks: 'Islamic Books',
+  cardBooksBody: 'Browse the library — essentials, new titles, and books with audio when available.',
   cardPillars: 'Five Pillars & Spiritual Life',
   cardPillarsBody: 'Guides, prayer, zakah preview, and a provisional fasting calendar.',
   cardListen: 'Listen & Reflect',
