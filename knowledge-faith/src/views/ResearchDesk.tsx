@@ -73,6 +73,10 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   const remote = useRemote<ResearchJobResponse>(jobId ? `/api/research/jobs/${jobId}` : null);
   const reportIdParam = params.get('reportId');
   const roundtableParam = params.get('roundtable') === '1';
+  // Prefer hash lang for fetches so dossier reopen does not start a wrong-lang live run
+  // before setLang(paramLang) commits on the next effect tick.
+  const researchLang: Lang =
+    paramLang === 'en' || paramLang === 'ta' || paramLang === 'si' ? paramLang : lang;
 
   const activeResearchQuery = useMemo(() => {
     if (instantDossier?.question) return instantDossier.question;
@@ -85,13 +89,13 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
 
   const sevenAgentRemote = useRemote<SevenAgentResearchDossier>(
     reportIdParam
-      ? `/api/research/seven-agents/${encodeURIComponent(reportIdParam)}?lang=${lang}`
+      ? `/api/research/seven-agents/${encodeURIComponent(reportIdParam)}?lang=${researchLang}`
       : activeResearchQuery
-        ? `/api/research/seven-agents?q=${encodeURIComponent(activeResearchQuery)}&lang=${lang}`
+        ? `/api/research/seven-agents?q=${encodeURIComponent(activeResearchQuery)}&lang=${researchLang}`
         : null,
   );
   const dossierMatchesActiveQuestion = (dossier: SevenAgentResearchDossier | null | undefined) => {
-    if (!dossier || dossier.lang !== lang) return false;
+    if (!dossier || dossier.lang !== researchLang) return false;
     if (reportIdParam) {
       if (dossier.id === reportIdParam) return true;
       if (reportIdParam.startsWith('7agent-modern-') && dossier.id === reportIdParam) return true;
@@ -106,11 +110,12 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   useEffect(() => {
     // Drop any prior card's instant payload when the URL question/report changes.
     setInstantDossier(null);
-  }, [askedParam, reportIdParam, jobParam, lang]);
+  }, [askedParam, reportIdParam, jobParam, researchLang]);
 
   useEffect(() => {
-    // Honor ?roundtable=1 from dossier reopen links (e.g. Hadith Agent Dossiers desk).
-    setRoundtableOpen(roundtableParam);
+    // One-shot open from ?roundtable=1 (Hadith dossier reopen). Never force-close when absent —
+    // job/report param changes must not wipe a locally opened roundtable.
+    if (roundtableParam) setRoundtableOpen(true);
   }, [askedParam, reportIdParam, jobParam, roundtableParam]);
 
   const isCountdownActive =

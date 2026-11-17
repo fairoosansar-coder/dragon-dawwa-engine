@@ -61,7 +61,12 @@ describe('desk context-only header nav', () => {
     assert.match(hadithSource, /dossierLang/);
     assert.match(hadithSource, /params\.set\('roundtable', '1'\)/);
     assert.match(deskSource, /params\.get\('roundtable'\) === '1'/);
-    assert.match(deskSource, /setRoundtableOpen\(roundtableParam\)/);
+    // One-shot open only — must not force-close when roundtableParam is false.
+    assert.match(deskSource, /if \(roundtableParam\) setRoundtableOpen\(true\)/);
+    assert.equal(deskSource.includes('setRoundtableOpen(roundtableParam)'), false);
+    // Fetch lang prefers hash paramLang so reopen does not start a wrong-lang live run.
+    assert.match(deskSource, /const researchLang: Lang =/);
+    assert.match(deskSource, /lang=\$\{researchLang\}/);
   });
 
   it('keeps Books header tabs All books · New · Essential · with Audio · Saved', () => {
