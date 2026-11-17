@@ -8,6 +8,39 @@ import type {
   HadithVoiceProfileId,
 } from '../shared/hadithVoices.ts';
 
+/** Soft target for one TTS request; keep under API / client caps. */
+export const SPEECH_LINE_SOFT_MAX = 220;
+/** Hard cap before a line is force-wrapped (must stay ≤ server `/api/tts/hadith` max of 3000). */
+export const SPEECH_LINE_HARD_MAX = 240;
+/** Client fetch safety ceiling — must match server `text(..., 3000)` on `/api/tts/hadith`. */
+export const TTS_FETCH_CHAR_LIMIT = 3000;
+
+/**
+ * Force-wrap oversized chunks that lack sentence/clause punctuation (common in long ta/si prose).
+ * Prefer whitespace boundaries so we do not cut mid-grapheme / mid-word when possible.
+ */
+export function hardWrapSpeechChunk(text: string, maxLen = SPEECH_LINE_HARD_MAX): string[] {
+  const cleaned = text.trim();
+  if (!cleaned) return [];
+  if (cleaned.length <= maxLen) return [cleaned];
+
+  const out: string[] = [];
+  let rest = cleaned;
+  while (rest.length > maxLen) {
+    const window = rest.slice(0, maxLen + 1);
+    const breakAt = Math.max(
+      window.lastIndexOf(' '),
+      window.lastIndexOf('\u00a0'),
+      window.lastIndexOf('\u200c'), // ZWNJ — common in Tamil orthography
+    );
+    const cut = breakAt >= Math.floor(maxLen * 0.45) ? breakAt : maxLen;
+    out.push(rest.slice(0, cut).trim());
+    rest = rest.slice(cut).trim();
+  }
+  if (rest) out.push(rest);
+  return out.filter(Boolean);
+}
+
 /**
  * Segment any sacred passage, Tafsir, Hadith matn/explanation/lessons, or Knowledge Hub article
  * into natural, readable lines / sentences / numbered points.
@@ -34,7 +67,7 @@ export function splitTextIntoSpeechLines(rawText: string): string[] {
       .filter(Boolean);
 
     for (const part of parts) {
-      if (part.length <= 240) {
+      if (part.length <= SPEECH_LINE_HARD_MAX) {
         lines.push(part);
       } else {
         // Further split very long sentences by clauses (comma, dash, colon)
@@ -46,19 +79,64 @@ export function splitTextIntoSpeechLines(rawText: string): string[] {
         for (const clause of clauses) {
           if (!acc) {
             acc = clause;
-          } else if (acc.length + 1 + clause.length <= 220) {
+          } else if (acc.length + 1 + clause.length <= SPEECH_LINE_SOFT_MAX) {
             acc += ` ${clause}`;
           } else {
-            lines.push(acc);
+            lines.push(...hardWrapSpeechChunk(acc));
             acc = clause;
           }
         }
-        if (acc) lines.push(acc);
+        if (acc) lines.push(...hardWrapSpeechChunk(acc));
       }
     }
   }
 
-  return lines.filter(line => line.length > 0);
+  return lines.flatMap(line => hardWrapSpeechChunk(line)).filter(line => line.length > 0);
+}
+
+export interface SpeakerTurnForSpeech {
+  text: string;
+  speaker?: string | null;
+}
+
+export interface ExpandedSpeakerSpeech {
+  /** Flattened speech lines (each ≤ SPEECH_LINE_HARD_MAX after wrap). */
+  lines: string[];
+  /** Parallel speaker labels — same speaker repeated across that turn's chunks. */
+  lineSpeakers: Array<string | null>;
+  /** For each flattened line, the original turn index. */
+  lineTurnIndices: number[];
+  /** First flattened line index for each original turn (−1 if turn had no speakable text). */
+  turnStartLineIndices: number[];
+}
+
+/**
+ * Expand multi-speaker turns into sequential line-by-line TTS chunks.
+ * Chunks belonging to the same turn keep the same speaker; the next turn
+ * only starts after every chunk of the current turn has finished.
+ */
+export function expandSpeakerTurnsToSpeechLines(
+  turns: readonly SpeakerTurnForSpeech[],
+): ExpandedSpeakerSpeech {
+  const lines: string[] = [];
+  const lineSpeakers: Array<string | null> = [];
+  const lineTurnIndices: number[] = [];
+  const turnStartLineIndices: number[] = [];
+
+  for (let turnIdx = 0; turnIdx < turns.length; turnIdx++) {
+    const turn = turns[turnIdx];
+    const speaker =
+      typeof turn.speaker === 'string' && turn.speaker.trim() ? turn.speaker.trim() : null;
+    const chunks = splitTextIntoSpeechLines(turn.text ?? '');
+    turnStartLineIndices.push(chunks.length ? lines.length : -1);
+    for (const chunk of chunks) {
+      lines.push(chunk);
+      lineSpeakers.push(speaker);
+      lineTurnIndices.push(turnIdx);
+    }
+  }
+
+  return { lines, lineSpeakers, lineTurnIndices, turnStartLineIndices };
 }
 
 export interface LineByLineSessionState {
@@ -106,7 +184,9 @@ async function defaultFetchLineAudio(
   speed: HadithPlaybackSpeed,
   speaker?: string | null,
 ): Promise<string | null> {
-  const clean = lineText.trim().slice(0, 800);
+  // Lines should already be ≤ SPEECH_LINE_HARD_MAX via split/expand; never silently
+  // truncate below the server limit (was 800 — that cut long Roundtable turns mid-sentence).
+  const clean = lineText.trim().slice(0, TTS_FETCH_CHAR_LIMIT);
   if (!clean) return null;
   const speakerKey = speaker?.trim() || '';
   const key = speakerKey
@@ -249,18 +329,32 @@ export class LineByLineTtsController {
     speed?: HadithPlaybackSpeed;
     onComplete?: () => void;
   }): Promise<void> {
-    const lines = (input.lines ?? splitTextIntoSpeechLines(input.text ?? '')).filter(Boolean);
+    // Defense in depth: if a caller passes whole paragraphs as "lines" (e.g. Roundtable
+    // before expandSpeakerTurnsToSpeechLines), re-chunk them and keep speakers aligned.
+    const rawLines = (input.lines ?? splitTextIntoSpeechLines(input.text ?? '')).filter(Boolean);
+    if (rawLines.length === 0) return;
+
+    const expanded = expandSpeakerTurnsToSpeechLines(
+      rawLines.map((text, i) => ({
+        text,
+        speaker: input.lineSpeakers?.[i],
+      })),
+    );
+    const lines = expanded.lines;
     if (lines.length === 0) return;
 
     const token = ++this.runToken;
     this.prefetchPromises.clear();
     this.resolvedUrls.clear();
 
-    const startIndex = Math.max(0, Math.min(lines.length - 1, input.startIndex ?? 0));
-    const lineSpeakers = lines.map((_, i) => {
-      const raw = input.lineSpeakers?.[i];
-      return typeof raw === 'string' && raw.trim() ? raw.trim() : null;
-    });
+    // Map caller's startIndex (pre-expand turn/line) onto the first chunk of that item.
+    const requestedStart = input.startIndex ?? 0;
+    const mappedStart =
+      expanded.turnStartLineIndices[requestedStart] >= 0
+        ? expanded.turnStartLineIndices[requestedStart]
+        : requestedStart;
+    const startIndex = Math.max(0, Math.min(lines.length - 1, mappedStart));
+    const lineSpeakers = expanded.lineSpeakers;
     this.emit({
       sessionId: input.sessionId,
       lines,
