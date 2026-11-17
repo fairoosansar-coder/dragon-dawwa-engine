@@ -70,6 +70,8 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   const [roundtableOpen, setRoundtableOpen] = useState(false);
   /** Sticky in-flight lock: keeps countdown mounted for the whole run (no poll/loading flicker). */
   const [researchInFlight, setResearchInFlight] = useState(false);
+  /** True from Ask click until POST settles / navigates — blocks premature in-flight clear. */
+  const [askPending, setAskPending] = useState(false);
   const [instantDossier, setInstantDossier] = useState<SevenAgentResearchDossier | null>(null);
   const remote = useRemote<ResearchJobResponse>(jobId ? `/api/research/jobs/${jobId}` : null);
   const reportIdParam = params.get('reportId');
@@ -121,10 +123,12 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   useEffect(() => {
     if (sevenAgentDossier) {
       setResearchInFlight(false);
+      setAskPending(false);
       return;
     }
     if (!researchInFlight) return;
-    if (sevenAgentRemote.loading || jobIsLive || remote.loading) return;
+    // Keep the lock while Ask POST is still in flight (no job/q/reportId yet).
+    if (askPending || sevenAgentRemote.loading || jobIsLive || remote.loading) return;
     const settledWithoutBoard =
       Boolean(sevenAgentRemote.error) ||
       jobStatus === 'done' ||
@@ -135,6 +139,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   }, [
     sevenAgentDossier,
     researchInFlight,
+    askPending,
     sevenAgentRemote.loading,
     sevenAgentRemote.error,
     jobIsLive,
@@ -238,6 +243,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     setError(null);
     setInstantDossier(null);
     setResearchInFlight(true);
+    setAskPending(true);
     try {
       const startedChapters: { id: string; scope: ResearchScope; question: string; forwarded: boolean }[] = [];
       for (const piece of pieces) {
@@ -264,12 +270,17 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
       const first = startedChapters[0];
       const href = hrefFor(first.scope, first.id, first.forwarded, first.question);
       if (window.location.hash !== href) {
+        // Keep askPending through navigation; remount picks up job/q from the new hash.
         window.location.hash = href;
         return;
       }
       setJobId(first.id);
       remote.reload();
+      // Job/seven-agent remotes now own the in-flight lock.
+      setAskPending(false);
     } catch (err) {
+      setAskPending(false);
+      setResearchInFlight(false);
       setError(err instanceof Error ? err.message : 'The research job could not be started.');
     }
   }
@@ -534,6 +545,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
       <RecentSevenAgentDossiers
         activeQuestion={sevenAgentDossier?.question || activeResearchQuery}
         onSelectDossier={selected => {
+          setAskPending(false);
           setResearchInFlight(false);
           setQuestion(selected.question);
           setInstantDossier(selected);
@@ -545,6 +557,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
           }, 60);
         }}
         onOpenRoundtable={selected => {
+          setAskPending(false);
           setResearchInFlight(false);
           setQuestion(selected.question);
           setInstantDossier(selected);

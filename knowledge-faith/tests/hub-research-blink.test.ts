@@ -35,6 +35,13 @@ describe('DD-148 Hub research UI blink / flicker', () => {
     assert.equal(deskSource.includes('2600'), false);
   });
 
+  it('keeps the in-flight lock while Ask POST is pending (no q/job/reportId yet)', () => {
+    assert.match(deskSource, /askPending/);
+    assert.match(deskSource, /setAskPending\(true\)/);
+    assert.match(deskSource, /if \(askPending \|\| sevenAgentRemote\.loading \|\| jobIsLive \|\| remote\.loading\) return/);
+    assert.match(deskSource, /Keep the lock while Ask POST is still in flight/);
+  });
+
   it('keys the countdown card to the question, not the timer/stage', () => {
     assert.match(
       deskSource,
