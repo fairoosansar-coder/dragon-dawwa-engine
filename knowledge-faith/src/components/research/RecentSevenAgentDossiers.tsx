@@ -10,7 +10,11 @@ import {
 import { useRemote } from '../../lib/api.ts';
 import { useApp } from '../../lib/store.tsx';
 import { profileFontClass, wallFontClass } from '../../lib/typography.ts';
-import type { SevenAgentResearchDossier } from '../../shared/sevenAgentTypes.ts';
+import {
+  preferNewerDossier,
+  sortDossiersNewestFirst,
+  type SevenAgentResearchDossier,
+} from '../../shared/sevenAgentTypes.ts';
 import { LANGUAGE_NAMES, type Lang } from '../../shared/sources.ts';
 
 interface HistoryPayload {
@@ -34,18 +38,16 @@ export function RecentSevenAgentDossiers({
 
   const combined = useMemo(() => {
     const map = new Map<string, SevenAgentResearchDossier>();
-    for (const d of saved.dossiers ?? []) {
-      map.set(d.question.trim().toLowerCase(), d);
-    }
-    for (const d of remote.data?.saved ?? []) {
+    const merge = (d: SevenAgentResearchDossier) => {
       const k = d.question.trim().toLowerCase();
-      if (!map.has(k)) map.set(k, d);
-    }
-    for (const d of remote.data?.items ?? []) {
-      const k = d.question.trim().toLowerCase();
-      if (!map.has(k)) map.set(k, d);
-    }
-    return [...map.values()].slice(0, 8);
+      const existing = map.get(k);
+      map.set(k, existing ? preferNewerDossier(existing, d) : d);
+    };
+    for (const d of saved.dossiers ?? []) merge(d);
+    for (const d of remote.data?.saved ?? []) merge(d);
+    for (const d of remote.data?.items ?? []) merge(d);
+    // Newest generated first — Hadith Agent Dossiers, Hub research recent list, etc.
+    return sortDossiersNewestFirst([...map.values()]).slice(0, 8);
   }, [saved.dossiers, remote.data]);
 
   if (combined.length === 0) return null;

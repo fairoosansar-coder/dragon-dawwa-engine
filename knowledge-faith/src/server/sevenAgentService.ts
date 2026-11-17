@@ -9,11 +9,12 @@ import {
   researchSystemInstructionsForQuestion,
   userFacingResearchQuestion,
 } from '../shared/modernWorldBenchmarks.ts';
-import type {
-  ModernScienceForesight,
-  RoundtableTurn,
-  SevenAgentResearchDossier,
-  SpecialistAgentFinding,
+import {
+  sortDossiersNewestFirst,
+  type ModernScienceForesight,
+  type RoundtableTurn,
+  type SevenAgentResearchDossier,
+  type SpecialistAgentFinding,
 } from '../shared/sevenAgentTypes.ts';
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
 import { translateTextToLanguage } from './ayahStudyService.ts';
@@ -105,7 +106,8 @@ function readHistoryList(): SevenAgentResearchDossier[] {
 
 function writeHistoryList(items: SevenAgentResearchDossier[]): void {
   try {
-    writeFileSync(historyIndexPath(), JSON.stringify(items.slice(0, 40)), 'utf8');
+    const ordered = sortDossiersNewestFirst(items).slice(0, 40);
+    writeFileSync(historyIndexPath(), JSON.stringify(ordered), 'utf8');
   } catch {
     /* ignore */
   }
@@ -124,7 +126,8 @@ export function readServerSavedDossiers(): SevenAgentResearchDossier[] {
 
 function writeServerSavedDossiers(items: SevenAgentResearchDossier[]): void {
   try {
-    writeFileSync(savedDossiersPath(), JSON.stringify(items.slice(0, 50)), 'utf8');
+    const ordered = sortDossiersNewestFirst(items).slice(0, 50);
+    writeFileSync(savedDossiersPath(), JSON.stringify(ordered), 'utf8');
   } catch {
     /* ignore */
   }
@@ -1560,10 +1563,10 @@ export async function listSevenAgentHistory(lang?: Lang): Promise<{
     );
     history = [seeded];
   }
-  const saved = readServerSavedDossiers();
+  const saved = sortDossiersNewestFirst(readServerSavedDossiers());
   const savedIds = saved.map(item => item.id);
   return {
-    items: history,
+    items: sortDossiersNewestFirst(history),
     saved,
     savedIds,
   };

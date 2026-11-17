@@ -14,7 +14,11 @@ import { useQuranEdition } from '../lib/quranEdition.ts';
 import { useApp } from '../lib/store.tsx';
 import { profileFontClass, wallFontClass } from '../lib/typography.ts';
 import { shownVerses, translationRequest } from '../shared/quranenc.ts';
-import type { SevenAgentResearchDossier } from '../shared/sevenAgentTypes.ts';
+import {
+  preferNewerDossier,
+  sortDossiersNewestFirst,
+  type SevenAgentResearchDossier,
+} from '../shared/sevenAgentTypes.ts';
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
 import type { Hadith, Verse } from '../shared/types.ts';
 import { HadithCard, VerseCard } from '../components/cards.tsx';
@@ -69,14 +73,15 @@ export function SavedLibraryView() {
 
   const savedDossiers = useMemo(() => {
     const map = new Map<string, SevenAgentResearchDossier>();
-    for (const d of saved.dossiers ?? []) {
-      map.set(d.question.trim().toLowerCase(), d);
-    }
-    for (const d of serverHistory.data?.saved ?? []) {
+    const merge = (d: SevenAgentResearchDossier) => {
       const k = d.question.trim().toLowerCase();
-      if (!map.has(k)) map.set(k, d);
-    }
-    return [...map.values()];
+      const existing = map.get(k);
+      map.set(k, existing ? preferNewerDossier(existing, d) : d);
+    };
+    for (const d of saved.dossiers ?? []) merge(d);
+    for (const d of serverHistory.data?.saved ?? []) merge(d);
+    // Newest generated first across Saved Library / Hub research dossiers.
+    return sortDossiersNewestFirst([...map.values()]);
   }, [saved.dossiers, serverHistory.data]);
 
   // Do not auto-expand: collapsed card is Question + 2-line verdict + Expand Full Dossier.
