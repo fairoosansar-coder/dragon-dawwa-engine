@@ -67,11 +67,12 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<StoredResearch[]>([]);
   const [chapters, setChapters] = useState<{ id: string; scope: ResearchScope; question: string; forwarded?: boolean }[]>([]);
-  const [roundtableOpen, setRoundtableOpen] = useState(false);
+  const [roundtableOpen, setRoundtableOpen] = useState(() => params.get('roundtable') === '1');
   const [countdownHold, setCountdownHold] = useState(false);
   const [instantDossier, setInstantDossier] = useState<SevenAgentResearchDossier | null>(null);
   const remote = useRemote<ResearchJobResponse>(jobId ? `/api/research/jobs/${jobId}` : null);
   const reportIdParam = params.get('reportId');
+  const roundtableParam = params.get('roundtable') === '1';
 
   const activeResearchQuery = useMemo(() => {
     if (instantDossier?.question) return instantDossier.question;
@@ -106,6 +107,11 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     // Drop any prior card's instant payload when the URL question/report changes.
     setInstantDossier(null);
   }, [askedParam, reportIdParam, jobParam, lang]);
+
+  useEffect(() => {
+    // Honor ?roundtable=1 from dossier reopen links (e.g. Hadith Agent Dossiers desk).
+    setRoundtableOpen(roundtableParam);
+  }, [askedParam, reportIdParam, jobParam, roundtableParam]);
 
   const isCountdownActive =
     countdownHold ||

@@ -202,8 +202,22 @@ function CollectionBrowser({ book }: { book: string | null }) {
   );
 }
 
+/** Reopen a saved/recent 7-agent dossier on the Hadith research desk with reportId + dossier lang. */
+function hadithDossierResearchHref(
+  selected: { id: string; question: string; lang?: string | null },
+  openRoundtable = false,
+): string {
+  const dossierLang = selected.lang === 'ta' || selected.lang === 'si' || selected.lang === 'en' ? selected.lang : 'en';
+  const params = new URLSearchParams({
+    lang: dossierLang,
+    q: selected.question.trim().slice(0, 4000),
+    reportId: selected.id,
+  });
+  if (openRoundtable) params.set('roundtable', '1');
+  return `#/hadith/research?${params.toString()}`;
+}
+
 function HadithDossiersDesk() {
-  const { lang } = useApp();
   return (
     <div className="space-y-4 py-4" data-testid="hadith-dossiers-desk">
       <header className="rounded-3xl border border-[#0E382B]/10 bg-[#fffdf8] px-4 py-4 sm:px-5">
@@ -215,12 +229,10 @@ function HadithDossiersDesk() {
       </header>
       <RecentSevenAgentDossiers
         onSelectDossier={selected => {
-          const params = new URLSearchParams({ lang, q: selected.question.trim().slice(0, 4000) });
-          window.location.hash = `#/hadith/research?${params.toString()}`;
+          window.location.hash = hadithDossierResearchHref(selected);
         }}
         onOpenRoundtable={selected => {
-          const params = new URLSearchParams({ lang, q: selected.question.trim().slice(0, 4000), roundtable: '1' });
-          window.location.hash = `#/hadith/research?${params.toString()}`;
+          window.location.hash = hadithDossierResearchHref(selected, true);
         }}
       />
     </div>

@@ -53,6 +53,17 @@ describe('desk context-only header nav', () => {
     assert.match(hadithSource, /#\/hadith\/research\?/);
   });
 
+  it('reopens Hadith dossiers with reportId and dossier lang (not UI lang alone)', () => {
+    const hadithSource = readFileSync(path.join(root, 'src/views/HadithView.tsx'), 'utf8');
+    const deskSource = readFileSync(path.join(root, 'src/views/ResearchDesk.tsx'), 'utf8');
+    assert.match(hadithSource, /function hadithDossierResearchHref/);
+    assert.match(hadithSource, /reportId: selected\.id/);
+    assert.match(hadithSource, /dossierLang/);
+    assert.match(hadithSource, /params\.set\('roundtable', '1'\)/);
+    assert.match(deskSource, /params\.get\('roundtable'\) === '1'/);
+    assert.match(deskSource, /setRoundtableOpen\(roundtableParam\)/);
+  });
+
   it('keeps Books header tabs All books · New · Essential · with Audio · Saved', () => {
     assert.match(widgetsSource, /testId = 'books-tabs'/);
     assert.match(widgetsSource, /label: 'All books'/);
