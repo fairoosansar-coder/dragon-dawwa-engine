@@ -184,6 +184,8 @@ const accountsByUsername = new Map<string, StoredAccount>();
 const accountsById = new Map<string, StoredAccount>();
 const accountsByGoogleSub = new Map<string, StoredAccount>();
 const revokedTokens = new Set<string>();
+/** Session ids (`sid`) shared across re-issued tokens; logout revokes the whole family. */
+const revokedSessionIds = new Set<string>();
 const wallPosts: StoredWallPost[] = [];
 const unansweredQuestions: UnansweredQuestionRecord[] = [];
 let adminSettings: AdminSettings = {
@@ -477,7 +479,35 @@ function toPublicProfile(account: StoredAccount): SeekerProfile {
   };
 }
 
-export function issueSeekerToken(profile: SeekerProfile): string {
+function newSessionId(): string {
+  return crypto.randomUUID();
+}
+
+/** Read `sid` from a HMAC-valid token without loading the full seeker profile. */
+export function sessionIdFromSignedToken(token: string | null | undefined): string | null {
+  if (!token || typeof token !== 'string') return null;
+  const trimmed = token.trim();
+  if (!trimmed) return null;
+  const parts = trimmed.split('.');
+  if (parts.length !== 2) return null;
+  const [payload, sig] = parts;
+  const expected = crypto.createHmac('sha256', secretKey()).update(payload).digest('base64url');
+  const sigBuf = Buffer.from(sig);
+  const expBuf = Buffer.from(expected);
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) return null;
+  try {
+    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Record<string, unknown>;
+    return typeof decoded.sid === 'string' && decoded.sid.trim() ? decoded.sid.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+export function issueSeekerToken(
+  profile: SeekerProfile,
+  options?: { sid?: string | null },
+): string {
+  const sid = typeof options?.sid === 'string' && options.sid.trim() ? options.sid.trim() : newSessionId();
   const payload = Buffer.from(
     JSON.stringify({
       sub: profile.id,
@@ -497,12 +527,26 @@ export function issueSeekerToken(profile: SeekerProfile): string {
       avatarUrl: profile.avatarUrl ?? null,
       verified: profile.verified,
       createdAt: profile.createdAt,
+      sid,
       iat: Date.now(),
     }),
     'utf8',
   ).toString('base64url');
   const sig = crypto.createHmac('sha256', secretKey()).update(payload).digest('base64url');
   return `${payload}.${sig}`;
+}
+
+/** Re-issue while preserving the presenting token's session id (Bearer or cookie). */
+export function reissueSeekerTokenForRequest(req: Request, profile: SeekerProfile): string {
+  let sid: string | null = null;
+  for (const token of extractAuthTokensFromRequest(req)) {
+    const found = sessionIdFromSignedToken(token);
+    if (found && !revokedSessionIds.has(found)) {
+      sid = found;
+      break;
+    }
+  }
+  return issueSeekerToken(profile, { sid });
 }
 
 export function verifySeekerToken(token: string | null | undefined): SeekerProfile | null {
@@ -518,6 +562,8 @@ export function verifySeekerToken(token: string | null | undefined): SeekerProfi
   if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) return null;
   try {
     const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Record<string, unknown>;
+    const sid = typeof decoded.sid === 'string' ? decoded.sid.trim() : '';
+    if (sid && revokedSessionIds.has(sid)) return null;
     const id = typeof decoded.sub === 'string' ? decoded.sub : '';
     const email = typeof decoded.email === 'string' ? decoded.email : '';
     if (!id || !email) return null;
@@ -1363,7 +1409,20 @@ export function updateSeekerAccountProfile(
 }
 
 export function revokeSeekerToken(token: string | null) {
-  if (token) revokedTokens.add(token);
+  if (!token) return;
+  const trimmed = token.trim();
+  if (!trimmed) return;
+  revokedTokens.add(trimmed);
+  // Invalidate the whole re-issue family so logout(B) also kills prior token A.
+  const sid = sessionIdFromSignedToken(trimmed);
+  if (sid) revokedSessionIds.add(sid);
+}
+
+/** Revoke every presenting credential (Bearer + cookie) and their shared session ids. */
+export function revokeSeekerSessionFromRequest(req: Request) {
+  for (const token of extractAuthTokensFromRequest(req)) {
+    revokeSeekerToken(token);
+  }
 }
 
 export function listServerWallPosts(): StoredWallPost[] {
@@ -1736,6 +1795,7 @@ export function resetSeekerStoreForTests() {
   accountsById.clear();
   accountsByGoogleSub.clear();
   revokedTokens.clear();
+  revokedSessionIds.clear();
   wallPosts.length = 0;
   unansweredQuestions.length = 0;
   adminSettings = {

@@ -9,8 +9,11 @@ import {
   getRequestSeeker,
   issueSeekerToken,
   registerSeekerAccount,
+  reissueSeekerTokenForRequest,
   requireSeekerAuth,
   resetSeekerStoreForTests,
+  revokeSeekerToken,
+  sessionIdFromSignedToken,
   verifySeekerToken,
 } from '../src/server/seekerAuth.ts';
 
@@ -146,20 +149,48 @@ describe('DD-148 mid-Ask auth while UI still shows signed-in seeker', () => {
   });
 
   it('session endpoint re-issues a token and client refresh adopts it', () => {
-    assert.match(serverSource, /issueSeekerToken\(user\)/);
+    assert.match(serverSource, /reissueSeekerTokenForRequest\(req, user\)/);
     assert.match(serverSource, /authenticated: true, user, token/);
     assert.match(clientAuthSource, /nextToken/);
     assert.match(apiSource, /refreshSeekerSessionAndConfig/);
     assert.match(apiSource, /writeSeekerSession\(null\)/);
+    assert.match(apiSource, /headersForAuthRetry/);
+    assert.match(apiSource, /key\.toLowerCase\(\) === 'authorization'/);
     assert.match(seekerServerSource, /stale\/invalid Bearer/);
-    // Sanity: issued tokens verify.
+    assert.match(seekerServerSource, /revokedSessionIds/);
+    assert.match(serverSource, /revokeSeekerSessionFromRequest\(req\)/);
+  });
+
+  it('re-issue preserves sid; logout of B also invalidates prior token A', () => {
     resetSeekerStoreForTests();
     const registered = registerSeekerAccount({
-      email: 'reissue@dragondawwa.com',
-      password: 'reissue-pass',
-      name: 'Reissue Seeker',
+      email: 'rotate.logout@dragondawwa.com',
+      password: 'rotate-logout-pass',
+      name: 'Rotate Logout Seeker',
     });
-    const fresh = issueSeekerToken(registered.user);
-    assert.ok(verifySeekerToken(fresh));
+    const tokenA = registered.token;
+    const sidA = sessionIdFromSignedToken(tokenA);
+    assert.ok(sidA);
+    assert.ok(verifySeekerToken(tokenA));
+
+    const req = {
+      headers: { authorization: `Bearer ${tokenA}` },
+    } as unknown as Parameters<typeof reissueSeekerTokenForRequest>[0];
+    const tokenB = reissueSeekerTokenForRequest(req, registered.user);
+    assert.notEqual(tokenA, tokenB);
+    assert.equal(sessionIdFromSignedToken(tokenB), sidA);
+    assert.ok(verifySeekerToken(tokenA));
+    assert.ok(verifySeekerToken(tokenB));
+
+    // Logout presents B only — A must die via shared sid.
+    revokeSeekerToken(tokenB);
+    assert.equal(verifySeekerToken(tokenB), null);
+    assert.equal(verifySeekerToken(tokenA), null);
+  });
+
+  it('auth retry rebuild strips prior Authorization before setting healed Bearer', () => {
+    assert.match(apiSource, /headersForAuthRetry/);
+    assert.match(apiSource, /if \(key\.toLowerCase\(\) === 'authorization'\) continue/);
+    assert.equal(apiSource.includes('authHeaders(mergeInitHeaders(init))'), false);
   });
 });

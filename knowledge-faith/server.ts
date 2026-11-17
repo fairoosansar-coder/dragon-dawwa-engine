@@ -40,7 +40,6 @@ import {
   createServerWallPost,
   deleteServerWallPost,
   exchangeGoogleOAuthCode,
-  extractTokenFromRequest,
   getGoogleAuthConfig,
   getRequestSeeker,
   getServerAdminSettings,
@@ -53,10 +52,10 @@ import {
   probeGoogleRedirectUriAccepted,
   reactToServerWallPost,
   readGoogleOAuthNonceCookie,
-  issueSeekerToken,
   registerSeekerAccount,
+  reissueSeekerTokenForRequest,
   requireSeekerAuth,
-  revokeSeekerToken,
+  revokeSeekerSessionFromRequest,
   setGoogleOAuthNonceCookie,
   setSeekerCookie,
   updateSeekerAccountProfile,
@@ -694,8 +693,8 @@ app.get(
       res.json({ authenticated: false, user: null, token: null, googleAuth: getGoogleAuthConfig() });
       return;
     }
-    // Re-issue so a stale Bearer in localStorage cannot keep shadowing a valid cookie.
-    const token = issueSeekerToken(user);
+    // Re-issue with the same session id so logout invalidates prior re-issues too.
+    const token = reissueSeekerTokenForRequest(req, user);
     setSeekerCookie(res, token);
     res.json({ authenticated: true, user, token, googleAuth: getGoogleAuthConfig() });
   }),
@@ -841,7 +840,7 @@ app.post(
 app.post(
   '/api/auth/logout',
   route(async (req, res) => {
-    revokeSeekerToken(extractTokenFromRequest(req));
+    revokeSeekerSessionFromRequest(req);
     clearSeekerCookie(res);
     res.status(200).json({ ok: true });
   }),

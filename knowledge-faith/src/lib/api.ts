@@ -19,9 +19,16 @@ async function readJsonBody(res: Response): Promise<{ error?: string; requiresAu
   return (await res.json().catch(() => ({}))) as { error?: string; requiresAuth?: boolean } & Record<string, unknown>;
 }
 
-function mergeInitHeaders(init?: RequestInit): Record<string, string> | undefined {
-  if (!init?.headers) return undefined;
-  return Object.fromEntries(new Headers(init.headers).entries());
+/** Copy init headers but drop Authorization so a healed Bearer is not concatenated with a stale one. */
+function headersForAuthRetry(init?: RequestInit): Record<string, string> {
+  const merged: Record<string, string> = {};
+  if (init?.headers) {
+    for (const [key, value] of new Headers(init.headers).entries()) {
+      if (key.toLowerCase() === 'authorization') continue;
+      merged[key] = value;
+    }
+  }
+  return authHeaders(merged);
 }
 
 /**
@@ -39,7 +46,7 @@ async function fetchJson<T>(url: string, init: RequestInit, retried = false): Pr
           url,
           {
             ...init,
-            headers: authHeaders(mergeInitHeaders(init)),
+            headers: headersForAuthRetry(init),
           },
           true,
         );
