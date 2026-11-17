@@ -10,6 +10,7 @@ import {
   userFacingResearchQuestion,
 } from '../shared/modernWorldBenchmarks.ts';
 import {
+  capThenSortDossiersNewestFirst,
   sortDossiersNewestFirst,
   type ModernScienceForesight,
   type RoundtableTurn,
@@ -106,7 +107,8 @@ function readHistoryList(): SevenAgentResearchDossier[] {
 
 function writeHistoryList(items: SevenAgentResearchDossier[]): void {
   try {
-    const ordered = sortDossiersNewestFirst(items).slice(0, 40);
+    // Cap first so a prepended record is retained, then newest-first for display.
+    const ordered = capThenSortDossiersNewestFirst(items, 40);
     writeFileSync(historyIndexPath(), JSON.stringify(ordered), 'utf8');
   } catch {
     /* ignore */
@@ -124,13 +126,15 @@ export function readServerSavedDossiers(): SevenAgentResearchDossier[] {
   }
 }
 
-function writeServerSavedDossiers(items: SevenAgentResearchDossier[]): void {
+function writeServerSavedDossiers(items: SevenAgentResearchDossier[]): SevenAgentResearchDossier[] {
+  // Cap first so an explicitly prepended save is retained even if older by createdAt.
+  const ordered = capThenSortDossiersNewestFirst(items, 50);
   try {
-    const ordered = sortDossiersNewestFirst(items).slice(0, 50);
     writeFileSync(savedDossiersPath(), JSON.stringify(ordered), 'utf8');
   } catch {
     /* ignore */
   }
+  return ordered;
 }
 
 function recordInHistory(dossier: SevenAgentResearchDossier): void {
@@ -1655,10 +1659,11 @@ export async function toggleServerSavedDossier(input: {
           item.question.trim().toLowerCase() !== target!.question.trim().toLowerCase(),
       );
 
-  writeServerSavedDossiers(next);
+  // Persist and return the same capped+sorted list so savedIds match disk.
+  const persisted = writeServerSavedDossiers(next);
   return {
     saved: shouldSave,
-    savedIds: next.map(i => i.id),
-    items: next,
+    savedIds: persisted.map(i => i.id),
+    items: persisted,
   };
 }

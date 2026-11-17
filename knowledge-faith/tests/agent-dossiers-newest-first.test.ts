@@ -4,6 +4,7 @@ import path from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
+  capThenSortDossiersNewestFirst,
   preferNewerDossier,
   sortDossiersNewestFirst,
   type SevenAgentResearchDossier,
@@ -76,6 +77,35 @@ describe('Agent Dossiers newest-first ordering', () => {
     assert.equal(preferNewerDossier(newer, older).id, 'b');
   });
 
+  it('keeps an older newly-saved dossier when the save list is already at the 50-item cap', () => {
+    const olderSave = stubDossier({
+      id: 'explicit-old',
+      question: 'older explicit save',
+      createdAt: '2020-01-01T00:00:00.000Z',
+    });
+    const fullCap = Array.from({ length: 50 }, (_, i) =>
+      stubDossier({
+        id: `cap-${i}`,
+        question: `cap question ${i}`,
+        createdAt: `2026-06-${String((i % 28) + 1).padStart(2, '0')}T12:00:00.000Z`,
+      }),
+    );
+    // toggleServerSavedDossier prepends the explicit save, then persist caps.
+    const next = [olderSave, ...fullCap];
+    const persisted = capThenSortDossiersNewestFirst(next, 50);
+
+    assert.equal(persisted.length, 50);
+    assert.ok(
+      persisted.some(d => d.id === 'explicit-old'),
+      'explicit older save must survive the 50-item retention cap',
+    );
+    assert.equal(
+      sortDossiersNewestFirst(next).slice(0, 50).some(d => d.id === 'explicit-old'),
+      false,
+      'sanity: naive sort-then-slice would have dropped the older save',
+    );
+  });
+
   it('wires newest-first sort into recent list, saved library, and history API', () => {
     const recent = readFileSync(
       path.join(root, 'src/components/research/RecentSevenAgentDossiers.tsx'),
@@ -90,5 +120,7 @@ describe('Agent Dossiers newest-first ordering', () => {
     assert.match(saved, /preferNewerDossier/);
     assert.match(service, /sortDossiersNewestFirst\(history\)/);
     assert.match(service, /sortDossiersNewestFirst\(readServerSavedDossiers\(\)\)/);
+    assert.match(service, /capThenSortDossiersNewestFirst\(items, 50\)/);
+    assert.match(service, /capThenSortDossiersNewestFirst\(items, 40\)/);
   });
 });
