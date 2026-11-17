@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import type { ResearchJobResponse, ResearchScope } from '../shared/contracts/v1.ts';
 import { buildReportModel, renderReportHtml } from '../shared/research/report.ts';
 import { ContentText } from '../components/ContentText.tsx';
@@ -80,6 +80,10 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   const [askPending, setAskPending] = useState(false);
   /** Question for the Ask in flight — invalidates a prior board until the new run matches. */
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
+  /** Route fingerprint at Ask click — hash takeover must wait for a *new* job/q/reportId. */
+  const askStartedRouteRef = useRef<string | null>(null);
+  const researchRouteKey = (job: string | null, q: string | null, reportId: string | null) =>
+    `${job ?? ''}|${q?.trim() ?? ''}|${reportId ?? ''}`;
   const [instantDossier, setInstantDossier] = useState<SevenAgentResearchDossier | null>(null);
   const remote = useRemote<ResearchJobResponse>(jobId ? `/api/research/jobs/${jobId}` : null);
 
@@ -121,10 +125,16 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     setInstantDossier(null);
   }, [askedParam, reportIdParam, jobParam, lang]);
 
-  // After hash-only navigation (no remount), route params own the run — clear askPending.
+  // After hash-only navigation (no remount), clear askPending only when the route moved
+  // off the Ask-start snapshot — stale prior job/q/reportId must not unlock mid-POST.
   useEffect(() => {
     if (!askPending) return;
+    const started = askStartedRouteRef.current;
+    if (started == null) return;
+    const current = researchRouteKey(jobParam, askedParam, reportIdParam);
+    if (current === started) return;
     if (!(jobParam || askedParam?.trim() || reportIdParam)) return;
+    askStartedRouteRef.current = null;
     setAskPending(false);
     setPendingQuestion(null);
     setResearchInFlight(true);
@@ -269,6 +279,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     setInstantDossier(null);
     setPendingQuestion(pieces[0] ?? field);
     setResearchInFlight(true);
+    askStartedRouteRef.current = researchRouteKey(jobParam, askedParam, reportIdParam);
     setAskPending(true);
     try {
       const startedChapters: { id: string; scope: ResearchScope; question: string; forwarded: boolean }[] = [];
@@ -303,9 +314,11 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
       setJobId(first.id);
       remote.reload();
       // Job/seven-agent remotes now own the in-flight lock.
+      askStartedRouteRef.current = null;
       setAskPending(false);
       setPendingQuestion(null);
     } catch (err) {
+      askStartedRouteRef.current = null;
       setAskPending(false);
       setPendingQuestion(null);
       setResearchInFlight(false);
@@ -387,8 +400,10 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
             <>
               <PodcastHostChip tone="plate" />
               {/* Idle: input + primary Ask only. Legacy full-report row appears only when
-                  a finished desk report exists without a 7-agent board (board owns CTAs). */}
-              {!sevenAgentDossier && liveModel && finished ? (
+                  a finished desk report exists without a 7-agent board (board owns CTAs).
+                  Hide while countdown/Ask is active — nulling sevenAgentDossier must not
+                  unhide the prior finished report under the new countdown. */}
+              {!sevenAgentDossier && !isCountdownActive && liveModel && finished ? (
                 <ResearchActionRow
                   onFullReport={() => {
                     const target =
@@ -488,8 +503,10 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
           onToggleRoundtable={setRoundtableOpen}
         />
       )}
-      {remote.error && !savedReport && !sevenAgentDossier && <ErrorNote message={remote.error} onRetry={remote.reload} />}
-      {outcome && !sevenAgentDossier && (
+      {remote.error && !savedReport && !sevenAgentDossier && !isCountdownActive && (
+        <ErrorNote message={remote.error} onRetry={remote.reload} />
+      )}
+      {outcome && !sevenAgentDossier && !isCountdownActive && (
         <Notice>
           <span className="font-semibold">{outcome.title} </span>
           {outcome.detail}
@@ -503,7 +520,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
         </Notice>
       )}
 
-      {liveModel && finished && !sevenAgentDossier && (
+      {liveModel && finished && !sevenAgentDossier && !isCountdownActive && (
         <div id="research-full-report" className="space-y-4">
           <section className="rounded-3xl border border-gold bg-white p-5" data-research-answer>
             <h2 className="font-display text-2xl font-bold text-pine">Answer</h2>

@@ -56,9 +56,17 @@ describe('DD-148 Hub research UI blink / flicker', () => {
     assert.match(deskSource, /askPending \|\| researchInFlight \|\| sevenAgentRemote\.loading \|\| jobIsLive/);
   });
 
-  it('clears askPending when hash/route params take over after Ask', () => {
-    assert.match(deskSource, /After hash-only navigation/);
-    assert.match(deskSource, /setAskPending\(false\);\s*\n\s*setPendingQuestion\(null\);/);
+  it('clears askPending only when route moves off the Ask-start snapshot', () => {
+    assert.match(deskSource, /askStartedRouteRef/);
+    assert.match(deskSource, /researchRouteKey/);
+    assert.match(deskSource, /if \(current === started\) return;/);
+    assert.match(deskSource, /stale prior job\/q\/reportId must not unlock mid-POST/);
+  });
+
+  it('hides legacy full-report fallbacks while countdown/Ask is active', () => {
+    assert.match(deskSource, /!sevenAgentDossier && !isCountdownActive && liveModel && finished/);
+    assert.match(deskSource, /liveModel && finished && !sevenAgentDossier && !isCountdownActive/);
+    assert.match(deskSource, /unhide the prior finished report under the new countdown/);
   });
 
   it('keys the countdown card to the question, not the timer/stage', () => {
