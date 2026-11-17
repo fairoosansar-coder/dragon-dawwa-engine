@@ -68,7 +68,8 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   const [history, setHistory] = useState<StoredResearch[]>([]);
   const [chapters, setChapters] = useState<{ id: string; scope: ResearchScope; question: string; forwarded?: boolean }[]>([]);
   const [roundtableOpen, setRoundtableOpen] = useState(false);
-  const [countdownHold, setCountdownHold] = useState(false);
+  /** Sticky in-flight lock: keeps countdown mounted for the whole run (no poll/loading flicker). */
+  const [researchInFlight, setResearchInFlight] = useState(false);
   const [instantDossier, setInstantDossier] = useState<SevenAgentResearchDossier | null>(null);
   const remote = useRemote<ResearchJobResponse>(jobId ? `/api/research/jobs/${jobId}` : null);
   const reportIdParam = params.get('reportId');
@@ -107,11 +108,44 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     setInstantDossier(null);
   }, [askedParam, reportIdParam, jobParam, lang]);
 
-  const isCountdownActive =
-    countdownHold ||
-    sevenAgentRemote.loading ||
-    (!sevenAgentDossier &&
-      (remote.data?.job.status === 'running' || remote.data?.job.status === 'queued'));
+  const jobStatus = remote.data?.job.status;
+  const jobIsLive = jobStatus === 'running' || jobStatus === 'queued';
+
+  // Enter sticky flight when a run is clearly underway (Ask, reload into live job, or 7-agent fetch).
+  useEffect(() => {
+    if (sevenAgentDossier) return;
+    if (sevenAgentRemote.loading || jobIsLive) setResearchInFlight(true);
+  }, [sevenAgentDossier, sevenAgentRemote.loading, jobIsLive]);
+
+  // Leave sticky flight only when a matching dossier is ready, or the run settled without one.
+  useEffect(() => {
+    if (sevenAgentDossier) {
+      setResearchInFlight(false);
+      return;
+    }
+    if (!researchInFlight) return;
+    if (sevenAgentRemote.loading || jobIsLive || remote.loading) return;
+    const settledWithoutBoard =
+      Boolean(sevenAgentRemote.error) ||
+      jobStatus === 'done' ||
+      jobStatus === 'error' ||
+      jobStatus === 'cancelled' ||
+      (!activeResearchQuery && !reportIdParam && !jobId);
+    if (settledWithoutBoard) setResearchInFlight(false);
+  }, [
+    sevenAgentDossier,
+    researchInFlight,
+    sevenAgentRemote.loading,
+    sevenAgentRemote.error,
+    jobIsLive,
+    jobStatus,
+    remote.loading,
+    activeResearchQuery,
+    reportIdParam,
+    jobId,
+  ]);
+
+  const isCountdownActive = researchInFlight && !sevenAgentDossier;
 
   const running = isCountdownActive;
   const parallelPending =
@@ -203,8 +237,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     if (!pieces.length) return;
     setError(null);
     setInstantDossier(null);
-    setCountdownHold(true);
-    window.setTimeout(() => setCountdownHold(false), 2600);
+    setResearchInFlight(true);
     try {
       const startedChapters: { id: string; scope: ResearchScope; question: string; forwarded: boolean }[] = [];
       for (const piece of pieces) {
@@ -402,25 +435,19 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
 
       {isCountdownActive && (
         <SevenAgentCountdownCard
+          key={activeResearchQuery || question || 'in-flight'}
           question={activeResearchQuery || question}
           lang={lang}
         />
       )}
 
-      {sevenAgentDossier && !countdownHold && (
+      {sevenAgentDossier && !isCountdownActive && (
         <SevenAgentResearchBoard
           dossier={sevenAgentDossier}
           lang={lang}
           roundtableOpen={roundtableOpen}
           onToggleRoundtable={setRoundtableOpen}
         />
-      )}
-
-      {job && running && !sevenAgentDossier && !isCountdownActive && (
-        <section className="rounded-3xl border border-pine/10 bg-parchment p-5" aria-live="polite">
-          <h2 className="font-display text-2xl font-bold text-pine">{t.researchProgress}</h2>
-          <ResearchActivity job={job} />
-        </section>
       )}
       {remote.error && !savedReport && !sevenAgentDossier && <ErrorNote message={remote.error} onRetry={remote.reload} />}
       {outcome && !sevenAgentDossier && (
@@ -507,7 +534,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
       <RecentSevenAgentDossiers
         activeQuestion={sevenAgentDossier?.question || activeResearchQuery}
         onSelectDossier={selected => {
-          setCountdownHold(false);
+          setResearchInFlight(false);
           setQuestion(selected.question);
           setInstantDossier(selected);
           setRoundtableOpen(false);
@@ -518,7 +545,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
           }, 60);
         }}
         onOpenRoundtable={selected => {
-          setCountdownHold(false);
+          setResearchInFlight(false);
           setQuestion(selected.question);
           setInstantDossier(selected);
           setRoundtableOpen(true);

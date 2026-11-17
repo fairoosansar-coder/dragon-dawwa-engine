@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Award,
   BookOpen,
@@ -130,15 +130,21 @@ const AGENT_STAGES: ReadonlyArray<{
 export function useResearchCountdown(active: boolean, totalSeconds = 12) {
   const [remainingSeconds, setRemainingSeconds] = useState(totalSeconds);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const wasActiveRef = useRef(false);
 
   useEffect(() => {
     if (!active) {
+      wasActiveRef.current = false;
       setRemainingSeconds(totalSeconds);
       setElapsedSeconds(0);
       return;
     }
-    setRemainingSeconds(totalSeconds);
-    setElapsedSeconds(0);
+    // Only reset the clock when a run starts (idle → active), not on parent re-renders.
+    if (!wasActiveRef.current) {
+      wasActiveRef.current = true;
+      setRemainingSeconds(totalSeconds);
+      setElapsedSeconds(0);
+    }
     const timer = window.setInterval(() => {
       setElapsedSeconds(prev => prev + 1);
       setRemainingSeconds(prev => (prev > 1 ? prev - 1 : 1));

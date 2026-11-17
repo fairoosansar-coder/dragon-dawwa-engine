@@ -573,8 +573,26 @@ export function extractTokenFromRequest(req: Request): string | null {
   return readCookie(req, COOKIE_NAME);
 }
 
+/** Collect Bearer + cookie tokens without preferring a stale Authorization header. */
+export function extractAuthTokensFromRequest(req: Request): string[] {
+  const tokens: string[] = [];
+  const authHeader = req.headers.authorization;
+  if (typeof authHeader === 'string') {
+    const match = /^Bearer\s+(.+)$/i.exec(authHeader.trim());
+    if (match?.[1]) tokens.push(match[1].trim());
+  }
+  const cookie = readCookie(req, COOKIE_NAME);
+  if (cookie && !tokens.includes(cookie)) tokens.push(cookie);
+  return tokens;
+}
+
 export function getRequestSeeker(req: Request): SeekerProfile | null {
-  return verifySeekerToken(extractTokenFromRequest(req));
+  // A stale/invalid Bearer in localStorage must not shadow a still-valid session cookie.
+  for (const token of extractAuthTokensFromRequest(req)) {
+    const seeker = verifySeekerToken(token);
+    if (seeker) return seeker;
+  }
+  return null;
 }
 
 export const AUTH_REQUIRED_MESSAGE =

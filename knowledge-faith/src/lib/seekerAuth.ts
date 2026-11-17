@@ -363,8 +363,17 @@ export async function refreshSeekerSessionAndConfig(): Promise<{
           redirectUriOverride: body.googleAuth.redirectUriOverride ?? null,
         };
       }
-      if (body.authenticated && body.user && local?.token) {
-        const next: SeekerSession = { token: local.token, user: body.user };
+      if (body.authenticated && body.user) {
+        const nextToken =
+          typeof (body as { token?: unknown }).token === 'string' &&
+          (body as { token: string }).token.trim()
+            ? (body as { token: string }).token.trim()
+            : local?.token;
+        if (!nextToken) {
+          writeSeekerSession(null);
+          return { session: null, googleAuth: memoryGoogleConfig };
+        }
+        const next: SeekerSession = { token: nextToken, user: body.user };
         writeSeekerSession(next);
         return { session: next, googleAuth: memoryGoogleConfig };
       }

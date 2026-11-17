@@ -53,6 +53,7 @@ import {
   probeGoogleRedirectUriAccepted,
   reactToServerWallPost,
   readGoogleOAuthNonceCookie,
+  issueSeekerToken,
   registerSeekerAccount,
   requireSeekerAuth,
   revokeSeekerToken,
@@ -689,7 +690,14 @@ app.get(
   '/api/auth/session',
   route(async (req, res) => {
     const user = getRequestSeeker(req);
-    res.json({ authenticated: Boolean(user), user, googleAuth: getGoogleAuthConfig() });
+    if (!user) {
+      res.json({ authenticated: false, user: null, token: null, googleAuth: getGoogleAuthConfig() });
+      return;
+    }
+    // Re-issue so a stale Bearer in localStorage cannot keep shadowing a valid cookie.
+    const token = issueSeekerToken(user);
+    setSeekerCookie(res, token);
+    res.json({ authenticated: true, user, token, googleAuth: getGoogleAuthConfig() });
   }),
 );
 
