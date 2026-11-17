@@ -231,9 +231,12 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
     savedRef.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   }, [sub]);
 
+  // Desk entry cards — required on Hub for viewports below `lg`, where the Study & Research
+  // Desks sidebar is hidden and the bottom Knowledge dock only opens `#/hub`.
   const cards = [
     { href: '#/quran', title: t.cardQuran, body: t.cardQuranBody, icon: <StudioMark name="quran" className="h-11 w-11 rounded-xl" /> },
     { href: '#/hadith', title: t.cardHadith, body: t.cardHadithBody, icon: <StudioMark name="hadith" className="h-11 w-11 rounded-xl" /> },
+    { href: '#/books', title: t.cardBooks, body: t.cardBooksBody, icon: <StudioMark name="books" className="h-11 w-11 rounded-xl" /> },
     { href: '#/spiritual', title: t.cardPillars, body: t.cardPillarsBody, icon: <StudioMark name="worship" className="h-11 w-11 rounded-xl" /> },
     { href: '#/podcast', title: t.cardPodcast, body: t.cardPodcastBody, icon: <StudioMark name="podcast" className="h-11 w-11 rounded-xl" /> },
   ].filter(card => !q || card.title.toLowerCase().includes(q) || card.body.toLowerCase().includes(q));
@@ -324,6 +327,15 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
       </div>
 
       <PrayerStrip />
+
+      <section className="space-y-2.5" data-testid="hub-desk-cards" aria-label={t.shortcuts}>
+        <SectionTitle>{t.shortcuts}</SectionTitle>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {cards.map(card => (
+            <FeatureCard key={card.href} href={card.href} title={card.title} body={card.body} icon={card.icon} />
+          ))}
+        </div>
+      </section>
 
       <section className="space-y-2.5">
         <SectionTitle sub={t.pathNote}>{t.pathsTitle}</SectionTitle>
