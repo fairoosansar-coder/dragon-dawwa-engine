@@ -4,6 +4,7 @@ import {
   expandSpeakerTurnsToSpeechLines,
   hardWrapSpeechChunk,
   LineByLineTtsController,
+  resolveSpeechStartChunkIndex,
   SPEECH_LINE_HARD_MAX,
   splitTextIntoSpeechLines,
   TTS_FETCH_CHAR_LIMIT,
@@ -192,6 +193,57 @@ test('startSession maps startIndex to the first chunk of that original turn', as
   finishCurrent();
   await new Promise(r => setTimeout(r, 15));
   assert.ok(controller.getSnapshot().currentIndex >= 2);
+});
+
+test('resolveSpeechStartChunkIndex skips empty turns and never treats source index as chunk index', () => {
+  const expanded = expandSpeakerTurnsToSpeechLines([
+    { text: 'First speakable turn.', speaker: 'Host' },
+    { text: '   ', speaker: 'Silent' },
+    { text: '', speaker: 'AlsoSilent' },
+    { text: 'After the gap.', speaker: 'Dr. Layla al-Qasimi' },
+  ]);
+  assert.deepEqual(expanded.turnStartLineIndices[0], 0);
+  assert.equal(expanded.turnStartLineIndices[1], -1);
+  assert.equal(expanded.turnStartLineIndices[2], -1);
+  assert.equal(expanded.turnStartLineIndices[3], 1);
+  assert.equal(expanded.lineSpeakers[1], 'Dr. Layla al-Qasimi');
+
+  // Clicking an empty turn jumps forward to the next speakable chunk (not chunk index 1/2).
+  assert.equal(resolveSpeechStartChunkIndex(expanded.turnStartLineIndices, 1, expanded.lines.length), 1);
+  assert.equal(resolveSpeechStartChunkIndex(expanded.turnStartLineIndices, 2, expanded.lines.length), 1);
+  assert.equal(resolveSpeechStartChunkIndex(expanded.turnStartLineIndices, 3, expanded.lines.length), 1);
+  assert.equal(resolveSpeechStartChunkIndex(expanded.turnStartLineIndices, 0, expanded.lines.length), 0);
+  // Missing / out-of-range source clamps then finds nearest speakable.
+  assert.equal(resolveSpeechStartChunkIndex(expanded.turnStartLineIndices, 99, expanded.lines.length), 1);
+});
+
+test('startSession click-to-play on empty turn starts the next speakable speaker', async () => {
+  const fetched: Array<{ text: string; speaker: string | null | undefined }> = [];
+  const controller = new LineByLineTtsController({
+    fetchLineAudio: async (lineText, _lang, _voice, _speed, speaker) => {
+      fetched.push({ text: lineText, speaker });
+      return `blob:mock-${fetched.length}`;
+    },
+    playAudioLine: async (_id, _src, onStarted) => {
+      onStarted();
+    },
+    pauseCurrent: () => {},
+    stopCurrent: () => {},
+  });
+
+  await controller.startSession({
+    sessionId: 'empty-turn-click',
+    lines: ['Assalamu alaikum.', '', '   ', 'Closing from Yusuf.'],
+    lineSpeakers: ['Host', 'Ghost', 'AlsoGhost', 'Sheikh Yusuf al-Azhari'],
+    startIndex: 2, // unspeakable — must not start mid-queue as chunk index 2
+    lang: 'en',
+  });
+  await new Promise(r => setTimeout(r, 15));
+
+  assert.equal(controller.getSnapshot().currentIndex, 1);
+  assert.equal(controller.getSnapshot().lineSourceIndices[1], 3);
+  assert.equal(fetched[0]?.text, 'Closing from Yusuf.');
+  assert.equal(fetched[0]?.speaker, 'Sheikh Yusuf al-Azhari');
 });
 
 test('currentSourceIndex stays on the original paragraph while multi-sentence chunks play', async () => {

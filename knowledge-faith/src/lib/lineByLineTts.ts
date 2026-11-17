@@ -139,6 +139,43 @@ export function expandSpeakerTurnsToSpeechLines(
   return { lines, lineSpeakers, lineTurnIndices, turnStartLineIndices };
 }
 
+/**
+ * Map a caller source index (paragraph / lesson / turn) onto a speech-chunk index.
+ * Never treats the source index as a flattened chunk index when the entry is −1/missing —
+ * walks forward (then backward) to the nearest speakable item.
+ */
+export function resolveSpeechStartChunkIndex(
+  turnStartLineIndices: readonly number[],
+  requestedSourceIndex: number,
+  chunkCount: number,
+): number {
+  if (chunkCount <= 0) return 0;
+
+  const findSpeakable = (from: number, direction: 1 | -1): number => {
+    for (
+      let i = from;
+      direction > 0 ? i < turnStartLineIndices.length : i >= 0;
+      i += direction
+    ) {
+      const start = turnStartLineIndices[i];
+      if (typeof start === 'number' && start >= 0 && start < chunkCount) {
+        return start;
+      }
+    }
+    return -1;
+  };
+
+  const clampedSource =
+    turnStartLineIndices.length === 0
+      ? 0
+      : Math.max(0, Math.min(turnStartLineIndices.length - 1, requestedSourceIndex));
+
+  let mapped = findSpeakable(clampedSource, 1);
+  if (mapped < 0) mapped = findSpeakable(clampedSource - 1, -1);
+  if (mapped < 0) return 0;
+  return mapped;
+}
+
 export interface LineByLineSessionState {
   sessionId: string | null;
   lines: string[];
@@ -341,15 +378,17 @@ export class LineByLineTtsController {
   }): Promise<void> {
     // Defense in depth: if a caller passes whole paragraphs as "lines" (e.g. Roundtable
     // before expandSpeakerTurnsToSpeechLines), re-chunk them and keep speakers aligned.
-    const rawLines = (input.lines ?? splitTextIntoSpeechLines(input.text ?? '')).filter(Boolean);
-    if (rawLines.length === 0) return;
-
-    const expanded = expandSpeakerTurnsToSpeechLines(
-      rawLines.map((text, i) => ({
-        text,
+    // Keep empty/whitespace items so caller startIndex + speakers stay index-aligned;
+    // expandSpeakerTurnsToSpeechLines marks those with turnStartLineIndices = -1.
+    const rawItems = (input.lines ?? splitTextIntoSpeechLines(input.text ?? '')).map(
+      (text, i) => ({
+        text: text ?? '',
         speaker: input.lineSpeakers?.[i],
-      })),
+      }),
     );
+    if (rawItems.length === 0) return;
+
+    const expanded = expandSpeakerTurnsToSpeechLines(rawItems);
     const lines = expanded.lines;
     if (lines.length === 0) return;
 
@@ -357,13 +396,13 @@ export class LineByLineTtsController {
     this.prefetchPromises.clear();
     this.resolvedUrls.clear();
 
-    // Map caller's startIndex (pre-expand turn/line) onto the first chunk of that item.
-    const requestedStart = input.startIndex ?? 0;
-    const mappedStart =
-      expanded.turnStartLineIndices[requestedStart] >= 0
-        ? expanded.turnStartLineIndices[requestedStart]
-        : requestedStart;
-    const startIndex = Math.max(0, Math.min(lines.length - 1, mappedStart));
+    // Map caller's startIndex (pre-expand turn/line) onto the first speakable chunk.
+    // Never fall back to using the source index as a flattened chunk index.
+    const startIndex = resolveSpeechStartChunkIndex(
+      expanded.turnStartLineIndices,
+      input.startIndex ?? 0,
+      lines.length,
+    );
     const lineSpeakers = expanded.lineSpeakers;
     this.emit({
       sessionId: input.sessionId,
@@ -483,8 +522,11 @@ export class LineByLineTtsController {
   /** Jump to the first speech chunk of an original caller item (paragraph / lesson / turn). */
   async jumpToSource(sourceIndex: number): Promise<void> {
     if (!this.state.sessionId) return;
-    const start = this.state.sourceStartLineIndices[sourceIndex];
-    if (start == null || start < 0) return;
+    const start = resolveSpeechStartChunkIndex(
+      this.state.sourceStartLineIndices,
+      sourceIndex,
+      this.state.lines.length,
+    );
     await this.jumpToLine(start);
   }
 
