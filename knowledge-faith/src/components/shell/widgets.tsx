@@ -65,7 +65,8 @@ function hadithTabId(segment?: string): string {
 }
 
 function hubTabId(segment?: string): string {
-  if (segment === 'research' || segment === 'scholar' || segment === 'fiqh' || segment === 'seerah') return 'research';
+  // Research desk routes only — do not treat scholar (Prepare a question) as Research.
+  if (segment === 'research' || segment === 'fiqh' || segment === 'seerah') return 'research';
   if (segment === 'discover') return 'discover';
   if (segment === 'deepen') return 'deepen';
   if (segment === 'prophet') return 'prophet';
@@ -173,10 +174,8 @@ export function DeskHeaderTabs({
       { id: 'encyclopedia', href: '#/hadith', label: 'Encyclopedia' },
       { id: 'collections', href: '#/hadith/collections', label: 'Canonical Collections' },
       { id: 'research', href: '#/hadith/research', label: 'Research a Hadith' },
-      // Closest existing home for 7-agent dossiers until #/hadith/dossiers exists.
-      { id: 'dossiers', href: '#/hub/saved', label: 'Agent Dossiers' },
-      // Closest existing saved library until #/hadith/saved exists.
-      { id: 'saved', href: '#/hub/saved', label: 'Saved' },
+      { id: 'dossiers', href: '#/hadith/dossiers', label: 'Agent Dossiers' },
+      { id: 'saved', href: '#/hadith/saved', label: 'Saved' },
     ];
   } else if (onBooksDesk) {
     ariaLabel = 'Islamic Books';

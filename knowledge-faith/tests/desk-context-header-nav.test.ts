@@ -38,6 +38,19 @@ describe('desk context-only header nav', () => {
     assert.match(widgetsSource, /label: 'Saved'/);
     assert.match(widgetsSource, /href: '#\/hadith\/collections'/);
     assert.match(widgetsSource, /href: '#\/hadith\/research'/);
+    assert.match(widgetsSource, /href: '#\/hadith\/dossiers'/);
+    assert.match(widgetsSource, /href: '#\/hadith\/saved'/);
+    assert.equal(widgetsSource.includes("href: '#/hub/saved', label: 'Agent Dossiers'"), false);
+    assert.equal(widgetsSource.includes("href: '#/hub/saved', label: 'Saved'"), false);
+  });
+
+  it('routes Hadith dossiers and saved under the Hadith desk', () => {
+    const hadithSource = readFileSync(path.join(root, 'src/views/HadithView.tsx'), 'utf8');
+    assert.match(hadithSource, /sub === 'dossiers'/);
+    assert.match(hadithSource, /sub === 'saved'/);
+    assert.match(hadithSource, /data-testid="hadith-dossiers-desk"/);
+    assert.match(hadithSource, /data-testid="hadith-saved-desk"/);
+    assert.match(hadithSource, /#\/hadith\/research\?/);
   });
 
   it('keeps Books header tabs All books · New · Essential · with Audio · Saved', () => {
@@ -77,5 +90,28 @@ describe('desk context-only header nav', () => {
     assert.match(frameSource, /href="#\/hadith"/);
     assert.match(frameSource, /href="#\/books"/);
     assert.match(frameSource, /href="#\/spiritual"/);
+  });
+
+  it('exposes a mobile-reachable Books entry on the Hub desk cards', () => {
+    const hubSource = readFileSync(path.join(root, 'src/views/KnowledgeHub.tsx'), 'utf8');
+    const i18nSource = readFileSync(path.join(root, 'src/lib/i18n.ts'), 'utf8');
+    assert.match(hubSource, /data-testid="hub-desk-cards"/);
+    assert.match(hubSource, /href: '#\/books'/);
+    assert.match(hubSource, /t\.cardBooks/);
+    assert.match(hubSource, /cards\.map/);
+    assert.match(i18nSource, /cardBooks: 'Islamic Books'/);
+  });
+
+  it('does not mark Hub Research current on #/hub/scholar', () => {
+    const hubTabBlock = widgetsSource.slice(
+      widgetsSource.indexOf('function hubTabId'),
+      widgetsSource.indexOf('function booksTabId'),
+    );
+    assert.match(
+      hubTabBlock,
+      /if \(segment === 'research' \|\| segment === 'fiqh' \|\| segment === 'seerah'\) return 'research'/,
+    );
+    assert.equal(hubTabBlock.includes("'scholar'"), false);
+    assert.equal(hubTabBlock.includes('"scholar"'), false);
   });
 });

@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Bookmark, ScrollText } from 'lucide-react';
 import type { ViewProps } from '../App.tsx';
 import { HadithCard } from '../components/cards.tsx';
+import { RecentSevenAgentDossiers } from '../components/research/RecentSevenAgentDossiers.tsx';
 import { EmptyState } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, Loading, Notice, SectionTitle } from '../components/ui.tsx';
 import { useRemote } from '../lib/api.ts';
@@ -201,16 +202,88 @@ function CollectionBrowser({ book }: { book: string | null }) {
   );
 }
 
+function HadithDossiersDesk() {
+  const { lang } = useApp();
+  return (
+    <div className="space-y-4 py-4" data-testid="hadith-dossiers-desk">
+      <header className="rounded-3xl border border-[#0E382B]/10 bg-[#fffdf8] px-4 py-4 sm:px-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#0E382B]/60">Hadith desk</p>
+        <h1 className="mt-1 font-display text-2xl font-bold text-[#0E382B]">Agent Dossiers</h1>
+        <p className="mt-1 text-sm text-[#0E382B]/70">
+          Reopen saved and recent 7-agent hadith research without leaving this desk.
+        </p>
+      </header>
+      <RecentSevenAgentDossiers
+        onSelectDossier={selected => {
+          const params = new URLSearchParams({ lang, q: selected.question.trim().slice(0, 4000) });
+          window.location.hash = `#/hadith/research?${params.toString()}`;
+        }}
+        onOpenRoundtable={selected => {
+          const params = new URLSearchParams({ lang, q: selected.question.trim().slice(0, 4000), roundtable: '1' });
+          window.location.hash = `#/hadith/research?${params.toString()}`;
+        }}
+      />
+    </div>
+  );
+}
+
+function SavedHadithItem({ collection, number }: { collection: string; number: number }) {
+  const { lang } = useApp();
+  const { data, error, loading, reload } = useRemote<Hadith>(`/api/hadith/${collection}/${number}?lang=${lang}`);
+  if (loading) return <Loading />;
+  if (error) return <ErrorNote message={error} onRetry={reload} />;
+  return data ? <HadithCard hadith={data} /> : null;
+}
+
+function HadithSavedDesk() {
+  const { t, saved } = useApp();
+  return (
+    <div className="space-y-4 py-4" data-testid="hadith-saved-desk">
+      <header className="rounded-3xl border border-[#0E382B]/10 bg-[#fffdf8] px-4 py-4 sm:px-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#0E382B]/60">Hadith desk</p>
+        <h1 className="mt-1 inline-flex items-center gap-2 font-display text-2xl font-bold text-[#0E382B]">
+          <Bookmark className="h-5 w-5 text-[#C6A15A]" aria-hidden />
+          <span>Saved</span>
+        </h1>
+        <p className="mt-1 text-sm text-[#0E382B]/70">Bookmarked prophetic narrations kept on this device.</p>
+      </header>
+      {saved.hadith.length === 0 ? (
+        <EmptyState>{t.savedEmpty}</EmptyState>
+      ) : (
+        <section className="space-y-3 rounded-3xl border border-[#0E382B]/10 bg-white p-4 sm:p-5">
+          <div className="flex items-center gap-2 text-[#0E382B]">
+            <ScrollText className="h-4 w-4 text-[#C6A15A]" aria-hidden />
+            <h2 className="font-display text-base font-bold">Saved Prophetic Hadiths ({saved.hadith.length})</h2>
+          </div>
+          {saved.hadith.map(item => (
+            <SavedHadithItem
+              key={`${item.collection}-${item.number}`}
+              collection={item.collection}
+              number={item.number}
+            />
+          ))}
+        </section>
+      )}
+    </div>
+  );
+}
+
 export default function HadithView({ sub, segments, params }: ViewProps) {
   const research = sub === 'research';
   const collections = sub === 'collections';
-  const detail = Boolean(sub && !research && !collections);
+  const dossiers = sub === 'dossiers';
+  const saved = sub === 'saved';
+  const detail = Boolean(sub && !research && !collections && !dossiers && !saved);
   return (
     <div className="mx-auto w-full max-w-6xl rounded-3xl bg-[#FBF9F5] px-3 pb-4 sm:px-5 sm:pb-6">
       {research ? (
         <ResearchDesk entry="hadith" desk="hadith" params={params ?? new URLSearchParams()} />
       ) : collections ? (
         <CollectionBrowser book={params?.get('book') ?? null} />
+      ) : dossiers ? (
+        <HadithDossiersDesk />
+      ) : saved ? (
+        <HadithSavedDesk />
       ) : detail ? (
         <HadeethEncyclopedia sub={sub} segments={segments} />
       ) : (
