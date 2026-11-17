@@ -1,4 +1,12 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { Bookmark, BookmarkCheck, Search, X } from 'lucide-react';
 import { RubElHizb } from '../../engine/ds/ornaments.tsx';
@@ -40,155 +48,201 @@ export function quranSectionId(segment?: string): QuranSectionId {
   return 'home';
 }
 
-const HADITH_TAB_ACTIVE = 'bg-[#0E382B] text-white';
-const HADITH_TAB_IDLE = 'bg-[#fffdf8] text-[#0E382B] hover:border-emerald-700';
-
-function hadithTabId(segment?: string): 'encyclopedia' | 'collections' | 'research' {
-  if (segment === 'research') return 'research';
-  if (segment === 'collections') return 'collections';
-  return 'encyclopedia';
-}
-
-const KNOWLEDGE_DESKS: Array<{ path: RouteRoot; href: string; label: string }> = [
-  { path: 'hub', href: '#/hub', label: 'Hub' },
-  { path: 'quran', href: '#/quran', label: 'Qur’an' },
-  { path: 'hadith', href: '#/hadith', label: 'Hadith' },
-  { path: 'books', href: '#/books', label: 'Books' },
-  { path: 'spiritual', href: '#/spiritual', label: 'Worship' },
-];
-
 export function isKnowledgeDomainPath(path: RouteRoot, segments: string[] = []): boolean {
   if (path === 'quran' && segments[0] === 'wall') return false;
   if (path === 'hub' && (segments[0] === 'saved' || segments[0] === 'wall')) return false;
   return path === 'hub' || path === 'quran' || path === 'hadith' || path === 'books' || path === 'spiritual';
 }
 
-/** Sub-view tabs that belong in the desk header, centered above the workspace. */
-export function DeskHeaderTabs({ path, segments, className = '' }: { path: RouteRoot; segments: string[]; className?: string }) {
+type DeskTab = { id: string; href: string; label: string };
+
+function hadithTabId(segment?: string): string {
+  if (segment === 'research') return 'research';
+  if (segment === 'collections') return 'collections';
+  if (segment === 'dossiers') return 'dossiers';
+  if (segment === 'saved') return 'saved';
+  return 'encyclopedia';
+}
+
+function hubTabId(segment?: string): string {
+  if (segment === 'research' || segment === 'scholar' || segment === 'fiqh' || segment === 'seerah') return 'research';
+  if (segment === 'discover') return 'discover';
+  if (segment === 'deepen') return 'deepen';
+  if (segment === 'prophet') return 'prophet';
+  return 'home';
+}
+
+function booksTabId(hash: string): string {
+  const queryAt = hash.indexOf('?');
+  const params = new URLSearchParams(queryAt === -1 ? '' : hash.slice(queryAt + 1));
+  const shelf = params.get('shelf');
+  if (shelf === 'new') return 'new';
+  if (shelf === 'essential') return 'essential';
+  if (shelf === 'audio') return 'audio';
+  if (shelf === 'saved') return 'saved';
+  return 'all';
+}
+
+function spiritualTabId(segments: string[]): string {
+  const root = segments[0];
+  if (!root) return 'pillars';
+  if (root === 'salah' && segments[1] === 'qibla') return 'mosque';
+  if (root === 'salah' && (segments[1] === 'learn' || segments[1] === 'purification' || segments[1] === 'topics')) {
+    return 'learning';
+  }
+  if (root === 'library' || root === 'new-muslim' || root === 'akhlaq') return 'learning';
+  if (root === 'names') return 'names';
+  if (root === 'saved') return 'saved';
+  if (
+    root === 'shahadah' ||
+    root === 'salah' ||
+    root === 'zakah' ||
+    root === 'fasting' ||
+    root === 'hajj' ||
+    root === 'umrah'
+  ) {
+    return 'pillars';
+  }
+  return 'pillars';
+}
+
+function deskTabStyle(active: boolean, isObsidian: boolean): CSSProperties {
+  if (active) {
+    return isObsidian
+      ? { backgroundColor: '#D4AF37', color: '#031812' }
+      : { backgroundColor: '#073C30', color: '#F5EEDC' };
+  }
+  return isObsidian ? { color: '#F5EEDC' } : { color: '#292524' };
+}
+
+/**
+ * Context-only desk tabs for the header center.
+ * Never renders the Hub/Qur’an/Hadith/Books/Worship desk switcher — desks switch via
+ * the left Study & Research Desks rail and the bottom Knowledge dock.
+ */
+export function DeskHeaderTabs({
+  path,
+  segments,
+  hash = '',
+  className = '',
+}: {
+  path: RouteRoot;
+  segments: string[];
+  hash?: string;
+  className?: string;
+}) {
   const { t, uiTheme } = useApp();
   const isObsidian = uiTheme === 'obsidian';
   const shell = 'flex min-w-0 items-center justify-center gap-1.5 ' + className;
   const scroller = 'flex min-w-0 items-center justify-center gap-1 overflow-x-auto no-scrollbar whitespace-nowrap py-0.5';
+  const pillNav =
+    'inline-flex shrink-0 items-center gap-0.5 rounded-full border p-0.5 shadow-2xs';
+  const pillNavStyle = isObsidian
+    ? { backgroundColor: '#0A2E23', borderColor: 'rgba(212,175,55,0.4)' }
+    : { backgroundColor: '#FFFFFF', borderColor: '#E5E0D5' };
+  const tabClass =
+    'inline-flex shrink-0 whitespace-nowrap items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold transition';
 
-  const onKnowledgeDesk = isKnowledgeDomainPath(path, segments);
   const onQuranDesk = path === 'quran' && segments[0] !== 'wall';
-  const quranCurrent = onQuranDesk ? quranSectionId(segments[0]) : null;
-  const quranSubTabs: { id: QuranSectionId; href: string; label: string }[] = [
-    { id: 'home', href: '#/quran', label: t.quranHome },
-    { id: 'read', href: '#/quran/book', label: t.quranRead },
-    { id: 'search', href: '#/quran/search', label: t.quranSearch },
-    { id: 'study', href: '#/quran/study', label: t.quranAyahStudy },
-    { id: 'mine', href: '#/quran/bookmarks', label: t.quranMine },
-  ];
+  const onHadithDesk = path === 'hadith';
+  const onBooksDesk = path === 'books';
+  const onWorshipDesk = path === 'spiritual';
+  const onHubDesk = path === 'hub' && segments[0] !== 'saved' && segments[0] !== 'wall';
 
-  const hadithActive = path === 'hadith' ? hadithTabId(segments[0]) : null;
-  const hadithSubTabs = [
-    { id: 'encyclopedia' as const, href: '#/hadith', en: 'Encyclopedia', ta: 'களஞ்சியம்' },
-    { id: 'collections' as const, href: '#/hadith/collections', en: 'Canonical Collections', ta: 'நூல்கள்' },
-    { id: 'research' as const, href: '#/hadith/research', en: 'Research a Hadith', ta: 'ஆய்வுக்கூடம்' },
-  ];
+  let tabs: DeskTab[] = [];
+  let activeId: string | null = null;
+  let ariaLabel = '';
+  let testId = '';
+
+  if (onQuranDesk) {
+    ariaLabel = t.quranTitle;
+    testId = 'quran-tabs';
+    activeId = quranSectionId(segments[0]);
+    tabs = [
+      { id: 'home', href: '#/quran', label: t.quranHome },
+      { id: 'read', href: '#/quran/book', label: t.quranRead },
+      { id: 'search', href: '#/quran/search', label: t.quranSearch },
+      { id: 'study', href: '#/quran/study', label: t.quranAyahStudy },
+      { id: 'mine', href: '#/quran/bookmarks', label: t.quranMine },
+    ];
+  } else if (onHadithDesk) {
+    ariaLabel = 'Hadith';
+    testId = 'hadith-tabs';
+    activeId = hadithTabId(segments[0]);
+    tabs = [
+      { id: 'encyclopedia', href: '#/hadith', label: 'Encyclopedia' },
+      { id: 'collections', href: '#/hadith/collections', label: 'Canonical Collections' },
+      { id: 'research', href: '#/hadith/research', label: 'Research a Hadith' },
+      // Closest existing home for 7-agent dossiers until #/hadith/dossiers exists.
+      { id: 'dossiers', href: '#/hub/saved', label: 'Agent Dossiers' },
+      // Closest existing saved library until #/hadith/saved exists.
+      { id: 'saved', href: '#/hub/saved', label: 'Saved' },
+    ];
+  } else if (onBooksDesk) {
+    ariaLabel = 'Islamic Books';
+    testId = 'books-tabs';
+    activeId = booksTabId(hash);
+    tabs = [
+      { id: 'all', href: '#/books', label: 'All books' },
+      // Closest: newest-sorted shelf hash (library default sort). Dedicated “new arrivals” feed TBD.
+      { id: 'new', href: '#/books?shelf=new', label: 'New' },
+      { id: 'essential', href: '#/books?shelf=essential', label: 'Essential' },
+      // Closest hash for an audio shelf; BooksLibrary treats unknown shelves as all until audio filter ships.
+      { id: 'audio', href: '#/books?shelf=audio', label: 'with Audio' },
+      { id: 'saved', href: '#/books?shelf=saved', label: 'Saved' },
+    ];
+  } else if (onWorshipDesk) {
+    ariaLabel = 'Worship';
+    testId = 'worship-tabs';
+    activeId = spiritualTabId(segments);
+    tabs = [
+      { id: 'pillars', href: '#/spiritual', label: 'Five pillars' },
+      // Closest existing place/direction tool until a true nearest-mosque finder exists.
+      { id: 'mosque', href: '#/spiritual/salah/qibla', label: 'Nearest Mosque' },
+      { id: 'learning', href: '#/spiritual/salah/learn', label: 'Learning' },
+      { id: 'names', href: '#/spiritual/names', label: 'Asma-ul Husna' },
+      { id: 'saved', href: '#/spiritual/saved', label: 'Saved Guide' },
+    ];
+  } else if (onHubDesk) {
+    ariaLabel = 'Knowledge Hub';
+    testId = 'hub-tabs';
+    activeId = hubTabId(segments[0]);
+    tabs = [
+      { id: 'home', href: '#/hub', label: 'Hub' },
+      { id: 'research', href: '#/hub/research', label: 'Research' },
+      { id: 'discover', href: '#/hub/discover', label: 'Discover' },
+      { id: 'deepen', href: '#/hub/deepen', label: 'Deepen' },
+      { id: 'prophet', href: '#/hub/prophet', label: 'Prophet' },
+    ];
+  }
+
+  if (!tabs.length) return null;
 
   return (
-    <div className={shell}>
+    <div className={shell} data-desk-context-tabs={path}>
       <div className={scroller}>
-        {/* Consolidated Knowledge Desk Switcher (Hub · Qur'an · Hadith · Books · Worship) */}
         <nav
-          aria-label="Knowledge Desks"
-          data-testid="knowledge-desk-switcher"
-          style={
-            isObsidian
-              ? { backgroundColor: '#0A2E23', borderColor: 'rgba(212,175,55,0.4)' }
-              : { backgroundColor: '#FFFFFF', borderColor: '#E5E0D5' }
-          }
-          className="inline-flex shrink-0 items-center gap-0.5 rounded-full border p-0.5 shadow-2xs"
+          aria-label={ariaLabel}
+          data-testid={testId}
+          style={pillNavStyle}
+          className={pillNav}
         >
-          {KNOWLEDGE_DESKS.map(desk => {
-            const active = onKnowledgeDesk && desk.path === path;
+          {tabs.map(tab => {
+            const active = activeId === tab.id;
             return (
               <a
-                key={desk.path}
-                href={desk.href}
-                data-knowledge-desk-tab={desk.path}
+                key={tab.id}
+                href={tab.href}
+                data-desk-tab={tab.id}
                 aria-current={active ? 'page' : undefined}
-                style={
-                  active
-                    ? isObsidian
-                      ? { backgroundColor: '#D4AF37', color: '#031812' }
-                      : { backgroundColor: '#073C30', color: '#F5EEDC' }
-                    : isObsidian
-                      ? { color: '#F5EEDC' }
-                      : { color: '#292524' }
-                }
-                className="inline-flex shrink-0 whitespace-nowrap items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold transition"
+                style={deskTabStyle(active, isObsidian)}
+                className={tabClass}
               >
-                {desk.label}
+                {tab.label}
               </a>
             );
           })}
         </nav>
-
-        {/* Contextual Sub-Tabs when inside Qur'an or Hadith */}
-        {onQuranDesk && (
-          <>
-            <span className="mx-1 h-3.5 w-px shrink-0 bg-stone-300/60" aria-hidden />
-            <nav
-              aria-label={t.quranTitle}
-              data-testid="quran-tabs"
-              style={
-                isObsidian
-                  ? { backgroundColor: '#0A2E23', borderColor: 'rgba(212,175,55,0.4)' }
-                  : { backgroundColor: '#FFFFFF', borderColor: '#E5E0D5' }
-              }
-              className="inline-flex shrink-0 items-center gap-0.5 rounded-full border p-0.5 shadow-2xs"
-            >
-              {quranSubTabs.map(tab => {
-                const active = quranCurrent === tab.id;
-                return (
-                  <a
-                    key={tab.id}
-                    href={tab.href}
-                    aria-current={active ? 'page' : undefined}
-                    style={
-                      active
-                        ? isObsidian
-                          ? { backgroundColor: '#D4AF37', color: '#031812' }
-                          : { backgroundColor: '#073C30', color: '#F5EEDC' }
-                        : isObsidian
-                          ? { color: '#F5EEDC' }
-                          : { color: '#292524' }
-                    }
-                    className="inline-flex shrink-0 whitespace-nowrap items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold transition"
-                  >
-                    {tab.label}
-                  </a>
-                );
-              })}
-            </nav>
-          </>
-        )}
-
-        {path === 'hadith' && (
-          <>
-            <span className="mx-1 h-3.5 w-px shrink-0 bg-stone-300" aria-hidden />
-            <nav aria-label="Hadith" data-testid="hadith-tabs" className="inline-flex shrink-0 items-center gap-1">
-              {hadithSubTabs.map(tab => (
-                <a
-                  key={tab.id}
-                  href={tab.href}
-                  aria-current={tab.id === hadithActive ? 'page' : undefined}
-                  className={`inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-full border border-[#0E382B]/10 px-2 py-0.5 text-[11px] font-medium ${
-                    tab.id === hadithActive ? HADITH_TAB_ACTIVE : HADITH_TAB_IDLE
-                  }`}
-                >
-                  <span>{tab.en}</span>
-                  <span lang="ta" className={tab.id === hadithActive ? 'text-white/80' : 'text-[#0E382B]/70'}>
-                    ({tab.ta})
-                  </span>
-                </a>
-              ))}
-            </nav>
-          </>
-        )}
       </div>
     </div>
   );

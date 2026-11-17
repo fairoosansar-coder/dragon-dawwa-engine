@@ -301,12 +301,12 @@ export function AppFrame({
               </p>
             </div>
 
-            {/* Center Zone: Primary Desk Switcher & Contextual Sub-Tabs centered directly above Center Column */}
+            {/* Center Zone: context-only tabs for the active study desk (no Hub/Qur’an/Hadith/Books/Worship switcher) */}
             <div
               data-header-center-zone
               className="hidden min-w-0 items-center justify-center gap-2 justify-self-center md:flex"
             >
-              <DeskHeaderTabs path={path} segments={segments} />
+              <DeskHeaderTabs path={path} segments={segments} hash={hashStr} />
             </div>
 
             {/* Far-Right Zone: Library Settings + Mobile Customize + Notification Bell + Seeker Account Pill */}
@@ -414,9 +414,14 @@ export function AppFrame({
             </div>
           </div>
 
-          {/* Row 2 on Mobile/Small screens: Knowledge desk switcher & sub-tabs */}
+          {/* Row 2 on Mobile/Small screens: context-only desk tabs */}
           {isKnowledgeDomainPath(path, segments) && (
-            <DeskHeaderTabs path={path} segments={segments} className="border-t border-stone-200/60 py-1 md:hidden" />
+            <DeskHeaderTabs
+              path={path}
+              segments={segments}
+              hash={hashStr}
+              className="border-t border-stone-200/60 py-1 md:hidden"
+            />
           )}
         </header>
       )}
