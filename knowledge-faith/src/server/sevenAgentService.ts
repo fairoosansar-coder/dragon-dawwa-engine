@@ -10,7 +10,7 @@ import {
   userFacingResearchQuestion,
 } from '../shared/modernWorldBenchmarks.ts';
 import {
-  capThenSortDossiersNewestFirst,
+  capByInsertOrder,
   sortDossiersNewestFirst,
   type ModernScienceForesight,
   type RoundtableTurn,
@@ -107,9 +107,8 @@ function readHistoryList(): SevenAgentResearchDossier[] {
 
 function writeHistoryList(items: SevenAgentResearchDossier[]): void {
   try {
-    // Cap first so a prepended record is retained, then newest-first for display.
-    const ordered = capThenSortDossiersNewestFirst(items, 40);
-    writeFileSync(historyIndexPath(), JSON.stringify(ordered), 'utf8');
+    // Persist by insert/MRU order only — newest-generated sort is on read.
+    writeFileSync(historyIndexPath(), JSON.stringify(capByInsertOrder(items, 40)), 'utf8');
   } catch {
     /* ignore */
   }
@@ -127,14 +126,14 @@ export function readServerSavedDossiers(): SevenAgentResearchDossier[] {
 }
 
 function writeServerSavedDossiers(items: SevenAgentResearchDossier[]): SevenAgentResearchDossier[] {
-  // Cap first so an explicitly prepended save is retained even if older by createdAt.
-  const ordered = capThenSortDossiersNewestFirst(items, 50);
+  // Persist by save/MRU order (prepend stays first). Display sorts by createdAt on read.
+  const capped = capByInsertOrder(items, 50);
   try {
-    writeFileSync(savedDossiersPath(), JSON.stringify(ordered), 'utf8');
+    writeFileSync(savedDossiersPath(), JSON.stringify(capped), 'utf8');
   } catch {
     /* ignore */
   }
-  return ordered;
+  return capped;
 }
 
 function recordInHistory(dossier: SevenAgentResearchDossier): void {

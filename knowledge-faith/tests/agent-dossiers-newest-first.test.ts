@@ -4,7 +4,7 @@ import path from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
-  capThenSortDossiersNewestFirst,
+  capByInsertOrder,
   preferNewerDossier,
   sortDossiersNewestFirst,
   type SevenAgentResearchDossier,
@@ -35,6 +35,23 @@ function stubDossier(
     roundtableScriptText: 'stub',
     createdAt: partial.createdAt,
   };
+}
+
+/** Simulate toggleServerSavedDossier prepend + persist (MRU insert order). */
+function persistSave(
+  current: SevenAgentResearchDossier[],
+  target: SevenAgentResearchDossier,
+  limit = 50,
+): SevenAgentResearchDossier[] {
+  const next = [
+    target,
+    ...current.filter(
+      item =>
+        item.id !== target.id &&
+        item.question.trim().toLowerCase() !== target.question.trim().toLowerCase(),
+    ),
+  ];
+  return capByInsertOrder(next, limit);
 }
 
 describe('Agent Dossiers newest-first ordering', () => {
@@ -90,23 +107,64 @@ describe('Agent Dossiers newest-first ordering', () => {
         createdAt: `2026-06-${String((i % 28) + 1).padStart(2, '0')}T12:00:00.000Z`,
       }),
     );
-    // toggleServerSavedDossier prepends the explicit save, then persist caps.
-    const next = [olderSave, ...fullCap];
-    const persisted = capThenSortDossiersNewestFirst(next, 50);
+    const persisted = persistSave(fullCap, olderSave);
 
     assert.equal(persisted.length, 50);
     assert.ok(
       persisted.some(d => d.id === 'explicit-old'),
       'explicit older save must survive the 50-item retention cap',
     );
+    assert.equal(persisted[0]?.id, 'explicit-old');
+  });
+
+  it('keeps a prior older save across a subsequent save at the full cap (MRU persist)', () => {
+    const olderSave = stubDossier({
+      id: 'first-old-save',
+      question: 'first older save',
+      createdAt: '2019-01-01T00:00:00.000Z',
+    });
+    const secondSave = stubDossier({
+      id: 'second-save',
+      question: 'second save',
+      createdAt: '2021-01-01T00:00:00.000Z',
+    });
+    const fullCap = Array.from({ length: 50 }, (_, i) =>
+      stubDossier({
+        id: `cap-${i}`,
+        question: `cap question ${i}`,
+        createdAt: `2026-07-${String((i % 28) + 1).padStart(2, '0')}T12:00:00.000Z`,
+      }),
+    );
+
+    const afterFirst = persistSave(fullCap, olderSave);
+    const afterSecond = persistSave(afterFirst, secondSave);
+
+    assert.equal(afterSecond.length, 50);
+    assert.ok(
+      afterSecond.some(d => d.id === 'first-old-save'),
+      'first older save must survive a subsequent save at the full cap',
+    );
+    assert.ok(afterSecond.some(d => d.id === 'second-save'));
+    assert.equal(afterSecond[0]?.id, 'second-save');
+    assert.equal(afterSecond[1]?.id, 'first-old-save');
+
+    // Sanity: storing sorted-by-createdAt after each write would drop the first save next time.
+    const wrongDisk = sortDossiersNewestFirst(afterFirst);
+    const wrongNext = capByInsertOrder(
+      [
+        secondSave,
+        ...wrongDisk.filter(d => d.id !== secondSave.id),
+      ],
+      50,
+    );
     assert.equal(
-      sortDossiersNewestFirst(next).slice(0, 50).some(d => d.id === 'explicit-old'),
+      wrongNext.some(d => d.id === 'first-old-save'),
       false,
-      'sanity: naive sort-then-slice would have dropped the older save',
+      'sanity: sorted persist would drop the older just-saved item on the next save',
     );
   });
 
-  it('wires newest-first sort into recent list, saved library, and history API', () => {
+  it('wires newest-first sort on display and insert-order cap on persist', () => {
     const recent = readFileSync(
       path.join(root, 'src/components/research/RecentSevenAgentDossiers.tsx'),
       'utf8',
@@ -120,7 +178,9 @@ describe('Agent Dossiers newest-first ordering', () => {
     assert.match(saved, /preferNewerDossier/);
     assert.match(service, /sortDossiersNewestFirst\(history\)/);
     assert.match(service, /sortDossiersNewestFirst\(readServerSavedDossiers\(\)\)/);
-    assert.match(service, /capThenSortDossiersNewestFirst\(items, 50\)/);
-    assert.match(service, /capThenSortDossiersNewestFirst\(items, 40\)/);
+    assert.match(service, /capByInsertOrder\(items, 50\)/);
+    assert.match(service, /capByInsertOrder\(items, 40\)/);
+    assert.equal(service.includes('capThenSortDossiersNewestFirst'), false);
+    assert.equal(service.includes('sortDossiersNewestFirst(items).slice'), false);
   });
 });

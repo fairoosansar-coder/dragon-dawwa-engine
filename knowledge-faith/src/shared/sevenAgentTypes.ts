@@ -75,15 +75,13 @@ export function sortDossiersNewestFirst<T extends Pick<SevenAgentResearchDossier
 }
 
 /**
- * Cap by insertion order first (keeps a prepended explicit save), then sort newest-first.
- * Sorting before truncation would drop an older-created newly-saved dossier at a full cap.
+ * Cap by save/insert (MRU) order. Do not sort by createdAt before capping —
+ * sorted storage would put an older just-saved item last so the next save drops it.
+ * Newest-generated ordering belongs on read/display only.
  */
-export function capThenSortDossiersNewestFirst<T extends Pick<SevenAgentResearchDossier, 'createdAt'>>(
-  items: readonly T[],
-  limit: number,
-): T[] {
+export function capByInsertOrder<T>(items: readonly T[], limit: number): T[] {
   const safeLimit = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : 0;
-  return sortDossiersNewestFirst(items.slice(0, safeLimit));
+  return items.slice(0, safeLimit);
 }
 
 /** When merging duplicates by question, keep the more recently generated copy. */
