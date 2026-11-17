@@ -68,22 +68,31 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   const [history, setHistory] = useState<StoredResearch[]>([]);
   const [chapters, setChapters] = useState<{ id: string; scope: ResearchScope; question: string; forwarded?: boolean }[]>([]);
   const [roundtableOpen, setRoundtableOpen] = useState(false);
-  /** Sticky in-flight lock: keeps countdown mounted for the whole run (no poll/loading flicker). */
-  const [researchInFlight, setResearchInFlight] = useState(false);
-  /** True from Ask click until POST settles / navigates — blocks premature in-flight clear. */
+  const reportIdParam = params.get('reportId');
+  /**
+   * Sticky in-flight lock. Seed true when the route already names a run so the first paint
+   * after Hub→research navigation / reload is countdown, not idle studio chrome.
+   */
+  const [researchInFlight, setResearchInFlight] = useState(
+    () => Boolean(jobParam || reportIdParam || askedParam?.trim()),
+  );
+  /** True from Ask click until route/remotes take over the new run. */
   const [askPending, setAskPending] = useState(false);
+  /** Question for the Ask in flight — invalidates a prior board until the new run matches. */
+  const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const [instantDossier, setInstantDossier] = useState<SevenAgentResearchDossier | null>(null);
   const remote = useRemote<ResearchJobResponse>(jobId ? `/api/research/jobs/${jobId}` : null);
-  const reportIdParam = params.get('reportId');
 
   const activeResearchQuery = useMemo(() => {
+    // Prefer the in-flight Ask so a prior dossier cannot keep matching the old URL question.
+    if (pendingQuestion?.trim()) return pendingQuestion.trim();
     if (instantDossier?.question) return instantDossier.question;
     // Prefer the URL question so hub-card opens cannot inherit a prior job's gold-ring prompt.
     if (askedParam?.trim()) return askedParam.trim();
     const fromJob = remote.data?.job.question?.trim();
     if (fromJob) return fromJob;
     return '';
-  }, [instantDossier?.question, remote.data?.job.question, askedParam]);
+  }, [pendingQuestion, instantDossier?.question, remote.data?.job.question, askedParam]);
 
   const sevenAgentRemote = useRemote<SevenAgentResearchDossier>(
     reportIdParam
@@ -101,14 +110,25 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     if (!activeResearchQuery) return Boolean(reportIdParam);
     return researchQuestionsAlign(dossier.question, activeResearchQuery);
   };
-  const sevenAgentDossier =
-    (instantDossier && dossierMatchesActiveQuestion(instantDossier) ? instantDossier : null) ??
-    (dossierMatchesActiveQuestion(sevenAgentRemote.data) ? sevenAgentRemote.data : null);
+  // While Ask is pending, ignore any still-mounted prior board — only the new query counts.
+  const sevenAgentDossier = askPending
+    ? null
+    : (instantDossier && dossierMatchesActiveQuestion(instantDossier) ? instantDossier : null) ??
+      (dossierMatchesActiveQuestion(sevenAgentRemote.data) ? sevenAgentRemote.data : null);
 
   useEffect(() => {
     // Drop any prior card's instant payload when the URL question/report changes.
     setInstantDossier(null);
   }, [askedParam, reportIdParam, jobParam, lang]);
+
+  // After hash-only navigation (no remount), route params own the run — clear askPending.
+  useEffect(() => {
+    if (!askPending) return;
+    if (!(jobParam || askedParam?.trim() || reportIdParam)) return;
+    setAskPending(false);
+    setPendingQuestion(null);
+    setResearchInFlight(true);
+  }, [askPending, jobParam, askedParam, reportIdParam]);
 
   const jobStatus = remote.data?.job.status;
   const jobIsLive = jobStatus === 'running' || jobStatus === 'queued';
@@ -116,26 +136,29 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   // Enter sticky flight when a run is clearly underway (Ask, reload into live job, or 7-agent fetch).
   useEffect(() => {
     if (sevenAgentDossier) return;
-    if (sevenAgentRemote.loading || jobIsLive) setResearchInFlight(true);
-  }, [sevenAgentDossier, sevenAgentRemote.loading, jobIsLive]);
+    if (askPending || sevenAgentRemote.loading || jobIsLive) setResearchInFlight(true);
+  }, [sevenAgentDossier, askPending, sevenAgentRemote.loading, jobIsLive]);
 
-  // Leave sticky flight only when a matching dossier is ready, or the run settled without one.
+  // Leave sticky flight only when the *current* run's dossier is ready, or the run settled without one.
   useEffect(() => {
+    if (askPending) return;
     if (sevenAgentDossier) {
       setResearchInFlight(false);
-      setAskPending(false);
+      setPendingQuestion(null);
       return;
     }
     if (!researchInFlight) return;
-    // Keep the lock while Ask POST is still in flight (no job/q/reportId yet).
-    if (askPending || sevenAgentRemote.loading || jobIsLive || remote.loading) return;
+    if (sevenAgentRemote.loading || jobIsLive || remote.loading) return;
     const settledWithoutBoard =
       Boolean(sevenAgentRemote.error) ||
       jobStatus === 'done' ||
       jobStatus === 'error' ||
       jobStatus === 'cancelled' ||
       (!activeResearchQuery && !reportIdParam && !jobId);
-    if (settledWithoutBoard) setResearchInFlight(false);
+    if (settledWithoutBoard) {
+      setResearchInFlight(false);
+      setPendingQuestion(null);
+    }
   }, [
     sevenAgentDossier,
     researchInFlight,
@@ -150,7 +173,9 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     jobId,
   ]);
 
-  const isCountdownActive = researchInFlight && !sevenAgentDossier;
+  const isCountdownActive =
+    !sevenAgentDossier &&
+    (askPending || researchInFlight || sevenAgentRemote.loading || jobIsLive);
 
   const running = isCountdownActive;
   const parallelPending =
@@ -242,6 +267,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     if (!pieces.length) return;
     setError(null);
     setInstantDossier(null);
+    setPendingQuestion(pieces[0] ?? field);
     setResearchInFlight(true);
     setAskPending(true);
     try {
@@ -270,7 +296,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
       const first = startedChapters[0];
       const href = hrefFor(first.scope, first.id, first.forwarded, first.question);
       if (window.location.hash !== href) {
-        // Keep askPending through navigation; remount picks up job/q from the new hash.
+        // Route params will clear askPending via effect (works with or without remount).
         window.location.hash = href;
         return;
       }
@@ -278,8 +304,10 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
       remote.reload();
       // Job/seven-agent remotes now own the in-flight lock.
       setAskPending(false);
+      setPendingQuestion(null);
     } catch (err) {
       setAskPending(false);
+      setPendingQuestion(null);
       setResearchInFlight(false);
       setError(err instanceof Error ? err.message : 'The research job could not be started.');
     }
@@ -546,6 +574,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
         activeQuestion={sevenAgentDossier?.question || activeResearchQuery}
         onSelectDossier={selected => {
           setAskPending(false);
+          setPendingQuestion(null);
           setResearchInFlight(false);
           setQuestion(selected.question);
           setInstantDossier(selected);
@@ -558,6 +587,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
         }}
         onOpenRoundtable={selected => {
           setAskPending(false);
+          setPendingQuestion(null);
           setResearchInFlight(false);
           setQuestion(selected.question);
           setInstantDossier(selected);

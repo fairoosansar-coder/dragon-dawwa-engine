@@ -32,7 +32,7 @@ describe('DD-148 Hub research UI blink / flicker', () => {
   it('keeps a sticky in-flight countdown instead of the 2.6s countdownHold remount hack', () => {
     assert.match(deskSource, /researchInFlight/);
     assert.match(deskSource, /setResearchInFlight\(true\)/);
-    assert.match(deskSource, /isCountdownActive = researchInFlight && !sevenAgentDossier/);
+    assert.match(deskSource, /askPending \|\| researchInFlight \|\| sevenAgentRemote\.loading \|\| jobIsLive/);
     assert.equal(deskSource.includes('countdownHold'), false);
     assert.equal(deskSource.includes('setCountdownHold'), false);
     assert.equal(deskSource.includes('2600'), false);
@@ -41,8 +41,24 @@ describe('DD-148 Hub research UI blink / flicker', () => {
   it('keeps the in-flight lock while Ask POST is pending (no q/job/reportId yet)', () => {
     assert.match(deskSource, /askPending/);
     assert.match(deskSource, /setAskPending\(true\)/);
-    assert.match(deskSource, /if \(askPending \|\| sevenAgentRemote\.loading \|\| jobIsLive \|\| remote\.loading\) return/);
-    assert.match(deskSource, /Keep the lock while Ask POST is still in flight/);
+    assert.match(deskSource, /pendingQuestion/);
+    assert.match(deskSource, /While Ask is pending, ignore any still-mounted prior board/);
+    assert.match(deskSource, /const sevenAgentDossier = askPending/);
+    assert.match(deskSource, /if \(askPending\) return;/);
+  });
+
+  it('seeds researchInFlight from route and derives countdown without waiting an effect', () => {
+    assert.match(
+      deskSource,
+      /useState\(\s*\(\) => Boolean\(jobParam \|\| reportIdParam \|\| askedParam\?\.trim\(\)\)/,
+    );
+    assert.match(deskSource, /!sevenAgentDossier &&/);
+    assert.match(deskSource, /askPending \|\| researchInFlight \|\| sevenAgentRemote\.loading \|\| jobIsLive/);
+  });
+
+  it('clears askPending when hash/route params take over after Ask', () => {
+    assert.match(deskSource, /After hash-only navigation/);
+    assert.match(deskSource, /setAskPending\(false\);\s*\n\s*setPendingQuestion\(null\);/);
   });
 
   it('keys the countdown card to the question, not the timer/stage', () => {
@@ -176,7 +192,11 @@ describe('DD-148 mid-Ask auth while UI still shows signed-in seeker', () => {
     const req = {
       headers: { authorization: `Bearer ${tokenA}` },
     } as unknown as Parameters<typeof reissueSeekerTokenForRequest>[0];
-    const tokenB = reissueSeekerTokenForRequest(req, registered.user);
+    const reissued = reissueSeekerTokenForRequest(req, registered.user);
+    assert.equal(sessionIdFromSignedToken(reissued), sidA);
+
+    // Distinct sibling token with the same sid (explicit iat change via new issue).
+    const tokenB = issueSeekerToken(registered.user, { sid: sidA });
     assert.notEqual(tokenA, tokenB);
     assert.equal(sessionIdFromSignedToken(tokenB), sidA);
     assert.ok(verifySeekerToken(tokenA));
