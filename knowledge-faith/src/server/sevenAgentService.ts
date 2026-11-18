@@ -9,11 +9,13 @@ import {
   researchSystemInstructionsForQuestion,
   userFacingResearchQuestion,
 } from '../shared/modernWorldBenchmarks.ts';
-import type {
-  ModernScienceForesight,
-  RoundtableTurn,
-  SevenAgentResearchDossier,
-  SpecialistAgentFinding,
+import {
+  capByInsertOrder,
+  sortDossiersNewestFirst,
+  type ModernScienceForesight,
+  type RoundtableTurn,
+  type SevenAgentResearchDossier,
+  type SpecialistAgentFinding,
 } from '../shared/sevenAgentTypes.ts';
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
 import { translateTextToLanguage } from './ayahStudyService.ts';
@@ -105,7 +107,8 @@ function readHistoryList(): SevenAgentResearchDossier[] {
 
 function writeHistoryList(items: SevenAgentResearchDossier[]): void {
   try {
-    writeFileSync(historyIndexPath(), JSON.stringify(items.slice(0, 40)), 'utf8');
+    // Persist by insert/MRU order only — newest-generated sort is on read.
+    writeFileSync(historyIndexPath(), JSON.stringify(capByInsertOrder(items, 40)), 'utf8');
   } catch {
     /* ignore */
   }
@@ -122,12 +125,15 @@ export function readServerSavedDossiers(): SevenAgentResearchDossier[] {
   }
 }
 
-function writeServerSavedDossiers(items: SevenAgentResearchDossier[]): void {
+function writeServerSavedDossiers(items: SevenAgentResearchDossier[]): SevenAgentResearchDossier[] {
+  // Persist by save/MRU order (prepend stays first). Display sorts by createdAt on read.
+  const capped = capByInsertOrder(items, 50);
   try {
-    writeFileSync(savedDossiersPath(), JSON.stringify(items.slice(0, 50)), 'utf8');
+    writeFileSync(savedDossiersPath(), JSON.stringify(capped), 'utf8');
   } catch {
     /* ignore */
   }
+  return capped;
 }
 
 function recordInHistory(dossier: SevenAgentResearchDossier): void {
@@ -1560,10 +1566,10 @@ export async function listSevenAgentHistory(lang?: Lang): Promise<{
     );
     history = [seeded];
   }
-  const saved = readServerSavedDossiers();
+  const saved = sortDossiersNewestFirst(readServerSavedDossiers());
   const savedIds = saved.map(item => item.id);
   return {
-    items: history,
+    items: sortDossiersNewestFirst(history),
     saved,
     savedIds,
   };
@@ -1652,10 +1658,11 @@ export async function toggleServerSavedDossier(input: {
           item.question.trim().toLowerCase() !== target!.question.trim().toLowerCase(),
       );
 
-  writeServerSavedDossiers(next);
+  // Persist and return the same capped+sorted list so savedIds match disk.
+  const persisted = writeServerSavedDossiers(next);
   return {
     saved: shouldSave,
-    savedIds: next.map(i => i.id),
-    items: next,
+    savedIds: persisted.map(i => i.id),
+    items: persisted,
   };
 }
