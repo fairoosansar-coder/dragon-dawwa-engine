@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { toLang, type Lang } from '../shared/sources.ts';
 import type { HadithRef } from '../shared/refs.ts';
+import type { SevenAgentResearchDossier } from '../shared/sevenAgentTypes.ts';
 import { STRINGS, type Strings } from './i18n.ts';
 import { useRemote } from './api.ts';
 
@@ -52,18 +53,71 @@ export interface AppConfig {
 interface Saved {
   verses: string[];
   hadith: HadithRef[];
+  dossiers?: SevenAgentResearchDossier[];
+  notes?: Record<string, string>;
 }
+
+export type UiThemeId = 'parchment' | 'obsidian' | 'sepia';
+export type UiFontScaleId = 'compact' | 'standard' | 'comfortable' | 'large';
+
+export const UI_FONT_SCALES: Record<UiFontScaleId, { label: string; badge: string; htmlPx: string; bodyPx: string }> = {
+  compact: { label: 'Compact', badge: '13px', htmlPx: '14.5px', bodyPx: '13px' },
+  standard: { label: 'Standard', badge: '14px', htmlPx: '15.25px', bodyPx: '13.75px' },
+  comfortable: { label: 'Comfortable', badge: '15.5px', htmlPx: '16.5px', bodyPx: '15.5px' },
+  large: { label: 'Large Reading', badge: '17px', htmlPx: '18px', bodyPx: '17px' },
+};
+
+export const UI_THEMES: Record<UiThemeId, { label: string; subtitle: string; sand: string; parchment: string; pine: string; ink: string; muted: string; swatch: string }> = {
+  parchment: {
+    label: 'Parchment (Light)',
+    subtitle: 'Warm ivory & classic emerald',
+    sand: '#F7F3E8',
+    parchment: '#F5EEDC',
+    pine: '#073C30',
+    ink: '#172720',
+    muted: '#57534E',
+    swatch: 'linear-gradient(135deg, #F7F3E8 0%, #073C30 100%)',
+  },
+  obsidian: {
+    label: 'Obsidian Emerald (Accent)',
+    subtitle: 'Luminous sage-ivory canvas & deep emerald cards',
+    sand: '#F4F1E6',
+    parchment: '#EFEAD8',
+    pine: '#073C30',
+    ink: '#14221D',
+    muted: '#4A5852',
+    swatch: 'linear-gradient(135deg, #F4F1E6 0%, #04241C 60%, #C6A15A 100%)',
+  },
+  sepia: {
+    label: 'Warm Sepia (Manuscript)',
+    subtitle: 'Mushaf cream & gilded ink',
+    sand: '#F2EAD9',
+    parchment: '#E8DEC8',
+    pine: '#0B3B2D',
+    ink: '#1C1610',
+    muted: '#5C4B35',
+    swatch: 'linear-gradient(135deg, #F2EAD9 0%, #C6A15A 100%)',
+  },
+};
 
 interface AppState {
   lang: Lang;
   setLang: (lang: Lang) => void;
+  uiTheme: UiThemeId;
+  setUiTheme: (theme: UiThemeId) => void;
+  fontScale: UiFontScaleId;
+  setFontScale: (scale: UiFontScaleId) => void;
   t: Strings;
   config: AppConfig | null;
   saved: Saved;
   toggleVerse: (key: string) => void;
   toggleHadith: (ref: HadithRef) => void;
+  toggleDossier: (dossier: SevenAgentResearchDossier) => void;
   isVerseSaved: (key: string) => boolean;
   isHadithSaved: (ref: HadithRef) => boolean;
+  isDossierSaved: (idOrQuestion: string) => boolean;
+  notes: Record<string, string>;
+  setVerseNote: (key: string, note: string) => void;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -71,12 +125,48 @@ const AppContext = createContext<AppState | null>(null);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [storedLang, setLang] = useStored<Lang>('kf-lang', 'en');
   const lang = toLang(storedLang);
+  const [storedTheme, setUiTheme] = useStored<UiThemeId>('kf-ui-theme-v2', 'parchment');
+  const uiTheme: UiThemeId = storedTheme === 'obsidian' || storedTheme === 'sepia' ? storedTheme : 'parchment';
+  const [storedScale, setFontScale] = useStored<UiFontScaleId>('kf-font-scale', 'standard');
+  const fontScale: UiFontScaleId =
+    storedScale === 'compact' || storedScale === 'comfortable' || storedScale === 'large'
+      ? storedScale
+      : 'standard';
   const [saved, setSaved] = useStored<Saved>('kf-saved', { verses: [], hadith: [] });
   const { data: config } = useRemote<AppConfig>('/api/config');
 
   useEffect(() => {
-    document.documentElement.lang = lang;
-  }, [lang]);
+    document.documentElement.lang = 'en';
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const themeSpec = UI_THEMES[uiTheme] ?? UI_THEMES.parchment;
+    const root = document.documentElement;
+    root.dataset.uiTheme = uiTheme;
+    root.dataset.theme = uiTheme;
+    root.style.setProperty('--color-sand', themeSpec.sand);
+    root.style.setProperty('--color-parchment', themeSpec.parchment);
+    root.style.setProperty('--color-pine', themeSpec.pine);
+    root.style.setProperty('--color-ink', themeSpec.ink);
+    root.style.setProperty('--color-muted', themeSpec.muted);
+    root.style.backgroundColor = themeSpec.sand;
+    if (document.body) {
+      document.body.style.backgroundColor = themeSpec.sand;
+      document.body.style.color = themeSpec.ink;
+    }
+  }, [uiTheme]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const scaleSpec = UI_FONT_SCALES[fontScale] ?? UI_FONT_SCALES.standard;
+    const root = document.documentElement;
+    root.dataset.fontScale = fontScale;
+    root.style.fontSize = scaleSpec.htmlPx;
+    if (document.body) {
+      document.body.style.fontSize = scaleSpec.bodyPx;
+    }
+  }, [fontScale]);
 
   const toggleVerse = useCallback(
     (key: string) =>
@@ -89,6 +179,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const sameHadith = (a: HadithRef, b: HadithRef) => a.collection === b.collection && a.number === b.number;
 
+  const setVerseNote = useCallback((key: string, note: string) => {
+    const text = note.trim().slice(0, 2000);
+    setSaved(current => {
+      const notes = { ...(current.notes ?? {}) };
+      if (text) notes[key] = text;
+      else delete notes[key];
+      return { ...current, notes };
+    });
+  }, [setSaved]);
+
   const toggleHadith = useCallback(
     (ref: HadithRef) =>
       setSaved(s => ({
@@ -98,19 +198,69 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [setSaved],
   );
 
+  const sameDossier = (a: SevenAgentResearchDossier, idOrQuestion: string) => {
+    const clean = idOrQuestion.trim().toLowerCase();
+    return a.id.toLowerCase() === clean || a.question.trim().toLowerCase() === clean;
+  };
+
+  const toggleDossier = useCallback(
+    (dossier: SevenAgentResearchDossier) => {
+      let nextSavedState = true;
+      setSaved(s => {
+        const list = s.dossiers ?? [];
+        const exists = list.some(
+          d => sameDossier(d, dossier.id) || sameDossier(d, dossier.question),
+        );
+        nextSavedState = !exists;
+        const nextDossiers = exists
+          ? list.filter(
+              d => !sameDossier(d, dossier.id) && !sameDossier(d, dossier.question),
+            )
+          : [dossier, ...list];
+        return {
+          ...s,
+          dossiers: nextDossiers,
+        };
+      });
+      if (typeof fetch === 'function') {
+        void fetch('/api/research/seven-agents/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: dossier.id,
+            question: dossier.question,
+            lang: dossier.lang,
+            dossier,
+            saved: nextSavedState,
+          }),
+        }).catch(() => {});
+      }
+    },
+    [setSaved],
+  );
+
   const value = useMemo<AppState>(
     () => ({
       lang,
       setLang,
-      t: STRINGS[lang],
+      uiTheme,
+      setUiTheme,
+      fontScale,
+      setFontScale,
+      t: STRINGS.en,
       config,
       saved,
       toggleVerse,
       toggleHadith,
+      toggleDossier,
       isVerseSaved: key => saved.verses.includes(key),
       isHadithSaved: ref => saved.hadith.some(h => sameHadith(h, ref)),
+      isDossierSaved: idOrQuestion =>
+        (saved.dossiers ?? []).some(d => sameDossier(d, idOrQuestion)),
+      notes: saved.notes ?? {},
+      setVerseNote,
     }),
-    [lang, setLang, config, saved, toggleVerse, toggleHadith],
+    [lang, setLang, uiTheme, setUiTheme, fontScale, setFontScale, config, saved, toggleVerse, toggleHadith, toggleDossier, setVerseNote],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

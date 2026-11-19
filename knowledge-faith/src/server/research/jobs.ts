@@ -1,10 +1,14 @@
 import { randomUUID } from 'node:crypto';
-import type { ResearchAssignmentView, ResearchJobResponse } from '../../shared/contracts/v1.ts';
+import type { ResearchAssignmentView, ResearchJobResponse, ResearchJobView } from '../../shared/contracts/v1.ts';
+import { sanitizePodcastHostName } from '../../shared/podcastHost.ts';
 import { researchFingerprint } from '../../shared/research/coordinator.ts';
 import type { Lang } from '../../shared/sources.ts';
 import { UpstreamError } from '../http.ts';
-import { executeResearch, type ResearchPorts } from './engine.ts';
+import { parallelRequestForDesk } from './agentConfig.ts';
+import { executeResearch, publishParallelRevision, type ResearchPorts } from './engine.ts';
+import { awaitParallelResult } from './parallelTask.ts';
 import { defaultResearchPorts } from './ports.ts';
+import { archiveResearchJob, readArchivedResearchJob } from './savedWork.ts';
 
 interface StoredJob extends ResearchJobResponse {
   controller: AbortController;
@@ -33,14 +37,15 @@ export function clearSharedResearchJobs() {
   jobs.clear();
 }
 
-export function getSharedResearchJob(id: string): ResearchJobResponse | undefined {
-  prune();
-  const job = jobs.get(id);
-  if (!job) return undefined;
-  return { contractVersion: '1.0.0', job: job.job, dossier: job.dossier };
+function persisted(stored: StoredJob): ResearchJobResponse {
+  return { contractVersion: '1.0.0', job: stored.job, dossier: stored.dossier };
 }
 
-/** Publish a finished shared dossier without calling the research providers. */
+function remember(stored: StoredJob) {
+  archiveResearchJob(stored.fingerprint, persisted(stored));
+}
+
+/** Publish a finished shared dossier without calling Gemini or Parallel. */
 export function rememberCompletedSharedJob(response: ResearchJobResponse, assignment: ResearchAssignmentView | null): void {
   prune();
   const current = jobs.get(response.job.id);
@@ -50,14 +55,23 @@ export function rememberCompletedSharedJob(response: ResearchJobResponse, assign
     response.job.language,
     assignment ?? { scope: 'knowledge', teams: [], bookId: null },
   );
-  jobs.set(response.job.id, {
+  const stored: StoredJob = {
     contractVersion: '1.0.0',
     controller: new AbortController(),
     createdAt: Date.now(),
     fingerprint,
     dossier: response.dossier,
     job: { ...response.job, status: 'done' },
-  });
+  };
+  jobs.set(response.job.id, stored);
+  remember(stored);
+}
+
+export function getSharedResearchJob(id: string): ResearchJobResponse | undefined {
+  prune();
+  const job = jobs.get(id);
+  if (job) return persisted(job);
+  return readArchivedResearchJob(id);
 }
 
 export function cancelSharedResearchJob(id: string): ResearchJobResponse | undefined {
@@ -66,14 +80,19 @@ export function cancelSharedResearchJob(id: string): ResearchJobResponse | undef
   if (job.job.status !== 'running' && job.job.status !== 'queued') return getSharedResearchJob(id);
   job.controller.abort();
   job.job = { ...job.job, status: 'cancelled', finishedAt: new Date().toISOString() };
+  remember(job);
   return getSharedResearchJob(id);
+}
+
+function keepHost(job: ResearchJobView, hostName: string | undefined): ResearchJobView {
+  return hostName ? { ...job, hostName } : job;
 }
 
 export function startSharedResearchJob(
   question: string,
   language: Lang,
   ports: ResearchPorts = defaultResearchPorts(),
-  options?: { assignment?: ResearchAssignmentView | null; force?: boolean },
+  options?: { assignment?: ResearchAssignmentView | null; force?: boolean; desk?: string | null; hostName?: string | null },
 ): string {
   prune();
   const assignment = options?.assignment ?? null;
@@ -90,6 +109,7 @@ export function startSharedResearchJob(
   if (running >= MAX_RUNNING) throw new UpstreamError('Too many research jobs are already running.', 429);
   const id = randomUUID();
   const controller = new AbortController();
+  const hostName = typeof options?.hostName === 'string' && options.hostName.trim() ? sanitizePodcastHostName(options.hostName) : undefined;
   const stored: StoredJob = {
     contractVersion: '1.0.0',
     controller,
@@ -111,9 +131,11 @@ export function startSharedResearchJob(
       timingsMs: { totalMs: 0, sources: {} },
       assignment,
       agents: [],
+      hostName,
     },
   };
   jobs.set(id, stored);
+  const parallel = parallelRequestForDesk(options?.desk, question, language);
   void executeResearch({
     id,
     question,
@@ -121,11 +143,12 @@ export function startSharedResearchJob(
     signal: controller.signal,
     ports,
     assignment,
+    parallel: parallel ?? undefined,
     onProgress: snapshot => {
       const current = jobs.get(id);
       if (!current || current.job.status === 'cancelled') return;
       if (current.job.status !== 'running' && current.job.status !== 'queued') return;
-      current.job = { ...snapshot, id, status: 'running' };
+      current.job = keepHost({ ...snapshot, id, status: 'running' }, current.job.hostName);
     },
   })
     .then(result => {
@@ -133,21 +156,52 @@ export function startSharedResearchJob(
       if (!current) return;
       if (current.job.status === 'cancelled') {
         current.dossier = result.dossier;
-        current.job = { ...result.job, id, status: 'cancelled' };
+        current.job = keepHost({ ...result.job, id, status: 'cancelled' }, current.job.hostName);
+        remember(current);
         return;
       }
-      current.job = result.job;
+      current.job = keepHost(result.job, current.job.hostName);
       current.dossier = result.dossier;
+      remember(current);
+      const runId = result.job.parallel?.status === 'running' ? result.job.parallel.runId : null;
+      if (runId) resumeParallel(id, runId);
     })
     .catch((err: unknown) => {
       const current = jobs.get(id);
       if (!current || current.job.status === 'cancelled') return;
-      current.job = {
-        ...current.job,
-        status: 'error',
-        finishedAt: new Date().toISOString(),
-        errors: [...current.job.errors, { provider: 'research', message: err instanceof Error ? err.message : 'Research failed.' }],
-      };
+      current.job = keepHost(
+        {
+          ...current.job,
+          status: 'error',
+          finishedAt: new Date().toISOString(),
+          errors: [...current.job.errors, { provider: 'research', message: err instanceof Error ? err.message : 'Research failed.' }],
+        },
+        current.job.hostName,
+      );
+      remember(current);
     });
   return id;
+}
+
+function resumeParallel(id: string, runId: string) {
+  const stored = jobs.get(id);
+  if (!stored) return;
+  void awaitParallelResult({
+    runId,
+    signal: stored.controller.signal,
+    attempts: 8,
+    timeoutSec: 20,
+  })
+    .then(consult => {
+      const current = jobs.get(id);
+      if (!current || current.job.status === 'cancelled' || !current.dossier) return;
+      if (consult.status === 'running' || consult.status === 'credentials_missing') return;
+      const revised = publishParallelRevision({ job: current.job, dossier: current.dossier }, consult);
+      current.job = keepHost(revised.job, current.job.hostName);
+      current.dossier = revised.dossier;
+      remember(current);
+    })
+    .catch(() => {
+      /* A failed continuation leaves the first revision in place. It does not invent findings. */
+    });
 }

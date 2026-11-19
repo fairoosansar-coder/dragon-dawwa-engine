@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" role="img" aria-labelledby="quran-title">
+  <title id="quran-title">Qur’an — open book on a rehal</title>
+  <path class="dd-primary-fill" fill="#F5F1E7" d="M3.5 6.7C7.6 5.2 11.5 5.8 15.2 8.8V19.5C11.5 16.7 7.6 15.9 3.5 17.3ZM28.5 6.7C24.4 5.2 20.5 5.8 16.8 8.8V19.5C20.5 16.7 24.4 15.9 28.5 17.3Z"/>
+  <path class="dd-primary-stroke" d="M8 21L23.5 28M24 21L8.5 28" stroke="#F5F1E7"/>
+  <path class="dd-accent-stroke" d="M16 9V21M6.5 9.5C8.5 9.2 10.7 9.8 12.5 11M25.5 9.5C23.5 9.2 21.3 9.8 19.5 11" stroke="#C9A660"/>
+</svg>

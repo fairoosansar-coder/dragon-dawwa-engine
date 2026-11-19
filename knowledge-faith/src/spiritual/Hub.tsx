@@ -1,4 +1,7 @@
 import { useMemo, useState } from 'react';
+import { Settings } from 'lucide-react';
+import { StudioMark, type StudioMarkName } from '../components/shell/studioMarks.tsx';
+import { SelectionWash } from '../components/ui.tsx';
 import { useShell } from '../lib/shell.tsx';
 import { useRemote } from '../lib/api.ts';
 import { useStored } from '../lib/store.tsx';
@@ -11,23 +14,23 @@ import { Geometry, Panel, useSp } from './chrome.tsx';
 import { useCalendarPrefs } from './FastingView.tsx';
 import { usePlace } from './place.ts';
 import { useBookmarks, useGuideProgress } from './GuideView.tsx';
-const PILLARS = [
-  { id: 'shahadah', href: '#/spiritual/shahadah', guides: ['shahadah'] },
-  { id: 'salah', href: '#/spiritual/salah', guides: ['salah', 'salah-learn', 'salah-purification'] },
-  { id: 'zakah', href: '#/spiritual/zakah', guides: ['zakah', 'zakah-recipients'] },
-  { id: 'fasting', href: '#/spiritual/fasting', guides: ['fasting'] },
-  { id: 'hajj', href: '#/spiritual/hajj', guides: ['hajj', 'umrah'] },
+const PILLARS: { id: string; href: string; guides: string[]; plate: string }[] = [
+  { id: 'shahadah', href: '#/spiritual/shahadah', guides: ['shahadah'], plate: '/assets/pillar-shahadah.jpg' },
+  { id: 'salah', href: '#/spiritual/salah', guides: ['salah', 'salah-learn', 'salah-purification'], plate: '/assets/pillar-salah.jpg' },
+  { id: 'zakah', href: '#/spiritual/zakah', guides: ['zakah', 'zakah-recipients'], plate: '/assets/pillar-zakah.jpg' },
+  { id: 'fasting', href: '#/spiritual/fasting', guides: ['fasting'], plate: '/assets/pillar-sawm.jpg' },
+  { id: 'hajj', href: '#/spiritual/hajj', guides: ['hajj', 'umrah'], plate: '/assets/pillar-hajj.jpg' },
 ];
 
-const TOOLS = [
-  ['#/spiritual/salah/times', 'prayerTimes'],
-  ['#/spiritual/salah/qibla', 'qibla'],
-  ['#/spiritual/zakah/calculator', 'toolZakah'],
-  ['#/spiritual/fasting/calendar', 'toolFasting'],
-  ['#/spiritual/dua-dhikr', 'toolDua'],
-  ['#/spiritual/library', 'sourceLibrary'],
-  ['#/spiritual/hajj/checklist', 'toolChecklist'],
-] as const;
+const TOOLS: { href: string; key: 'prayerTimes' | 'qibla' | 'toolZakah' | 'toolFasting' | 'toolDua' | 'sourceLibrary' | 'toolChecklist'; mark: StudioMarkName }[] = [
+  { href: '#/spiritual/salah/times', key: 'prayerTimes', mark: 'prayerTimes' },
+  { href: '#/spiritual/salah/qibla', key: 'qibla', mark: 'qibla' },
+  { href: '#/spiritual/zakah/calculator', key: 'toolZakah', mark: 'zakahCalc' },
+  { href: '#/spiritual/fasting/calendar', key: 'toolFasting', mark: 'fastingCalendar' },
+  { href: '#/spiritual/dua-dhikr', key: 'toolDua', mark: 'dua' },
+  { href: '#/spiritual/library', key: 'sourceLibrary', mark: 'library' },
+  { href: '#/spiritual/hajj/checklist', key: 'toolChecklist', mark: 'checklist' },
+];
 
 interface TodayPrefs {
   prayer: boolean;
@@ -43,11 +46,18 @@ export function Hub() {
   const hits = searchSpiritual(query, lang);
   return (
     <div className="dd-spiritual space-y-6">
-      <header className="overflow-hidden rounded-[2rem] bg-dd-emerald px-6 py-8 text-dd-ivory sm:px-10">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-dd-gold-soft">{s.brand}</p>
-        <p className="mt-1 text-sm text-dd-gold-soft">{s.byline}</p>
-        <h1 className="mt-4 max-w-3xl font-display text-4xl font-bold leading-tight sm:text-5xl">{s.title}</h1>
-        <p className="mt-4 max-w-2xl text-lg text-dd-ivory">{s.tagline}</p>
+      <header data-worship-hero className="relative overflow-hidden rounded-[2rem] border border-[#D4AF37]/30 bg-[#12725A] px-6 pt-8 pb-16 text-dd-ivory sm:py-10 sm:pr-16 sm:pl-40">
+        <img
+          src="/assets/geometric-worship.jpg"
+          alt=""
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[center_30%]"
+        />
+        <div className="relative max-w-[16.5rem] sm:max-w-xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-dd-gold-soft">{s.brand}</p>
+          <p className="mt-1 text-sm text-dd-gold-soft">{s.byline}</p>
+          <h1 className="mt-4 font-display text-4xl font-bold leading-tight sm:text-5xl">{s.title}</h1>
+          <p className="mt-4 text-lg text-dd-ivory">{s.tagline}</p>
+        </div>
       </header>
       {query.trim().length >= 2 && (
         <ul className="space-y-2">
@@ -70,16 +80,27 @@ export function Hub() {
             const title = guide ? text(guide.title, lang) : pillar.id;
             const summary = guide ? text(guide.summary, lang) : '';
             return (
-              <a key={pillar.id} href={pillar.href} className="flex min-h-44 flex-col gap-3 rounded-3xl border border-dd-emerald/10 bg-white p-4 shadow-sm hover:border-dd-gold">
-                <Geometry name={pillar.id} />
-                <span className="font-display text-xl font-bold text-dd-emerald">{title}</span>
-                <span className="text-sm leading-snug text-dd-ink/80">{summary}</span>
-                <span className="mt-auto text-sm font-semibold text-dd-emerald">{s.open}</span>
-                {opened > 0 && (
-                  <span className="text-xs text-dd-ink/60">
-                    {s.progressOpened}: {opened}
+              <a key={pillar.id} href={pillar.href} className="relative flex min-h-44 flex-col overflow-hidden rounded-3xl border border-dd-emerald/10 bg-[#F7F1E4] p-4 shadow-sm hover:border-dd-gold">
+                <img
+                  src={pillar.plate}
+                  alt=""
+                  className="pointer-events-none absolute inset-0 h-full w-full object-cover object-right-top [mask-image:radial-gradient(circle_at_100%_0%,#000_0%,#000_2.25rem,transparent_5.25rem)]"
+                />
+                <span className="relative z-10 flex min-h-0 flex-1 flex-col gap-3">
+                  <span className="pr-24 font-display text-xl font-bold leading-tight text-dd-emerald">{title}</span>
+                  <span className="text-sm leading-snug text-dd-ink/80">{summary}</span>
+                  <span className="mt-auto flex items-end justify-between gap-3">
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-dd-emerald">{s.open}</span>
+                      {opened > 0 && (
+                        <span className="mt-1 block text-xs text-dd-ink/60">
+                          {s.progressOpened}: {opened}
+                        </span>
+                      )}
+                    </span>
+                    <Geometry name={pillar.id} />
                   </span>
-                )}
+                </span>
               </a>
             );
           })}
@@ -88,10 +109,11 @@ export function Hub() {
       </section>
       <section aria-label={s.tools}>
         <h2 className="mb-3 font-display text-2xl font-bold text-dd-emerald">{s.tools}</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {TOOLS.map(([href, key]) => (
-            <a key={href} href={href} className="flex min-h-16 items-center rounded-2xl bg-dd-emerald px-4 py-3 leading-snug text-dd-ivory">
-              {s[key]}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {TOOLS.map(tool => (
+            <a key={tool.href} href={tool.href} className="flex min-h-16 items-center gap-3 rounded-2xl border border-dd-emerald/10 bg-white px-4 py-3 leading-snug text-dd-ink shadow-sm transition-colors hover:border-dd-gold">
+              <StudioMark name={tool.mark} className="h-11 w-11 shrink-0 rounded-xl" />
+              <span className="font-semibold">{s[tool.key]}</span>
             </a>
           ))}
         </div>
@@ -106,8 +128,9 @@ export function Hub() {
           ['#/spiritual/saved', s.saved],
           ['#/spiritual/questions', s.questions],
         ].map(([href, label]) => (
-          <a key={href} href={href} className="min-h-16 rounded-2xl border border-dd-lapis/30 bg-white px-4 py-4 font-semibold text-dd-emerald">
-            {label}
+          <a key={href} href={href} className="relative flex min-h-16 items-center overflow-hidden rounded-2xl border border-dd-lapis/30 bg-white px-4 py-4 pr-16 font-semibold text-dd-emerald">
+            <SelectionWash />
+            <span className="relative">{label}</span>
           </a>
         ))}
       </section>
@@ -166,6 +189,7 @@ interface HijriMonthDay {
 
 function Today() {
   const { lang, s } = useSp();
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [prefs, setPrefs] = useStored<TodayPrefs>('kf-today-panels', { prayer: true, dhikr: true, occasion: true, goal: true });
   const [goal, setGoal] = useStored<string>('kf-spiritual-goal', '');
   const [draft, setDraft] = useState(goal);
@@ -200,14 +224,35 @@ function Today() {
   }, [remote.data]);
   return (
     <Panel>
-      <h2 className="font-display text-2xl font-bold text-dd-emerald">{s.today}</h2>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {(Object.keys(prefs) as (keyof TodayPrefs)[]).map(key => (
-          <button key={key} type="button" className="min-h-11 rounded-full bg-white px-3 text-sm" onClick={() => setPrefs({ ...prefs, [key]: !prefs[key] })}>
-            {prefs[key] ? s.hide : s.show} {panelLabel[key]}
-          </button>
-        ))}
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-display text-2xl font-bold text-dd-emerald">{s.today}</h2>
+        <button
+          type="button"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-dd-emerald/15 bg-white text-dd-emerald transition-colors hover:border-dd-gold"
+          aria-expanded={settingsOpen}
+          aria-controls="today-worship-settings"
+          aria-label={`${s.today} settings`}
+          onClick={() => setSettingsOpen(open => !open)}
+        >
+          <Settings className="h-5 w-5" aria-hidden />
+        </button>
       </div>
+      {settingsOpen && (
+        <fieldset id="today-worship-settings" className="mt-3 space-y-1 rounded-2xl border border-dd-emerald/10 bg-white p-3">
+          <legend className="sr-only">{s.today}</legend>
+          {(Object.keys(prefs) as (keyof TodayPrefs)[]).map(key => (
+            <label key={key} className="flex min-h-11 items-center gap-3 text-sm text-dd-ink">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-dd-emerald"
+                checked={prefs[key]}
+                onChange={() => setPrefs({ ...prefs, [key]: !prefs[key] })}
+              />
+              {panelLabel[key]}
+            </label>
+          ))}
+        </fieldset>
+      )}
       {prefs.prayer && (
         <div className="mt-4">
           <h3 className="font-semibold">{s.todayNext}</h3>

@@ -1,0 +1,58 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { podcastPrompt } from '../src/server/grounding.ts';
+import { getPodcastHostLabel, readPodcastHost, writePodcastHost } from '../src/lib/podcastHost.ts';
+import { podcastHostLabel, sanitizePodcastHostName } from '../src/shared/podcastHost.ts';
+
+test('the spoken label uses the saved name and honorific', () => {
+  assert.equal(podcastHostLabel('', 'None'), 'Seeker');
+  assert.equal(podcastHostLabel('   ', 'Brother'), 'Brother Seeker');
+  assert.equal(podcastHostLabel('Feroz', 'Brother'), 'Brother Feroz');
+  assert.equal(podcastHostLabel('Amina', 'Sister'), 'Sister Amina');
+  assert.equal(podcastHostLabel('Feroz', 'None'), 'Feroz');
+  assert.equal(podcastHostLabel('Brother Feroz', 'Brother'), 'Brother Feroz');
+  assert.equal(sanitizePodcastHostName(' \n Seeker \n '), 'Seeker');
+});
+
+test('getPodcastHostLabel reads local preference and defaults to Seeker', () => {
+  const saved = new Map<string, string>();
+  const memory = {
+    getItem: (key: string) => saved.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      saved.set(key, value);
+    },
+    removeItem: (key: string) => {
+      saved.delete(key);
+    },
+    clear: () => saved.clear(),
+    key: () => null,
+    length: 0,
+  };
+  Object.defineProperty(globalThis, 'localStorage', { value: memory, configurable: true });
+  saved.clear();
+  assert.equal(readPodcastHost().userName, 'Seeker');
+  assert.equal(readPodcastHost().honorific, 'None');
+  assert.equal(getPodcastHostLabel(), 'Seeker');
+  writePodcastHost({ userName: 'Feroz', honorific: 'Brother' });
+  assert.equal(getPodcastHostLabel(), 'Brother Feroz');
+  writePodcastHost({ userName: ' ', honorific: 'None' });
+  assert.equal(getPodcastHostLabel(), 'Seeker');
+});
+
+test('the podcast script prompt uses the host name and 4-persona roundtable guardrails', () => {
+  const prompt = podcastPrompt('Patience', 'en', [], 2, 'Sister Maryam', 'Detailed synthesis on sabr andmadhhab rulings.');
+  assert.match(prompt, /HOST NAME/);
+  assert.match(prompt, /Sister Maryam/);
+  assert.match(prompt, /Assalamu Alaikum wa Rahmatullahi wa Barakatuh/);
+  assert.match(prompt, /practical lesson/i);
+  assert.match(prompt, /Dr\. Layla \(Qur'an Specialist\)/);
+  assert.match(prompt, /Dr\. Zainab \(Hadith & Fiqh\)/);
+  assert.match(prompt, /Shaykh Farhan \(Contemporary Fatwa & Field Research\)/);
+  assert.match(prompt, /Detailed synthesis on sabr/);
+  assert.match(prompt, /சூரத்துன் நிஸா 101-வது வசனத்தில்/);
+  assert.match(prompt, /BAN repetitive vocatives/i);
+  assert.doesNotMatch(prompt, /I am a generated host|These citations are not read aloud/);
+  assert.match(podcastPrompt('Patience', 'ta', [], 2), /அஸ்ஸலாமு அலைக்கும்/);
+  assert.match(podcastPrompt('Patience', 'ta', [], 2), /Seeker/);
+  assert.match(podcastPrompt('Patience', 'si', [], 2), /අස්සලාමු අලයිකුම්/);
+});

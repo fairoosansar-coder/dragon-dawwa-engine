@@ -1,0 +1,78 @@
+import type { FormEvent } from 'react';
+import type { ResearchDeskName } from '../lib/route.ts';
+import { Button } from '../components/ui.tsx';
+import { readerQuestion } from './domainQuestion.ts';
+import { ResearchCapture } from './ResearchCapture.tsx';
+import { RESEARCH_STARTERS } from './researchStarters.ts';
+
+const QUESTION_LABEL = 'What is your question, or what passage are you looking at?';
+
+export function DomainResearchForm({
+  desk,
+  question,
+  running,
+  clarify,
+  clarifyText,
+  onQuestion,
+  onSubmit,
+  onStarter,
+  variant = 'studio',
+}: {
+  desk: Exclude<ResearchDeskName, 'hadith'>;
+  question: string;
+  running: boolean;
+  clarify: boolean;
+  clarifyText: string;
+  onQuestion: (value: string) => void;
+  onSubmit: (event: FormEvent, asked: string) => void;
+  onStarter?: (question: string) => void;
+  variant?: 'studio' | 'omni';
+}) {
+  const asked = readerQuestion(question);
+  const starters = variant === 'omni' ? [] : (RESEARCH_STARTERS[desk] ?? []);
+
+  return (
+    <form
+      onSubmit={event => {
+        event.preventDefault();
+        if (asked.length < 3) return;
+        onSubmit(event, asked);
+      }}
+      className="space-y-3"
+    >
+      {starters.length > 0 && (
+        <div className="rounded-2xl border border-stone-200 bg-white p-3.5 shadow-2xs" data-research-starters={desk}>
+          <span className="mb-2.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-800">
+            <span className="inline-block" aria-hidden>⚡</span>
+            Starter questions
+          </span>
+          <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
+            {starters.map(starter => (
+              <button
+                key={starter.id}
+                type="button"
+                data-testid={`research-starter-${starter.id}`}
+                disabled={running}
+                onClick={() => onStarter?.(starter.question)}
+                className="cursor-pointer rounded-xl border border-stone-200 bg-stone-50/80 p-3 text-left transition-all hover:border-emerald-700/40 hover:bg-emerald-50/40 disabled:cursor-wait"
+              >
+                <h4 className="text-xs font-bold text-stone-900">{starter.title}</h4>
+                <p className="mt-0.5 truncate text-[11px] text-stone-600">{starter.detail}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="space-y-1.5">
+        <label className="sr-only" htmlFor="research-question">
+          {QUESTION_LABEL}
+        </label>
+        <ResearchCapture value={question} onChange={onQuestion} disabled={running} variant={variant} />
+      </div>
+      {clarify && <p className={`text-xs font-medium ${variant === 'omni' ? 'text-stone-600' : 'text-[var(--text-body)]'}`}>{clarifyText}</p>}
+      {desk === 'fiqh' && (
+        <p className="text-xs leading-relaxed text-[var(--text-body)]/80">This asks the sources about a practice. It does not issue a ruling.</p>
+      )}
+    </form>
+  );
+}

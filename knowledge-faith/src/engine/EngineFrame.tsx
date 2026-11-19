@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useApp } from '../lib/store.tsx';
 
 export function EngineFrame({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (

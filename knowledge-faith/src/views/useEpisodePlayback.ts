@@ -65,7 +65,16 @@ export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, gues
     if (cached) return Promise.resolve(cached);
     const pending = inflight.current.get(i);
     if (pending) return pending;
-    const voice = chunk.speaker === 'Host' ? voicesRef.current.hostVoice : voicesRef.current.guestVoice;
+    const voice =
+      chunk.speaker === 'Host'
+        ? voicesRef.current.hostVoice
+        : /layla/i.test(String(chunk.speaker))
+          ? 'Kore'
+          : /zainab/i.test(String(chunk.speaker))
+            ? 'Zephyr'
+            : /farhan/i.test(String(chunk.speaker))
+              ? 'Charon'
+              : voicesRef.current.guestVoice;
     const task = postJson<TtsResult>('/api/voice/narrate', {
       text: chunk.text,
       voice,

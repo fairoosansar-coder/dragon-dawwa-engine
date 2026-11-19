@@ -1,3 +1,4 @@
+import type { SegmentedHadithMetadata } from './hadithSegmentation.ts';
 import type { Lang } from './sources.ts';
 
 export interface SurahInfo {
@@ -56,6 +57,7 @@ export interface Hadith {
   grades: Grade[];
   book: number;
   section: string | null;
+  segmented?: SegmentedHadithMetadata;
 }
 
 export interface HadithSection {
@@ -98,8 +100,15 @@ export interface AskResult {
   model: string;
 }
 
+export type PodcastSpeaker =
+  | 'Host'
+  | 'Guest'
+  | "Dr. Layla (Qur'an Specialist)"
+  | 'Dr. Zainab (Hadith & Fiqh)'
+  | 'Shaykh Farhan (Contemporary Fatwa & Field Research)';
+
 export interface PodcastLine {
-  speaker: 'Host' | 'Guest';
+  speaker: PodcastSpeaker;
   text: string;
   citations: string[];
 }

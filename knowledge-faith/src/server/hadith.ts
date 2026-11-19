@@ -1,4 +1,6 @@
 import { DAY, fetchJson, UpstreamError } from './http.ts';
+import { segmentHadithRecord } from '../shared/hadithSegmentation.ts';
+import { passageSupportsTopic } from '../shared/research.ts';
 import { findCollection, hadithEdition, type Lang } from '../shared/sources.ts';
 import type { Grade, Hadith, HadithSection } from '../shared/types.ts';
 import { localizeHadith, translateStudyTexts } from './hadithTranslate.ts';
@@ -127,7 +129,23 @@ export async function getSection(
   ]);
   const merged = merge(collection.id, translated.hadiths, arabic?.hadiths ?? [], edition.lang, translated.metadata.section);
   const cap = limit && Number.isFinite(limit) ? Math.max(1, Math.min(Math.floor(limit), merged.length)) : merged.length;
-  return { items: await localizeHadith(merged.slice(0, cap), lang, edition.lang), total: merged.length };
+  const sliced = merged.slice(0, cap);
+  // Warm remaining section items in background if a page limit was requested
+  if (cap < merged.length && lang !== 'en' && edition.lang === 'en') {
+    const rest = merged.slice(cap);
+    setImmediate(() => {
+      void localizeHadith(rest, lang, edition.lang).catch(() => {});
+    });
+  }
+  const items = (await localizeHadith(sliced, lang, edition.lang)).map(item => ({
+    ...item,
+    segmented: segmentHadithRecord({
+      arabic: item.arabic,
+      text: item.text,
+      lang: item.lang,
+    }),
+  }));
+  return { items, total: merged.length };
 }
 
 export async function getHadith(collectionId: string, number: number, lang: Lang): Promise<Hadith | null> {
@@ -145,5 +163,85 @@ export async function getHadith(collectionId: string, number: number, lang: Lang
   const merged = merge(collection.id, translated.hadiths, arabic?.hadiths ?? [], edition.lang, translated.metadata.section);
   if (!merged[0]) return null;
   const [localized] = await localizeHadith(merged.slice(0, 1), lang, edition.lang);
-  return localized ?? null;
+  if (!localized) return null;
+  return {
+    ...localized,
+    segmented: segmentHadithRecord({
+      arabic: localized.arabic,
+      text: localized.text,
+      lang: localized.lang,
+    }),
+  };
+}
+
+export interface StudyHadith extends Hadith {
+  /** Hadith number inside the book, as printed by the edition file. */
+  inBook: number;
+}
+
+function distinctivePair(question: string, phrases: readonly string[]): boolean {
+  const blob = `${question}\n${phrases.join('\n')}`;
+  return /\b(?:torah|tawrah|taurat|tawrat)\b/i.test(blob) && /\bhebrew\b/i.test(blob);
+}
+
+/** Rank edition rows by the question’s own wording. The hadith text is not rewritten. */
+export function rankEditionHadiths(
+  question: string,
+  phrases: readonly string[],
+  hadiths: readonly { hadithnumber: number; text: string }[],
+  limit = 3,
+): number[] {
+  const pair = distinctivePair(question, phrases);
+  const scored = hadiths
+    .map(hadith => {
+      const text = hadith.text ?? '';
+      if (!text.trim()) return { number: hadith.hadithnumber, score: 0 };
+      const pairHit = pair && /torah|tawrah|taurat|tawrat/i.test(text) && /hebrew/i.test(text);
+      const supported = passageSupportsTopic(question, text) || phrases.some(phrase => phrase.length > 2 && passageSupportsTopic(phrase, text));
+      const score = (pairHit ? 50 : 0) + (supported ? 10 : 0);
+      return { number: hadith.hadithnumber, score };
+    })
+    .filter(item => item.score >= (pair ? 50 : 10));
+  scored.sort((a, b) => b.score - a.score || a.number - b.number);
+  const best = scored[0]?.score ?? 0;
+  return scored
+    .filter(item => item.score >= best)
+    .slice(0, limit)
+    .map(item => item.number)
+    .sort((a, b) => a - b);
+}
+
+/**
+ * Search the hadith-api study editions by wording.
+ * A collection that returns a match stops the scan. The next collection is opened only when this one lacks the narration.
+ */
+export async function findStudyHadiths(
+  lang: Lang,
+  question: string,
+  phrases: readonly string[],
+  collectionIds: readonly string[],
+): Promise<StudyHadith[]> {
+  const ids = collectionIds.length ? collectionIds : ['bukhari'];
+  for (const collectionId of ids) {
+    const collection = findCollection(collectionId);
+    if (!collection) continue;
+    const edition = hadithEdition(collection, 'en');
+    let file: RawFile;
+    try {
+      file = await fetchJson<RawFile>(`${BASE}/editions/${edition.edition}.min.json`, 7 * DAY, 20_000);
+    } catch (err) {
+      if (err instanceof UpstreamError && err.status === 404) continue;
+      throw err;
+    }
+    const numbers = rankEditionHadiths(question, phrases, file.hadiths, 3);
+    const matches: StudyHadith[] = [];
+    for (const number of numbers) {
+      const row = file.hadiths.find(hadith => hadith.hadithnumber === number);
+      const full = await getHadith(collectionId, number, lang);
+      if (!full) continue;
+      matches.push({ ...full, inBook: row?.reference?.hadith ?? 0 });
+    }
+    if (matches.length) return matches;
+  }
+  return [];
 }

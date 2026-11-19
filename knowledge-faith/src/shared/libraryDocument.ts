@@ -34,6 +34,10 @@ export interface LibraryDocument {
   description: string | null;
   descriptionIsFullText: false;
   blocks: LibraryBlock[];
+  page?: number;
+  pageSize?: number;
+  totalPages?: number;
+  totalBlocks?: number;
   media: LibraryMedia[];
   credits: LibraryCredit[];
   canonicalUrl: string | null;

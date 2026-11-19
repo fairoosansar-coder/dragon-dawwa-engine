@@ -6,10 +6,20 @@ import { EngineFrame } from './EngineFrame.tsx';
 import { useDossier } from './DossierContext.tsx';
 import { useApp } from '../lib/store.tsx';
 import { stopAudio } from '../lib/audio.ts';
+import { CrossExamineFollowUp } from './components/CrossExamineFollowUp.tsx';
 
 export default function Roundtable() {
   const { t, config } = useApp();
   const d = useDossier();
+  if (!d.displayed) {
+    return (
+      <EngineFrame className="space-y-6">
+        <p data-testid="roundtable-empty" className="rounded-2xl bg-[#f6efe2] px-4 py-3 text-sm text-[#1c1915]">
+          No podcast is loaded for this content language. Open a saved research item, or generate again. The previous episode is not played in its place.
+        </p>
+      </EngineFrame>
+    );
+  }
   const s = d.displayed.agent_6_synthesis;
   useEffect(() => stopAudio(), []);
   return (
@@ -35,11 +45,26 @@ export default function Roundtable() {
       </div>
       <StarDivider label="مجلس العلم" />
       <PodcastScriptPlayer
-        key={d.analysis.query_hadith}
+        key={`${d.displayed.query_hadith}-${d.displayed.content_language ?? d.lang}`}
         script={s.podcast_script}
         executiveReport={s.executive_report_markdown}
         onShare={() => void d.share()}
         neuralVoice={config == null || config.ai === true}
+        language={d.displayed.content_language ?? d.lang}
+        audioReady={d.audioReady}
+        savedClips={d.savedClips}
+        onClip={d.rememberClip}
+      />
+      <CrossExamineFollowUp
+        dossierId={d.displayed.research_job_id || d.displayed.query_hadith.slice(0, 80)}
+        originalQuestion={d.displayed.query_hadith}
+        previousSynthesis={`${s.consensus_and_disagreements}\n\n${s.executive_report_markdown}`}
+        openedSources={(d.displayed.agent_7_source_research?.retrieved_records ?? []).slice(0, 8).map(record => ({
+          id: record.id,
+          label: `HadeethEnc ${record.id}`,
+          text: [record.arabic, record.translation, record.published_grade].filter(Boolean).join('\n'),
+        }))}
+        language={d.displayed.content_language ?? d.lang}
       />
     </EngineFrame>
   );

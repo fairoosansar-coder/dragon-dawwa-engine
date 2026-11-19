@@ -1,7 +1,17 @@
 import test, { before } from 'node:test';
 import assert from 'node:assert/strict';
 import { installMediaForTests, playAudio, resetAudioForTests } from '../src/lib/audio.ts';
-import { stopForEditionChange, stopForLanguageChange, storedEditionMap } from '../src/lib/quranPlayback.ts';
+import {
+  audioEditionForLang,
+  doesAudioMatchVerse,
+  isReaderAudioId,
+  resolveMeaningAudioSrc,
+  stopForAudioLangChange,
+  stopForEditionChange,
+  stopForLanguageChange,
+  storedEditionMap,
+  toAudioLang,
+} from '../src/lib/quranPlayback.ts';
 import { audioStatusLabel } from '../src/components/shell/widgets.tsx';
 import { STRINGS } from '../src/lib/i18n.ts';
 import {
@@ -446,3 +456,53 @@ test('Al-Mukhtasar keeps exact text, null footnotes, and a repeated multi-verse 
   assert.match(describeMukhtasar('si', MUKHTASAR_KEY.si, null).listNote, /could not be loaded/);
   assert.equal(TAFSIR_FOOTNOTES_NOTE, 'This response did not include footnotes.');
 });
+
+test('reader audio language selector resolves Arabic, Tamil, Sinhala, and English playback', async () => {
+  assert.equal(toAudioLang('ta', 'en'), 'ta');
+  assert.equal(toAudioLang('si', 'en'), 'si');
+  assert.equal(toAudioLang('en', 'ta'), 'en');
+  assert.equal(toAudioLang('ar', 'ta'), 'ar');
+  assert.equal(toAudioLang(null, 'ta'), 'ta');
+  assert.equal(toAudioLang('invalid', 'si'), 'si');
+
+  assert.equal(audioEditionForLang('ar', 'ta', 'tamil_omar_brief'), null);
+  assert.equal(audioEditionForLang('ta', 'ta', 'tamil_omar_brief'), 'tamil_omar_brief');
+  assert.equal(audioEditionForLang('ta', 'ta', 'tamil_baqavi'), 'tamil_omar_brief');
+  assert.equal(audioEditionForLang('ta', 'en', 'english_rwwad'), 'tamil_omar_brief');
+  assert.equal(audioEditionForLang('si', 'ta', 'tamil_omar_brief'), 'sinhalese_mahir');
+  assert.equal(audioEditionForLang('en', 'ta', 'tamil_omar_brief'), 'english_rwwad');
+
+  const tamilCov = coverage('tamil_omar_brief', tamilFiles);
+  assert.equal(
+    resolveMeaningAudioSrc(tamilCov, 'tamil_omar_brief', 1, 1, false),
+    'https://d.quranenc.com/data/audio/tamil_omar_brief/001001.mp3',
+  );
+  assert.equal(resolveMeaningAudioSrc(tamilCov, 'tamil_omar_brief', 1, 2, false), null);
+  assert.equal(
+    resolveMeaningAudioSrc(null, 'sinhalese_mahir', 1, 1, false),
+    'https://d.quranenc.com/data/audio/sinhalese_mahir/001001.mp3',
+  );
+  assert.equal(resolveMeaningAudioSrc(null, 'sinhalese_mahir', 1, 1, true), null);
+
+  assert.equal(isReaderAudioId('ayah-1'), true);
+  assert.equal(isReaderAudioId('meaning-tamil_omar_brief-1-1'), true);
+  assert.equal(isReaderAudioId('episode-1'), false);
+  assert.equal(isReaderAudioId(null), false);
+
+  const verse = { number: 8, surah: 2, ayah: 1 };
+  assert.equal(doesAudioMatchVerse('ayah-8', verse), true);
+  assert.equal(doesAudioMatchVerse('ayah-9', verse), false);
+  assert.equal(doesAudioMatchVerse('meaning-tamil_omar_brief-2-1', verse), true);
+  assert.equal(doesAudioMatchVerse('meaning-sinhalese_mahir-2-1', verse), true);
+  assert.equal(doesAudioMatchVerse('meaning-english_rwwad-2-2', verse), false);
+
+  resetAudioForTests();
+  const tamilSrc = resolveMeaningAudioSrc(tamilCov, 'tamil_omar_brief', 1, 1)!;
+  await playAudio('meaning-tamil_omar_brief-1-1', tamilSrc);
+  assert.equal(media.src, tamilSrc);
+  stopForAudioLangChange('ta', 'ta');
+  assert.equal(media.src, tamilSrc);
+  stopForAudioLangChange('ta', 'si');
+  assert.equal(media.src, '');
+});
+

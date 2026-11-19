@@ -73,9 +73,7 @@ export const IlluminatedFrame: React.FC<IlluminatedFrameProps> = ({ title, arabi
   </div>
 );
 
-const ARCH_MASK = 'url("data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 300" preserveAspectRatio="none"><path d="M8 300V132C8 80 220 52 400 6C580 52 792 80 792 132V300Z"/></svg>') + '")';
-
-/* ---------- ArchBanner — a mihrab-arch hero with the Basmala ---------- */
+/* ---------- ArchBanner — carved emerald-and-gold plate with the Basmala ---------- */
 export interface ArchBannerProps {
   bismillah?: boolean;
   title: string;
@@ -84,29 +82,49 @@ export interface ArchBannerProps {
   children?: React.ReactNode;
   compact?: boolean;
 }
-export const ArchBanner: React.FC<ArchBannerProps> = ({ bismillah = true, title, subtitle, arabic, children, compact }) => (
-  <div className="relative w-full" style={{ minHeight: compact ? 220 : 300 }}>
-    <div className="absolute inset-0" style={{
-      backgroundColor: 'var(--surface-panel)',
-      backgroundImage: 'radial-gradient(ellipse at 50% 10%, var(--gold-glow), transparent 65%), var(--pattern-star-strong)',
-      WebkitMaskImage: ARCH_MASK, maskImage: ARCH_MASK,
-      WebkitMaskSize: '100% 100%', maskSize: '100% 100%', WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
-    } as React.CSSProperties} />
-    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 800 300" preserveAspectRatio="none" aria-hidden="true">
-      <path d="M8 300V132C8 80 220 52 400 6C580 52 792 80 792 132V300" fill="none" style={{ stroke: 'var(--gold-leaf)' }} strokeOpacity="0.75" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-      <path d="M22 300V138C22 92 228 66 400 22C572 66 778 92 778 138V300" fill="none" style={{ stroke: 'var(--gold-leaf)' }} strokeOpacity="0.35" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-    </svg>
-    <div className={`relative flex flex-col items-center text-center px-6 md:px-10 ${compact ? 'pt-10 md:pt-12 pb-6 md:pb-7 gap-2' : 'pt-12 md:pt-16 pb-8 md:pb-10 gap-2 md:gap-3'}`}>
-      <RubElHizb size={26} filled />
-      {bismillah && (
-        <div className="font-arabic text-[26px] leading-[44px] md:text-[34px] md:leading-[56px] text-amber-300" dir="rtl" lang="ar">
-          بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ
+export const ArchBanner: React.FC<ArchBannerProps> = ({ title, subtitle, arabic, children }) => (
+  <div
+    data-research-arch
+    style={{ color: '#FFFFFF' }}
+    className="relative w-full overflow-hidden rounded-2xl border border-[#D4AF37]/35 bg-gradient-to-r from-[#041B14] via-[#0A2E23] to-[#041B14] text-[#FFFFFF] shadow-[0_0_25px_rgba(212,175,55,0.08)]"
+  >
+    <img
+      src="/assets/geometric-carved-arch.jpg"
+      alt=""
+      className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-15 mix-blend-overlay"
+    />
+    <div className="relative flex min-h-[116px] flex-col justify-between gap-3 px-4 py-3.5 sm:max-h-[128px] sm:flex-row sm:items-center sm:px-6 sm:py-4">
+      <div className="min-w-0 max-w-xl text-left">
+        <p style={{ color: '#E6C665' }} className="text-[11px] font-semibold tracking-widest text-[#E6C665]">
+          ✦ INSTITUTIONAL RESEARCH STUDIO
+        </p>
+        <h2 style={{ color: '#FFFFFF' }} className="mt-1 font-serif text-lg font-bold tracking-tight text-[#FFFFFF] sm:text-xl">
+          {title}
+        </h2>
+        {subtitle && (
+          <p style={{ color: '#D6D3D1' }} className="mt-0.5 line-clamp-2 text-xs leading-snug text-stone-300">
+            {subtitle}
+          </p>
+        )}
+      </div>
+      <div className="flex shrink-0 flex-col items-start sm:items-end sm:text-right">
+        <div
+          style={{ color: '#F9E7B9' }}
+          className="font-serif text-xl leading-snug text-[#F9E7B9] drop-shadow-sm sm:text-2xl"
+          dir="rtl"
+          lang="ar"
+        >
+          {arabic || 'طَلَبُ الْعِلْمِ فَرِيضَةٌ'}
         </div>
-      )}
-      <h2 className={`font-display font-semibold text-white ${compact ? 'text-[26px] leading-[32px] md:text-[30px] md:leading-[36px]' : 'text-[30px] leading-[36px] md:text-[40px] md:leading-[44px]'}`}>{title}</h2>
-      {arabic && <div className="font-kufi text-xl text-amber-200" dir="rtl" lang="ar">{arabic}</div>}
-      {subtitle && <p className="max-w-xl text-sm leading-6 text-slate-400">{subtitle}</p>}
-      {children && <div className="pt-2 flex flex-wrap justify-center gap-3">{children}</div>}
+        <span style={{ color: '#D6D3D1' }} className="mt-0.5 text-[11px] text-stone-300">
+          “Seeking knowledge is an obligation”
+        </span>
+      </div>
     </div>
+    {children && (
+      <div className="relative flex flex-wrap items-center justify-end gap-2 border-t border-[#D4AF37]/20 bg-[#03150F]/60 px-4 py-2 sm:px-6">
+        {children}
+      </div>
+    )}
   </div>
 );

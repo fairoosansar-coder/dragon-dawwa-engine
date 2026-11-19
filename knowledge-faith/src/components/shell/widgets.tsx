@@ -1,10 +1,19 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
-import { Bookmark, BookmarkCheck, Search } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Search, X } from 'lucide-react';
 import { RubElHizb } from '../../engine/ds/ornaments.tsx';
+import type { RouteRoot } from '../../lib/route.ts';
 import { useRemote } from '../../lib/api.ts';
 import { prayerQueryDate } from '../../lib/prayerClock.ts';
-import { pauseAudio, resumeAudio, useAudioState, type AudioStatus } from '../../lib/audio.ts';
+import { pauseAudio, resumeAudio, stopAudio, useAudioState, type AudioStatus } from '../../lib/audio.ts';
 import { useShell } from '../../lib/shell.tsx';
 import { usePronunciation, type Pronunciation } from '../../lib/pronunciation.ts';
 import { useApp, useStored } from '../../lib/store.tsx';
@@ -15,6 +24,7 @@ import { minutesInZone, nextPrayer } from '../../shared/spiritual.ts';
 import type { PrayerDay } from '../../shared/types.ts';
 import { applyPrayerOffsets, latitudeAdjustmentId, type PrayerOffsets } from '../../spiritual/prayerAdjust.ts';
 import { usePlace } from '../../spiritual/place.ts';
+import { AudioLoadingSpinner, loadingAudioLabel } from '../AudioLoadingSpinner.tsx';
 import { Button, Loading } from '../ui.tsx';
 
 export function audioStatusLabel(t: Strings, status: AudioStatus, id?: string | null): string {
@@ -27,56 +37,229 @@ export function audioStatusLabel(t: Strings, status: AudioStatus, id?: string | 
   return meaning ? t.listenMeaning : t.audioIdle;
 }
 
-export type QuranSectionId = 'home' | 'read' | 'search' | 'study' | 'mine';
+export type QuranSectionId = 'home' | 'read' | 'search' | 'study' | 'mine' | 'wall';
 
 export function quranSectionId(segment?: string): QuranSectionId {
   if (segment === 'book') return 'read';
   if (segment === 'study') return 'study';
   if (segment === 'search') return 'search';
   if (segment === 'bookmarks') return 'mine';
+  if (segment === 'wall') return 'wall';
   return 'home';
 }
 
-/** Home, Read, Search, Ayah Study, and My Quran. English labels, above the scrolling page. */
-export function QuranSections({ current }: { current: QuranSectionId }) {
-  const { t } = useApp();
-  const tabs: { id: QuranSectionId; href: string; label: string }[] = [
-    { id: 'home', href: '#/quran', label: t.quranHome },
-    { id: 'read', href: '#/quran/book', label: t.quranRead },
-    { id: 'search', href: '#/quran/search', label: t.quranSearch },
-    { id: 'study', href: '#/quran/study', label: t.quranAyahStudy },
-    { id: 'mine', href: '#/quran/bookmarks', label: t.quranMine },
-  ];
+export function isKnowledgeDomainPath(path: RouteRoot, segments: string[] = []): boolean {
+  if (path === 'quran' && segments[0] === 'wall') return false;
+  if (path === 'hub' && (segments[0] === 'saved' || segments[0] === 'wall')) return false;
+  return path === 'hub' || path === 'quran' || path === 'hadith' || path === 'books' || path === 'spiritual';
+}
+
+type DeskTab = { id: string; href: string; label: string };
+
+function hadithTabId(segment?: string): string {
+  if (segment === 'research') return 'research';
+  if (segment === 'collections') return 'collections';
+  if (segment === 'dossiers') return 'dossiers';
+  if (segment === 'saved') return 'saved';
+  return 'encyclopedia';
+}
+
+function hubTabId(segment?: string): string {
+  // Research desk routes only — do not treat scholar (Prepare a question) as Research.
+  if (segment === 'research' || segment === 'fiqh' || segment === 'seerah') return 'research';
+  if (segment === 'discover') return 'discover';
+  if (segment === 'deepen') return 'deepen';
+  if (segment === 'prophet') return 'prophet';
+  return 'home';
+}
+
+function booksTabId(hash: string): string {
+  const queryAt = hash.indexOf('?');
+  const params = new URLSearchParams(queryAt === -1 ? '' : hash.slice(queryAt + 1));
+  const shelf = params.get('shelf');
+  if (shelf === 'new') return 'new';
+  if (shelf === 'essential') return 'essential';
+  if (shelf === 'audio') return 'audio';
+  if (shelf === 'saved') return 'saved';
+  return 'all';
+}
+
+function spiritualTabId(segments: string[]): string {
+  const root = segments[0];
+  if (!root) return 'pillars';
+  if (root === 'salah' && segments[1] === 'qibla') return 'mosque';
+  if (root === 'salah' && (segments[1] === 'learn' || segments[1] === 'purification' || segments[1] === 'topics')) {
+    return 'learning';
+  }
+  if (root === 'library' || root === 'new-muslim' || root === 'akhlaq') return 'learning';
+  if (root === 'names') return 'names';
+  if (root === 'saved') return 'saved';
+  if (
+    root === 'shahadah' ||
+    root === 'salah' ||
+    root === 'zakah' ||
+    root === 'fasting' ||
+    root === 'hajj' ||
+    root === 'umrah'
+  ) {
+    return 'pillars';
+  }
+  return 'pillars';
+}
+
+function deskTabStyle(active: boolean, isObsidian: boolean): CSSProperties {
+  if (active) {
+    return isObsidian
+      ? { backgroundColor: '#D4AF37', color: '#031812' }
+      : { backgroundColor: '#073C30', color: '#F5EEDC' };
+  }
+  return isObsidian ? { color: '#F5EEDC' } : { color: '#292524' };
+}
+
+/**
+ * Context-only desk tabs for the header center.
+ * Never renders the Hub/Qur’an/Hadith/Books/Worship desk switcher — desks switch via
+ * the left Study & Research Desks rail and the bottom Knowledge dock.
+ */
+export function DeskHeaderTabs({
+  path,
+  segments,
+  hash = '',
+  className = '',
+}: {
+  path: RouteRoot;
+  segments: string[];
+  hash?: string;
+  className?: string;
+}) {
+  const { t, uiTheme } = useApp();
+  const isObsidian = uiTheme === 'obsidian';
+  const shell = 'flex min-w-0 items-center justify-center gap-1.5 ' + className;
+  const scroller = 'flex min-w-0 items-center justify-center gap-1 overflow-x-auto no-scrollbar whitespace-nowrap py-0.5';
+  const pillNav =
+    'inline-flex shrink-0 items-center gap-0.5 rounded-full border p-0.5 shadow-2xs';
+  const pillNavStyle = isObsidian
+    ? { backgroundColor: '#0A2E23', borderColor: 'rgba(212,175,55,0.4)' }
+    : { backgroundColor: '#FFFFFF', borderColor: '#E5E0D5' };
+  const tabClass =
+    'inline-flex shrink-0 whitespace-nowrap items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold transition';
+
+  const onQuranDesk = path === 'quran' && segments[0] !== 'wall';
+  const onHadithDesk = path === 'hadith';
+  const onBooksDesk = path === 'books';
+  const onWorshipDesk = path === 'spiritual';
+  const onHubDesk = path === 'hub' && segments[0] !== 'saved' && segments[0] !== 'wall';
+
+  let tabs: DeskTab[] = [];
+  let activeId: string | null = null;
+  let ariaLabel = '';
+  let testId = '';
+
+  if (onQuranDesk) {
+    ariaLabel = t.quranTitle;
+    testId = 'quran-tabs';
+    activeId = quranSectionId(segments[0]);
+    tabs = [
+      { id: 'home', href: '#/quran', label: t.quranHome },
+      { id: 'read', href: '#/quran/book', label: t.quranRead },
+      { id: 'search', href: '#/quran/search', label: t.quranSearch },
+      { id: 'study', href: '#/quran/study', label: t.quranAyahStudy },
+      { id: 'mine', href: '#/quran/bookmarks', label: t.quranMine },
+    ];
+  } else if (onHadithDesk) {
+    ariaLabel = 'Hadith';
+    testId = 'hadith-tabs';
+    activeId = hadithTabId(segments[0]);
+    tabs = [
+      { id: 'encyclopedia', href: '#/hadith', label: 'Encyclopedia' },
+      { id: 'collections', href: '#/hadith/collections', label: 'Canonical Collections' },
+      { id: 'research', href: '#/hadith/research', label: 'Research a Hadith' },
+      { id: 'dossiers', href: '#/hadith/dossiers', label: 'Agent Dossiers' },
+      { id: 'saved', href: '#/hadith/saved', label: 'Saved' },
+    ];
+  } else if (onBooksDesk) {
+    ariaLabel = 'Islamic Books';
+    testId = 'books-tabs';
+    activeId = booksTabId(hash);
+    tabs = [
+      { id: 'all', href: '#/books', label: 'All books' },
+      // Closest: newest-sorted shelf hash (library default sort). Dedicated “new arrivals” feed TBD.
+      { id: 'new', href: '#/books?shelf=new', label: 'New' },
+      { id: 'essential', href: '#/books?shelf=essential', label: 'Essential' },
+      // Closest hash for an audio shelf; BooksLibrary treats unknown shelves as all until audio filter ships.
+      { id: 'audio', href: '#/books?shelf=audio', label: 'with Audio' },
+      { id: 'saved', href: '#/books?shelf=saved', label: 'Saved' },
+    ];
+  } else if (onWorshipDesk) {
+    ariaLabel = 'Worship';
+    testId = 'worship-tabs';
+    activeId = spiritualTabId(segments);
+    tabs = [
+      { id: 'pillars', href: '#/spiritual', label: 'Five pillars' },
+      // Closest existing place/direction tool until a true nearest-mosque finder exists.
+      { id: 'mosque', href: '#/spiritual/salah/qibla', label: 'Nearest Mosque' },
+      { id: 'learning', href: '#/spiritual/salah/learn', label: 'Learning' },
+      { id: 'names', href: '#/spiritual/names', label: 'Asma-ul Husna' },
+      { id: 'saved', href: '#/spiritual/saved', label: 'Saved Guide' },
+    ];
+  } else if (onHubDesk) {
+    ariaLabel = 'Knowledge Hub';
+    testId = 'hub-tabs';
+    activeId = hubTabId(segments[0]);
+    tabs = [
+      { id: 'home', href: '#/hub', label: 'Hub' },
+      { id: 'research', href: '#/hub/research', label: 'Research' },
+      { id: 'discover', href: '#/hub/discover', label: 'Discover' },
+      { id: 'deepen', href: '#/hub/deepen', label: 'Deepen' },
+      { id: 'prophet', href: '#/hub/prophet', label: 'Prophet' },
+    ];
+  }
+
+  if (!tabs.length) return null;
+
   return (
-    <nav aria-label={t.quranTitle} className="shrink-0 border-b border-pine/10 bg-sand px-4 py-3 sm:px-6">
-      <div className="mx-auto grid w-full max-w-6xl gap-1 rounded-2xl border border-gold/50 bg-parchment p-1" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}>
-        {tabs.map(tab => (
-          <a
-            key={tab.id}
-            href={tab.href}
-            aria-current={current === tab.id ? 'page' : undefined}
-            className={`flex min-h-11 min-w-0 items-center justify-center rounded-xl px-0.5 py-1.5 text-center text-[11px] font-semibold leading-tight break-words sm:px-2 sm:text-sm ${current === tab.id ? 'bg-pine text-sand' : 'text-pine hover:bg-mint'}`}
-          >
-            {tab.label}
-          </a>
-        ))}
+    <div className={shell} data-desk-context-tabs={path}>
+      <div className={scroller}>
+        <nav
+          aria-label={ariaLabel}
+          data-testid={testId}
+          style={pillNavStyle}
+          className={pillNav}
+        >
+          {tabs.map(tab => {
+            const active = activeId === tab.id;
+            return (
+              <a
+                key={tab.id}
+                href={tab.href}
+                data-desk-tab={tab.id}
+                aria-current={active ? 'page' : undefined}
+                style={deskTabStyle(active, isObsidian)}
+                className={tabClass}
+              >
+                {tab.label}
+              </a>
+            );
+          })}
+        </nav>
       </div>
-    </nav>
+    </div>
   );
 }
 
-export function SearchField({ className = '' }: { className?: string }) {
+export function SearchField({ className = '', placeholder }: { className?: string; placeholder?: string }) {
   const { t } = useApp();
   const { query, setQuery } = useShell();
+  const label = placeholder ?? t.searchSection;
   return (
     <label className={`relative block min-w-0 ${className}`}>
-      <span className="sr-only">{t.searchSection}</span>
+      <span className="sr-only">{label}</span>
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
       <input
         type="search"
         value={query}
         onChange={event => setQuery(event.target.value)}
-        placeholder={t.searchSection}
+        placeholder={label}
         className="w-full rounded-full border border-pine/20 bg-parchment py-2 pl-10 pr-4 text-sm text-ink placeholder:text-muted"
       />
     </label>
@@ -679,18 +862,57 @@ export function SettingsDrawer({
 }
 
 export function AudioMiniPlayer({ safe }: { safe: boolean }) {
-  const { t } = useApp();
+  const { t, lang } = useApp();
   const audio = useAudioState();
   if (!audio.id || audio.status === 'idle') return null;
   const meaning = Boolean(audio.id.startsWith('meaning-'));
   const active = audio.status === 'playing' || audio.status === 'loading';
+  const isLoading = audio.status === 'loading';
   return (
-    <div data-mini-player className={`relative z-20 shrink-0 border-t-8 border-sand bg-pine px-4 py-3 text-sand ${safe ? 'pb-[max(0.75rem,env(safe-area-inset-bottom))]' : ''}`}>
-      <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-        <p className="min-w-0 text-sm leading-snug">{audioStatusLabel(t, audio.status, audio.id)}</p>
-        <Button variant="soft" onClick={active ? pauseAudio : resumeAudio}>
-          {active ? t.pause : meaning ? t.playMeaning : t.play}
-        </Button>
+    <div
+      className={`pointer-events-none fixed right-0 left-0 z-40 flex justify-center px-3 ${
+        safe ? 'bottom-3 pb-[env(safe-area-inset-bottom)]' : 'bottom-[58px]'
+      }`}
+    >
+      <div
+        data-mini-player
+        className="pointer-events-auto flex w-full max-w-[680px] items-center justify-between gap-3 rounded-2xl border border-[#D4AF37]/45 bg-[#04241C]/95 px-4 py-2 text-[#F5EEDC] shadow-xl backdrop-blur-xs"
+      >
+        <p className="min-w-0 flex items-center gap-2 text-xs font-medium leading-snug sm:text-sm">
+          {isLoading ? (
+            <AudioLoadingSpinner size={15} className="text-[#D4AF37]" />
+          ) : active ? (
+            <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" aria-hidden />
+          ) : (
+            <span className="h-2 w-2 shrink-0 rounded-full bg-[#D4AF37]" aria-hidden />
+          )}
+          <span className="truncate">{audioStatusLabel(t, audio.status, audio.id)}</span>
+        </p>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button variant="soft" onClick={active ? pauseAudio : resumeAudio}>
+            {isLoading ? (
+              <>
+                <AudioLoadingSpinner size={14} />
+                <span>{loadingAudioLabel(lang)}</span>
+              </>
+            ) : active ? (
+              t.pause
+            ) : meaning ? (
+              t.playMeaning
+            ) : (
+              t.play
+            )}
+          </Button>
+          <button
+            type="button"
+            data-testid="mini-player-close-btn"
+            aria-label="Dismiss audio player"
+            onClick={() => stopAudio()}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-white/5 text-[#F5EEDC]/80 transition hover:border-[#D4AF37]/50 hover:bg-white/10 hover:text-white cursor-pointer"
+          >
+            <X className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        </div>
       </div>
     </div>
   );

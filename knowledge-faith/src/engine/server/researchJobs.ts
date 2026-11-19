@@ -33,6 +33,11 @@ export function startResearchJob(work: () => Promise<unknown>, describeError: (e
     .then(result => {
       const current = jobs.get(id);
       if (!current || current.status !== 'running') return;
+      if (result && typeof result === 'object' && 'query_hadith' in result) {
+        const record = result as { research_job_id?: string; generated_at?: string };
+        record.research_job_id = id;
+        if (!record.generated_at) record.generated_at = new Date(current.createdAt).toISOString();
+      }
       current.status = 'done';
       current.result = result;
     })
@@ -50,15 +55,21 @@ export function getResearchJob(id: string): ResearchJob | undefined {
   return jobs.get(id);
 }
 
-/** Publish a finished dossier without starting Gemini or TTS. */
+/** Test-only reset. */
+export function clearResearchJobs() {
+  jobs.clear();
+}
+
+/** Places a finished dossier in the job map. Used by review tests and the local review demonstration. */
+export function seedResearchJob(id: string, result: unknown, createdAt = Date.now()) {
+  jobs.set(id, { id, status: 'done', result, createdAt });
+  return id;
+}
+
+/** Publish a finished dossier without starting Gemini. */
 export function rememberCompletedAnalysis(id: string, result: unknown): void {
   prune();
   const current = jobs.get(id);
   if (current && current.status === 'running') return;
-  jobs.set(id, { id, status: 'done', result, createdAt: Date.now() });
-}
-
-/** Test-only reset. */
-export function clearResearchJobs() {
-  jobs.clear();
+  seedResearchJob(id, result);
 }

@@ -2,44 +2,99 @@
 @import './engine/engine.css';
 @import './spiritual/spiritual.css';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
-  --font-sans: 'Inter', 'Noto Sans Tamil', 'Noto Sans Sinhala', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Fraunces', 'Noto Sans Tamil', 'Noto Sans Sinhala', Georgia, serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Tamil', 'Noto Sans Sinhala', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Tamil', 'Noto Sans Sinhala', ui-sans-serif, system-ui, sans-serif;
   --font-arabic: 'Amiri Quran', 'Amiri', 'Scheherazade New', serif;
   --color-ink: #172720;
-  --color-muted: #637069;
-  --color-pine: #064936;
-  --color-moss: #07533f;
+  --color-muted: #57534E;
+  --color-pine: #073C30;
+  --color-moss: #0B4B3A;
   --color-mint: #e7f2ec;
-  --color-sand: #faf6ec;
-  --color-parchment: #f4ecd8;
-  --color-gold: #c9a14e;
+  --color-sand: #F7F3E8;
+  --color-parchment: #F5EEDC;
+  --color-gold: #C6A15A;
   --color-lapis: #244875;
-  --color-dd-emerald: #064936;
-  --color-dd-ivory: #faf6ec;
-  --color-dd-gold: #c9a14e;
+  --color-dd-emerald: #073C30;
+  --color-dd-ivory: #F7F3E8;
+  --color-dd-gold: #C6A15A;
   --color-dd-gold-soft: #f3e6c2;
   --color-dd-lapis: #244875;
   --color-dd-ink: #172720;
 }
 
-:root {
-  --gold-leaf: #c9a14e;
-  --gold-border: #c9a14e;
+:root,
+html[data-ui-theme="parchment"],
+html[data-theme="parchment"] {
+  --gold-leaf: #C6A15A;
+  --gold-border: #C6A15A;
+  --color-sand: #F7F3E8;
+  --color-parchment: #F5EEDC;
+  --color-pine: #073C30;
+  --color-ink: #172720;
+  --color-muted: #57534E;
+}
+
+html[data-ui-theme="obsidian"],
+html[data-theme="obsidian"] {
+  --color-sand: #F4F1E6;
+  --color-parchment: #EFEAD8;
+  --color-pine: #073C30;
+  --color-ink: #14221D;
+  --color-muted: #4A5852;
+}
+
+html[data-ui-theme="sepia"],
+html[data-theme="sepia"] {
+  --color-sand: #F2EAD9;
+  --color-parchment: #E8DEC8;
+  --color-pine: #0B3B2D;
+  --color-ink: #1C1610;
+  --color-muted: #5C4B35;
 }
 
 html {
   background: var(--color-sand);
   color: var(--color-ink);
+  font-size: 15px;
   overflow-x: clip;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 body {
   margin: 0;
   min-height: 100dvh;
   font-family: var(--font-sans);
+  font-size: 13.5px;
+  line-height: 1.45;
+  letter-spacing: -0.006em;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+.font-display {
+  letter-spacing: -0.02em;
+}
+
+/* Artistic Quote Wall Classes */
+.font-wall-ta { font-family: 'Arima', 'Kavivanar', serif; }
+.font-wall-si { font-family: 'Gemunu Libre', 'Abhaya Libre', serif; }
+.font-wall-en { font-family: 'Cinzel', 'Cormorant Garamond', serif; }
+
+/* Clean Profile & Feed Classes */
+.font-profile-ta { font-family: 'Anek Tamil', 'Noto Sans Tamil', sans-serif; }
+.font-profile-si { font-family: 'Anek Sinhala', 'Noto Sans Sinhala', sans-serif; }
+.font-profile-en { font-family: 'Plus Jakarta Sans', sans-serif; }
 
 .arabic {
   font-family: var(--font-arabic);
@@ -48,9 +103,579 @@ body {
   line-height: 2.3;
 }
 
+/* Reading sheet only. The pine and sand shell stays outside this column. */
+.quran-sheet {
+  background: #fff;
+  color: #1a1a1a;
+}
+
+.quran-face {
+  font-family: 'Amiri Quran', 'Scheherazade New', 'Amiri', serif;
+  font-weight: 400;
+  line-height: 2.45;
+}
+
+.quran-header-card[data-bismillah-plate] {
+  position: relative;
+  border-color: transparent;
+}
+
+.quran-header-card[data-bismillah-plate='blue'] {
+  background: #E2EBF4;
+}
+
+.quran-header-card[data-bismillah-plate='cream'] {
+  background: #f8efde;
+}
+
+.quran-plate-ornament {
+  position: absolute;
+  inset: 0;
+}
+
+.quran-plate-ornament,
+.quran-plate-line,
+.quran-plate-corner,
+.quran-plate-mark {
+  pointer-events: none;
+}
+
+.quran-plate-line {
+  position: absolute;
+  z-index: 2;
+  inset: 0.65rem;
+  border: 1px solid #C6A15A;
+}
+
+.quran-plate-corner,
+.quran-plate-mark {
+  position: absolute;
+  z-index: 2;
+  height: auto;
+}
+
+.quran-plate-tl { top: 0; left: 0; width: 4.75rem; }
+.quran-plate-tr { top: 0; right: 0; width: 6.25rem; }
+.quran-plate-bl { bottom: 0; left: 0; width: 6.5rem; }
+.quran-plate-br { right: 0; bottom: 0; width: 4.5rem; }
+
+.quran-plate-mark { width: 2.35rem; }
+.quran-plate-mark-top { top: 0.28rem; left: 50%; transform: translateX(-50%); }
+.quran-plate-mark-bottom { bottom: 0.28rem; left: 50%; transform: translateX(-50%); }
+.quran-plate-mark-left { top: 50%; left: 0.05rem; width: 2.1rem; transform: translateY(-50%) rotate(90deg); }
+.quran-plate-mark-right { top: 50%; right: 0.05rem; width: 2.1rem; transform: translateY(-50%) rotate(90deg); }
+
+.quran-plate-copy {
+  position: relative;
+  z-index: 3;
+  padding: 1.15rem 0.85rem 0.85rem 1rem;
+}
+
+.quran-plate-lead {
+  max-width: calc(100% - 2.6rem);
+}
+
+.quran-surah-id {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.quran-surah-arabic {
+  flex: none;
+  margin: 0;
+  color: #16233B;
+  font-size: 1.85rem;
+  line-height: 1;
+}
+
+.quran-surah-name {
+  margin: 0;
+  color: #16233B;
+  font-family: Fraunces, Georgia, serif;
+  font-size: 1.12rem;
+  font-weight: 600;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.quran-surah-sub {
+  margin: 0.1rem 0 0;
+  color: #24344d;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+
+.quran-surah-sentence {
+  margin: 0.7rem 0 0;
+  max-width: 40rem;
+  color: #24344d;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.quran-plate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.6rem;
+  margin-top: 0.8rem;
+}
+
+.quran-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.quran-btn-listen {
+  background: #16233B;
+  color: #fff;
+}
+
+.quran-btn-listen:disabled {
+  opacity: 0.5;
+}
+
+.quran-btn-info {
+  background: #fff;
+  color: #16233B;
+  box-shadow: 0 1px 2px rgb(22 35 59 / 0.08);
+}
+
+.quran-btn-rule {
+  width: 1px;
+  height: 1.1rem;
+  background: rgb(22 35 59 / 0.22);
+}
+
+.quran-btn-arabic {
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  background: transparent;
+  color: #16233B;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.quran-btn-arabic[aria-pressed='true'] {
+  background: rgb(22 35 59 / 0.1);
+  color: #16233B;
+}
+
+.quran-btn-arabic[aria-pressed='false'] {
+  color: rgb(22 35 59 / 0.55);
+  font-weight: 500;
+}
+
+.quran-btn-arabic[aria-pressed='false']:hover {
+  color: #16233B;
+}
+
+.quran-bismillah-block {
+  margin-top: 0.85rem;
+}
+
+.quran-bismillah-script {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin-inline: auto;
+}
+
+.quran-bismillah-meaning {
+  max-width: 16rem;
+  margin: 0.7rem auto 0.2rem;
+  text-align: center;
+  font-family: Fraunces, 'Noto Sans Tamil', 'Noto Sans Sinhala', Georgia, serif;
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  color: #16233B;
+  overflow-wrap: break-word;
+}
+
+.quran-bismillah-meaning[lang='ta'],
+.quran-bismillah-meaning[lang='si'] {
+  font-family: 'Noto Sans Tamil', 'Noto Sans Sinhala', Fraunces, Georgia, sans-serif;
+  font-size: 1.2rem;
+  line-height: 1.9;
+}
+
+.quran-prose {
+  font-family: Fraunces, 'Noto Sans Tamil', 'Noto Sans Sinhala', Georgia, serif;
+  color: #16233B;
+  line-height: 2.05;
+  max-width: 38rem;
+}
+
+.quran-prose[lang='ta'],
+.quran-prose[lang='si'] {
+  font-family: 'Noto Sans Tamil', 'Noto Sans Sinhala', Fraunces, Georgia, sans-serif;
+  line-height: 2.05;
+  max-width: 38rem;
+}
+
+.quran-page {
+  background: #FAF6EC;
+  color: #16233B;
+  border-radius: 16px 16px 0 0;
+}
+
+.quran-page .quran-prose,
+.quran-page .quran-prose[lang='ta'],
+.quran-page .quran-prose[lang='si'] {
+  max-width: none;
+}
+
+/* The reading bar owns the top of the pane. Its cover hides anything scrolling into the shell padding above it. */
+.reading-bar::before {
+  content: '';
+  position: absolute;
+  right: -2rem;
+  bottom: 100%;
+  left: -2rem;
+  height: 4rem;
+  background: var(--color-sand);
+}
+
+/* Semantic 3-Theme Contrast Guarantee: Any light/white card or reading surface inside Obsidian Emerald (Dark) keeps crisp dark charcoal ink */
+[data-ui-theme="obsidian"] .bg-white,
+[data-ui-theme="obsidian"] .bg-\[\#FAF6EC\],
+[data-ui-theme="obsidian"] .bg-\[\#FCF9F2\],
+[data-ui-theme="obsidian"] .bg-\[\#FBF9F5\],
+[data-ui-theme="obsidian"] .bg-\[\#fffdf8\],
+[data-ui-theme="obsidian"] .quran-page,
+[data-ui-theme="obsidian"] .quran-sheet {
+  --color-ink: #172720;
+  --color-pine: #073C30;
+  --color-muted: #57534E;
+  color: #172720;
+}
+
+/* In Obsidian Emerald (Dark) mode, the Mushaf Reading Sheet uses an illuminated deep emerald surface with luminous ivory/gold Arabic script */
+[data-ui-theme="obsidian"] [data-reading-sheet] {
+  background: #0A2920;
+  border-color: rgba(212, 175, 55, 0.35);
+  color: #F7F2E4;
+  --color-ink: #F7F2E4;
+  --color-pine: #E5C158;
+  --color-muted: #C7C2B4;
+}
+
+[data-ui-theme="obsidian"] [data-reading-sheet] [data-mushaf],
+[data-ui-theme="obsidian"] [data-reading-sheet] [data-verse-mode] [dir="rtl"] {
+  color: #F7F2E4;
+}
+
+[data-ui-theme="obsidian"] [data-reading-sheet] .quran-prose {
+  color: #EAE3D2;
+}
+
+[data-ui-theme="obsidian"] [data-reading-sheet] .quran-ayah-mark {
+  color: #E5C158;
+  border-color: rgba(229, 193, 88, 0.65);
+}
+
+[data-ui-theme="obsidian"] [data-reading-sheet] .quran-band {
+  background: rgba(212, 175, 55, 0.16);
+}
+
+[data-ui-theme="obsidian"] [data-reading-sheet] [data-page-number] {
+  color: #D4AF37;
+}
+
+[data-ui-theme="obsidian"] [data-reading-sheet] [data-verse-mode] button {
+  color: #E5C158;
+}
+
+[data-ui-theme="obsidian"] [data-reading-sheet] [data-verse-mode] button:hover {
+  background: rgba(229, 193, 88, 0.15);
+}
+
+[data-ui-theme="obsidian"] [data-reading-player] {
+  background: #072019;
+  border-color: rgba(212, 175, 55, 0.35);
+  color: #F5EEDC;
+}
+
+[data-ui-theme="obsidian"] [data-reading-player] button,
+[data-ui-theme="obsidian"] [data-reading-player] [data-player-status] {
+  color: #F5EEDC;
+}
+
+[data-ui-theme="obsidian"] [data-reading-player] [data-player-play] {
+  background: #D4AF37;
+  color: #031812;
+}
+
+[data-ui-theme="obsidian"] [data-reading-player] [data-player-time] {
+  color: #E5C158;
+}
+
+[data-ui-theme="obsidian"] .bg-mint {
+  color: #073C30;
+}
+
+.quran-header-card {
+  background: #F8F5EC;
+  border: 1px solid #e4dcc6;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.quran-player-time {
+  margin-left: auto;
+}
+
+.quran-player-track {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .quran-player-time {
+    margin-left: 0;
+  }
+
+  .quran-player-track {
+    position: relative;
+    display: flex;
+    height: 1rem;
+    min-width: 0;
+    flex: 1 1 auto;
+    align-items: center;
+  }
+
+  .quran-player-track::before {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 4px;
+    border-radius: 999px;
+    background: #c5ced8;
+  }
+
+  .quran-player-fill {
+    position: absolute;
+    left: 0;
+    width: 0;
+    height: 4px;
+    border-radius: 999px;
+    background: #8ea0b5;
+  }
+
+  .quran-player-knob {
+    position: absolute;
+    top: 50%;
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: #7f93a8;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@media (max-width: 639px) {
+  .quran-header-plate .quran-plate-copy {
+    display: flex;
+    min-height: 26.25rem;
+    flex-direction: column;
+  }
+
+  .quran-header-plate .quran-bismillah-block {
+    margin-top: auto;
+    padding-top: 0.85rem;
+  }
+}
+
+@media (min-width: 640px) {
+  .quran-header-plate .quran-plate-copy {
+    display: flex;
+    min-height: 34rem;
+    flex-direction: column;
+  }
+
+  .quran-header-plate .quran-bismillah-block {
+    margin-top: auto;
+    padding-top: 1.25rem;
+  }
+
+  .quran-plate-line { inset: 0.85rem; }
+  .quran-plate-tl { width: 9.25rem; }
+  .quran-plate-tr { width: 16rem; }
+  .quran-plate-bl { width: 18rem; }
+  .quran-plate-br { width: 8.75rem; }
+  .quran-plate-mark { width: 3rem; }
+  .quran-plate-mark-top { top: 0.4rem; }
+  .quran-plate-mark-bottom { bottom: 0.4rem; }
+  .quran-plate-copy { padding: 2.1rem 2rem 1.35rem 2.15rem; }
+  .quran-plate-lead { max-width: calc(100% - 10rem); }
+  .quran-surah-arabic { font-size: 3rem; }
+  .quran-surah-name { font-size: 1.875rem; }
+  .quran-surah-sub { font-size: 1.125rem; }
+  .quran-bismillah-script { width: min(100%, 40rem); }
+  .quran-bismillah-meaning { max-width: 40rem; margin-top: 0.85rem; }
+}
+
+@media (max-width: 639px) {
+  .quran-bismillah-script { width: 100%; }
+}
+
+.quran-ayah-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.45em;
+  height: 1.45em;
+  margin-inline: 0.2em;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-family: Inter, sans-serif;
+  font-size: 0.42em;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.quran-band {
+  background: #e4edf7;
+  border-radius: 0.4em;
+}
+
 :focus-visible {
   outline: 3px solid var(--color-gold);
   outline-offset: 2px;
+}
+
+/* Study-by-theme cards: a quiet emerald-and-gold plate, one slow sheen, and a soft lift. */
+.theme-plate {
+  isolation: isolate;
+}
+
+.theme-plate-sheen {
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  left: 0;
+  z-index: 1;
+  width: 42%;
+  pointer-events: none;
+  background: linear-gradient(
+    102deg,
+    transparent 0%,
+    rgba(6, 73, 54, 0.03) 34%,
+    rgba(249, 231, 185, 0.42) 50%,
+    rgba(6, 73, 54, 0.05) 66%,
+    transparent 100%
+  );
+  transform: translateX(-170%);
+  animation: theme-plate-sheen 12s ease-in-out infinite;
+}
+
+.theme-plate:nth-child(2n) .theme-plate-sheen {
+  animation-delay: -4s;
+}
+
+.theme-plate:nth-child(3n) .theme-plate-sheen {
+  animation-delay: -8s;
+}
+
+@keyframes theme-plate-sheen {
+  0%,
+  38% {
+    transform: translateX(-170%);
+    opacity: 0;
+  }
+  52% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(320%);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .theme-plate {
+    transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+  }
+
+  .theme-plate:hover {
+    transform: translateY(-2px);
+    border-color: #c9a14e;
+    box-shadow: 0 10px 22px rgba(6, 73, 54, 0.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-plate-sheen {
+    animation: none !important;
+    opacity: 0;
+  }
+
+  .theme-plate:hover {
+    transform: none;
+  }
+}
+
+/* Featured book portrait: a slow tilt and one soft sheen. The shelf covers stay still. */
+.featured-cover-stage {
+  perspective: 800px;
+}
+
+.featured-cover {
+  transform-style: preserve-3d;
+  animation: featured-cover-tilt 12s ease-in-out infinite;
+}
+
+.featured-cover-sheen {
+  position: absolute;
+  z-index: 10;
+  top: -20%;
+  bottom: -20%;
+  left: 0;
+  width: 36%;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(250, 246, 236, 0.04) 30%,
+    rgba(250, 246, 236, 0.22) 50%,
+    rgba(201, 161, 78, 0.14) 64%,
+    transparent 100%
+  );
+  animation: featured-cover-sheen 9s ease-in-out infinite;
+}
+
+@keyframes featured-cover-tilt {
+  0%,
+  100% {
+    transform: rotateY(-3deg);
+  }
+  50% {
+    transform: rotateY(3deg);
+  }
+}
+
+@keyframes featured-cover-sheen {
+  0%,
+  42% {
+    transform: translateX(-150%) skewX(-14deg);
+    opacity: 0;
+  }
+  58% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(340%) skewX(-14deg);
+    opacity: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -60,4 +685,205 @@ body {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+
+  .featured-cover,
+  .featured-cover-sheen {
+    animation: none !important;
+    transform: none;
+  }
+}
+
+/* Podcast desk. The plate sheen is ambient; the pulse only runs while audio plays. */
+.podcast-plate {
+  isolation: isolate;
+}
+
+.podcast-plate::after {
+  content: '';
+  position: absolute;
+  top: -15%;
+  bottom: -15%;
+  left: 0;
+  z-index: 1;
+  width: 26%;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(249, 231, 185, 0.04) 36%,
+    rgba(249, 231, 185, 0.2) 50%,
+    rgba(249, 231, 185, 0.04) 64%,
+    transparent 100%
+  );
+  transform: translateX(-150%);
+  animation: podcast-sheen 10.5s ease-in-out infinite;
+}
+
+@keyframes podcast-sheen {
+  0%,
+  14% {
+    transform: translateX(-150%);
+  }
+  46%,
+  100% {
+    transform: translateX(460%);
+  }
+}
+
+.podcast-play[data-playing='true'] {
+  animation: podcast-pulse 2.6s ease-in-out infinite;
+}
+
+@keyframes podcast-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(201, 161, 78, 0.48);
+  }
+  55% {
+    box-shadow: 0 0 0 8px rgba(201, 161, 78, 0);
+  }
+}
+
+.podcast-line-live {
+  animation: podcast-line 2.8s ease-in-out infinite;
+}
+
+@keyframes podcast-line {
+  0%,
+  100% {
+    box-shadow: inset 3px 0 0 rgba(201, 161, 78, 0.35);
+  }
+  50% {
+    box-shadow: inset 3px 0 0 rgba(201, 161, 78, 0.95);
+  }
+}
+
+[data-podcast-desk] :lang(ta),
+[data-podcast-desk] :lang(si) {
+  font-family: 'Noto Sans Tamil', 'Noto Sans Sinhala', Inter, sans-serif;
+  line-height: 1.75;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .podcast-plate::after,
+  .podcast-play[data-playing='true'],
+  .podcast-line-live {
+    animation: none !important;
+    animation-duration: 0s !important;
+  }
+
+  .podcast-plate::after {
+    opacity: 0;
+  }
+}
+
+/* Desk links. The supplied SVGs stay 24px with transparent backgrounds; hover and selection paint the whole row. */
+.kf-nav-side,
+.kf-nav-dock {
+  border-color: transparent;
+  color: #F5EEDC;
+}
+
+.kf-nav-icon {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+}
+
+.kf-nav-icon svg {
+  display: block;
+  width: 24px;
+  height: 24px;
+}
+
+.kf-nav-side:hover,
+.kf-nav-side:focus-visible {
+  background: rgb(245 238 220 / 0.1);
+  color: #F5EEDC;
+}
+
+.kf-nav-side[aria-current='page'] {
+  border-color: #C6A15A;
+  background: #F5EEDC;
+  color: #0B4B3A;
+  box-shadow: none;
+}
+
+/* Ivory (#F5F1E7) sits on the pale selected pill and disappears. Match the label's deep green; keep the gold accent. */
+.kf-nav-side[aria-current='page'] .dd-primary-fill {
+  fill: #0B4B3A;
+}
+
+.kf-nav-side[aria-current='page'] .dd-primary-stroke {
+  stroke: #0B4B3A;
+}
+
+.kf-nav-dock[aria-current='page'] {
+  border-color: #C6A15A;
+  color: #F6E7C1;
+}
+
+.kf-nav-side:focus-visible,
+.kf-nav-dock:focus-visible {
+  outline: 2px solid #C9A660;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .kf-nav-side,
+  .kf-nav-dock {
+    transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+  }
+}
+
+/* Reflection banner. The carved panel sits on the open side and fades before the words. */
+.kf-reflect {
+  box-shadow: inset 0 0 0 1px rgb(198 161 90 / 0.55);
+}
+
+.kf-reflect-art {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(58%, 640px);
+  pointer-events: none;
+}
+
+.kf-reflect-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.kf-reflect-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #073c30 0%, rgb(7 60 48 / 0.72) 18%, rgb(7 60 48 / 0.15) 42%, transparent 68%);
+}
+
+@media (max-width: 639px) {
+  .kf-reflect-art {
+    position: relative;
+    width: calc(100% + 3rem);
+    height: 8.5rem;
+    margin: 1.5rem -1.5rem -2rem;
+  }
+
+  .kf-reflect-art::after {
+    background: linear-gradient(180deg, #073c30 0%, rgb(7 60 48 / 0.15) 42%, transparent 70%);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .kf-reflect-art img {
+    animation: kf-reflect-drift 18s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes kf-reflect-drift {
+  from { transform: scale(1.04); }
+  to { transform: scale(1.12) translate3d(-1.5%, -1%, 0); }
 }

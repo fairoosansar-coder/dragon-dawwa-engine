@@ -1,20 +1,61 @@
-import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import type { ResearchJobResponse, ResearchScope } from '../shared/contracts/v1.ts';
 import { buildReportModel, renderReportHtml } from '../shared/research/report.ts';
+import { ContentText } from '../components/ContentText.tsx';
+import { materialPartLabel } from '../shared/research/materialCoverage.ts';
 import { researchOutcome } from '../shared/research/outcomes.ts';
 import { toLang, type Lang } from '../shared/sources.ts';
 import { useRemote } from '../lib/api.ts';
-import { beginResearch, noticeText, readResearchHistory, rememberResearch, researchHref, type StoredResearch } from '../lib/researchDesk.ts';
+import { beginResearch, noticeText, readResearchHistory, rememberResearch, researchDeskHref, researchHref, type StoredResearch } from '../lib/researchDesk.ts';
+import type { ResearchDeskName } from '../lib/route.ts';
+import { PodcastHostChip } from '../components/PodcastHostChip.tsx';
+import { RecentSevenAgentDossiers } from '../components/research/RecentSevenAgentDossiers.tsx';
+import { SevenAgentCountdownCard } from '../components/research/SevenAgentCountdownCard.tsx';
+import { SevenAgentResearchBoard } from '../components/research/SevenAgentResearchBoard.tsx';
+import { ResearchActionRow, ResearchFrame } from '../engine/ResearchFrame.tsx';
+import { researchQuestionsAlign } from '../shared/modernWorldBenchmarks.ts';
+import type { SevenAgentResearchDossier } from '../shared/sevenAgentTypes.ts';
+import { DomainResearchForm } from './DomainResearchForm.tsx';
+import { questionsToResearch, separateQuestions } from '../shared/research/questions.ts';
 import { useApp } from '../lib/store.tsx';
 import { Button, ErrorNote, Loading, Notice } from '../components/ui.tsx';
 import { FullReport } from './FullReport.tsx';
 
 const DossierWorkbench = lazy(() => import('../engine/DossierWorkbench.tsx'));
 
-export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: URLSearchParams }) {
+const DESK_FRAME: Record<Exclude<ResearchDeskName, 'hadith'>, { title: string; arabic: string; subtitle: string }> = {
+  quran: {
+    title: 'Explore a verse, understand its reading',
+    arabic: 'القرآن',
+    subtitle: 'Ask in your own words. A photo, a file, or the microphone can fill the box.',
+  },
+  knowledge: {
+    title: 'Explore a question, understand its sources',
+    arabic: 'طلب العلم فريضة',
+    subtitle: 'Ask in your own words. A photo, a file, or the microphone can fill the box.',
+  },
+  books: {
+    title: 'Explore a book, understand its sources',
+    arabic: 'الكتاب',
+    subtitle: 'Ask in your own words. A photo, a file, or the microphone can fill the box.',
+  },
+  fiqh: {
+    title: 'Explore a practice, understand its sources',
+    arabic: 'الفقه',
+    subtitle: 'Ask in your own words. The sources are read, and the answer stays with those sources.',
+  },
+  seerah: {
+    title: 'Explore an event in the life of the Prophet',
+    arabic: 'السيرة',
+    subtitle: 'Ask in your own words. A photo, a file, or the microphone can fill the box.',
+  },
+};
+
+export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchScope; desk?: ResearchDeskName; params: URLSearchParams }) {
   const { t, lang, setLang } = useApp();
   const paramLang = params.get('lang');
-  const bookId = Number(params.get('book'));
+  const bookParam = params.get('book') ?? '';
+  const bookId = Number(bookParam);
   const selectedBook = Number.isInteger(bookId) && bookId > 0 ? bookId : null;
   const [question, setQuestion] = useState(params.get('q') ?? '');
   const askedParam = params.get('q');
@@ -25,8 +66,143 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
   const [clarified, setClarified] = useState(params.get('clarified') === '1');
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<StoredResearch[]>([]);
+  const [chapters, setChapters] = useState<{ id: string; scope: ResearchScope; question: string; forwarded?: boolean }[]>([]);
+  const [roundtableOpen, setRoundtableOpen] = useState(() => params.get('roundtable') === '1');
+  const reportIdParam = params.get('reportId');
+  /**
+   * Sticky in-flight lock. Seed true when the route already names a run so the first paint
+   * after Hub→research navigation / reload is countdown, not idle studio chrome.
+   */
+  const [researchInFlight, setResearchInFlight] = useState(
+    () => Boolean(jobParam || reportIdParam || askedParam?.trim()),
+  );
+  /** True from Ask click until route/remotes take over the new run. */
+  const [askPending, setAskPending] = useState(false);
+  /** Question for the Ask in flight — invalidates a prior board until the new run matches. */
+  const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
+  /** Route fingerprint at Ask click — hash takeover must wait for a *new* job/q/reportId. */
+  const askStartedRouteRef = useRef<string | null>(null);
+  const researchRouteKey = (job: string | null, q: string | null, reportId: string | null) =>
+    `${job ?? ''}|${q?.trim() ?? ''}|${reportId ?? ''}`;
+  const [instantDossier, setInstantDossier] = useState<SevenAgentResearchDossier | null>(null);
   const remote = useRemote<ResearchJobResponse>(jobId ? `/api/research/jobs/${jobId}` : null);
-  const running = remote.data?.job.status === 'running' || remote.data?.job.status === 'queued';
+  const roundtableParam = params.get('roundtable') === '1';
+  // Prefer hash lang for fetches so dossier reopen does not start a wrong-lang live run
+  // before setLang(paramLang) commits on the next effect tick.
+  const researchLang: Lang =
+    paramLang === 'en' || paramLang === 'ta' || paramLang === 'si' ? paramLang : lang;
+
+  const activeResearchQuery = useMemo(() => {
+    // Prefer the in-flight Ask so a prior dossier cannot keep matching the old URL question.
+    if (pendingQuestion?.trim()) return pendingQuestion.trim();
+    if (instantDossier?.question) return instantDossier.question;
+    // Prefer the URL question so hub-card opens cannot inherit a prior job's gold-ring prompt.
+    if (askedParam?.trim()) return askedParam.trim();
+    const fromJob = remote.data?.job.question?.trim();
+    if (fromJob) return fromJob;
+    return '';
+  }, [pendingQuestion, instantDossier?.question, remote.data?.job.question, askedParam]);
+
+  const sevenAgentRemote = useRemote<SevenAgentResearchDossier>(
+    reportIdParam
+      ? `/api/research/seven-agents/${encodeURIComponent(reportIdParam)}?lang=${researchLang}`
+      : activeResearchQuery
+        ? `/api/research/seven-agents?q=${encodeURIComponent(activeResearchQuery)}&lang=${researchLang}`
+        : null,
+  );
+  const dossierMatchesActiveQuestion = (dossier: SevenAgentResearchDossier | null | undefined) => {
+    if (!dossier || dossier.lang !== researchLang) return false;
+    if (reportIdParam) {
+      if (dossier.id === reportIdParam) return true;
+      if (reportIdParam.startsWith('7agent-modern-') && dossier.id === reportIdParam) return true;
+    }
+    if (!activeResearchQuery) return Boolean(reportIdParam);
+    return researchQuestionsAlign(dossier.question, activeResearchQuery);
+  };
+  // While Ask is pending, ignore any still-mounted prior board — only the new query counts.
+  const sevenAgentDossier = askPending
+    ? null
+    : (instantDossier && dossierMatchesActiveQuestion(instantDossier) ? instantDossier : null) ??
+      (dossierMatchesActiveQuestion(sevenAgentRemote.data) ? sevenAgentRemote.data : null);
+
+  useEffect(() => {
+    // Drop any prior card's instant payload when the URL question/report changes.
+    setInstantDossier(null);
+  }, [askedParam, reportIdParam, jobParam, researchLang]);
+
+  useEffect(() => {
+    // One-shot open from ?roundtable=1 (Hadith dossier reopen). Never force-close when absent —
+    // job/report param changes must not wipe a locally opened roundtable.
+    if (roundtableParam) setRoundtableOpen(true);
+  }, [askedParam, reportIdParam, jobParam, roundtableParam]);
+
+  // After hash-only navigation (no remount), clear askPending only when the route moved
+  // off the Ask-start snapshot — stale prior job/q/reportId must not unlock mid-POST.
+  useEffect(() => {
+    if (!askPending) return;
+    const started = askStartedRouteRef.current;
+    if (started == null) return;
+    const current = researchRouteKey(jobParam, askedParam, reportIdParam);
+    if (current === started) return;
+    if (!(jobParam || askedParam?.trim() || reportIdParam)) return;
+    askStartedRouteRef.current = null;
+    setAskPending(false);
+    setPendingQuestion(null);
+    setResearchInFlight(true);
+  }, [askPending, jobParam, askedParam, reportIdParam]);
+
+  const jobStatus = remote.data?.job.status;
+  const jobIsLive = jobStatus === 'running' || jobStatus === 'queued';
+
+  // Enter sticky flight when a run is clearly underway (Ask, reload into live job, or 7-agent fetch).
+  useEffect(() => {
+    if (sevenAgentDossier) return;
+    if (askPending || sevenAgentRemote.loading || jobIsLive) setResearchInFlight(true);
+  }, [sevenAgentDossier, askPending, sevenAgentRemote.loading, jobIsLive]);
+
+  // Leave sticky flight only when the *current* run's dossier is ready, or the run settled without one.
+  useEffect(() => {
+    if (askPending) return;
+    if (sevenAgentDossier) {
+      setResearchInFlight(false);
+      setPendingQuestion(null);
+      return;
+    }
+    if (!researchInFlight) return;
+    if (sevenAgentRemote.loading || jobIsLive || remote.loading) return;
+    const settledWithoutBoard =
+      Boolean(sevenAgentRemote.error) ||
+      jobStatus === 'done' ||
+      jobStatus === 'error' ||
+      jobStatus === 'cancelled' ||
+      (!activeResearchQuery && !reportIdParam && !jobId);
+    if (settledWithoutBoard) {
+      setResearchInFlight(false);
+      setPendingQuestion(null);
+    }
+  }, [
+    sevenAgentDossier,
+    researchInFlight,
+    askPending,
+    sevenAgentRemote.loading,
+    sevenAgentRemote.error,
+    jobIsLive,
+    jobStatus,
+    remote.loading,
+    activeResearchQuery,
+    reportIdParam,
+    jobId,
+  ]);
+
+  const isCountdownActive =
+    !sevenAgentDossier &&
+    (askPending || researchInFlight || sevenAgentRemote.loading || jobIsLive);
+
+  const running = isCountdownActive;
+  const parallelPending =
+    !sevenAgentDossier &&
+    remote.data?.job.status === 'done' &&
+    remote.data.job.parallel?.status === 'running';
 
   useEffect(() => {
     if (paramLang === 'en' || paramLang === 'ta' || paramLang === 'si') setLang(paramLang);
@@ -34,18 +210,29 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
 
   useEffect(() => {
     setJobId(jobParam);
-    if (askedParam) setQuestion(askedParam);
+    if (!askedParam) return;
+    const parts = separateQuestions(askedParam);
+    setQuestion(parts[0] ?? askedParam);
   }, [jobParam, askedParam]);
+
+  useEffect(() => {
+    try {
+      const parsed = JSON.parse(sessionStorage.getItem('kf-research-chapters') || '[]') as { id: string; scope: ResearchScope; question: string; forwarded?: boolean }[];
+      setChapters(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      setChapters([]);
+    }
+  }, [jobId]);
 
   useEffect(() => {
     setHistory(readResearchHistory().filter(item => item.scope === entry));
   }, [entry, remote.data?.job.status]);
 
   useEffect(() => {
-    if (!running) return;
-    const timer = window.setInterval(() => remote.reload(), 700);
+    if (!running && !parallelPending) return;
+    const timer = window.setInterval(() => remote.reload(), parallelPending ? 2000 : 700);
     return () => window.clearInterval(timer);
-  }, [running, remote.reload]);
+  }, [running, parallelPending, remote.reload]);
 
   useEffect(() => {
     const response = remote.data;
@@ -69,30 +256,100 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
     if (text) setNotice(text);
   }, [remote.data?.job.assignment?.noticeId, t]);
 
-  async function submit(event?: FormEvent, extra?: { clarified?: boolean; prior?: string | null; force?: boolean }) {
+  function bookForRequest(): number | null {
+    return selectedBook;
+  }
+
+  function hrefFor(scope: ResearchScope, id: string, forwarded: boolean, asked: string) {
+    const bookId = bookForRequest();
+    if ((desk === 'fiqh' || desk === 'seerah') && !forwarded) return researchDeskHref(desk, entry, id, lang, false, null, asked);
+    return researchHref(scope, id, lang, forwarded, bookId, asked);
+  }
+
+  async function researchOne(asked: string, extra?: { clarified?: boolean; prior?: string | null; force?: boolean }) {
+    return beginResearch({
+      question: asked,
+      entry,
+      desk,
+      lang,
+      bookId: desk === 'books' ? bookForRequest() : selectedBook,
+      forwarded: params.get('fwd') === '1',
+      clarified: extra?.clarified ?? clarified,
+      priorQuestion: extra?.clarified ? extra.prior ?? null : null,
+      force: extra?.force,
+    });
+  }
+
+  async function submit(event?: FormEvent, extra?: { clarified?: boolean; prior?: string | null; force?: boolean; asked?: string }) {
     event?.preventDefault();
-    const asked = question.trim();
-    if (asked.length < 3) return;
+    const clarifying = extra?.clarified === true;
+    const field = extra?.asked ?? question;
+    const pieces = questionsToResearch(field, clarifying ? null : remote.data?.job.question ?? null, clarifying);
+    if (!pieces.length) return;
+    setError(null);
+    setInstantDossier(null);
+    setPendingQuestion(pieces[0] ?? field);
+    setResearchInFlight(true);
+    askStartedRouteRef.current = researchRouteKey(jobParam, askedParam, reportIdParam);
+    setAskPending(true);
+    try {
+      const startedChapters: { id: string; scope: ResearchScope; question: string; forwarded: boolean }[] = [];
+      for (const piece of pieces) {
+        const started = await researchOne(piece, extra).catch(() => ({
+          action: 'research' as const,
+          id: `7agent-${Date.now()}`,
+          scope: entry,
+        }));
+        const resolvedId = started.id || `7agent-${Date.now()}`;
+        const resolvedScope = started.scope || entry;
+        startedChapters.push({
+          id: resolvedId,
+          scope: resolvedScope,
+          question: piece,
+          forwarded: started.action === 'forward',
+        });
+      }
+      setClarify(false);
+      setQuestion(startedChapters[0].question);
+      if (startedChapters.length > 1) {
+        sessionStorage.setItem('kf-research-chapters', JSON.stringify(startedChapters));
+        setChapters(startedChapters);
+      }
+      const first = startedChapters[0];
+      const href = hrefFor(first.scope, first.id, first.forwarded, first.question);
+      if (window.location.hash !== href) {
+        // Route params will clear askPending via effect (works with or without remount).
+        window.location.hash = href;
+        return;
+      }
+      setJobId(first.id);
+      remote.reload();
+      // Job/seven-agent remotes now own the in-flight lock.
+      askStartedRouteRef.current = null;
+      setAskPending(false);
+      setPendingQuestion(null);
+    } catch (err) {
+      askStartedRouteRef.current = null;
+      setAskPending(false);
+      setPendingQuestion(null);
+      setResearchInFlight(false);
+      setError(err instanceof Error ? err.message : 'The research job could not be started.');
+    }
+  }
+
+  async function researchSeparate(piece: string) {
     setError(null);
     try {
-      const started = await beginResearch({
-        question: asked,
-        entry,
-        lang,
-        bookId: selectedBook,
-        forwarded: params.get('fwd') === '1',
-        clarified: extra?.clarified ?? clarified,
-        priorQuestion: extra?.prior ?? remote.data?.job.question ?? null,
-        force: extra?.force,
-      });
+      const started = await researchOne(piece, { force: true });
       if (started.action === 'clarify' || !started.id || !started.scope) {
         setClarify(true);
+        setQuestion(piece);
         return;
       }
       setClarify(false);
-      const forwarded = started.action === 'forward';
-      const href = researchHref(started.scope, started.id, lang, forwarded, selectedBook, asked);
-      if (started.scope !== entry || window.location.hash !== href) {
+      setQuestion(piece);
+      const href = hrefFor(started.scope, started.id, started.action === 'forward', piece);
+      if (window.location.hash !== href) {
         window.location.hash = href;
         return;
       }
@@ -103,8 +360,9 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
     }
   }
 
-  const job = remote.data?.job;
-  const dossier = remote.data?.dossier ?? null;
+  const savedReport = useMemo(() => history.find(item => item.id === jobId) ?? null, [history, jobId]);
+  const job = remote.data?.job ?? (remote.loading ? undefined : savedReport?.response.job);
+  const dossier = remote.data?.dossier ?? (remote.loading ? null : savedReport?.response.dossier ?? null);
   const model = job ? buildReportModel(job, dossier) : null;
   const finished = job?.status === 'done' || job?.status === 'error' || job?.status === 'cancelled';
   const outcome = job && finished
@@ -113,10 +371,12 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
         queryCount: job.subquestions.reduce((total, sub) => total + sub.queries.length, 0),
         passageCount: dossier?.passages.length ?? 0,
         coverage: job.coverage,
+        investigation: job.investigation,
+        parallelStatus: job.parallel?.status,
+        jobStatus: job.status,
       })
     : null;
-  const heading = entry === 'knowledge' ? t.askIslam : entry === 'quran' ? t.researchQuran : entry === 'hadith' ? t.researchHadith : t.researchBooks;
-  const description = entry === 'knowledge' ? t.askIslamBody : t.askIslamBody;
+  const frame = desk === 'hadith' ? null : DESK_FRAME[desk];
 
   function download() {
     if (!model || !job) return;
@@ -129,85 +389,141 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
     setTimeout(() => URL.revokeObjectURL(href), 0);
   }
 
-  const savedReport = useMemo(() => history.find(item => item.id === jobId) ?? null, [history, jobId]);
-  const liveModel = model ?? (savedReport ? buildReportModel(savedReport.response.job, savedReport.response.dossier) : null);
+  const liveModel = model ?? (savedReport && !remote.loading ? buildReportModel(savedReport.response.job, savedReport.response.dossier) : null);
+  const citedPassages = (liveModel?.passages ?? []).filter(
+    passage => !passage.context?.startsWith('Neighbouring') && (liveModel?.citationIds.length ? liveModel.citationIds.includes(passage.id) : true),
+  );
+  const otherQuestions = job ? separateQuestions(job.question).slice(1) : [];
+  const offersPodcast = job?.investigation !== 'blocked' && otherQuestions.length === 0 && (dossier?.passages.length ?? savedReport?.response.dossier?.passages.length ?? 0) > 0;
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-gold/50 bg-white px-5 py-6 sm:px-7">
-        <h1 className="font-display text-4xl font-bold leading-tight text-pine">{heading}</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink/75">{description}</p>
-        {selectedBook && <p className="mt-2 text-sm text-pine">IslamHouse {selectedBook}</p>}
-        <form onSubmit={event => void submit(event)} className="mt-5 space-y-3">
-          <label className="sr-only" htmlFor="research-question">{heading}</label>
-          <textarea
-            id="research-question"
-            value={question}
-            onChange={event => setQuestion(event.target.value)}
-            rows={4}
-            maxLength={800}
-            placeholder={t.askIslamPlaceholder}
-            className="w-full rounded-3xl border border-pine/20 bg-sand px-4 py-4 text-base leading-relaxed"
-          />
-          <Button type="submit" disabled={question.trim().length < 3 || running} className="w-full py-3 sm:w-auto">
-            {t.researchMyQuestion}
-          </Button>
-        </form>
-        {notice && <div className="mt-4"><Notice>{notice}</Notice></div>}
-        {clarify && (
-          <form
-            className="mt-4 space-y-3"
-            onSubmit={event => {
-              setClarified(true);
-              void submit(event, { clarified: true, prior: question });
+      {desk === 'hadith' ? (
+        <Suspense fallback={<Loading />}>
+          <DossierWorkbench />
+        </Suspense>
+      ) : frame && (
+        <ResearchFrame
+          title={frame.title}
+          arabic={frame.arabic}
+          subtitle={frame.subtitle}
+          actions={
+            <>
+              <PodcastHostChip tone="plate" />
+              {/* Idle: input + primary Ask only. Legacy full-report row appears only when
+                  a finished desk report exists without a 7-agent board (board owns CTAs).
+                  Hide while countdown/Ask is active — nulling sevenAgentDossier must not
+                  unhide the prior finished report under the new countdown. */}
+              {!sevenAgentDossier && !isCountdownActive && liveModel && finished ? (
+                <ResearchActionRow
+                  onFullReport={() => {
+                    const target =
+                      document.querySelector('[data-testid="seven-agent-research-board"]') ??
+                      document.getElementById('research-full-report');
+                    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                  onRoundtable={() => {
+                    if (!activeResearchQuery && question.trim().length >= 3) {
+                      setRoundtableOpen(true);
+                      void submit(undefined, { asked: question.trim() });
+                      return;
+                    }
+                    setRoundtableOpen(true);
+                    window.setTimeout(() => {
+                      const studio = document.getElementById('seven-agent-roundtable-studio');
+                      if (studio) {
+                        studio.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        const playBtn = studio.querySelector(
+                          '[data-testid="roundtable-play-all-btn"]',
+                        ) as HTMLButtonElement | null;
+                        playBtn?.click();
+                      } else if (job && offersPodcast) {
+                        window.location.hash = `#/podcast?job=${job.id}&lang=${lang}`;
+                      }
+                    }, 80);
+                  }}
+                />
+              ) : null}
+            </>
+          }
+        >
+          <DomainResearchForm
+            desk={desk}
+            question={question}
+            running={running}
+            clarify={clarify}
+            clarifyText={t.clarifyMeaning}
+            onQuestion={setQuestion}
+            onSubmit={(event, asked) => {
+              if (clarify) {
+                setClarified(true);
+                void submit(event, { clarified: true, prior: question, asked });
+                return;
+              }
+              void submit(event, { asked });
             }}
-          >
-            <p className="text-sm font-medium text-pine">{t.clarifyMeaning}</p>
-            <textarea
-              value={question}
-              onChange={event => setQuestion(event.target.value)}
-              rows={3}
-              className="w-full rounded-3xl border border-pine/20 bg-sand px-4 py-3 text-base"
-            />
-            <Button type="submit">{t.researchMyQuestion}</Button>
-          </form>
-        )}
-        {error && <div className="mt-4"><ErrorNote message={error} /></div>}
-      </section>
-
-      {job && (
-        <section className="rounded-3xl border border-pine/10 bg-parchment p-5" aria-live="polite">
-          <h2 className="font-display text-2xl font-bold text-pine">{t.researchProgress}</h2>
-          <p className="mt-2 text-sm text-ink/80">
-            {job.status === 'running' ? job.progress.step : job.status} · {job.progress.completed}/{job.progress.total}
-            {job.language ? ` · ${job.language}` : ''}
-          </p>
-          <ul className="mt-3 space-y-2 text-sm">
-            {(job.agents ?? []).map(agent => (
-              <li key={agent.id}>
-                <span className="font-medium text-pine">{agent.role}</span>
-                <span className="text-muted"> · {agent.status === 'ran' ? 'contributed' : agent.status === 'unavailable' ? 'source unavailable' : 'did not run'}</span>
-              </li>
-            ))}
-          </ul>
-          {job.subquestions.length > 0 && (
-            <ul className="mt-3 space-y-1 text-sm text-ink/75">
-              {job.subquestions.map(sub => (
-                <li key={sub.id}>{sub.text}{sub.queries.length ? ` · ${sub.queries.join(' · ')}` : ''}</li>
+            onStarter={asked => {
+              setQuestion(asked);
+              setClarify(false);
+              void submit(undefined, { asked });
+            }}
+          />
+        </ResearchFrame>
+      )}
+      {desk !== 'hadith' && (
+        <div className="space-y-4">
+          {otherQuestions.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm leading-relaxed text-ink/75">This record joined more than one question. Each question keeps its own research.</p>
+              {otherQuestions.map(item => (
+                <Button key={item} type="button" variant="soft" onClick={() => void researchSeparate(item)}>
+                  {item}
+                </Button>
+              ))}
+            </div>
+          )}
+          {chapters.length > 1 && (
+            <ul className="space-y-2">
+              {chapters.map((chapter, index) => (
+                <li key={chapter.id}>
+                  <a href={hrefFor(chapter.scope, chapter.id, chapter.forwarded === true, chapter.question)} className="text-sm font-medium text-pine hover:underline">
+                    Chapter {index + 1}. {chapter.question}
+                  </a>
+                </li>
               ))}
             </ul>
           )}
-        </section>
+          {notice && <Notice>{notice}</Notice>}
+          {error && <ErrorNote message={error} />}
+        </div>
       )}
-      {running && <Loading label={t.researchProgress} />}
-      {remote.error && <ErrorNote message={remote.error} onRetry={remote.reload} />}
-      {outcome && (dossier?.passages.length ?? 0) === 0 && (
+
+      {isCountdownActive && (
+        <SevenAgentCountdownCard
+          key={activeResearchQuery || question || 'in-flight'}
+          question={activeResearchQuery || question}
+          lang={lang}
+        />
+      )}
+
+      {sevenAgentDossier && !isCountdownActive && (
+        <SevenAgentResearchBoard
+          dossier={sevenAgentDossier}
+          lang={lang}
+          roundtableOpen={roundtableOpen}
+          onToggleRoundtable={setRoundtableOpen}
+        />
+      )}
+      {remote.error && !savedReport && !sevenAgentDossier && !isCountdownActive && (
+        <ErrorNote message={remote.error} onRetry={remote.reload} />
+      )}
+      {outcome && !sevenAgentDossier && !isCountdownActive && (
         <Notice>
           <span className="font-semibold">{outcome.title} </span>
           {outcome.detail}
           {outcome.retry && (
             <span className="mt-3 block">
-              <Button type="button" variant="soft" onClick={() => void submit(undefined, { force: true, prior: job?.question ?? null })}>
+              <Button type="button" variant="soft" onClick={() => void submit(undefined, { force: true, asked: job?.question ?? question })}>
                 {t.retry}
               </Button>
             </span>
@@ -215,30 +531,102 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
         </Notice>
       )}
 
-      {liveModel && finished && (
-        <div className="space-y-4">
+      {liveModel && finished && !sevenAgentDossier && !isCountdownActive && (
+        <div id="research-full-report" className="space-y-4">
+          <section className="rounded-3xl border border-gold bg-white p-5" data-research-answer>
+            <h2 className="font-display text-2xl font-bold text-pine">Answer</h2>
+            {job?.interpretation?.meaning && <p className="mt-2 text-sm leading-relaxed text-ink/80">{job.interpretation.meaning}</p>}
+            {job?.interpretation?.scopes?.length ? (
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-ink/80">
+                {job.interpretation.scopes.map(scope => (
+                  <li key={scope.id}>{scope.text}</li>
+                ))}
+              </ul>
+            ) : null}
+            {liveModel.answer ? <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed"><ContentText text={liveModel.answer} /></p> : <p className="mt-3 text-sm text-muted">No answer was written from the retrieved passages.</p>}
+            {job?.materialParts?.some(part => part.status === 'unresolved') && (
+              <ul className="mt-3 space-y-1 text-sm text-ink/80" data-material-coverage>
+                {job.materialParts.filter(part => part.status === 'unresolved').map(part => (
+                  <li key={part.id}><span className="font-semibold text-pine">{materialPartLabel(part.kind)}. </span><ContentText text={part.note} /></li>
+                ))}
+              </ul>
+            )}
+            {job?.parallel?.liveCallMade && job.parallel.status === 'running' && (
+              <p className="mt-3 text-sm leading-relaxed text-ink/75" data-parallel-status>
+                Further sources are still being read. Findings already supported stay on this page. A later revision will not replace audio that is playing.
+              </p>
+            )}
+            {job?.parallel?.liveCallMade && job.parallel.status === 'failed' && (
+              <p className="mt-3 text-sm leading-relaxed text-ink/75" data-parallel-status>
+                One research source failed. That is a source failure, not a finding that the subject is absent.
+              </p>
+            )}
+            {job?.parallel && !job.parallel.liveCallMade && (
+              <p className="mt-3 text-sm leading-relaxed text-ink/75" data-parallel-status>
+                Further source research was not called.
+              </p>
+            )}
+            {liveModel.answerArabic && (
+              <p className="mt-3 font-arabic text-2xl leading-loose" dir="rtl" lang="ar">{liveModel.answerArabic}</p>
+            )}
+            <h3 className="mt-4 font-display text-lg font-bold text-pine">Citations</h3>
+            {citedPassages.length === 0 && <p className="mt-2 text-sm text-muted">No passage was kept.</p>}
+            <ul className="mt-2 space-y-2 text-sm">
+              {citedPassages.map(passage => (
+                <li key={passage.id}>
+                  <span className="font-semibold text-pine">{passage.locator}</span>
+                  <span className="text-muted"> · {passage.source.provider}{passage.publishedGrade ? ` · ${passage.publishedGrade}` : ''}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
           <div className="flex flex-wrap gap-3">
-            <Button type="button" onClick={download}>{t.downloadReport}</Button>
-            {job && (
+            <Button type="button" onClick={download}>Download Full Report</Button>
+            {job && offersPodcast && (
               <a href={`#/podcast?job=${job.id}&lang=${lang}`} className="inline-flex items-center rounded-full border border-pine/20 px-4 py-2 text-sm font-medium text-pine">
-                {t.makePodcast}
+                Make a roundtable episode
               </a>
             )}
           </div>
           <FullReport model={liveModel} />
         </div>
       )}
-
-      {entry === 'hadith' && (
-        <details className="rounded-3xl border border-pine/15 bg-white/70 p-4">
-          <summary className="cursor-pointer text-sm font-semibold text-pine">{t.researchHadith}</summary>
-          <div className="mt-4">
-            <Suspense fallback={<Loading />}>
-              <DossierWorkbench />
-            </Suspense>
-          </div>
+      {job && finished && (
+        <details className="rounded-3xl border border-pine/10 bg-parchment p-5">
+          <summary className="cursor-pointer font-display text-xl font-bold text-pine">{t.researchProgress}</summary>
+          <ResearchActivity job={job} />
         </details>
       )}
+
+      <RecentSevenAgentDossiers
+        activeQuestion={sevenAgentDossier?.question || activeResearchQuery}
+        onSelectDossier={selected => {
+          setAskPending(false);
+          setPendingQuestion(null);
+          setResearchInFlight(false);
+          setQuestion(selected.question);
+          setInstantDossier(selected);
+          setRoundtableOpen(false);
+          window.setTimeout(() => {
+            document
+              .querySelector('[data-testid="seven-agent-research-board"]')
+              ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 60);
+        }}
+        onOpenRoundtable={selected => {
+          setAskPending(false);
+          setPendingQuestion(null);
+          setResearchInFlight(false);
+          setQuestion(selected.question);
+          setInstantDossier(selected);
+          setRoundtableOpen(true);
+          window.setTimeout(() => {
+            document
+              .getElementById('seven-agent-roundtable-studio')
+              ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 80);
+        }}
+      />
 
       <section>
         <h2 className="font-display text-2xl font-bold text-pine">{t.previousResearch}</h2>
@@ -254,6 +642,32 @@ export function ResearchDesk({ entry, params }: { entry: ResearchScope; params: 
         </ul>
       </section>
     </div>
+  );
+}
+
+function ResearchActivity({ job }: { job: ResearchJobResponse['job'] }) {
+  return (
+    <>
+      <p className="mt-2 text-sm text-ink/80">
+        {job.status === 'running' ? job.progress.step : job.status} · {job.progress.completed}/{job.progress.total}
+        {job.language ? ` · ${job.language}` : ''}
+      </p>
+      <ul className="mt-3 space-y-2 text-sm">
+        {(job.agents ?? []).map(agent => (
+          <li key={agent.id}>
+            <span className="font-medium text-pine">{agent.role}</span>
+            <span className="text-muted"> · {agent.status === 'ran' ? 'contributed' : agent.status === 'unavailable' ? 'source unavailable' : 'did not run'}</span>
+          </li>
+        ))}
+      </ul>
+      {job.subquestions.length > 0 && (
+        <ul className="mt-3 space-y-1 text-sm text-ink/75">
+          {job.subquestions.map(sub => (
+            <li key={sub.id}>{sub.text}{sub.queries.length ? ` · ${sub.queries.join(' · ')}` : ''}</li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }
 

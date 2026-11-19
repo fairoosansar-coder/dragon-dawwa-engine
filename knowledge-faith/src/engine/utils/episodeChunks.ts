@@ -1,10 +1,12 @@
+import type { PodcastSpeaker } from '../../shared/types.ts';
+
 export interface EpisodeLine {
-  speaker: 'Host' | 'Guest';
+  speaker: PodcastSpeaker | string;
   text: string;
 }
 
 export interface EpisodeChunk {
-  speaker: 'Host' | 'Guest';
+  speaker: PodcastSpeaker | string;
   text: string;
   /** Indexes into the original script lines, used to highlight what is playing. */
   lineIndexes: number[];

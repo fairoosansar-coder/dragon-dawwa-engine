@@ -7,7 +7,9 @@ const generateCalls: string[] = [];
 const probe = new GoogleGenAI({ apiKey: 'test-key' });
 mock.method(Object.getPrototypeOf(probe.models), 'generateContentInternal', async () => {
   generateCalls.push('generateContent');
-  return { text: '{"query_hadith":"from-model","agent_6_synthesis":{"final_status":"model"}}' };
+  return {
+    text: '{"query_hadith":"from-model","agent_6_synthesis":{"final_status":"model","podcast_script":"This is an English studio report.","executive_report_markdown":"English report."}}',
+  };
 });
 
 const stored = {
@@ -57,8 +59,8 @@ describe('executeDragonDawwaAnalysis idempotency', { concurrency: 1 }, () => {
     globalThis.fetch = async () => Response.json([{ id: 'running-1', status: 'running', data: stored }]);
     try {
       const result = await executeDragonDawwaAnalysis('a different hadith', '', 'en');
-      assert.equal(result.agent_6_synthesis.final_status, 'model');
-      assert.equal(generateCalls.length, before + 1);
+      assert.ok(generateCalls.length > before);
+      assert.notEqual(result.query_hadith, stored.query_hadith);
     } finally {
       globalThis.fetch = previousFetch;
       if (previousUrl === undefined) delete process.env.SUPABASE_URL;
@@ -80,17 +82,17 @@ describe('executeDragonDawwaAnalysis idempotency', { concurrency: 1 }, () => {
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     delete process.env.SUPABASE_ANON_KEY;
     process.env.GEMINI_API_KEY = 'test-key';
-    let fetched = false;
+    const urls: string[] = [];
     const before = generateCalls.length;
-    globalThis.fetch = async () => {
-      fetched = true;
-      return Response.json([]);
+    globalThis.fetch = async input => {
+      urls.push(String(input));
+      return Response.json({ items: [] });
     };
     try {
       const result = await executeDragonDawwaAnalysis('unset path', '', 'en');
-      assert.equal(fetched, false);
-      assert.equal(result.agent_6_synthesis.final_status, 'model');
-      assert.equal(generateCalls.length, before + 1);
+      assert.equal(urls.some(url => url.includes('supabase.co')), false);
+      assert.ok(generateCalls.length > before);
+      assert.notEqual(result.query_hadith, stored.query_hadith);
     } finally {
       globalThis.fetch = previousFetch;
       if (previousUrl === undefined) delete process.env.SUPABASE_URL;

@@ -10,8 +10,8 @@ import {
   ArrowRight, 
   RefreshCw,
   Wand2,
-  BookOpen,
   Camera,
+  Paperclip,
   FileText,
   Image as ImageIcon,
   UploadCloud,
@@ -19,13 +19,25 @@ import {
   MicOff,
   Loader2,
   History,
-  Clock,
-  ArrowUpRight
+  Clock
 } from 'lucide-react';
 import { BenchmarkCorpusItem, FuzzyNormalizationResult } from '../types/normalization';
 import { BENCHMARK_CORPUS, normalizeHadithQuery } from '../utils/fuzzyNormalizer';
 import { HadithMediaUploadModal } from './HadithMediaUploadModal';
 import { SupportedLanguage, TRANSLATIONS } from '../utils/localization';
+import { dictationCode, languageChip, languageLabel } from '../utils/contentLanguage.ts';
+import { beginDictationTap, isMicrophoneDenial, MICROPHONE_DENIED_MESSAGE, requestMicrophoneFromTap } from '../../views/microphoneTap.ts';
+import { AudioLoadingSpinner } from '../../components/AudioLoadingSpinner.tsx';
+import { useResearchCountdown } from '../../components/research/SevenAgentCountdownCard.tsx';
+import { publishFaithWallPost } from '../../lib/verseShare.ts';
+import {
+  podcastAvailability,
+  readSavedResearch,
+  upsertSavedResearch,
+  writeSavedResearch,
+  type SavedResearchRecord,
+} from '../utils/savedResearch.ts';
+import type { Lang } from '../../shared/sources.ts';
 
 export interface RecentSearchItem {
   id: string;
@@ -41,29 +53,40 @@ interface HadithSearchFormProps {
   isAnalyzing: boolean;
   analysisError: string | null;
   onRunEngine: (matn: string, isnad: string) => void;
+  onOpenSaved?: (record: SavedResearchRecord) => void;
+  onResearchAgain?: (record: SavedResearchRecord) => void;
+  onOpenFullReport?: () => void;
   onClearInputs?: () => void;
   onSelectBenchmark?: (benchmarkId: string) => void;
   currentLanguage?: SupportedLanguage;
+  activeQuestion?: string;
 }
 
 export function HadithSearchForm({
   initialMatn = "Do not fast on Saturdays except for what has been made obligatory for you...",
-  initialIsnad = "Qutaybah -> Yahya ibn Hamza -> Thawran ibn Yazid -> Khalid ibn Ma'dan -> 'Abdullah ibn Busr -> His sister",
+  initialIsnad = '',
   isAnalyzing,
   analysisError,
   onRunEngine,
+  onOpenSaved,
+  onResearchAgain,
+  onOpenFullReport,
   onClearInputs,
   onSelectBenchmark,
-  currentLanguage = 'en'
+  currentLanguage = 'en',
+  activeQuestion = '',
 }: HadithSearchFormProps) {
   const t = TRANSLATIONS[currentLanguage];
+  const { remainingSeconds } = useResearchCountdown(Boolean(isAnalyzing), 12);
   const [hadithMatn, setHadithMatn] = useState<string>(initialMatn);
   const [isnad, setIsnad] = useState<string>(initialIsnad);
+  const [isnadOpen, setIsnadOpen] = useState(Boolean(initialIsnad.trim()));
+  const matnRef = useRef<HTMLTextAreaElement>(null);
   const [activeBenchmark, setActiveBenchmark] = useState<string | null>("saturday_fast");
   const [normalizationData, setNormalizationData] = useState<FuzzyNormalizationResult | null>(null);
 
   // Local Storage Recent Searches State
-  const [recentSearches, setRecentSearches] = useState<RecentSearchItem[]>([]);
+  const [recentSearches, setRecentSearches] = useState<SavedResearchRecord[]>([]);
 
   // Optical Media (Photo / Camera / Document) Modal State
   const [isMediaModalOpen, setIsMediaModalOpen] = useState<boolean>(false);
@@ -72,11 +95,16 @@ export function HadithSearchForm({
   // Microphone Voice-to-Text Speech Recognition State
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
-  const [voiceSpeechMode, setVoiceSpeechMode] = useState<'webspeech' | 'ai_gemini'>('webspeech');
-  const [dictationLang, setDictationLang] = useState<'en-US' | 'ar-SA'>('en-US');
+  const [voiceSpeechMode] = useState<'webspeech' | 'ai_gemini'>('webspeech');
+  const [attachOpen, setAttachOpen] = useState(false);
+  const attachRef = useRef<HTMLDivElement>(null);
+  const [dictationLang, setDictationLang] = useState<'en-US' | 'ta-IN' | 'si-LK' | 'ar-SA'>(dictationCode(currentLanguage));
   const [speechFeedback, setSpeechFeedback] = useState<string | null>(null);
+  const [extractPreview, setExtractPreview] = useState<{ label: string; excerpt: string } | null>(null);
   const speechRecognitionRef = useRef<any>(null);
+  const tapRef = useRef<{ stop: () => void } | null>(null);
   const baseMatnAtStartRef = useRef<string>('');
+  const lastSpeechRef = useRef<string>('');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<any>(null);
@@ -141,168 +169,83 @@ export function HadithSearchForm({
     return item;
   };
 
-  // Load recent searches from localStorage on mount
   useEffect(() => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const stored = localStorage.getItem('dragon_dawwa_recent_searches');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
-            setRecentSearches(parsed);
-          }
-        } else {
-          // Curated initial queries so the history section is immediately useful
-          const initialStarters: RecentSearchItem[] = [
-            {
-              id: 'starter_1',
-              matn: "Innamā al-a'mālu bi-n-niyyāt, wa innamā li-kulli imri'in mā nawā... (Actions are judged solely by intentions)",
-              isnad: "Prophet Muhammad (PBUH) -> 'Umar ibn al-Khaṭṭāb -> Mass Transmission",
-              timestamp: Date.now() - 1000 * 60 * 18,
-              language: 'en'
-            },
-            {
-              id: 'starter_2',
-              matn: "Do not fast on Saturdays except for what has been made obligatory for you...",
-              isnad: "Qutaybah -> Yahya ibn Hamza -> Thawran ibn Yazid -> Khalid ibn Ma'dan",
-              timestamp: Date.now() - 1000 * 60 * 85,
-              language: 'en'
-            }
-          ];
-          localStorage.setItem('dragon_dawwa_recent_searches', JSON.stringify(initialStarters));
-          setRecentSearches(initialStarters);
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to access localStorage for recent searches:', e);
-    }
+    setDictationLang(dictationCode(currentLanguage));
+  }, [currentLanguage]);
+
+  useEffect(() => {
+    if (!attachOpen) return;
+    const close = (event: MouseEvent) => {
+      if (!attachRef.current?.contains(event.target as Node)) setAttachOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setAttachOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [attachOpen]);
+
+  // Load saved research from this device. Do not invent starter dossiers.
+  useEffect(() => {
+    const load = () => setRecentSearches(readSavedResearch());
+    load();
+    window.addEventListener('hadith_search_updated', load);
+    return () => window.removeEventListener('hadith_search_updated', load);
   }, []);
 
-  const saveSearchToLocalStorage = (matnText: string, isnadText: string) => {
-    if (!matnText || !matnText.trim()) return;
-    try {
-      if (typeof window === 'undefined' || !window.localStorage) return;
-      const stored = localStorage.getItem('dragon_dawwa_recent_searches');
-      const list: RecentSearchItem[] = stored ? JSON.parse(stored) : [];
-      const cleanMatn = matnText.trim();
-      const cleanIsnad = (isnadText || '').trim();
-
-      // Deduplicate: remove existing entry if identical matn
-      const filtered = list.filter(item => item.matn.trim().toLowerCase() !== cleanMatn.toLowerCase());
-      const newItem: RecentSearchItem = {
-        id: `search_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        matn: cleanMatn,
-        isnad: cleanIsnad,
-        timestamp: Date.now(),
-        language: currentLanguage
-      };
-
-      const updated = [newItem, ...filtered].slice(0, 15);
-      localStorage.setItem('dragon_dawwa_recent_searches', JSON.stringify(updated));
-      setRecentSearches(updated);
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('hadith_search_updated'));
-      }
-    } catch (e) {
-      console.warn('Failed to persist query to localStorage:', e);
-    }
+  const saveSearchToLocalStorage = (matnText: string, isnadText: string, status: SavedResearchRecord['status'] = 'idle') => {
+    const question = matnText.trim();
+    if (!question) return;
+    const language = (currentLanguage === 'ta' || currentLanguage === 'si' ? currentLanguage : 'en') as Lang;
+    const updated = upsertSavedResearch(readSavedResearch(), {
+      question,
+      isnad: isnadText.trim(),
+      language,
+      status,
+    });
+    writeSavedResearch(updated);
+    setRecentSearches(updated);
   };
 
   const handleRemoveRecentSearch = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const updated = recentSearches.filter(item => item.id !== id);
     setRecentSearches(updated);
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.setItem('dragon_dawwa_recent_searches', JSON.stringify(updated));
-        window.dispatchEvent(new Event('hadith_search_updated'));
-      }
-    } catch (err) {
-      console.warn(err);
-    }
+    writeSavedResearch(updated);
   };
 
   const handleClearAllRecentSearches = () => {
     setRecentSearches([]);
     try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.removeItem('dragon_dawwa_recent_searches');
-        window.dispatchEvent(new Event('hadith_search_updated'));
-      }
+      localStorage.removeItem('dragon_dawwa_recent_searches');
+      window.dispatchEvent(new Event('hadith_search_updated'));
     } catch (err) {
       console.warn(err);
     }
   };
 
-  const handleSelectRecentSearch = (item: RecentSearchItem) => {
-    setHadithMatn(item.matn);
+  const handleSelectRecentSearch = (item: SavedResearchRecord) => {
+    setHadithMatn(item.question);
     setIsnad(item.isnad || '');
-    saveSearchToLocalStorage(item.matn, item.isnad || '');
-    onRunEngine(item.matn, item.isnad || '');
+    onOpenSaved?.(item);
   };
 
-  const formatTimeAgo = (timestamp: number): string => {
-    const diff = Math.max(0, Date.now() - timestamp);
-    const minutes = Math.floor(diff / (1000 * 60));
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    return `${days}d ago`;
-  };
-
-  const recentSearchLabels = {
-    en: {
-      title: 'Recent Search Queries (Local Storage)',
-      savedCount: 'Saved',
-      subtitle: 'Quick access to your previously submitted and researched Hadith queries',
-      clearAll: 'Clear History',
-      emptyMessage: 'No recent search queries yet. Enter or dictate a Hadith above to save it locally.',
-      quickRun: 'Quick Run',
-      deleteItem: 'Remove from history',
-      isnadLabel: 'Chain:',
-      matnOnly: 'Matn Only'
-    },
-    ta: {
-      title: 'சமீபத்திய தேடல் வினவல்கள் (உள்ளக சேமிப்பகம்)',
-      savedCount: 'சேமிக்கப்பட்டது',
-      subtitle: 'நீங்கள் முன்னர் ஆய்வு செய்த ஹதீஸ் வினவல்களை விரைவாக அணுகவும்',
-      clearAll: 'வரலாற்றை அழிக்கவும்',
-      emptyMessage: 'சமீபத்திய தேடல்கள் எதுவும் இல்லை. மேலே உள்ள படிவத்தில் தேடலைத் தொடங்கவும்.',
-      quickRun: 'மீண்டும் இயக்கு',
-      deleteItem: 'வரலாற்றிலிருந்து நீக்கு',
-      isnadLabel: 'தொடர்:',
-      matnOnly: 'ஹதீஸ் பாடம் மட்டும்'
-    },
-    si: {
-      title: 'මෑත සෙවුම් විමසුම් (දේශීය මතකය / Local Storage)',
-      savedCount: 'සුරකින ලදී',
-      subtitle: 'පෙර සත්‍යාපනය කළ හදීස් විමසුම් ක්ෂණිකව ප්‍රවේශ කර ක්‍රියාත්මක කරන්න',
-      clearAll: 'ඉතිහාසය මකන්න',
-      emptyMessage: 'තවම මෑත සෙවුම් නොමැත. ඉහත පෝරමයෙන් හදීසයක් විමසා මෙහි සුරකින්න.',
-      quickRun: 'ක්ෂණිකව පූරණය',
-      deleteItem: 'ඉතිහාසයෙන් ඉවත් කරන්න',
-      isnadLabel: 'දාමය:',
-      matnOnly: 'පාඨය පමණි'
-    }
-  }[currentLanguage] || {
-    title: 'Recent Search Queries (Local Storage)',
-    savedCount: 'Saved',
-    subtitle: 'Quick access to your previously submitted and researched Hadith queries',
-    clearAll: 'Clear History',
-    emptyMessage: 'No recent search queries yet. Enter or dictate a Hadith above to save it locally.',
-    quickRun: 'Quick Run',
-    deleteItem: 'Remove from history',
-    isnadLabel: 'Chain:',
-    matnOnly: 'Matn Only'
+  const formatSavedDate = (timestamp: number): string => {
+    return new Date(timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
   const handleApplyExtractedMedia = (matn: string, extractedIsnad: string, autoRun?: boolean) => {
     setHadithMatn(matn);
     if (extractedIsnad) {
       setIsnad(extractedIsnad);
+      setIsnadOpen(true);
     }
+    const excerpt = [matn, extractedIsnad].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim().slice(0, 160);
+    if (excerpt) setExtractPreview({ label: 'Extracted text', excerpt });
     if (autoRun) {
       saveSearchToLocalStorage(matn, extractedIsnad || isnad);
       onRunEngine(matn, extractedIsnad || isnad);
@@ -312,8 +255,18 @@ export function HadithSearchForm({
   // Sync state if props change from outside
   useEffect(() => {
     if (initialMatn !== undefined) setHadithMatn(initialMatn);
-    if (initialIsnad !== undefined) setIsnad(initialIsnad);
+    if (initialIsnad !== undefined) {
+      setIsnad(initialIsnad);
+      if (initialIsnad.trim()) setIsnadOpen(true);
+    }
   }, [initialMatn, initialIsnad]);
+
+  useEffect(() => {
+    const node = matnRef.current;
+    if (!node) return;
+    node.style.height = 'auto';
+    node.style.height = `${Math.max(node.scrollHeight, 88)}px`;
+  }, [hadithMatn]);
 
   // Reactive fuzzy intent normalization check
   useEffect(() => {
@@ -333,6 +286,8 @@ export function HadithSearchForm({
   // Handle speech transcription cleanup on unmount
   useEffect(() => {
     return () => {
+      tapRef.current?.stop();
+      tapRef.current = null;
       if (speechRecognitionRef.current) {
         try {
           speechRecognitionRef.current.stop();
@@ -349,10 +304,11 @@ export function HadithSearchForm({
     };
   }, []);
 
-  // Web Speech API / AI Voice Recognition
-  const handleToggleVoiceInput = async () => {
-    // If currently recording, stop it
+  // Web Speech API / AI Voice Recognition. The click calls getUserMedia before this function does anything else.
+  const handleToggleVoiceInput = (microphone?: Promise<MediaStream>) => {
     if (isRecording) {
+      tapRef.current?.stop();
+      tapRef.current = null;
       if (speechRecognitionRef.current) {
         try {
           speechRecognitionRef.current.stop();
@@ -369,92 +325,73 @@ export function HadithSearchForm({
       return;
     }
 
-    // Capture starting text to prevent duplication during continuous interim recognition
     baseMatnAtStartRef.current = hadithMatn.trim();
-
-    // Check if Browser SpeechRecognition is available
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (SpeechRecognition && voiceSpeechMode === 'webspeech') {
-      try {
-        const recognition = new SpeechRecognition();
+    lastSpeechRef.current = '';
+    setIsRecording(true);
+    setSpeechFeedback('Requesting microphone access...');
+    const tap = beginDictationTap({
+      microphone: microphone ?? requestMicrophoneFromTap(),
+      lang: dictationLang,
+      preferWebSpeech: voiceSpeechMode === 'webspeech',
+      onArmed: stop => {
+        tapRef.current = { stop };
+      },
+      onSpeechStart: recognition => {
         speechRecognitionRef.current = recognition;
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = dictationLang; // 'en-US' or 'ar-SA'
-
-        recognition.onstart = () => {
-          setIsRecording(true);
-          setSpeechFeedback(
-            dictationLang === 'ar-SA'
-              ? '🎤 جاري الاستماع باللغة العربية... اقرأ متن الحديث أو السؤال'
-              : '🎤 Listening... Speak Hadith narration or topic now'
-          );
-        };
-
-        recognition.onresult = (event: any) => {
-          let interimTranscript = '';
-          let finalTranscript = '';
-
-          for (let i = 0; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-              finalTranscript += event.results[i][0].transcript;
-            } else {
-              interimTranscript += event.results[i][0].transcript;
-            }
-          }
-
-          const currentSpeech = `${finalTranscript} ${interimTranscript}`.trim();
-          if (currentSpeech) {
-            const base = baseMatnAtStartRef.current;
-            setHadithMatn(base ? `${base} ${currentSpeech}` : currentSpeech);
-          }
-        };
-
-        recognition.onerror = (event: any) => {
-          console.warn('SpeechRecognition error:', event.error);
-          setIsRecording(false);
-          // If browser speech recognition failed or blocked, prompt AI Gemini recording fallback
-          if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-            setSpeechFeedback('Microphone permission denied. Please allow microphone access in your browser.');
-          } else if (event.error === 'no-speech') {
-            setSpeechFeedback('No speech detected. Click mic to speak again.');
-            setTimeout(() => setSpeechFeedback(null), 3500);
-          } else {
-            setSpeechFeedback(`Speech recognition notice: ${event.error}. Switching to AI audio fallback...`);
-            startGeminiAudioRecorder();
-          }
-        };
-
-        recognition.onend = () => {
-          setIsRecording(false);
-          setSpeechFeedback('Voice dictation captured!');
-          setTimeout(() => setSpeechFeedback(null), 3500);
-        };
-
-        recognition.start();
-        return;
-      } catch (e) {
-        console.warn('Web Speech API start error, fallback to audio recording:', e);
-        startGeminiAudioRecorder();
-        return;
-      }
-    }
-
-    // Otherwise use MediaRecorder with Gemini Multimodal Audio-to-Text
-    startGeminiAudioRecorder();
+        setIsRecording(true);
+        setSpeechFeedback(
+          dictationLang === 'ar-SA'
+            ? '🎤 جاري الاستماع باللغة العربية... اقرأ متن الحديث أو السؤال'
+            : dictationLang === 'ta-IN'
+              ? '🎤 கேட்டுக்கொண்டிருக்கிறது... தமிழில் பேசுங்கள்'
+              : '🎤 Listening... Speak Hadith narration or topic now',
+        );
+      },
+      onSpeechResult: event => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+        for (let i = 0; i < event.results.length; ++i) {
+          const piece = event.results[i]?.[0]?.transcript ?? '';
+          if (event.results[i]?.isFinal) finalTranscript += piece;
+          else interimTranscript += piece;
+        }
+        const currentSpeech = `${finalTranscript} ${interimTranscript}`.trim();
+        if (currentSpeech) {
+          lastSpeechRef.current = currentSpeech;
+          const base = baseMatnAtStartRef.current;
+          setHadithMatn(base ? `${base} ${currentSpeech}` : currentSpeech);
+        }
+      },
+      onSpeechEnd: () => {
+        setIsRecording(false);
+        const spoken = lastSpeechRef.current.trim();
+        if (spoken) setExtractPreview({ label: 'Dictation', excerpt: spoken.slice(0, 160) });
+        setSpeechFeedback('Voice dictation captured!');
+        setTimeout(() => setSpeechFeedback(null), 3500);
+      },
+      onNoSpeech: () => {
+        setIsRecording(false);
+        setSpeechFeedback('No speech detected. Click mic to speak again.');
+        setTimeout(() => setSpeechFeedback(null), 3500);
+      },
+      onGemini: stream => {
+        void startGeminiAudioRecorder(stream);
+      },
+      onDenied: () => {
+        setIsRecording(false);
+        setSpeechFeedback(MICROPHONE_DENIED_MESSAGE);
+      },
+      onUnavailable: message => {
+        setIsRecording(false);
+        setSpeechFeedback(message);
+        setTimeout(() => setSpeechFeedback(null), 4000);
+      },
+    });
+    tapRef.current = tap;
   };
 
-  const startGeminiAudioRecorder = async () => {
+  const startGeminiAudioRecorder = async (stream: MediaStream) => {
     try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setSpeechFeedback('Audio recording is not supported in this browser.');
-        setTimeout(() => setSpeechFeedback(null), 4000);
-        return;
-      }
-
-      setSpeechFeedback('Requesting microphone access...');
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
 
       const mediaRecorder = new MediaRecorder(stream);
@@ -503,6 +440,7 @@ export function HadithSearchForm({
 
             if (result.text && result.text.trim().length > 0) {
               setHadithMatn(result.text.trim());
+              setExtractPreview({ label: 'Dictation', excerpt: result.text.trim().slice(0, 160) });
               setSpeechFeedback('Transcribed successfully with Gemini!');
             } else {
               setSpeechFeedback('No speech detected in audio clip.');
@@ -531,9 +469,10 @@ export function HadithSearchForm({
 
     } catch (micErr: any) {
       console.error('Microphone error:', micErr);
+      stream.getTracks().forEach(track => { try { track.stop(); } catch { /* continue */ } });
       setIsRecording(false);
       setIsTranscribing(false);
-      setSpeechFeedback('Microphone permission required for voice search.');
+      setSpeechFeedback(isMicrophoneDenial(micErr) ? MICROPHONE_DENIED_MESSAGE : 'Audio recording failed. Please try again.');
       setTimeout(() => setSpeechFeedback(null), 4500);
     }
   };
@@ -542,8 +481,10 @@ export function HadithSearchForm({
   const handleClearInputs = () => {
     setHadithMatn("");
     setIsnad("");
+    setIsnadOpen(false);
     setActiveBenchmark(null);
     setNormalizationData(null);
+    setExtractPreview(null);
     if (onClearInputs) {
       onClearInputs();
     }
@@ -554,6 +495,7 @@ export function HadithSearchForm({
     const loc = getLocalizedBenchmark(item, currentLanguage);
     setHadithMatn(loc.matn);
     setIsnad(loc.isnad);
+    setIsnadOpen(Boolean(loc.isnad.trim()));
     setActiveBenchmark(item.id);
     saveSearchToLocalStorage(loc.matn, loc.isnad);
     if (onSelectBenchmark) {
@@ -567,6 +509,7 @@ export function HadithSearchForm({
     setHadithMatn(normalizationData.canonical_english);
     if (normalizationData.canonical_isnad) {
       setIsnad(normalizationData.canonical_isnad);
+      setIsnadOpen(true);
     }
     setActiveBenchmark(normalizationData.matched_hadith_id);
   };
@@ -581,315 +524,148 @@ export function HadithSearchForm({
   return (
     <div className="space-y-6">
       {/* TOP ROW: BENCHMARK DOSSIERS / RECENT SEARCHES */}
-      <div className="bg-[var(--surface-raised)] border border-slate-800 rounded-2xl p-4 shadow-lg">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-          <span className="text-xs font-bold uppercase tracking-wider text-amber-500 flex items-center gap-1.5">
-            <span className="inline-block animate-pulse">⚡</span>
-            {t.recentBenchmarksTitle}
+      <div className="rounded-2xl border border-stone-200 bg-white p-4 text-stone-900 shadow-2xs">
+        <div className="mb-3 flex flex-col justify-between gap-1.5 sm:flex-row sm:items-center">
+          <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-800">
+            <span className="inline-block">⚡</span>
+            Sample Hadith Benchmark Dossiers (Click to Load)
           </span>
-          <span className="text-xs text-slate-400">
-            {t.benchmarkSubtitle}
+          <span className="text-xs text-stone-600">
+            Pre-indexed narrations with 7-agent verification & source retrieval
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
           {BENCHMARK_CORPUS.map((item) => {
             const loc = getLocalizedBenchmark(item, currentLanguage);
             return (
               <button
                 key={item.id}
                 type="button"
+                data-testid={`benchmark-card-${item.id}`}
                 onClick={() => handleSelectBenchmark(item)}
-                className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
+                className={`cursor-pointer rounded-xl border p-3 text-left transition-all ${
                   activeBenchmark === item.id
-                    ? "border-amber-500/80 bg-amber-500/15 shadow-md shadow-amber-950/40 ring-1 ring-amber-500/30"
-                    : "border-slate-800 bg-[var(--surface-raised)] hover:border-slate-700 hover:bg-[var(--surface-hover)]"
+                    ? "border-amber-500 bg-amber-50/80 shadow-2xs ring-1 ring-amber-500/40"
+                    : "border-stone-200 bg-stone-50/70 hover:border-stone-300 hover:bg-white"
                 }`}
               >
-                <div className="flex justify-between items-start mb-1.5 gap-2">
-                  <h4 className="text-xs font-bold text-slate-200 line-clamp-1">{loc.title}</h4>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold shrink-0 ${
-                    item.scoreType === 'success' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                    item.scoreType === 'warning' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                    'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                  }`}>
+                <div className="mb-1 flex items-start justify-between gap-2">
+                  <h4 style={{ color: '#1C1917' }} className="line-clamp-1 text-xs font-bold text-stone-900">{loc.title}</h4>
+                  <span
+                    data-testid={`benchmark-badge-${item.id}`}
+                    style={
+                      item.scoreType === 'success'
+                        ? { backgroundColor: '#042F2E', color: '#FFFFFF', borderColor: '#10B981' }
+                        : item.scoreType === 'warning'
+                          ? { backgroundColor: '#451A03', color: '#FFFFFF', borderColor: '#F59E0B' }
+                          : { backgroundColor: '#450A0A', color: '#FFFFFF', borderColor: '#EF4444' }
+                    }
+                    className="shrink-0 rounded-full border-2 px-3 py-0.5 font-mono text-xs font-extrabold tracking-tight shadow-sm"
+                  >
                     {item.score}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 truncate">{loc.tag}</p>
+                <p style={{ color: '#57534E' }} className="truncate text-[11px] text-stone-600">{loc.tag}</p>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* HADITH DEEP SEARCH & TRANSMISSION AUDIT FORM */}
-      <div className="bg-[var(--surface-raised)] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-1/4 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 relative z-10">
+      {/* HADITH DEEP SEARCH & TRANSMISSION AUDIT OMNI-CONSOLE */}
+      <div
+        data-hadith-omni-console
+        style={{ backgroundColor: '#FFFFFF', color: '#1C1917' }}
+        className="relative rounded-2xl border border-stone-200 bg-white p-4 text-stone-900 shadow-sm"
+      >
+        <form onSubmit={handleSubmit} className="relative z-10 space-y-2.5">
+          {/* Collapsible Isnad Accordion above primary input */}
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
-              <span className="text-amber-400">🔍</span> {t.searchTitle}
-            </h2>
-            <p className="text-xs text-slate-400 mt-1">
-              {t.searchDesc}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 self-start sm:self-auto">
-            {/* Action button to clear both inputs */}
             <button
               type="button"
-              onClick={handleClearInputs}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-rose-300 text-xs font-medium border border-slate-700/80 hover:border-rose-500/40 transition-all cursor-pointer shadow-sm group"
-              title="Clear Hadith Matn and Transmission Chain"
+              aria-expanded={isnadOpen}
+              aria-controls="hadith-isnad"
+              onClick={() => setIsnadOpen(open => !open)}
+              style={{ color: '#065F46' }}
+              className="text-left text-xs font-semibold text-emerald-800 hover:text-emerald-950"
             >
-              <Trash2 className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-400 transition-colors" />
-              <span>{t.clearInputs}</span>
+              {isnadOpen ? '− Hide narrator chain / Isnad' : '+ Add specific narrator chain / Isnad (Optional)'}
             </button>
-
-            <span className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-emerald-950/80 text-emerald-400 border border-emerald-600/30">
-              6-Agent Engine
-            </span>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
-          {/* OPTICAL MEDIA & MULTIMODAL CAPTURE RIBBON */}
-          <div className="p-3 rounded-2xl bg-[var(--surface-modal)] border border-slate-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                Optical Input & OCR:
-              </span>
-              <span className="text-[11px] text-slate-400 hidden sm:inline">
-                Upload book photos, capture live manuscripts, or scan files
-              </span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => handleOpenMediaModal('camera')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-xs font-semibold border border-amber-500/40 hover:border-amber-400 transition-all cursor-pointer shadow-sm group"
-                title="Take photo of Hadith page or manuscript with live camera"
-              >
-                <Camera className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
-                <span>Take Photo</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleOpenMediaModal('upload_photo')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 hover:border-slate-600 transition-all cursor-pointer shadow-sm group"
-                title="Upload Hadith image or screenshot"
-              >
-                <ImageIcon className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-300 transition-colors" />
-                <span>Upload Photo</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleOpenMediaModal('upload_file')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 hover:border-slate-600 transition-all cursor-pointer shadow-sm group"
-                title="Upload Hadith document or PDF"
-              >
-                <FileText className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-300 transition-colors" />
-                <span>Upload File / PDF</span>
-              </button>
-            </div>
-          </div>
-
-          {/* HADITH MATN / NARRATION TEXT */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between items-center text-xs font-semibold uppercase tracking-wider text-slate-300">
-              <label htmlFor="hadith-matn" className="flex items-center gap-1.5">
-                <span>HADITH MATN / NARRATION TEXT</span>
-                {isRecording && (
-                  <span className="flex items-center gap-1 text-[10px] text-rose-400 font-mono lowercase bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/30 animate-pulse">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
-                    recording mic...
-                  </span>
-                )}
-                {isTranscribing && (
-                  <span className="flex items-center gap-1 text-[10px] text-amber-400 font-mono lowercase bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
-                    <Loader2 className="w-2.5 h-2.5 animate-spin text-amber-400" />
-                    ai transcribing...
-                  </span>
-                )}
-              </label>
-
-              <div className="flex items-center gap-2">
-                {/* Dictation Language Switcher */}
-                <div className="flex items-center bg-slate-900/90 border border-slate-800 rounded-lg p-0.5 text-[10px] font-mono">
-                  <button
-                    type="button"
-                    onClick={() => setDictationLang('en-US')}
-                    className={`px-1.5 py-0.5 rounded transition-all cursor-pointer ${
-                      dictationLang === 'en-US'
-                        ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                    title="English dictation (Web Speech API)"
-                  >
-                    EN
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDictationLang('ar-SA')}
-                    className={`px-1.5 py-0.5 rounded transition-all cursor-pointer ${
-                      dictationLang === 'ar-SA'
-                        ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                    title="Arabic dictation / Recitation (Web Speech API)"
-                  >
-                    عربي
-                  </button>
-                </div>
-
-                {/* Voice Input Engine Switch */}
-                <div className="hidden sm:flex items-center gap-1 text-[10px] font-mono text-slate-400 bg-slate-900/90 px-2 py-0.5 rounded-lg border border-slate-800">
-                  <span>Engine:</span>
-                  <button
-                    type="button"
-                    onClick={() => setVoiceSpeechMode(voiceSpeechMode === 'webspeech' ? 'ai_gemini' : 'webspeech')}
-                    className="text-amber-400 font-bold hover:underline cursor-pointer"
-                    title={voiceSpeechMode === 'webspeech' ? 'Web Speech API active (Click for Gemini Multimodal Audio)' : 'Gemini AI Voice active (Click for Web Speech API)'}
-                  >
-                    {voiceSpeechMode === 'webspeech' ? 'Web Speech' : 'Gemini AI'}
-                  </button>
-                </div>
-
-                <span className="text-[11px] font-normal text-slate-500 lowercase">
-                  Arabic, English, or drop photo/file
-                </span>
-              </div>
-            </div>
-
-            <div 
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                handleOpenMediaModal('upload_photo');
-              }}
-              className="relative group"
-            >
-              <textarea
-                id="hadith-matn"
-                rows={3}
-                value={hadithMatn}
-                onChange={(e) => setHadithMatn(e.target.value)}
-                placeholder={dictationLang === 'ar-SA' ? "اكتب أو اضغط على الميكروفون للتحدث بالمتن أو ألصق نص الحديث..." : "Type, click the mic to speak hands-free, or paste Hadith narration..."}
-                className={`w-full bg-[var(--surface-inset)] border ${
-                  isRecording 
-                    ? 'border-rose-500 ring-2 ring-rose-500/30 bg-rose-950/10' 
-                    : isTranscribing
-                    ? 'border-amber-500 ring-2 ring-amber-500/30'
-                    : 'border-slate-700/80 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50'
-                } rounded-2xl p-4 pr-24 text-sm text-slate-100 placeholder-slate-500 focus:outline-none transition-all font-sans leading-relaxed`}
-                required
+            {isnadOpen && (
+              <input
+                id="hadith-isnad"
+                type="text"
+                value={isnad}
+                onChange={event => setIsnad(event.target.value)}
+                placeholder="e.g. Qutaybah → Yahya ibn Hamza → Thawran ibn Yazid"
+                style={{ backgroundColor: '#FAF9F6', color: '#1C1917' }}
+                className="mt-1.5 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-1.5 font-mono text-xs text-stone-900 placeholder-stone-400 focus:border-emerald-700 focus:outline-none"
               />
-
-              {/* Floating Hands-Free Microphone Action Button & Live Visualizer */}
-              <div className="absolute right-3 bottom-3 flex items-center gap-2">
-                {isRecording && (
-                  <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-rose-950/60 border border-rose-800/60">
-                    <span className="w-1 h-2.5 bg-rose-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-1 h-4 bg-rose-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-1 h-2 bg-rose-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleToggleVoiceInput}
-                  disabled={isTranscribing}
-                  className={`p-2.5 rounded-xl flex items-center justify-center transition-all cursor-pointer shadow-lg ${
-                    isRecording
-                      ? 'bg-rose-600 text-white hover:bg-rose-700 ring-4 ring-rose-500/40 animate-pulse'
-                      : isTranscribing
-                      ? 'bg-amber-600/50 text-amber-200 cursor-wait'
-                      : 'bg-slate-800/90 hover:bg-amber-500/20 text-slate-300 hover:text-amber-400 border border-slate-700 hover:border-amber-500/50'
-                  }`}
-                  title={
-                    isRecording
-                      ? 'Click to stop listening'
-                      : isTranscribing
-                      ? 'Transcribing audio...'
-                      : `Hands-free speech dictation via ${voiceSpeechMode === 'webspeech' ? 'Web Speech API' : 'Gemini AI Voice'} (${dictationLang === 'ar-SA' ? 'Arabic' : 'English'})`
-                  }
-                  aria-label="Toggle voice Hadith search"
-                >
-                  {isTranscribing ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
-                  ) : isRecording ? (
-                    <MicOff className="w-4 h-4 text-white animate-bounce" />
-                  ) : (
-                    <Mic className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Voice Feedback Banner */}
-            {speechFeedback && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 animate-fadeIn">
-                <span className={`w-2 h-2 rounded-full ${isRecording ? 'bg-rose-500 animate-ping' : isTranscribing ? 'bg-amber-400 animate-spin' : 'bg-emerald-400'}`} />
-                <span className="font-mono">{speechFeedback}</span>
-              </div>
             )}
           </div>
 
-          {/* TRANSMISSION CHAIN (ISNAD / SANAD) */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between items-center text-xs font-semibold uppercase tracking-wider text-slate-300">
-              <label htmlFor="hadith-isnad">TRANSMISSION CHAIN (ISNAD / SANAD) - OPTIONAL</label>
-              <span className="text-[11px] font-normal text-slate-500 lowercase">
-                Leave blank to auto-infer from Kutub al-Sittah
-              </span>
-            </div>
-            <input
-              id="hadith-isnad"
-              type="text"
-              value={isnad}
-              onChange={(e) => setIsnad(e.target.value)}
-              placeholder="e.g. Qutaybah -> Yahya ibn Hamza -> Thawran ibn Yazid -> Khalid ibn Ma'dan -> 'Abdullah ibn Busr..."
-              className="w-full bg-[var(--surface-inset)] border border-slate-700/80 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition-all font-mono"
+          <label htmlFor="hadith-matn" className="sr-only">Hadith matn</label>
+          <div
+            onDragOver={event => event.preventDefault()}
+            onDrop={event => {
+              event.preventDefault();
+              handleOpenMediaModal('upload_photo');
+            }}
+          >
+            <textarea
+              id="hadith-matn"
+              ref={matnRef}
+              rows={2}
+              value={hadithMatn}
+              onChange={event => setHadithMatn(event.target.value)}
+              placeholder="Ask any question across Qur'an, Hadith, Fiqh, or classical sciences..."
+              style={{ backgroundColor: '#FAF9F6', color: '#1C1917' }}
+              className={`max-h-60 min-h-[4.25rem] w-full resize-none overflow-y-auto rounded-xl border bg-stone-50/70 p-3 text-xs leading-relaxed text-stone-900 placeholder-stone-400 focus:outline-none sm:text-[13px] ${
+                isRecording
+                  ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500/30'
+                  : isTranscribing
+                    ? 'border-amber-500 ring-2 ring-amber-500/30'
+                    : 'border-stone-200 focus:border-emerald-700 focus:bg-white'
+              }`}
+              required
             />
           </div>
 
           {/* FUZZY INTENT-NORMALIZATION BANNER (IF MATCH FOUND) */}
           {normalizationData && (
-            <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-500/40 text-xs text-amber-200 shadow-xl space-y-2 animate-fadeIn">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2 font-semibold text-amber-300">
-                  <Wand2 className="w-4 h-4 text-amber-400 shrink-0" />
+            <div
+              style={{ backgroundColor: '#FFFBEB', color: '#451A03' }}
+              className="space-y-2 rounded-2xl border border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-950 shadow-2xs"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div style={{ color: '#78350F' }} className="flex items-center gap-2 font-semibold text-amber-900">
+                  <Wand2 className="h-4 w-4 shrink-0 text-amber-700" />
                   <span>Fuzzy Intent Normalized: Canonical Match Identified ({Math.round(normalizationData.fuzzy_similarity_ratio * 100)}% match)</span>
                 </div>
                 <button
                   type="button"
                   onClick={handleApplyCanonicalCorrection}
-                  className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-semibold border border-amber-500/50 transition-all cursor-pointer flex items-center gap-1.5"
+                  style={{ backgroundColor: '#073C30', color: '#FFFFFF' }}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-[#073C30] px-2.5 py-1 text-xs font-semibold text-[#FFFFFF] transition-all hover:bg-[#0A2E23]"
                 >
-                  <Sparkles className="w-3 h-3 text-amber-400" />
-                  Apply Canonical Text
+                  <Sparkles className="h-3 w-3 text-[#D4AF37]" />
+                  <span style={{ color: '#FFFFFF' }}>Apply Canonical Text</span>
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] pt-1 border-t border-amber-500/20">
+              <div className="grid grid-cols-1 gap-2 border-t border-amber-200 pt-2 text-[11px] md:grid-cols-2">
                 <div className="space-y-0.5">
-                  <span className="text-amber-400/80 uppercase font-mono text-[10px]">Canonical Arabic:</span>
-                  <p className="font-arabic text-xs text-amber-100 text-right dir-rtl leading-relaxed font-semibold">
+                  <span style={{ color: '#78350F' }} className="font-mono text-[10px] font-semibold uppercase text-amber-900">Canonical Arabic:</span>
+                  <p style={{ color: '#1C1917' }} className="dir-rtl text-right font-arabic text-sm font-semibold leading-relaxed text-stone-900">
                     {normalizationData.canonical_arabic}
                   </p>
                 </div>
                 <div className="space-y-0.5">
-                  <span className="text-amber-400/80 uppercase font-mono text-[10px]">Canonical Source & Isnad:</span>
-                  <p className="text-slate-300">
-                    <span className="text-emerald-400 font-medium">{normalizationData.canonical_primary_source}</span>
-                    <span className="block text-slate-400 text-[10px] font-mono truncate">{normalizationData.canonical_isnad}</span>
+                  <span style={{ color: '#78350F' }} className="font-mono text-[10px] font-semibold uppercase text-amber-900">Canonical Source & Isnad:</span>
+                  <p style={{ color: '#292524' }} className="text-stone-800">
+                    <span style={{ color: '#065F46' }} className="font-semibold text-emerald-800">{normalizationData.canonical_primary_source}</span>
+                    <span style={{ color: '#57534E' }} className="block truncate font-mono text-[10px] text-stone-600">{normalizationData.canonical_isnad}</span>
                   </p>
                 </div>
               </div>
@@ -897,156 +673,330 @@ export function HadithSearchForm({
           )}
 
           {isAnalyzing && (
-            <p role="status" className="text-amber-300">
-              Research is running. The six-agent check often takes one to two minutes.
+            <p role="status" style={{ color: '#065F46' }} className="text-xs font-semibold text-emerald-800">
+              Research is running. The seven-agent check often takes one to two minutes.
             </p>
           )}
           {/* ERROR / STATUS NOTIFICATION IF ANY */}
           {analysisError && (
-            <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-600/50 text-xs text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
-              <div className="flex items-start gap-2.5">
-                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-semibold text-amber-300">System Notice: </span>
+            <div
+              style={{ backgroundColor: '#FFFBEB', color: '#451A03' }}
+              className="flex flex-col justify-between gap-3 rounded-xl border border-amber-400 bg-amber-50 p-3.5 text-xs text-amber-950 shadow-2xs sm:flex-row sm:items-center"
+            >
+              <div className="flex items-start gap-2">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                <div style={{ color: '#451A03' }}>
+                  <span className="font-bold text-amber-950">System Notice: </span>
                   <span>{analysisError}</span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+              <div className="flex shrink-0 items-center gap-2 self-end sm:self-center">
                 <button
                   type="button"
                   onClick={() => onRunEngine(hadithMatn, isnad)}
                   disabled={isAnalyzing}
-                  className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-[var(--on-gold)] font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                  style={{ backgroundColor: '#0A3D2E', color: '#FFFFFF' }}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-[#0A3D2E] px-3 py-1.5 text-xs font-bold text-[#FFFFFF] shadow-2xs transition-all hover:bg-[#0E4D3B] disabled:opacity-50"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isAnalyzing ? 'animate-spin' : ''}`} />
-                  Retry
+                  <RefreshCw className={`h-3.5 w-3.5 ${isAnalyzing ? 'animate-spin' : ''}`} />
+                  <span style={{ color: '#FFFFFF' }}>Retry</span>
                 </button>
               </div>
             </div>
           )}
 
-          {/* ACTION BUTTON ROW */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <Sparkles className="w-4 h-4 text-emerald-400" />
-              <span>Full 6-agent audit: Takhrij, Isnad, Rijal, Shawahid, Scholars & Synthesis.</span>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 pt-2.5">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <div ref={attachRef} className="relative">
+                <button
+                  type="button"
+                  aria-label="Attach / OCR"
+                  aria-haspopup="menu"
+                  aria-expanded={attachOpen}
+                  title="Attach a photo or PDF"
+                  onClick={() => setAttachOpen(open => !open)}
+                  style={{ backgroundColor: '#FAF9F6', color: '#292524' }}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-2.5 text-xs font-semibold text-stone-800 hover:bg-stone-100"
+                >
+                  <Paperclip className="h-3.5 w-3.5 shrink-0 text-emerald-700" />
+                  <span style={{ color: '#292524' }}>Attach / OCR</span>
+                </button>
+                {attachOpen && (
+                  <div role="menu" className="absolute bottom-full left-0 z-20 mb-2 w-48 overflow-hidden rounded-xl border border-stone-200 bg-white py-1 text-stone-800 shadow-xl">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      aria-label="Take Photo"
+                      className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50"
+                      onClick={() => {
+                        setAttachOpen(false);
+                        handleOpenMediaModal('camera');
+                      }}
+                    >
+                      <Camera className="h-3.5 w-3.5 text-emerald-700" />
+                      Take Photo
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      aria-label="Upload Photo"
+                      className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50"
+                      onClick={() => {
+                        setAttachOpen(false);
+                        handleOpenMediaModal('upload_photo');
+                      }}
+                    >
+                      <ImageIcon className="h-3.5 w-3.5 text-stone-500" />
+                      Upload Photo
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      aria-label="Upload File / PDF"
+                      className="flex h-9 w-full items-center gap-2 px-3 text-left text-xs font-semibold text-stone-700 hover:bg-stone-50"
+                      onClick={() => {
+                        setAttachOpen(false);
+                        handleOpenMediaModal('upload_file');
+                      }}
+                    >
+                      <FileText className="h-3.5 w-3.5 text-emerald-700" />
+                      Upload File / PDF
+                    </button>
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (isRecording) {
+                    handleToggleVoiceInput();
+                    return;
+                  }
+                  if (isTranscribing) return;
+                  const microphone = requestMicrophoneFromTap();
+                  handleToggleVoiceInput(microphone);
+                }}
+                disabled={isTranscribing}
+                aria-label="Toggle voice Hadith search"
+                title={isRecording ? 'Click to stop listening' : isTranscribing ? 'Transcribing audio...' : 'Speak the hadith matn'}
+                className={`inline-flex h-8 w-8 items-center justify-center rounded-xl border transition ${
+                  isRecording
+                    ? 'animate-pulse border-emerald-500 bg-emerald-600 text-white'
+                    : isTranscribing
+                      ? 'cursor-wait border-amber-500/50 bg-amber-100 text-amber-900'
+                      : 'border-stone-200 bg-stone-50 text-stone-600 hover:bg-stone-100 hover:text-stone-900'
+                }`}
+              >
+                {isTranscribing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : isRecording ? (
+                  <MicOff className="h-3.5 w-3.5" />
+                ) : (
+                  <Mic className="h-3.5 w-3.5" />
+                )}
+              </button>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <span
+                data-testid="content-language-chip"
+                style={{ backgroundColor: '#F6EFE2', color: '#0C3D2E' }}
+                className="inline-flex h-8 items-center rounded-xl border border-[#c4a46a] bg-[#f6efe2] px-2.5 text-[11px] font-bold tracking-wide text-[#0c3d2e]"
+                title="Content language used for research, the transcript, and narration"
+              >
+                {languageChip(currentLanguage)} · {languageLabel(currentLanguage)}
+              </span>
               <button
                 type="button"
                 onClick={handleClearInputs}
-                className="px-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white font-medium text-xs border border-slate-700/80 transition-colors cursor-pointer"
+                style={{ color: '#44403C' }}
+                className="h-8 rounded-xl px-2.5 text-xs font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900"
               >
-                {t.clearInputs}
+                Clear
               </button>
-
               <button
                 type="submit"
+                data-testid="run-research-btn"
                 disabled={isAnalyzing || !hadithMatn.trim()}
-                className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-[var(--on-gold)] font-bold text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-amber-500/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: '#0A3D2E', color: '#FFFFFF' }}
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-emerald-600/30 bg-[#0A3D2E] px-4 py-2 text-xs font-semibold text-[#FFFFFF] shadow-md transition-all hover:bg-[#0E4D3B] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isAnalyzing ? (
                   <>
-                    <RefreshCw className="w-4 h-4 animate-spin text-[var(--on-gold)]" />
-                    <span>{t.runningEngine}</span>
+                    <AudioLoadingSpinner size={14} className="text-[#D4AF37]" />
+                    <span style={{ color: '#FFFFFF' }}>
+                      {currentLanguage === 'ta'
+                        ? `7-முகவர் ஆய்வு · ${remainingSeconds}s…`
+                        : currentLanguage === 'si'
+                          ? `නියෝජිත 7 පර්යේෂණය · ${remainingSeconds}s…`
+                          : `Running 7-Agent Research · ${remainingSeconds}s…`}
+                    </span>
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4 fill-slate-950" />
-                    <span>{t.runDeepSearch}</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <span aria-hidden>✨</span>
+                    <span style={{ color: '#FFFFFF' }}>Run 7-Agent Research →</span>
                   </>
                 )}
               </button>
             </div>
           </div>
+
+          {(speechFeedback || isRecording || isTranscribing) && (
+            <p className="flex min-w-0 items-center gap-1.5 text-[11px] text-slate-300">
+              <span className={`h-2 w-2 shrink-0 rounded-full ${isRecording ? 'animate-ping bg-rose-500' : isTranscribing ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+              <span className="truncate font-mono">{speechFeedback || (isRecording ? 'Listening…' : 'Transcribing…')}</span>
+            </p>
+          )}
+
+          {extractPreview && (
+            <p data-testid="hadith-extract-preview" className="inline-flex max-w-full items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs text-amber-200">
+              <span className="shrink-0 font-semibold">{extractPreview.label}</span>
+              <span className="truncate">{extractPreview.excerpt}</span>
+            </p>
+          )}
         </form>
       </div>
 
       {/* =========================================================================
           RECENT SEARCH QUERIES (LOCAL STORAGE PERSISTENCE & QUICK ACCESS)
           ========================================================================= */}
-      <div className="bg-[#0b1018] border border-slate-800/90 rounded-2xl p-5 shadow-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-slate-800/70">
+      <div data-testid="saved-research-library" className="rounded-2xl border border-[#c4a46a] bg-[#f6efe2] p-5 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#e4d3ae] pb-3.5">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-400 shrink-0">
-              <History className="w-4 h-4" />
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#c4a46a] bg-[#fffaf3] text-[#0f6b4c]">
+              <History className="h-4 w-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-xs sm:text-sm font-bold text-white tracking-wide flex items-center gap-1.5">
-                  <span>{recentSearchLabels.title}</span>
-                </h3>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-amber-300 border border-slate-700">
-                  {recentSearches.length} {recentSearchLabels.savedCount}
+                <h3 className="text-sm font-bold tracking-wide text-[#0c3d2e]">Saved research</h3>
+                <span className="rounded-full border border-[#c4a46a] bg-[#fffaf3] px-2 py-0.5 text-[10px] font-semibold text-[#0c3d2e]">
+                  {recentSearches.length} saved
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                {recentSearchLabels.subtitle}
+              <p className="mt-0.5 text-[11px] text-[#3d3428]">
+                Open a card to load its question, report, and podcast. Research does not run again.
               </p>
             </div>
           </div>
-
           {recentSearches.length > 0 && (
             <button
               type="button"
               onClick={handleClearAllRecentSearches}
-              className="self-start sm:self-auto px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 border border-slate-800 hover:border-rose-900/40 transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
-              title={recentSearchLabels.clearAll}
+              className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-lg border border-[#c4a46a] bg-[#fffaf3] px-2.5 py-1.5 text-[11px] font-medium text-[#3d3428] hover:border-[#9b2c2c] hover:text-[#9b2c2c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0f6b4c]"
             >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>{recentSearchLabels.clearAll}</span>
+              <Trash2 className="h-3.5 w-3.5" />
+              Clear history
             </button>
           )}
         </div>
 
-        {/* List of Recent Searches */}
         {recentSearches.length === 0 ? (
-          <div className="py-7 text-center text-xs text-slate-500 italic flex flex-col items-center justify-center gap-2">
-            <Clock className="w-6 h-6 text-slate-700" />
-            <span>{recentSearchLabels.emptyMessage}</span>
+          <div className="flex flex-col items-center justify-center gap-2 py-7 text-center text-xs text-[#3d3428]">
+            <Clock className="h-6 w-6 text-[#8a7040]" />
+            <span>No saved research yet. A finished question is kept on this device.</span>
           </div>
         ) : (
-          <div className="mt-3.5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {recentSearches.map((item) => (
-              <div
-                key={item.id}
-                onClick={() => handleSelectRecentSearch(item)}
-                className="group relative p-3.5 rounded-xl bg-[#101724]/90 hover:bg-[#141f32] border border-slate-800 hover:border-amber-500/50 transition-all cursor-pointer flex flex-col justify-between gap-2.5 shadow-sm hover:shadow-lg"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-slate-500" />
-                      {formatTimeAgo(item.timestamp)}
+          <div className="mt-3.5 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {recentSearches.map((item) => {
+              const selected = activeQuestion.trim() === item.question.trim() && item.language === currentLanguage;
+              return (
+                <div key={item.id} className="relative">
+                  <div
+                    data-testid="saved-research-card"
+                    onClick={(event) => {
+                      if ((event.target as HTMLElement).closest('button')) return;
+                      handleSelectRecentSearch(item);
+                    }}
+                    className={`flex h-full w-full flex-col gap-2 rounded-xl border bg-[#fffaf3] p-3.5 text-left shadow-sm transition hover:border-[#0f6b4c] hover:bg-white ${
+                      selected ? 'border-[#0f6b4c] ring-2 ring-[#0f6b4c]' : 'border-[#d4bc86]'
+                    }`}
+                  >
+                    <span className="flex items-center gap-1 text-[10px] font-medium text-[#3d3428]">
+                      <Clock className="h-3 w-3" />
+                      {formatSavedDate(item.savedAt || item.timestamp)}
                     </span>
                     <button
                       type="button"
-                      onClick={(e) => handleRemoveRecentSearch(item.id, e)}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-950/40 rounded transition-all cursor-pointer"
-                      title={recentSearchLabels.deleteItem}
+                      onClick={() => handleSelectRecentSearch(item)}
+                      className="line-clamp-3 break-words text-left text-sm font-semibold leading-snug text-[#0c3d2e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0f6b4c]"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      {item.question}
                     </button>
+                    <span className="text-[11px] text-[#3d3428]">Content language: {languageLabel(item.language)}</span>
+                    <span className="text-[11px] font-semibold text-[#0f6b4c]">{podcastAvailability(item)}</span>
+                    <span className="mt-1 flex flex-wrap gap-2 border-t border-[#eadcbe] pt-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectRecentSearch(item)}
+                        style={{ backgroundColor: '#0F6B4C', color: '#FFFFFF' }}
+                        className="rounded-lg border border-[#0f6b4c] bg-[#0f6b4c] px-2.5 py-1.5 text-xs font-bold text-[#FFFFFF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0c3d2e]"
+                      >
+                        Open podcast
+                      </button>
+                      <button
+                        type="button"
+                        data-testid="saved-view-report"
+                        className="rounded-lg px-2 py-1 text-[10px] font-semibold text-[#3d3428] underline decoration-[#c4a46a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0f6b4c]"
+                        onClick={() => {
+                          handleSelectRecentSearch(item);
+                          onOpenFullReport?.();
+                        }}
+                      >
+                        View Full Report
+                      </button>
+                      <button
+                        type="button"
+                        data-testid="share-podcast-to-wall-btn"
+                        className="rounded-lg border border-[#0f6b4c]/40 bg-[#e8f2ec] px-2.5 py-1 text-[10px] font-bold text-[#0c3d2e] hover:bg-[#d1fae5] cursor-pointer"
+                        onClick={async () => {
+                          const langCode: Lang =
+                            item.language === 'ta' || item.language === 'si' ? item.language : 'en';
+                          await publishFaithWallPost({
+                            type: 'podcast',
+                            podcastId: `saved-research-${item.id}`,
+                            podcastTitle: item.question.slice(0, 140),
+                            podcastDuration: '06:20',
+                            podcastCitations: ['7-Agent Hadith Dossier'],
+                            verse: {
+                              surah: 1,
+                              ayah: 1,
+                              surahName: 'Hadith Research Studio',
+                              arabic: 'طَلَبُ الْعِلْمِ فَرِيضَةٌ',
+                              translation: item.question,
+                            },
+                            lang: langCode,
+                            url: '#/hadith/research',
+                            reflection: `Shared Hadith Research Podcast: “${item.question.slice(0, 180)}”`,
+                            theme: 'emerald',
+                          });
+                          window.location.hash = '#/quran/wall';
+                        }}
+                      >
+                        Share to Faith Wall
+                      </button>
+                      <button
+                        type="button"
+                        data-testid="saved-research-again"
+                        className="rounded-lg px-2 py-1 text-[10px] font-semibold text-[#3d3428] underline decoration-[#c4a46a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0f6b4c]"
+                        onClick={() => onResearchAgain?.(item)}
+                      >
+                        Run Research Again
+                      </button>
+                    </span>
                   </div>
-                  <p className="text-xs text-slate-200 font-medium line-clamp-2 leading-relaxed group-hover:text-amber-200 transition-colors">
-                    "{item.matn}"
-                  </p>
+                  <button
+                    type="button"
+                    onClick={(event) => handleRemoveRecentSearch(item.id, event)}
+                    className="absolute right-2 top-2 rounded p-1 text-[#3d3428] hover:text-[#9b2c2c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0f6b4c]"
+                    title="Remove from history"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
                 </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-slate-800/70 text-[10px] text-slate-400">
-                  <span className="truncate max-w-[170px] text-slate-400 font-mono">
-                    {item.isnad ? `🔗 ${item.isnad}` : `🔍 ${recentSearchLabels.matnOnly}`}
-                  </span>
-                  <span className="text-amber-400 font-semibold flex items-center gap-1 group-hover:translate-x-0.5 transition-transform shrink-0">
-                    <span>{recentSearchLabels.quickRun}</span>
-                    <ArrowUpRight className="w-3 h-3" />
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

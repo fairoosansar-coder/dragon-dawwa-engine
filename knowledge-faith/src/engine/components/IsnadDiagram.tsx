@@ -2,12 +2,22 @@ import React from 'react';
 import { Agent2Isnad } from '../types/hadith';
 import { GitCommit, ArrowDown, ShieldCheck, AlertCircle, Clock, Link2, CheckCircle2 } from 'lucide-react';
 import { getTransmissionBadge } from '../utils/gradeUtils';
+import { sourcedNarratorChain } from '../utils/reportPresentation.ts';
 
 interface IsnadDiagramProps {
   isnad: Agent2Isnad;
 }
 
 export const IsnadDiagram: React.FC<IsnadDiagramProps> = ({ isnad }) => {
+  if (!sourcedNarratorChain(isnad.narrator_sequence ?? [], isnad.chain_links ?? [])) {
+    return (
+      <div className="space-y-4" data-testid="hadith-transmission-absent">
+        <h3 className="text-xl font-bold text-white">Isnad Transmission Chain & Link Continuity</h3>
+        <p className="text-sm text-slate-300">No sourced narrator chain was recorded, so no transmission map is drawn.</p>
+        <p className="text-xs text-slate-400">{isnad.overall_chain_status}</p>
+      </div>
+    );
+  }
   return (
     <div className="space-y-6">
       {/* Overview Banner */}

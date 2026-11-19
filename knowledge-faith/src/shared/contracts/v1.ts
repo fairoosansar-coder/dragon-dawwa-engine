@@ -41,6 +41,10 @@ export interface ResearchAssignmentView {
   bookId: number | null;
   noticeId: ResearchNoticeId | null;
   forwardedFrom: ResearchScope | null;
+  /** One of the 14 category labels, or null when the question still needs classification. */
+  domainContext?: string | null;
+  /** selected: a category card. classified: read from the question. unclassified: Parallel is asked to classify. */
+  domainSource?: 'selected' | 'classified' | 'unclassified';
 }
 
 export type QuestionDomain = 'scripture' | 'explanation' | 'practice' | 'history' | 'science' | 'mixed';
@@ -125,6 +129,11 @@ export interface ResearchTimings {
   sources: Record<string, number>;
 }
 
+export interface QuestionInterpretationView {
+  meaning: string;
+  scopes: { id: string; text: string }[];
+}
+
 export interface ResearchJobView {
   contractVersion: ContractVersion;
   id: string;
@@ -142,6 +151,24 @@ export interface ResearchJobView {
   assignment?: ResearchAssignmentView | null;
   /** Roles that were assigned. Includes roles that did not run, marked not_run. */
   agents?: AgentContribution[];
+  /** Readings of the question, recorded before search. Older jobs omit it. */
+  interpretation?: QuestionInterpretationView | null;
+  /** complete, partial, or blocked. Older jobs omit it and are read as finished when passages exist. */
+  investigation?: 'complete' | 'partial' | 'blocked';
+  /** Parts of the question that must be answered or left open before a podcast. */
+  materialParts?: { id: string; kind: string; text: string; status: 'answered' | 'unresolved'; note: string }[];
+  /** Spoken studio partner for the episode script. Older jobs omit it. */
+  hostName?: string;
+  /** Parallel Task API status. Confidence inside findings is provider metadata, not a grade. */
+  parallel?: {
+    status: 'credentials_missing' | 'running' | 'completed' | 'failed';
+    liveCallMade: boolean;
+    runId: string | null;
+    setup: string | null;
+    processor: string | null;
+    /** 1 is the first result. A later Parallel result increments this and does not replace audio that is playing. */
+    revision?: number;
+  };
 }
 
 export interface ClaimEvidence {
@@ -154,6 +181,19 @@ export interface ClaimEvidence {
   note: string;
 }
 
+export interface ResearchAnswerParagraph {
+  text: string;
+  citations: string[];
+}
+
+/** A readable answer written only from retrieved passages. */
+export interface ResearchAnswer {
+  paragraphs: ResearchAnswerParagraph[];
+  insufficientEvidence: boolean;
+  /** assistant: the study model wrote from the packet. retrieved: the packet was quoted because the model did not write. */
+  writer: 'assistant' | 'retrieved';
+}
+
 export interface ResearchDossierView {
   contractVersion: ContractVersion;
   jobId: string;
@@ -162,6 +202,8 @@ export interface ResearchDossierView {
   unresolved: string[];
   disagreements: string[];
   verificationNote: string;
+  /** Older jobs omit this. Null when nothing was retrieved to write from. */
+  answer?: ResearchAnswer | null;
 }
 
 export interface ResearchJobResponse {

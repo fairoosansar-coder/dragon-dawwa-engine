@@ -15,10 +15,9 @@ import {
   FileText,
   ShieldCheck,
   AlertTriangle,
-  XCircle
 } from 'lucide-react';
 import { DragonDawwaAnalysis } from '../types/hadith';
-import { getPurityLevel } from '../utils/gradeUtils';
+import { publishedAuthenticity } from '../utils/reportPresentation.ts';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -49,9 +48,15 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
   if (!isOpen || !analysis) return null;
 
-  const score = analysis.agent_6_synthesis.purity_confidence_score;
   const status = analysis.agent_6_synthesis.final_status;
-  const purityMeta = getPurityLevel(score);
+  const grade = publishedAuthenticity(analysis);
+  const toneHex = {
+    authentic: '#0f6e56',
+    acceptable: '#0f766e',
+    weak: '#b45309',
+    rejected: '#9f1239',
+    unspecified: '#6b6256',
+  }[grade.tone];
 
   // Generate canonical sharable URL
   const getSharableUrl = () => {
@@ -81,8 +86,10 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     return `📜 DRAGON DAWWA HADITH AUTHENTICATION REPORT
 Version: ${analysis.version || '2.5 Enterprise Engine'}
 Engineered by: ${analysis.designed_and_created_by || 'Aegis Intelligence Pvt Ltd, Sri Lanka'}
-Authenticity: ${status}
-Purity Confidence Score: ${score}% (${purityMeta.title})
+Authenticity status: ${status}
+Published grade: ${grade.grade}
+Grade source: ${grade.source}
+Numerical purity percentage: withheld. A model score is not a documented purity calculation.
 
 📖 Text:
 "${analysis.query_hadith.length > 150 ? analysis.query_hadith.slice(0, 150) + '...' : analysis.query_hadith}"
@@ -101,7 +108,7 @@ ${shareUrl}`;
   };
 
   const summaryText = generateShareSummary();
-  const shareTitle = `Dragon Dawwa: ${status} (${score}%) - Hadith Authentication`;
+  const shareTitle = `Dragon Dawwa: ${status} — ${grade.grade}`;
 
   // Native Web Share API trigger
   const handleNativeShare = async () => {
@@ -112,7 +119,7 @@ ${shareUrl}`;
 
     const shareData = {
       title: shareTitle,
-      text: shareMode === 'summary' ? summaryText : `Dragon Dawwa Hadith Authentication Report: ${status} (${score}%)`,
+      text: shareMode === 'summary' ? summaryText : `Dragon Dawwa Hadith Research Report: ${status}. Published grade: ${grade.grade}.`,
       url: shareUrl,
     };
 
@@ -162,14 +169,14 @@ ${shareUrl}`;
   const encodedText = encodeURIComponent(
     shareMode === 'summary' 
       ? summaryText 
-      : `Check out this Hadith Authentication report on Dragon Dawwa: ${status} (${score}% purity score)\n\n${shareUrl}`
+      : `Hadith research report on Dragon Dawwa: ${status}. Published grade: ${grade.grade}.\n\n${shareUrl}`
   );
   const encodedUrl = encodeURIComponent(shareUrl);
   const encodedTitle = encodeURIComponent(shareTitle);
 
   const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
-  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`Hadith Authentication: ${status} (${score}%) via Dragon Dawwa Engine`)}&url=${encodedUrl}`;
-  const telegramUrl = `https://t.me/share/url?url=${encodedUrl}&text=${encodeURIComponent(`Hadith Authentication Report: ${status} (${score}%)`)}`;
+  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`Hadith research: ${status}. Published grade: ${grade.grade}. via Dragon Dawwa`)}&url=${encodedUrl}`;
+  const telegramUrl = `https://t.me/share/url?url=${encodedUrl}&text=${encodeURIComponent(`Hadith research report: ${status}. Published grade: ${grade.grade}.`)}`;
   const emailUrl = `mailto:?subject=${encodedTitle}&body=${encodedText}`;
 
   return (
@@ -184,7 +191,7 @@ ${shareUrl}`;
         {/* Glow effect */}
         <div 
           className="absolute top-0 right-0 w-72 h-72 rounded-full blur-3xl opacity-10 pointer-events-none"
-          style={{ backgroundColor: purityMeta.colorHex }}
+          style={{ backgroundColor: toneHex }}
         />
 
         {/* Header */}
@@ -232,15 +239,13 @@ ${shareUrl}`;
                   {presetTitle || 'Hadith Authentication Dossier'}
                 </span>
               </div>
-              <div className={`px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1.5 ${purityMeta.badgeClass}`}>
-                {score >= 75 ? (
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                ) : score >= 45 ? (
+              <div className="px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1.5 bg-emerald-950/80 text-emerald-100 border-emerald-700/50">
+                {grade.tone === 'rejected' || grade.tone === 'weak' ? (
                   <AlertTriangle className="w-3.5 h-3.5" />
                 ) : (
-                  <XCircle className="w-3.5 h-3.5" />
+                  <ShieldCheck className="w-3.5 h-3.5" />
                 )}
-                <span>{score}% {purityMeta.title}</span>
+                <span>{grade.grade}</span>
               </div>
             </div>
 

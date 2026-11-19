@@ -1,4 +1,4 @@
-import { Award, Check, Copy, FileDown, Printer, Share2 } from 'lucide-react';
+import { Award, Check, Copy, FileDown, FileText, Library, Printer, Radio, Share2 } from 'lucide-react';
 import { HadithSearchForm } from './components/HadithSearchForm.tsx';
 import { AgentStatusTracker } from './components/AgentStatusTracker.tsx';
 import { DashboardVisualization } from './components/DashboardVisualization.tsx';
@@ -7,63 +7,88 @@ import { IsnadDiagram } from './components/IsnadDiagram.tsx';
 import { RijalDossier } from './components/RijalDossier.tsx';
 import { ShawahidMatnView } from './components/ShawahidMatnView.tsx';
 import { ScholarsVerdictMatrix } from './components/ScholarsVerdictMatrix.tsx';
-import { ArchBanner, IlluminatedFrame, StarDivider } from './ds/ornaments.tsx';
-import { getPurityLevel } from './utils/gradeUtils.ts';
-import type { DragonDawwaAnalysis } from './types/hadith.ts';
-import { EngineFrame } from './EngineFrame.tsx';
+import { Agent7SourceResearchView, CompleteResearchReportView } from './components/Agent7SourceResearchView.tsx';
+import { PodcastScriptPlayer } from './components/PodcastScriptPlayer.tsx';
+import { StarDivider } from './ds/ornaments.tsx';
+import { ResearchFrame, fullReportActionClass, roundtableActionClass } from './ResearchFrame.tsx';
 import { useDossier } from './DossierContext.tsx';
+import { useRemote } from '../lib/api.ts';
 import { useApp } from '../lib/store.tsx';
-
-function VerdictReport({ analysis }: { analysis: DragonDawwaAnalysis }) {
-  const s = analysis.agent_6_synthesis;
-  const p = getPurityLevel(s.purity_confidence_score);
-  return (
-    <IlluminatedFrame title="Executive Synthesis & Academic Verdict" arabicTitle="الحكم">
-      <div className="space-y-5">
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <span className={`inline-flex items-center gap-2 text-sm font-bold px-4 py-1.5 rounded-xl border ${p.badgeClass}`}>
-            <Award className="w-4 h-4" />
-            {s.final_status}
-          </span>
-          <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950 px-3 py-1.5 rounded-xl border border-emerald-800">
-            Score: {s.purity_confidence_score.toFixed(1)}%
-          </span>
-        </div>
-        <div className="font-arabic text-center text-xl text-amber-200" dir="rtl" lang="ar">
-          {p.arabicTitle}
-        </div>
-        <div className="space-y-4 text-left">
-          {s.executive_report_markdown.split('\n\n').map((para, i) => (
-            <p key={i} className="text-slate-200 leading-relaxed">
-              {para.replace(/^#+\s*/, '').replace(/\*\*/g, '')}
-            </p>
-          ))}
-        </div>
-      </div>
-    </IlluminatedFrame>
-  );
-}
-
-const PRINT_LABEL = { en: 'Print report', ta: 'அறிக்கையை அச்சிடுக', si: 'වාර්තාව මුද්‍රණය' } as const;
+import type { SevenAgentResearchDossier } from '../shared/sevenAgentTypes.ts';
+import { RecentSevenAgentDossiers } from '../components/research/RecentSevenAgentDossiers.tsx';
+import { SevenAgentCountdownCard } from '../components/research/SevenAgentCountdownCard.tsx';
+import { SevenAgentResearchBoard } from '../components/research/SevenAgentResearchBoard.tsx';
+import { languageLabel } from './utils/contentLanguage.ts';
+import { CrossExamineFollowUp } from './components/CrossExamineFollowUp.tsx';
 
 export function DossierActions() {
   const d = useDossier();
-  const btn =
-    'inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs font-semibold text-slate-200 hover:border-amber-500/60 cursor-pointer';
+  const btn = roundtableActionClass;
+  const primaryBtn = fullReportActionClass;
+
+  const openFullReport = () => {
+    d.setStep('report');
+    window.setTimeout(() => {
+      document.getElementById('dossier-results-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 40);
+  };
+
   return (
-    <div className="flex flex-wrap gap-2">
-      <button type="button" className={btn} onClick={() => void d.share()}>
-        <Share2 className="h-4 w-4 text-amber-400" aria-hidden /> Share
+    <div className="flex flex-wrap justify-center gap-2">
+      <button
+        type="button"
+        data-testid="open-full-report-btn"
+        className={primaryBtn}
+        onClick={openFullReport}
+      >
+        <Award className="h-4 w-4" aria-hidden /> Open Full Report
+      </button>
+      <button
+        type="button"
+        data-testid="open-roundtable-btn"
+        className={btn}
+        onClick={() => {
+          if (!d.displayed && d.matn.trim()) {
+            void d.run(d.matn, d.isnad, d.lang);
+          }
+          d.setStep('roundtable');
+          window.setTimeout(() => {
+            document.getElementById('dossier-results-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 40);
+        }}
+      >
+        <Radio className="h-4 w-4" aria-hidden /> Open Roundtable
+      </button>
+      <button
+        type="button"
+        data-testid="download-dossier-btn"
+        className={btn}
+        onClick={d.downloadFullReport}
+      >
+        <FileText className="h-4 w-4" aria-hidden /> Download Full Report
+      </button>
+      <button
+        type="button"
+        data-testid="export-json-btn"
+        className={btn}
+        onClick={d.exportJson}
+      >
+        <FileDown className="h-4 w-4" aria-hidden /> Export JSON
+      </button>
+      <button
+        type="button"
+        data-testid="print-dossier-btn"
+        className={btn}
+        onClick={d.print}
+      >
+        <Printer className="h-4 w-4" aria-hidden /> Print Full Report
       </button>
       <button type="button" className={btn} onClick={() => void d.copyReport()}>
-        {d.copied ? <Check className="h-4 w-4 text-emerald-400" aria-hidden /> : <Copy className="h-4 w-4 text-amber-400" aria-hidden />}
-        {d.copied ? 'Copied' : 'Copy report'}
+        {d.copied ? <Check className="h-4 w-4" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
+        {d.copied ? 'Copied' : 'Copy Full Report'}
       </button>
-      <button type="button" className={btn} onClick={d.exportJson}>
-        <FileDown className="h-4 w-4 text-amber-400" aria-hidden /> Export JSON
-      </button>
-      <button type="button" className={btn} onClick={d.print}>
-        <Printer className="h-4 w-4 text-amber-400" aria-hidden /> {PRINT_LABEL[d.lang]}
+      <button type="button" className={btn} onClick={() => void d.share()}>
+        <Share2 className="h-4 w-4" aria-hidden /> Share
       </button>
     </div>
   );
@@ -71,35 +96,137 @@ export function DossierActions() {
 
 export default function DossierWorkbench() {
   const d = useDossier();
-  const { t } = useApp();
+  const { t, config } = useApp();
   const data = d.displayed;
-  const showReport = d.reportOrigin !== 'idle';
+  const agent7 = data?.agent_7_source_research;
+  const showReport = data != null && (d.reportOrigin === 'live' || d.reportOrigin === 'saved' || d.reportOrigin === 'example');
+  const scienceQuery = (data?.query_hadith || d.matn || '').trim();
+  const sevenAgentRemote = useRemote<SevenAgentResearchDossier>(
+    showReport && scienceQuery
+      ? `/api/research/seven-agents?q=${encodeURIComponent(scienceQuery.slice(0, 600))}&lang=${d.lang}`
+      : null,
+  );
+  const scienceDossier =
+    sevenAgentRemote.data && sevenAgentRemote.data.lang === d.lang
+      ? sevenAgentRemote.data
+      : null;
+
+  const openFullReport = () => {
+    d.setStep('report');
+    window.setTimeout(() => {
+      document.getElementById('dossier-results-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 40);
+  };
+
   return (
-    <EngineFrame className="space-y-6">
-      <ArchBanner
-        title="Explore a hadith, understand its sources"
-        arabic="طلب العلم فريضة"
-        subtitle="Search a narration and explore the research report. AI-assisted findings require source checking and human review."
-      >
-        <div className="mt-4 flex justify-center">
-          <DossierActions />
-        </div>
-      </ArchBanner>
-      <HadithSearchForm
-        initialMatn={d.matn}
-        initialIsnad={d.isnad}
-        isAnalyzing={d.isAnalyzing}
-        analysisError={d.error}
-        onRunEngine={(matn, isnad) => void d.run(matn, isnad)}
-        onClearInputs={d.clear}
-        onSelectBenchmark={d.selectBenchmark}
-        currentLanguage={d.lang}
+    <ResearchFrame
+      title="Explore a hadith, understand its sources"
+      arabic="طلب العلم فريضة"
+      subtitle="Enter a hadith → Research across all 7 agents (including HadeethEnc Source Research) → Open Full Report."
+      actions={<DossierActions />}
+      after={
+        <>
+      {d.reportOrigin === 'example' && (
+        <p style={{ backgroundColor: '#FEF3C7', color: '#451A03' }} className="rounded-2xl border border-amber-300 bg-amber-100 px-4 py-3 text-xs font-medium text-amber-950">
+          {t.dossierExample}
+        </p>
+      )}
+      {d.reportOrigin === 'idle' && (
+        <p style={{ backgroundColor: '#F6EFE2', color: '#1C1917' }} className="rounded-2xl border border-[#d4bc86] bg-[#f6efe2] px-4 py-3 text-xs font-medium text-stone-900">
+          {t.dossierIdle}
+        </p>
+      )}
+      {(d.reportOrigin === 'researching' || d.isAnalyzing) && (
+        <SevenAgentCountdownCard
+          question={d.matn}
+          lang={d.lang}
+        />
+      )}
+      <RecentSevenAgentDossiers
+        activeQuestion={scienceQuery}
+        onSelectDossier={selected => {
+          void d.run(selected.question, '', selected.lang);
+        }}
+        onOpenRoundtable={selected => {
+          void d.run(selected.question, '', selected.lang);
+          d.setStep('roundtable');
+        }}
       />
-      {d.reportOrigin === 'example' && <p className="rounded-2xl bg-amber-100 px-4 py-3 text-sm text-amber-950">{t.dossierExample}</p>}
-      {d.reportOrigin === 'idle' && <p className="rounded-2xl bg-parchment px-4 py-3 text-sm text-ink/80">{t.dossierIdle}</p>}
-      {showReport && <div className="space-y-6">
+      {d.reportOrigin === 'failed' && (
+        <div
+          data-testid="research-language-failed"
+          style={{ backgroundColor: '#FFFBEB', color: '#451A03' }}
+          className="rounded-2xl border border-amber-400 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-950 shadow-2xs"
+        >
+          <p style={{ color: '#451A03' }} className="font-semibold text-amber-950">
+            {d.error || `Research in ${languageLabel(d.lang)} did not finish.`}
+          </p>
+          <button
+            type="button"
+            style={{ backgroundColor: '#0A3D2E', color: '#FFFFFF' }}
+            className="mt-2.5 rounded-xl bg-[#0A3D2E] px-4 py-1.5 text-xs font-bold text-[#FFFFFF] shadow-2xs hover:bg-[#0E4D3B]"
+            onClick={() => void d.run(d.matn, d.isnad, d.lang)}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+      {d.reportOrigin === 'saved' && data && !d.audioReady && (
+        <p data-testid="saved-podcast-pending" className="rounded-2xl bg-[#f6efe2] px-4 py-3 text-sm text-[#1c1915]">
+          Saved {languageLabel(data.content_language ?? d.lang)} research is open. Generate Podcast when you want audio. Opening this item did not start research or narration.
+        </p>
+      )}
+      {data && showReport && <div id="dossier-results-anchor" className="space-y-6">
         <StarDivider label="تحقيق الحديث" />
-        <AgentStatusTracker currentTab={d.step} onSelectTab={d.setStep} isLoading={d.isAnalyzing} />
+
+        {/* Unified 7-Agent Journey Callout Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-[var(--surface-panel)] p-4 shadow-sm">
+          <div className="flex flex-wrap items-center gap-2.5 text-xs">
+            <span
+              style={{ backgroundColor: '#E8F2EC', color: '#073C30' }}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[#073C30]/30 bg-[#E8F2EC] px-2.5 py-1 font-mono font-bold text-[#073C30]"
+            >
+              <Library className="h-3.5 w-3.5 text-[#073C30]" />
+              <span style={{ color: '#073C30' }}>7-Agent Research Ready</span>
+            </span>
+            <span className="font-medium text-slate-200">
+              Retrieved{' '}
+              <strong className="text-white">{agent7?.retrieved_records.length ?? 0}</strong> source record(s) and fed them into Agents 1–6 & the Roundtable.
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              data-testid="banner-source-research-btn"
+              onClick={() => d.setStep('source_research')}
+              style={{ backgroundColor: '#F4EFE4', color: '#073C30' }}
+              className="cursor-pointer rounded-xl border border-[#D4AF37]/60 bg-[#F4EFE4] px-3 py-1.5 text-xs font-bold text-[#073C30] hover:bg-[#EFE7D6]"
+            >
+              Inspect Agent 7
+            </button>
+            <button
+              type="button"
+              data-testid="banner-open-full-report-btn"
+              onClick={openFullReport}
+              style={{ backgroundColor: '#073C30', color: '#FFFFFF' }}
+              className="cursor-pointer rounded-xl bg-[#073C30] px-3.5 py-1.5 text-xs font-bold text-[#FFFFFF] hover:bg-[#0A2E23]"
+            >
+              <span style={{ color: '#FFFFFF' }}>Open Full Report</span>
+            </button>
+          </div>
+        </div>
+
+        <AgentStatusTracker currentTab={d.step} onSelectTab={d.setStep} isLoading={d.isAnalyzing} currentLanguage={d.lang} />
+
+        {scienceDossier && (
+          <SevenAgentResearchBoard
+            dossier={scienceDossier}
+            lang={d.lang}
+            roundtableOpen={d.step === 'roundtable'}
+            onToggleRoundtable={open => d.setStep(open ? 'roundtable' : 'overview')}
+          />
+        )}
+
         {d.step === 'overview' && (
           <DashboardVisualization
             currentLanguage={d.lang}
@@ -114,8 +241,73 @@ export default function DossierWorkbench() {
         {d.step === 'rijal' && <RijalDossier rijal={data.agent_3_rijal} />}
         {d.step === 'shawahid' && <ShawahidMatnView shawahid={data.agent_4_shawahid_matn} />}
         {d.step === 'scholars' && <ScholarsVerdictMatrix verdicts={data.agent_5_scholars_verdict} />}
-        {d.step === 'report' && <VerdictReport analysis={data} />}
+        {d.step === 'source_research' && <Agent7SourceResearchView analysis={data} currentLanguage={d.lang} />}
+        {d.step === 'report' && (
+          <div className="space-y-4">
+            <CompleteResearchReportView
+              analysis={data}
+              currentLanguage={d.lang}
+              onPrint={d.print}
+              onDownloadFullReport={d.downloadFullReport}
+              onOpenRoundtableTab={() => d.setStep('roundtable')}
+            />
+            <CrossExamineFollowUp
+              dossierId={data.research_job_id || data.query_hadith.slice(0, 80)}
+              originalQuestion={data.query_hadith}
+              previousSynthesis={`${data.agent_6_synthesis.consensus_and_disagreements}\n\n${data.agent_6_synthesis.executive_report_markdown}`}
+              openedSources={(data.agent_7_source_research?.retrieved_records ?? []).slice(0, 8).map(record => ({
+                id: record.id,
+                label: `HadeethEnc ${record.id}`,
+                text: [record.arabic, record.translation, record.published_grade].filter(Boolean).join('\n'),
+              }))}
+              language={data.content_language ?? d.lang}
+            />
+          </div>
+        )}
+        {d.step === 'roundtable' && (
+          <div className="space-y-4">
+            <PodcastScriptPlayer
+              key={`${data.query_hadith}-${data.content_language ?? d.lang}-${data.research_job_id ?? 'saved'}`}
+              script={data.agent_6_synthesis.podcast_script}
+              executiveReport={data.agent_6_synthesis.executive_report_markdown}
+              onShare={() => void d.share()}
+              neuralVoice={config == null || config.ai === true}
+              language={data.content_language ?? d.lang}
+              audioReady={d.audioReady}
+              savedClips={d.savedClips}
+              onClip={d.rememberClip}
+            />
+            <CrossExamineFollowUp
+              dossierId={data.research_job_id || data.query_hadith.slice(0, 80)}
+              originalQuestion={data.query_hadith}
+              previousSynthesis={`${data.agent_6_synthesis.consensus_and_disagreements}\n\n${data.agent_6_synthesis.executive_report_markdown}`}
+              openedSources={(data.agent_7_source_research?.retrieved_records ?? []).slice(0, 8).map(record => ({
+                id: record.id,
+                label: `HadeethEnc ${record.id}`,
+                text: [record.arabic, record.translation, record.published_grade].filter(Boolean).join('\n'),
+              }))}
+              language={data.content_language ?? d.lang}
+            />
+          </div>
+        )}
       </div>}
-    </EngineFrame>
+        </>
+      }
+    >
+      <HadithSearchForm
+        initialMatn={d.matn}
+        initialIsnad={d.isnad}
+        isAnalyzing={d.isAnalyzing}
+        analysisError={d.error}
+        onRunEngine={(matn, isnad) => void d.run(matn, isnad)}
+        onOpenSaved={d.openSaved}
+        onResearchAgain={item => void d.run(item.question, item.isnad, item.language)}
+        onOpenFullReport={openFullReport}
+        onClearInputs={d.clear}
+        onSelectBenchmark={d.selectBenchmark}
+        currentLanguage={d.lang}
+        activeQuestion={d.matn}
+      />
+    </ResearchFrame>
   );
 }

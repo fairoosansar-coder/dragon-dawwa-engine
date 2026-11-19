@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { ArrowLeft, BookOpen, Check, Copy, Library, MoonStar, Search, Sparkles } from 'lucide-react';
+import { ArrowLeft, Check, Copy, Search, Sparkles } from 'lucide-react';
+import { StudioMark } from '../components/shell/studioMarks.tsx';
 import type { ViewProps } from '../App.tsx';
 import { TOPICS, verseOfTheDay } from '../shared/topics.ts';
 import type { AskResult, Hadith, SurahInfo, Verse } from '../shared/types.ts';
@@ -12,10 +13,15 @@ import { usePronunciation, withPronunciation } from '../lib/pronunciation.ts';
 import { shownVerses, translationRequest } from '../shared/quranenc.ts';
 import { useApp, useStored } from '../lib/store.tsx';
 import { CitationChips, EvidenceList, HadithCard, VerseCard } from '../components/cards.tsx';
+import { FaithWallFeed } from '../components/FaithWallFeed.tsx';
+import { ADMIN_SETTINGS_EVENT, readAdminSettings, submitScholarQuestion } from '../lib/verseShare.ts';
 import { KnowledgeShelf } from './KnowledgePaths.tsx';
 import { LibraryReader } from './LibraryReader.tsx';
+import { SavedLibraryView } from './SavedLibraryView.tsx';
 import { EmptyState, FeatureCard, PrayerStrip } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, Loading, Notice, SectionTitle } from '../components/ui.tsx';
+import { DomainResearchForm } from './DomainResearchForm.tsx';
+import { readerQuestion } from './domainQuestion.ts';
 
 function VerseList({ refs }: { refs: string[] }) {
   const { lang, t } = useApp();
@@ -127,9 +133,10 @@ function AskPanel() {
 }
 
 function ScholarDraft({ focus }: { focus: boolean }) {
-  const { t } = useApp();
+  const { t, lang } = useApp();
   const [draft, setDraft] = useStored<string>('kf-scholar-draft', '');
   const [copied, setCopied] = useState(false);
+  const [flaggedToScholar, setFlaggedToScholar] = useState(false);
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
     if (focus) ref.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
@@ -143,6 +150,16 @@ function ScholarDraft({ focus }: { focus: boolean }) {
     } catch {
       setCopied(false);
     }
+  }
+
+  function handleSendToScholarInbox() {
+    if (draft.trim().length < 5) return;
+    submitScholarQuestion({
+      question: draft.trim(),
+      language: lang,
+    });
+    setFlaggedToScholar(true);
+    setTimeout(() => setFlaggedToScholar(false), 3500);
   }
 
   return (
@@ -163,6 +180,10 @@ function ScholarDraft({ focus }: { focus: boolean }) {
         <Button variant="soft" onClick={() => void copy()} disabled={!draft.trim()}>
           {copied ? <Check className="h-4 w-4" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
           {copied ? t.scholarCopied : t.sidebarQuestion}
+        </Button>
+        <Button variant="soft" onClick={handleSendToScholarInbox} disabled={draft.trim().length < 5}>
+          <Sparkles className="h-4 w-4" aria-hidden />
+          {flaggedToScholar ? 'Queued in Scholar Q&A Inbox' : 'Flag for Verified Scholar Q&A'}
         </Button>
         {draft.trim() && <span className="text-xs text-ink/50">{t.scholarSaved}</span>}
         <span className="ml-auto flex gap-3 text-sm">
@@ -189,6 +210,15 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
   const [askError, setAskError] = useState<string | null>(null);
   const [clarify, setClarify] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [adminBannerUrl, setAdminBannerUrl] = useState(() => readAdminSettings().heroBannerUrl || '/assets/geometric-emerald.jpg');
+
+  useEffect(() => {
+    const syncBanner = () => {
+      setAdminBannerUrl(readAdminSettings().heroBannerUrl || '/assets/geometric-emerald.jpg');
+    };
+    window.addEventListener(ADMIN_SETTINGS_EVENT, syncBanner);
+    return () => window.removeEventListener(ADMIN_SETTINGS_EVENT, syncBanner);
+  }, []);
   const topic = TOPICS.find(item => item.id === topicId);
   const today = useMemo(() => verseOfTheDay(new Date()), []);
   const savedRef = useRef<HTMLElement>(null);
@@ -201,120 +231,142 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
     savedRef.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   }, [sub]);
 
+  // Desk entry cards — required on Hub for viewports below `lg`, where the Study & Research
+  // Desks sidebar is hidden and the bottom Knowledge dock only opens `#/hub`.
   const cards = [
-    { href: '#/quran', title: t.cardQuran, body: t.cardQuranBody, icon: <BookOpen className="h-5 w-5" aria-hidden /> },
-    { href: '#/hadith', title: t.cardHadith, body: t.cardHadithBody, icon: <Library className="h-5 w-5" aria-hidden /> },
-    { href: '#/spiritual', title: t.cardPillars, body: t.cardPillarsBody, icon: <MoonStar className="h-5 w-5" aria-hidden /> },
-    { href: '#/podcast', title: t.cardPodcast, body: t.cardPodcastBody, icon: <Sparkles className="h-5 w-5" aria-hidden /> },
+    { href: '#/quran', title: t.cardQuran, body: t.cardQuranBody, icon: <StudioMark name="quran" className="h-11 w-11 rounded-xl" /> },
+    { href: '#/hadith', title: t.cardHadith, body: t.cardHadithBody, icon: <StudioMark name="hadith" className="h-11 w-11 rounded-xl" /> },
+    { href: '#/books', title: t.cardBooks, body: t.cardBooksBody, icon: <StudioMark name="books" className="h-11 w-11 rounded-xl" /> },
+    { href: '#/spiritual', title: t.cardPillars, body: t.cardPillarsBody, icon: <StudioMark name="worship" className="h-11 w-11 rounded-xl" /> },
+    { href: '#/podcast', title: t.cardPodcast, body: t.cardPodcastBody, icon: <StudioMark name="podcast" className="h-11 w-11 rounded-xl" /> },
   ].filter(card => !q || card.title.toLowerCase().includes(q) || card.body.toLowerCase().includes(q));
 
   async function research(event: FormEvent, clarified = false) {
     event.preventDefault();
-    const question = asked.trim();
-    if (question.length < 3 || busy) return;
+    const question = readerQuestion(asked);
+    if (asked.trim().length < 3 || busy) return;
     setBusy(true);
     setAskError(null);
     try {
-      const started = await beginResearch({ question, entry: 'knowledge', lang, clarified });
+      const started = await beginResearch({ question, entry: 'knowledge', desk: 'knowledge', lang, clarified });
       if (started.action === 'clarify' || !started.id || !started.scope) {
-        setClarify(true);
+        window.location.hash = `#/hub/research?lang=${encodeURIComponent(lang)}&q=${encodeURIComponent(question)}`;
         return;
       }
       window.location.hash = researchHref(started.scope, started.id, lang, started.action === 'forward', null, question);
-    } catch (err) {
-      setAskError(err instanceof Error ? err.message : 'The research job could not be started.');
+    } catch {
+      window.location.hash = `#/hub/research?lang=${encodeURIComponent(lang)}&q=${encodeURIComponent(question)}`;
     } finally {
       setBusy(false);
     }
   }
 
+  if (sub === 'saved') return <SavedLibraryView />;
+  if (sub === 'item' && /^\d{1,12}$/.test(segments[1] ?? '')) {
+    return <LibraryReader itemId={Number(segments[1])} backHref="#/hub" />;
+  }
   if ((sub === 'discover' || sub === 'deepen' || sub === 'prophet') && segments[1] === 'item' && /^\d{1,12}$/.test(segments[2] ?? '')) {
     return <LibraryReader itemId={Number(segments[2])} backHref={`#/hub/${sub}`} />;
   }
   if (sub === 'discover' || sub === 'deepen' || sub === 'prophet') return <KnowledgeShelf pathId={sub} />;
+  if (sub === 'wall') return <FaithWallFeed />;
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-3xl border border-gold/60 bg-white px-5 py-6 sm:px-8">
-        <h1 className="font-display text-4xl font-bold leading-tight text-pine sm:text-5xl">{t.askIslam}</h1>
-        <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink/75">{t.askIslamBody}</p>
-        <form onSubmit={event => void research(event, clarify)} className="mt-5 space-y-3">
-          <label className="sr-only" htmlFor="knowledge-question">{t.askIslam}</label>
-          <textarea
-            id="knowledge-question"
-            value={asked}
-            onChange={event => setAsked(event.target.value)}
-            rows={4}
-            maxLength={800}
-            placeholder={t.askIslamPlaceholder}
-            className="w-full rounded-3xl border border-pine/20 bg-sand px-4 py-4 text-base leading-relaxed"
-          />
-          <Button type="submit" disabled={busy || asked.trim().length < 3} className="w-full py-3 sm:w-auto">
-            {t.researchMyQuestion}
-          </Button>
-        </form>
-        {clarify && <p className="mt-3 text-sm text-pine">{t.clarifyMeaning}</p>}
-        {askError && <div className="mt-3"><ErrorNote message={askError} /></div>}
-      </section>
-      <header>
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted">{t.hubEyebrow}</p>
-        <h1 className="mt-3 max-w-3xl font-display text-4xl font-bold leading-tight text-pine sm:text-5xl">{t.hubHeading}</h1>
-      </header>
-
-      <section className="rounded-3xl bg-pine px-6 py-8 text-sand sm:px-8">
-        <h3 className="max-w-xl font-display text-3xl font-bold leading-tight">{t.hubHero}</h3>
-        <p className="mt-3 max-w-xl text-sm leading-relaxed text-sand/85">{t.hubHeroBody}</p>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <a href="#/quran" className="inline-flex items-center rounded-full bg-moss px-4 py-2 text-sm font-medium text-white">
-            {t.openQuran}
-          </a>
-          <a href="#/hub/saved" className="inline-flex items-center rounded-full border border-gold px-4 py-2 text-sm font-medium text-sand lg:hidden">
-            {t.sidebarSaved}
-          </a>
-          <a href="#/podcast" className="inline-flex items-center rounded-full border border-gold px-4 py-2 text-sm font-medium text-sand">
-            {t.navPodcast}
-          </a>
+    <div className="space-y-4">
+      <section
+        data-knowledge-banner
+        style={{ color: '#FFFFFF' }}
+        className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/35 bg-gradient-to-r from-[#041B14] via-[#0A2E23] to-[#041B14] text-[#FFFFFF] shadow-[0_0_25px_rgba(212,175,55,0.08)]"
+      >
+        <img
+          src={adminBannerUrl}
+          alt=""
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-15 mix-blend-overlay"
+        />
+        <div className="relative flex min-h-[116px] flex-col justify-between gap-3 px-4 py-3.5 sm:max-h-[128px] sm:flex-row sm:items-center sm:px-6 sm:py-4">
+          <div className="min-w-0 max-w-xl text-left">
+            <p style={{ color: '#E6C665' }} className="text-[11px] font-semibold tracking-widest text-[#E6C665]">
+              ✦ Knowledge Hub
+            </p>
+            <h1 style={{ color: '#FFFFFF' }} className="mt-1 font-serif text-lg font-bold tracking-tight text-[#FFFFFF] sm:text-xl">
+              Ask a question. Read the verdict.
+            </h1>
+            <p style={{ color: '#D6D3D1' }} className="mt-0.5 text-xs leading-snug text-stone-300">
+              Expand for full 7-agent detail when you want the evidence matrix.
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-col items-start sm:items-end sm:text-right">
+            <p
+              dir="rtl"
+              lang="ar"
+              style={{ color: '#F9E7B9' }}
+              className="font-serif text-xl font-medium leading-snug text-[#F9E7B9] drop-shadow-sm sm:text-2xl"
+            >
+              طَلَبُ الْعِلْمِ فَرِيضَةٌ
+            </p>
+            <p style={{ color: '#D6D3D1' }} className="mt-0.5 text-[11px] text-stone-300">
+              “Seeking knowledge is an obligation”
+            </p>
+          </div>
         </div>
       </section>
+      <div data-research-frame>
+        <div data-research-inputs>
+          <DomainResearchForm
+            desk="knowledge"
+            variant="omni"
+            question={asked}
+            running={busy}
+            clarify={clarify}
+            clarifyText={t.clarifyMeaning}
+            onQuestion={setAsked}
+            onSubmit={event => void research(event, clarify)}
+          />
+          {askError && <div className="mt-2"><ErrorNote message={askError} /></div>}
+        </div>
+      </div>
 
       <PrayerStrip />
 
-      <section className="space-y-3">
-        <SectionTitle sub={t.pathNote}>{t.pathsTitle}</SectionTitle>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <FeatureCard href="#/hub/discover" title={t.discoverTitle} body={t.pathCatalogue} icon={<BookOpen className="h-5 w-5" aria-hidden />} />
-          <FeatureCard href="#/hub/deepen" title={t.deepenTitle} body={t.pathCatalogue} icon={<Library className="h-5 w-5" aria-hidden />} />
-          <FeatureCard href="#/hub/prophet" title={t.prophetTitle} body={t.pathCatalogue} icon={<MoonStar className="h-5 w-5" aria-hidden />} />
-        </div>
-      </section>
-
-      {cards.length === 0 ? (
-        <EmptyState>{t.noResults}</EmptyState>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+      <section className="space-y-2.5" data-testid="hub-desk-cards" aria-label={t.shortcuts}>
+        <SectionTitle>{t.shortcuts}</SectionTitle>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map(card => (
             <FeatureCard key={card.href} href={card.href} title={card.title} body={card.body} icon={card.icon} />
           ))}
         </div>
-      )}
+      </section>
 
-      <Card>
-        <SectionTitle>{t.continueReading}</SectionTitle>
-        <p className="font-display text-2xl font-bold text-pine">{current ? current.englishName : `${displaySurah(surah)}`}</p>
-        {current && (
-          <p className="mt-1 text-sm text-muted">
-            {displaySurah(surah)}:{displayAyah(place.ayah)} · {current.englishNameTranslation} · {current.numberOfAyahs}
-          </p>
-        )}
-        <a href="#/quran/study" className="mt-4 inline-flex items-center rounded-full bg-moss px-4 py-2 text-sm font-medium text-white">
-          {t.continueReading}
-        </a>
-      </Card>
+      <section className="space-y-2.5">
+        <SectionTitle sub={t.pathNote}>{t.pathsTitle}</SectionTitle>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <FeatureCard href="#/hub/discover" title={t.discoverTitle} body={t.discoverBody} icon={<StudioMark name="discover" className="h-9 w-9 rounded-xl" />} />
+          <FeatureCard href="#/hub/deepen" title={t.deepenTitle} body={t.deepenBody} icon={<StudioMark name="deepen" className="h-9 w-9 rounded-xl" />} />
+          <FeatureCard href="#/hub/prophet" title={t.prophetTitle} body={t.prophetBody} icon={<StudioMark name="prophet" className="h-9 w-9 rounded-xl" />} />
+        </div>
+      </section>
 
-      <Card>
-        <SectionTitle>{t.verseOfDay}</SectionTitle>
-        <VerseList refs={[today]} />
-      </Card>
+      <div className="grid gap-3.5 lg:grid-cols-2">
+        <Card>
+          <SectionTitle>{t.continueReading}</SectionTitle>
+          <p className="font-display text-sm font-bold text-pine sm:text-base">{current ? current.englishName : `${displaySurah(surah)}`}</p>
+          {current && (
+            <p className="mt-0.5 text-xs text-muted">
+              {displaySurah(surah)}:{displayAyah(place.ayah)} · {current.englishNameTranslation} · {current.numberOfAyahs}
+            </p>
+          )}
+          <a href="#/quran/study" className="mt-2.5 inline-flex items-center rounded-full bg-moss px-3 py-1 text-xs font-medium text-white">
+            {t.continueReading}
+          </a>
+        </Card>
+
+        <Card>
+          <SectionTitle>{t.verseOfDay}</SectionTitle>
+          <VerseList refs={[today]} />
+        </Card>
+      </div>
+
+      <FaithWallFeed compact />
 
       <AskPanel />
       <ScholarDraft focus={sub === 'scholar'} />
@@ -334,16 +386,25 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
             {topics.length === 0 ? (
               <EmptyState>{t.noResults}</EmptyState>
             ) : (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" data-theme-plates>
                 {topics.map(item => (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => setTopicId(item.id)}
-                    className="rounded-2xl border border-pine/15 bg-sand p-4 text-left transition hover:border-gold"
+                    className="theme-plate relative min-h-[6.5rem] overflow-hidden rounded-2xl border border-[#1F6B52]/30 bg-[#F7F1E4] p-3.5 text-left sm:p-4"
                   >
-                    <span className="block font-semibold text-pine">{item.title[lang]}</span>
-                    <span className="mt-1 block text-xs text-muted">{item.refs.join(' · ')}</span>
+                    <img
+                      src="/assets/geometric-cream.jpg"
+                      alt=""
+                      className="pointer-events-none absolute inset-0 h-full w-full -scale-x-100 object-cover object-[8%_100%]"
+                    />
+                    <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(105deg,rgba(247,241,228,0.96)_0%,rgba(247,241,228,0.9)_46%,rgba(247,241,228,0.55)_78%,rgba(247,241,228,0.28)_100%)]" />
+                    <span className="theme-plate-sheen" aria-hidden="true" />
+                    <span lang={lang} className="relative z-10 block pr-6 font-semibold leading-snug text-pine">
+                      {item.title[lang]}
+                    </span>
+                    <span className="relative z-10 mt-1 block pr-8 text-xs leading-relaxed text-muted">{item.refs.join(' · ')}</span>
                   </button>
                 ))}
               </div>
@@ -353,19 +414,7 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
       </Card>
 
       <section ref={savedRef} id="saved" className="scroll-mt-28">
-        <Card>
-          <SectionTitle>{t.saved}</SectionTitle>
-          {saved.verses.length === 0 && saved.hadith.length === 0 ? (
-            <EmptyState>{t.savedEmpty}</EmptyState>
-          ) : (
-            <>
-              <VerseList refs={saved.verses.slice(0, 60)} />
-              {saved.hadith.map(item => (
-                <SavedHadith key={`${item.collection}-${item.number}`} collection={item.collection} number={item.number} />
-              ))}
-            </>
-          )}
-        </Card>
+        <SavedLibraryView />
       </section>
     </div>
   );

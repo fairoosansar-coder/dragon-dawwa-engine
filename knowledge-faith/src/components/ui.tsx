@@ -5,9 +5,9 @@ import { useApp } from '../lib/store.tsx';
 type Variant = 'primary' | 'ghost' | 'soft';
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-moss text-white hover:bg-pine disabled:bg-moss/50',
-  soft: 'bg-mint text-pine hover:bg-mint/70 disabled:opacity-50',
-  ghost: 'text-pine hover:bg-mint/60 disabled:opacity-50',
+  primary: 'bg-moss text-white hover:bg-[#073C30] disabled:bg-moss/50',
+  soft: 'bg-mint text-[#073C30] hover:bg-mint/80 disabled:opacity-50',
+  ghost: 'text-pine hover:bg-mint/60 hover:text-[#073C30] disabled:opacity-50',
 };
 
 export function Button({
@@ -18,7 +18,7 @@ export function Button({
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed ${variants[variant]} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors sm:text-[13px] disabled:cursor-not-allowed ${variants[variant]} ${className}`}
       {...props}
     />
   );
@@ -30,21 +30,21 @@ export function IconButton({ label, className = '', ...props }: ButtonHTMLAttrib
       type="button"
       aria-label={label}
       title={label}
-      className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-pine transition-colors hover:bg-mint disabled:opacity-40 ${className}`}
+      className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-pine transition-colors hover:bg-mint disabled:opacity-40 ${className}`}
       {...props}
     />
   );
 }
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-3xl border border-pine/10 bg-parchment p-5 shadow-sm sm:p-6 ${className}`}>{children}</section>;
+  return <section className={`rounded-2xl border border-pine/10 bg-parchment p-3.5 shadow-2xs sm:p-4 ${className}`}>{children}</section>;
 }
 
 export function SectionTitle({ children, sub }: { children: ReactNode; sub?: ReactNode }) {
   return (
-    <div className="mb-4">
-      <h2 className="font-display text-2xl font-bold text-pine">{children}</h2>
-      {sub && <p className="mt-1 text-sm text-ink/70">{sub}</p>}
+    <div className="mb-2.5">
+      <h2 className="font-display text-sm font-bold text-pine sm:text-base">{children}</h2>
+      {sub && <p className="mt-0.5 text-[11px] text-ink/70 sm:text-xs">{sub}</p>}
     </div>
   );
 }
@@ -120,5 +120,16 @@ export function Select({
         ))}
       </select>
     </label>
+  );
+}
+
+/** A corner of the cream geometric plate, so a pale choice card is not an empty box. */
+export function SelectionWash() {
+  return (
+    <img
+      src="/assets/geometric-cream.jpg"
+      alt=""
+      className="pointer-events-none absolute inset-y-0 right-0 h-full w-28 object-cover object-[right_top] [mask-image:linear-gradient(90deg,transparent,#000_58%)]"
+    />
   );
 }

@@ -6,8 +6,10 @@ import path from 'node:path';
 import { HADITH_COLLECTIONS, PRAYER_METHODS, RECITERS, quranPronunciationEdition, toLang } from './src/shared/sources.ts';
 import { dedupeRefs, parseRefs, refKey, type HadithRef } from './src/shared/refs.ts';
 import type { PodcastLine } from './src/shared/types.ts';
-import { getSurah, getSurahArabic, getSurahMeaning, getVerses, listSurahs } from './src/server/quran.ts';
+import { getSurah, getSurahArabic, getSurahMeaning, getVerses, listSurahs, locateJuz, locatePage } from './src/server/quran.ts';
 import { audioManifestEdition, listQuranEncEditions, loadAudioManifest, loadMukhtasar, MEANING_AUDIO_NOT_LISTED } from './src/server/quranenc.ts';
+import { fetchMcpMorphology, fetchMcpTafsir, listMcpEditions, searchMcpQuran } from './src/server/quranMcp.ts';
+import { parseEditionId, readTafsirQuery, type McpEditionType } from './src/shared/quranMcp.ts';
 import { readEditionQuery } from './src/shared/quranenc.ts';
 import { getAsma } from './src/server/asma.ts';
 import { getHadith, getSection, listSections } from './src/server/hadith.ts';
@@ -23,11 +25,47 @@ import { loadKnowledgeShelf, loadLibrary, loadLibraryItem } from './src/server/i
 import { loadBookDetail, loadBookMeta, loadBookShelf, loadBookStats } from './src/server/bookShelf.ts';
 import { readingPages } from './src/server/pdfPages.ts';
 import { readLibraryItem } from './src/server/libraryRead.ts';
-import { mediaConcurrencyLimiter, allowedMediaUrl, readMedia } from './src/server/media.ts';
+import { allowedMediaUrl, readMedia } from './src/server/media.ts';
 import { listNames, readName } from './src/server/names.ts';
 import { cancelSharedResearchJob, getSharedResearchJob, startSharedResearchJob } from './src/server/research/jobs.ts';
 import { listCommunityPodcasts, publishCommunityPodcast } from './src/server/research/communityPodcasts.ts';
+import {
+  addReplyToServerWallPost,
+  answerServerQuestion,
+  authenticateGoogleCredential,
+  buildGoogleOAuthStart,
+  clearGoogleOAuthNonceCookie,
+  clearSeekerCookie,
+  createServerQuestion,
+  createServerWallPost,
+  deleteServerWallPost,
+  exchangeGoogleOAuthCode,
+  getGoogleAuthConfig,
+  getRequestSeeker,
+  getServerAdminSettings,
+  getServerUserProfile,
+  GOOGLE_CALLBACK_ALIASES,
+  listServerQuestions,
+  listServerWallPosts,
+  loginSeekerAccount,
+  moderateServerWallPost,
+  probeGoogleRedirectUriAccepted,
+  reactToServerWallPost,
+  readGoogleOAuthNonceCookie,
+  registerSeekerAccount,
+  reissueSeekerTokenForRequest,
+  requireSeekerAuth,
+  revokeSeekerSessionFromRequest,
+  setGoogleOAuthNonceCookie,
+  setSeekerCookie,
+  updateSeekerAccountProfile,
+  updateServerAdminSettings,
+  updateServerWallPost,
+} from './src/server/seekerAuth.ts';
 import { coordinateQuestion } from './src/shared/research/coordinator.ts';
+import { buildReportModel } from './src/shared/research/report.ts';
+import { roundtableFromResearch } from './src/shared/research/roundtable.ts';
+import { sanitizePodcastHostName } from './src/shared/podcastHost.ts';
 import type { ResearchJobResponse, ResearchScope } from './src/shared/contracts/v1.ts';
 import { dossierEvidence, quoteFromEvidence, researchTopic } from './src/server/research.ts';
 import { attachVerification, verifyScript } from './src/shared/research.ts';
@@ -42,11 +80,24 @@ import {
   writePodcast,
   type SourceFetchers,
 } from './src/server/gemini.ts';
+import { anthropicConfigured } from './src/server/anthropic.ts';
 import { executeDragonDawwaAnalysis } from './src/engine/server/hadithEngine.ts';
-import { getResearchJob, startResearchJob } from './src/engine/server/researchJobs.ts';
 import { streamEpisodeAudio } from './src/server/r2Audio.ts';
-import { replayHadithAnalysis, replaySharedResearch } from './src/server/researchIdempotency.ts';
+import { replayCategoryAnalysis, replayHadithAnalysis, replaySharedResearch } from './src/server/researchIdempotency.ts';
+import { resolveDomainConfig } from './src/server/research/agentConfig.ts';
+import { getResearchFollowUpThread, runResearchFollowUp } from './src/server/research/followup.ts';
+import { randomUUID } from 'node:crypto';
+import { getResearchJob, seedResearchJob, startResearchJob } from './src/engine/server/researchJobs.ts';
 import { synthesizeRoundtableVoice } from './src/engine/server/geminiTtsService.ts';
+import { loadLocalizedAyahStudy } from './src/server/ayahStudyService.ts';
+import { getHadithTtsStatus, synthesizeHadithVoice } from './src/server/elevenlabsTts.ts';
+import {
+  getSevenAgentDossierById,
+  listSevenAgentHistory,
+  runSevenAgentResearch,
+  toggleServerSavedDossier,
+} from './src/server/sevenAgentService.ts';
+import { serveHadithShareLanding, serveVerseOgImage, serveVerseShareLanding } from './src/server/shareLanding.ts';
 import { extractHadithFromMedia } from './src/engine/server/hadithOcrService.ts';
 import { transcribeAudioWithGemini } from './src/engine/server/geminiAudioTranscribe.ts';
 import { ummahQuranMiddleware } from './src/engine/server/ummahQuran.ts';
@@ -55,9 +106,15 @@ import { publicAppUrl, viteDevServerOptions } from './src/server/publicUrl.ts';
 import { EditorialStore, parseEditorAccounts } from './src/server/spiritual/editorialStore.ts';
 import { spiritualRouter } from './src/server/spiritual/routes.ts';
 import { studioRouter } from './src/server/studio/routes.ts';
+import { HumanReviewStore } from './src/server/research/humanReviewStore.ts';
+import { humanReviewRouter } from './src/server/research/humanReviewRoutes.ts';
+import { applyPersistDir, persistRoot } from './src/server/persist.ts';
+import { collectionSummary } from './src/server/hadeethenc/collection.ts';
+import { listSavedEpisodes, readSavedEpisode, saveEpisodeAudio } from './src/server/research/savedWork.ts';
 
-const PORT = Number(process.env.PORT ?? 3000);
-const HOST = process.env.HOST ?? '0.0.0.0';
+applyPersistDir();
+
+const PORT = Number(process.env.PORT || 3000);
 const isProduction = process.env.NODE_ENV === 'production';
 
 const fetchers: SourceFetchers = {
@@ -81,7 +138,7 @@ if (process.env.CODESPACES === 'true' || process.env.CODESPACE_NAME) {
 }
 app.use(ummahQuranMiddleware);
 app.use(ummahStudyMiddleware);
-app.use(['/api/extract-hadith-media', '/api/transcribe-audio'], express.json({ limit: '15mb' }));
+app.use(['/api/extract-hadith-media', '/api/transcribe-audio', '/api/research/episodes', '/api/research/seven-agents/save'], express.json({ limit: '20mb' }));
 app.use(express.json({ limit: '64kb' }));
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
@@ -139,12 +196,26 @@ function releaseInfo(): { sha: string; builtAt: string } {
 }
 
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', app: 'DRAGON DAWWA', ai: geminiConfigured(), release: releaseInfo() });
+  res.json({
+    status: 'ok',
+    app: 'DRAGON DAWWA',
+    ai: geminiConfigured(),
+    anthropic: anthropicConfigured(),
+    release: releaseInfo(),
+  });
 });
+
+app.get('/s/v/:surah/:ayah', route(serveVerseShareLanding));
+app.get('/s/v/:surah/:ayah/:lang', route(serveVerseShareLanding));
+app.get('/share/verse/:surah/:ayah', route(serveVerseShareLanding));
+app.get('/api/og/verse/:surah/:ayah', route(serveVerseOgImage));
+app.get('/s/h/:id/:number', route(serveHadithShareLanding));
+app.get('/s/h/:id', route(serveHadithShareLanding));
 
 app.get('/api/config', (_req, res) => {
   res.json({
     ai: geminiConfigured(),
+    anthropic: anthropicConfigured(),
     reciters: RECITERS,
     voices: VOICES,
     prayerMethods: PRAYER_METHODS,
@@ -159,6 +230,8 @@ function editionKeyFrom(value: unknown): string | undefined {
 }
 
 app.get('/api/quran/surahs', route(async (_req, res) => res.json(await listSurahs())));
+app.get('/api/quran/page/:n', route(async (req, res) => res.json(await locatePage(Number(req.params.n)))));
+app.get('/api/quran/juz/:n', route(async (req, res) => res.json(await locateJuz(Number(req.params.n)))));
 app.get('/api/quran/editions', route(async (req, res) => res.json(await listQuranEncEditions(toLang(req.query.lang)))));
 app.get(
   '/api/quran/audio-manifest',
@@ -185,6 +258,62 @@ app.get(
   route(async (req, res) => {
     const surah = Number(req.query.surah);
     res.json(await loadMukhtasar(toLang(req.query.lang), surah));
+  }),
+);
+
+function mcpEditionType(value: unknown): McpEditionType {
+  if (value === 'quran' || value === 'tafsir' || value === 'translation') return value;
+  throw new UpstreamError('That edition list cannot be requested.', 400);
+}
+
+const localizedAyahStudyHandler = route(async (req, res) => {
+  const surah = Number(req.params.surah ?? req.query.surah ?? 1);
+  const ayah = Number(req.params.ayah ?? req.query.ayah ?? 1);
+  if (!Number.isInteger(surah) || surah < 1 || surah > 114 || !Number.isInteger(ayah) || ayah < 1 || ayah > 286) {
+    throw new UpstreamError('Invalid surah or ayah reference.', 400);
+  }
+  const lang = toLang(req.query.lang);
+  const edition = typeof req.query.edition === 'string' && req.query.edition.trim() ? req.query.edition.trim() : undefined;
+  res.json(await loadLocalizedAyahStudy(surah, ayah, lang, edition));
+});
+
+app.get('/api/ummah/quran/study/:surah/:ayah', localizedAyahStudyHandler);
+app.get('/api/quran/tafsir/translate', localizedAyahStudyHandler);
+
+app.get(
+  '/api/quran/mcp/editions',
+  route(async (req, res) => {
+    res.json(await listMcpEditions(mcpEditionType(req.query.type)));
+  }),
+);
+
+app.get(
+  '/api/quran/mcp/tafsir',
+  route(async (req, res) => {
+    const read = readTafsirQuery(req.query.ayah, req.query.edition);
+    if ('error' in read) throw new UpstreamError(read.error, 400);
+    res.json(await fetchMcpTafsir(read.ayah, read.edition));
+  }),
+);
+
+app.get(
+  '/api/quran/mcp/morphology',
+  route(async (req, res) => {
+    res.json(await fetchMcpMorphology(typeof req.query.ayah === 'string' ? req.query.ayah : ''));
+  }),
+);
+
+app.get(
+  '/api/quran/mcp/search',
+  route(async (req, res) => {
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    if (q.length < 2 || q.length > 200) throw new UpstreamError('Enter a short search.', 400);
+    const edition = req.query.edition == null || req.query.edition === '' ? null : parseEditionId(req.query.edition);
+    if (req.query.edition && !edition) throw new UpstreamError('That edition cannot be used. No other translation was substituted.', 400);
+    const surahRaw = req.query.surah;
+    const surah = surahRaw == null || surahRaw === '' ? null : Number(surahRaw);
+    if (surah != null && (!Number.isInteger(surah) || surah < 1 || surah > 114)) throw new UpstreamError('Surah must be between 1 and 114', 400);
+    res.json(await searchMcpQuran(q, edition, surah));
   }),
 );
 
@@ -282,7 +411,12 @@ app.get(
   route(async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) throw new UpstreamError('Unknown item', 404);
-    const document = await readLibraryItem(id, toLang(req.query.lang));
+    const sectionParam = req.query.section ?? req.query.page;
+    const requestedPage =
+      typeof sectionParam === 'string' && /^\d+$/.test(sectionParam)
+        ? Math.max(1, Number(sectionParam))
+        : undefined;
+    const document = await readLibraryItem(id, toLang(req.query.lang), new Date(), requestedPage);
     if (req.query.pages !== '1') {
       res.json(document);
       return;
@@ -321,7 +455,7 @@ app.get(
 
 app.get('/api/library/books', route(async (req, res) => res.json(await loadBookShelf(bookShelfQuery(req)))));
 
-app.get('/api/library/media', rateLimiter(60, 'Too many media requests. Please try again later.'), mediaConcurrencyLimiter(4), async (req, res, next) => {
+app.get('/api/library/media', async (req, res, next) => {
   try {
     const url = allowedMediaUrl(typeof req.query.url === 'string' ? req.query.url : '');
     if (!url) throw new UpstreamError('That file address is not an IslamHouse media file.', 400);
@@ -346,23 +480,66 @@ app.get(
 app.get('/api/names', route(async (_req, res) => res.json(await listNames())));
 app.get('/api/names/:id', route(async (req, res) => res.json(await readName(String(req.params.id)))));
 
+const sevenAgentHandler = route(async (req, res) => {
+  const qRaw = req.method === 'POST' ? (req.body?.question ?? req.body?.q) : (req.query.q ?? req.query.question);
+  const question = text(qRaw, 2000, 'question');
+  const lang = toLang(req.method === 'POST' ? req.body?.lang : req.query.lang);
+  res.json(await runSevenAgentResearch(question, lang));
+});
+
+app.get('/api/research/seven-agents', sevenAgentHandler);
+app.post('/api/research/seven-agents', sevenAgentHandler);
+
+app.get(
+  '/api/research/seven-agents/history',
+  route(async (req, res) => {
+    const lang = req.query.lang ? toLang(req.query.lang) : undefined;
+    res.json(await listSevenAgentHistory(lang));
+  }),
+);
+
+app.post(
+  '/api/research/seven-agents/save',
+  route(async (req, res) => {
+    const id = typeof req.body?.id === 'string' ? req.body.id : undefined;
+    const question = typeof req.body?.question === 'string' ? req.body.question : undefined;
+    const lang = toLang(req.body?.lang);
+    const dossier = req.body?.dossier && typeof req.body.dossier === 'object' ? req.body.dossier : undefined;
+    const saved = typeof req.body?.saved === 'boolean' ? req.body.saved : undefined;
+    res.json(await toggleServerSavedDossier({ id, question, lang, dossier, saved }));
+  }),
+);
+
+app.get(
+  '/api/research/seven-agents/:id',
+  route(async (req, res) => {
+    const id = String(req.params.id ?? '').trim();
+    const lang = toLang(req.query.lang);
+    const found = await getSevenAgentDossierById(id, lang);
+    if (!found) throw new UpstreamError('Research dossier not found.', 404);
+    res.json(found);
+  }),
+);
+
 app.post(
   '/api/research/jobs',
+  requireSeekerAuth,
   rateLimiter(20, 'Too many research jobs. Please wait a few minutes.'),
   route(async (req, res) => {
-    const question = text(req.body?.question, 800, 'question');
+    const question = text(req.body?.question, 4000, 'question');
     const lang = toLang(req.body?.lang);
     const entryRaw = typeof req.body?.entry === 'string' ? req.body.entry : '';
     const force = req.body?.force === true;
+    const requestedHost = typeof req.body?.hostName === 'string' ? req.body.hostName : null;
     if (!entryRaw) {
       if (!force) {
         const replay = await replaySharedResearch(question, lang, 'knowledge', null);
         if (replay) {
-          sendCompletedResearch(res, replay, {});
+          sendCompletedResearch(res, withRequestedHost(replay, requestedHost), {});
           return;
         }
       }
-      const id = startSharedResearchJob(question, lang);
+      const id = startSharedResearchJob(question, lang, undefined, { hostName: requestedHost });
       res.status(202).json({ id, contractVersion: '1.0.0' });
       return;
     }
@@ -376,7 +553,7 @@ app.post(
       bookId: Number.isInteger(bookId) && bookId > 0 ? bookId : null,
       forwarded: req.body?.forwarded === true,
       clarified: req.body?.clarified === true,
-      priorQuestion: typeof req.body?.priorQuestion === 'string' ? req.body.priorQuestion.slice(0, 800) : null,
+      priorQuestion: typeof req.body?.priorQuestion === 'string' ? req.body.priorQuestion.slice(0, 4000) : null,
     });
     if (decision.action === 'clarify') {
       res.json({ action: 'clarify', clarificationId: decision.clarificationId, contractVersion: '1.0.0' });
@@ -386,7 +563,7 @@ app.post(
     if (!force) {
       const replay = await replaySharedResearch(researched, lang, entryRaw, decision.assignment);
       if (replay) {
-        sendCompletedResearch(res, replay, {
+        sendCompletedResearch(res, withRequestedHost(replay, requestedHost), {
           action: decision.action,
           scope: decision.assignment.scope,
           noticeId: decision.assignment.noticeId,
@@ -394,9 +571,12 @@ app.post(
         return;
       }
     }
+    const deskRaw = typeof req.body?.desk === 'string' ? req.body.desk : entryRaw;
     const id = startSharedResearchJob(researched, lang, undefined, {
       assignment: decision.assignment,
       force,
+      desk: deskRaw,
+      hostName: requestedHost,
     });
     res.status(202).json({
       action: decision.action,
@@ -408,10 +588,73 @@ app.post(
   }),
 );
 
+app.post(
+  '/api/research',
+  requireSeekerAuth,
+  rateLimiter(20, 'Too many research jobs. Please wait a few minutes.'),
+  route(async (req, res) => {
+    const question = text(req.body?.question ?? req.body?.topic, 4000, 'question');
+    const lang = toLang(req.body?.lang);
+    const id = startSharedResearchJob(question, lang);
+    res.status(202).json({ id, contractVersion: '1.0.0' });
+  }),
+);
+
+app.get('/api/sources/hadeethenc', route(async (_req, res) => res.json(collectionSummary())));
+
+app.get('/api/research/episodes', route(async (_req, res) => res.json({ episodes: listSavedEpisodes() })));
+
+app.get(
+  '/api/research/episodes/:id',
+  route(async (req, res) => {
+    const episode = readSavedEpisode(String(req.params.id));
+    if (!episode) throw new UpstreamError('Unknown saved episode', 404);
+    res.json(episode);
+  }),
+);
+
+app.post(
+  '/api/research/episodes',
+  requireSeekerAuth,
+  route(async (req, res) => {
+    const lines = Array.isArray(req.body?.lines) ? req.body.lines.slice(0, 24) : [];
+    if (!lines.length) throw new UpstreamError('A saved episode needs its transcript.', 400);
+    const audio = typeof req.body?.audioBase64 === 'string' ? req.body.audioBase64 : undefined;
+    const saved = saveEpisodeAudio(
+      {
+        id: text(req.body?.id, 120, 'id'),
+        jobId: typeof req.body?.jobId === 'string' ? req.body.jobId.slice(0, 80) : '',
+        question: text(req.body?.question, 800, 'question'),
+        language: toLang(req.body?.language ?? req.body?.lang),
+        participants: Array.isArray(req.body?.participants)
+          ? req.body.participants.slice(0, 12).map((item: { id?: string; role?: string; team?: string }) => ({
+              id: String(item?.id ?? '').slice(0, 80),
+              role: String(item?.role ?? '').slice(0, 120),
+              team: String(item?.team ?? '').slice(0, 40),
+            }))
+          : [],
+        lines: lines.map((line: { speaker?: string; role?: string; text?: string }) => ({
+          speaker: String(line?.speaker ?? '').slice(0, 120),
+          role: String(line?.role ?? '').slice(0, 120),
+          text: String(line?.text ?? '').slice(0, 4000),
+        })),
+        sources: Array.isArray(req.body?.sources) ? req.body.sources.slice(0, 40).map((item: unknown) => String(item).slice(0, 300)) : [],
+        reportHtml: typeof req.body?.reportHtml === 'string' ? req.body.reportHtml.slice(0, 80_000) : '',
+        mimeType: typeof req.body?.mimeType === 'string' ? req.body.mimeType.slice(0, 80) : 'audio/wav',
+        savedAt: new Date().toISOString(),
+        hasAudio: Boolean(audio),
+      },
+      audio,
+    );
+    res.status(201).json({ id: saved.id, hasAudio: saved.hasAudio });
+  }),
+);
+
 app.get('/api/research/podcasts', route(async (_req, res) => res.json({ episodes: listCommunityPodcasts() })));
 
 app.post(
   '/api/research/podcasts',
+  requireSeekerAuth,
   route(async (req, res) => {
     if (req.body?.shared !== true) throw new UpstreamError('A podcast is published only when it is explicitly shared.', 400);
     const question = text(req.body?.question, 800, 'question');
@@ -437,6 +680,321 @@ app.post(
       createdAt: new Date().toISOString(),
     });
     res.status(201).json(episode);
+  }),
+);
+
+const wallLimiter = rateLimiter(Number(process.env.WALL_POSTS_PER_15_MIN ?? 120));
+
+app.get(
+  '/api/auth/session',
+  route(async (req, res) => {
+    const user = getRequestSeeker(req);
+    if (!user) {
+      res.json({ authenticated: false, user: null, token: null, googleAuth: getGoogleAuthConfig() });
+      return;
+    }
+    // Re-issue with the same session id so logout invalidates prior re-issues too.
+    const token = reissueSeekerTokenForRequest(req, user);
+    setSeekerCookie(res, token);
+    res.json({ authenticated: true, user, token, googleAuth: getGoogleAuthConfig() });
+  }),
+);
+
+app.get(
+  '/api/auth/google/config',
+  route(async (req, res) => {
+    const probe = await probeGoogleRedirectUriAccepted(req);
+    res.json({
+      ...getGoogleAuthConfig(),
+      redirectUriAccepted: probe.accepted,
+      expectedOrigin: `${req.protocol}://${req.get('host') || 'dragon-dawwa-production.up.railway.app'}`,
+      expectedRedirectUri: probe.redirectUri,
+      googleConsoleCredentialsUrl:
+        'https://console.cloud.google.com/apis/credentials?project=ummahconnect-staging-261017',
+    });
+  }),
+);
+
+app.get(
+  '/api/auth/google/start',
+  wallLimiter,
+  route(async (req, res) => {
+    const started = buildGoogleOAuthStart(req, req.query.returnTo, req.query.callbackPath);
+    if (req.query.probe === '1') {
+      const probe = await probeGoogleRedirectUriAccepted(req, req.query.callbackPath);
+      if (!probe.accepted) {
+        const returnTo = typeof req.query.returnTo === 'string' && req.query.returnTo.startsWith('#/')
+          ? req.query.returnTo
+          : '#/hub';
+        res.redirect(
+          302,
+          `/?auth_error=origin_or_redirect_not_registered&expected_redirect=${encodeURIComponent(probe.redirectUri)}${returnTo}`,
+        );
+        return;
+      }
+    }
+    setGoogleOAuthNonceCookie(res, started.nonce);
+    res.redirect(302, started.url);
+  }),
+);
+
+const handleGoogleOAuthCallback = route(async (req, res) => {
+  const oauthError = typeof req.query.error === 'string' ? req.query.error.trim() : '';
+  const code = typeof req.query.code === 'string' ? req.query.code.trim() : '';
+  const state = typeof req.query.state === 'string' ? req.query.state.trim() : '';
+  if (oauthError || !code || !state) {
+    clearGoogleOAuthNonceCookie(res);
+    clearSeekerCookie(res);
+    const reason = encodeURIComponent(oauthError || 'missing_code');
+    res.redirect(302, `/?auth_error=${reason}#/quran/wall`);
+    return;
+  }
+  const cookieNonce = readGoogleOAuthNonceCookie(req);
+  try {
+    const { token, returnTo } = await exchangeGoogleOAuthCode({ code, state, cookieNonce });
+    clearGoogleOAuthNonceCookie(res);
+    setSeekerCookie(res, token);
+    const hash = returnTo.startsWith('#') ? returnTo : `#${returnTo}`;
+    res.redirect(302, `/?dd_seeker_handoff=${encodeURIComponent(token)}${hash}`);
+  } catch (err) {
+    clearGoogleOAuthNonceCookie(res);
+    clearSeekerCookie(res);
+    throw err;
+  }
+});
+
+for (const callbackAlias of GOOGLE_CALLBACK_ALIASES) {
+  app.get(callbackAlias, wallLimiter, handleGoogleOAuthCallback);
+}
+
+app.post(
+  '/api/auth/google/credential',
+  wallLimiter,
+  route(async (req, res) => {
+    const { token, user } = await authenticateGoogleCredential({
+      credential: req.body?.credential,
+      accessToken: req.body?.accessToken ?? req.body?.access_token,
+    });
+    setSeekerCookie(res, token);
+    res.status(200).json({ ok: true, token, user });
+  }),
+);
+
+app.post(
+  '/api/auth/google/access-token',
+  wallLimiter,
+  route(async (req, res) => {
+    const { token, user } = await authenticateGoogleCredential({
+      accessToken: req.body?.accessToken ?? req.body?.access_token,
+      credential: req.body?.credential,
+    });
+    setSeekerCookie(res, token);
+    res.status(200).json({ ok: true, token, user });
+  }),
+);
+
+app.post(
+  '/api/auth/register',
+  wallLimiter,
+  route(async (req, res) => {
+    const { token, user } = registerSeekerAccount(req.body ?? {});
+    setSeekerCookie(res, token);
+    res.status(201).json({ token, user });
+  }),
+);
+
+app.post(
+  '/api/auth/login',
+  wallLimiter,
+  route(async (req, res) => {
+    const { token, user } = loginSeekerAccount(req.body ?? {});
+    setSeekerCookie(res, token);
+    res.status(200).json({ token, user });
+  }),
+);
+
+app.patch(
+  '/api/auth/profile',
+  wallLimiter,
+  route(async (req, res) => {
+    const current = getRequestSeeker(req);
+    if (!current) throw new UpstreamError('Sign in to update your Seeker profile.', 401);
+    const { token, user } = updateSeekerAccountProfile(current, req.body ?? {});
+    setSeekerCookie(res, token);
+    res.status(200).json({ token, user });
+  }),
+);
+
+app.post(
+  '/api/auth/profile',
+  wallLimiter,
+  route(async (req, res) => {
+    const current = getRequestSeeker(req);
+    if (!current) throw new UpstreamError('Sign in to update your Seeker profile.', 401);
+    const { token, user } = updateSeekerAccountProfile(current, req.body ?? {});
+    setSeekerCookie(res, token);
+    res.status(200).json({ token, user });
+  }),
+);
+
+app.post(
+  '/api/auth/logout',
+  route(async (req, res) => {
+    revokeSeekerSessionFromRequest(req);
+    clearSeekerCookie(res);
+    res.status(200).json({ ok: true });
+  }),
+);
+
+app.get(
+  '/api/profiles/:id',
+  route(async (req, res) => {
+    const idOrHandle = String(req.params.id ?? '');
+    if (idOrHandle === 'me') {
+      const current = getRequestSeeker(req);
+      if (!current) throw new UpstreamError('Sign in to view your profile.', 401);
+      const result = getServerUserProfile(current.id) ?? { profile: current, posts: [] };
+      res.json(result);
+      return;
+    }
+    const result = getServerUserProfile(idOrHandle);
+    if (!result) throw new UpstreamError('Seeker profile not found.', 404);
+    res.json(result);
+  }),
+);
+
+app.put(
+  '/api/profiles/me',
+  wallLimiter,
+  route(async (req, res) => {
+    const current = getRequestSeeker(req);
+    if (!current) throw new UpstreamError('Sign in to update your Seeker profile.', 401);
+    const { token, user } = updateSeekerAccountProfile(current, req.body ?? {});
+    setSeekerCookie(res, token);
+    res.status(200).json({ token, user });
+  }),
+);
+
+app.get(
+  '/api/podcasts',
+  route(async (_req, res) => {
+    res.json({
+      episodes: [...listSavedEpisodes(), ...listCommunityPodcasts()],
+    });
+  }),
+);
+
+app.get('/api/wall/posts', route(async (_req, res) => res.json({ posts: listServerWallPosts() })));
+
+app.post(
+  '/api/wall/posts',
+  requireSeekerAuth,
+  wallLimiter,
+  route(async (req, res) => {
+    const seeker = getRequestSeeker(req);
+    const post = createServerWallPost(req.body ?? {}, seeker);
+    res.status(201).json(post);
+  }),
+);
+
+app.patch(
+  '/api/wall/posts/:id',
+  wallLimiter,
+  route(async (req, res) => {
+    const seeker = getRequestSeeker(req);
+    const reflection = typeof req.body?.reflection === 'string' ? req.body.reflection : '';
+    const post = updateServerWallPost(String(req.params.id), reflection, seeker, req.body?.theme);
+    res.status(200).json(post);
+  }),
+);
+
+app.post(
+  '/api/wall/posts/:id/react',
+  wallLimiter,
+  route(async (req, res) => {
+    const reactionId = typeof req.body?.reactionId === 'string' ? req.body.reactionId : 'amin';
+    res.status(200).json(reactToServerWallPost(String(req.params.id), reactionId));
+  }),
+);
+
+app.post(
+  '/api/wall/posts/:id/ameen',
+  wallLimiter,
+  route(async (req, res) => {
+    res.status(200).json(reactToServerWallPost(String(req.params.id), 'amin'));
+  }),
+);
+
+app.post(
+  '/api/wall/posts/:id/replies',
+  requireSeekerAuth,
+  wallLimiter,
+  route(async (req, res) => {
+    const seeker = getRequestSeeker(req);
+    const replyText = typeof req.body?.text === 'string' ? req.body.text : '';
+    const reply = addReplyToServerWallPost(String(req.params.id), replyText, seeker);
+    res.status(201).json(reply);
+  }),
+);
+
+app.delete(
+  '/api/wall/posts/:id',
+  wallLimiter,
+  route(async (req, res) => {
+    const seeker = getRequestSeeker(req);
+    const result = deleteServerWallPost(String(req.params.id), seeker);
+    res.status(200).json(result);
+  }),
+);
+
+app.patch(
+  '/api/admin/wall/posts/:id',
+  wallLimiter,
+  route(async (req, res) => {
+    const post = moderateServerWallPost(String(req.params.id), req.body ?? {});
+    res.status(200).json(post);
+  }),
+);
+
+app.get(
+  '/api/admin/settings',
+  route(async (_req, res) => {
+    res.json(getServerAdminSettings());
+  }),
+);
+
+app.put(
+  '/api/admin/settings',
+  wallLimiter,
+  route(async (req, res) => {
+    res.json(updateServerAdminSettings(req.body ?? {}));
+  }),
+);
+
+app.get(
+  '/api/admin/questions',
+  route(async (_req, res) => {
+    res.json({ questions: listServerQuestions() });
+  }),
+);
+
+app.post(
+  '/api/questions',
+  wallLimiter,
+  route(async (req, res) => {
+    const seeker = getRequestSeeker(req);
+    const q = createServerQuestion(req.body ?? {}, seeker);
+    res.status(201).json(q);
+  }),
+);
+
+app.patch(
+  '/api/admin/questions/:id',
+  wallLimiter,
+  route(async (req, res) => {
+    const seeker = getRequestSeeker(req);
+    const updated = answerServerQuestion(String(req.params.id), req.body ?? {}, seeker);
+    res.status(200).json(updated);
   }),
 );
 
@@ -476,6 +1034,7 @@ app.get('/api/studio/pilot', route(async (req, res) => res.json(await loadPilotE
 
 app.post(
   '/api/studio/pilot/ask',
+  requireSeekerAuth,
   aiLimiter,
   route(async (req, res) => {
     const question = text(req.body?.question, 500, 'question');
@@ -512,6 +1071,7 @@ app.get(
 
 app.post(
   '/api/spiritual/zakah-draft',
+  requireSeekerAuth,
   aiLimiter,
   route(async (req, res) => {
     requireAi();
@@ -522,6 +1082,7 @@ app.post(
 
 app.post(
   '/api/ask',
+  requireSeekerAuth,
   aiLimiter,
   route(async (req, res) => {
     const question = text(req.body?.question, 500, 'question');
@@ -529,13 +1090,35 @@ app.post(
   }),
 );
 
+app.post('/api/podcast/generate', requireSeekerAuth, aiLimiter, (req, res, next) => {
+  podcastScriptRoute(req, res, next);
+});
+
+app.post('/api/podcasts/generate', requireSeekerAuth, aiLimiter, (req, res, next) => {
+  podcastScriptRoute(req, res, next);
+});
+
 app.post(
   '/api/podcast/script',
+  requireSeekerAuth,
   aiLimiter,
-  route(async (req, res) => {
-    const topic = text(req.body?.topic, 300, 'topic');
-    const lang = toLang(req.body?.lang);
-    const minutes = Math.min(Math.max(Number(req.body?.minutes) || 2, 1), 5);
+  (req, res, next) => {
+    podcastScriptRoute(req, res, next);
+  },
+);
+
+const podcastScriptRoute = route(async (req, res) => {
+  const hostName = sanitizePodcastHostName(req.body?.hostName);
+  const jobId = typeof req.body?.jobId === 'string' ? req.body.jobId.slice(0, 80) : '';
+  if (jobId) {
+    const script = scriptFromResearchJob(jobId, hostName);
+    if (!script) throw new UpstreamError('That research job has no spoken script yet.', 422);
+    res.json({ hostName, script });
+    return;
+  }
+  const topic = text(req.body?.topic, 300, 'topic');
+  const lang = toLang(req.body?.lang);
+  const minutes = Math.min(Math.max(Number(req.body?.minutes) || 2, 1), 5);
     const refs = Array.isArray(req.body?.refs)
       ? dedupeRefs((req.body.refs as unknown[]).flatMap(r => parseRefs(String(r))), refKey, 8)
       : [];
@@ -558,13 +1141,24 @@ app.post(
     if (!evidence.length) {
       throw new UpstreamError(dossier?.unanswered[0] ?? 'No sources could be retrieved for this topic.', 422);
     }
-    const script = geminiConfigured() ? await writePodcast(topic, lang, minutes, evidence) : quoteFromEvidence(topic, lang, evidence);
-    res.json(attachVerification(script, verifyScript(script.lines, evidence), dossier?.unanswered ?? []));
-  }),
-);
+    const synthesisContext =
+      typeof req.body?.synthesisContext === 'string' && req.body.synthesisContext.trim()
+        ? req.body.synthesisContext.trim()
+        : dossier
+          ? [
+              ...dossier.references.map(ref => `${ref.locator}: ${ref.passage}`),
+              ...dossier.disagreements,
+            ].join('\n\n')
+          : null;
+    const script = geminiConfigured()
+      ? await writePodcast(topic, lang, minutes, evidence, generateJson, hostName, synthesisContext)
+      : quoteFromEvidence(topic, lang, evidence, hostName);
+    res.json({ ...attachVerification(script, verifyScript(script.lines, evidence), dossier?.unanswered ?? []), hostName });
+});
 
 app.post(
   '/api/voice/narrate',
+  requireSeekerAuth,
   aiLimiter,
   route(async (req, res) => {
     const body = text(req.body?.text, 3000, 'text');
@@ -575,11 +1169,17 @@ app.post(
 
 app.post(
   '/api/voice/dialogue',
+  requireSeekerAuth,
   aiLimiter,
   route(async (req, res) => {
     const lines: PodcastLine[] = Array.isArray(req.body?.lines)
       ? (req.body.lines as PodcastLine[]).slice(0, 60).map(l => ({
-          speaker: l.speaker === 'Guest' ? 'Guest' : 'Host',
+          speaker: l.speaker === 'Guest'
+            || l.speaker === "Dr. Layla (Qur'an Specialist)"
+            || l.speaker === 'Dr. Zainab (Hadith & Fiqh)'
+            || l.speaker === 'Shaykh Farhan (Contemporary Fatwa & Field Research)'
+            ? l.speaker
+            : 'Host',
           text: String(l.text ?? '').trim(),
           citations: [],
         }))
@@ -589,6 +1189,41 @@ app.post(
     res.json(await narrateDialogue(lines, req.body?.hostVoice, req.body?.guestVoice));
   }),
 );
+
+function withRequestedHost(replay: ResearchJobResponse, hostName: string | null): ResearchJobResponse {
+  if (!hostName?.trim()) return replay;
+  return { ...replay, job: { ...replay.job, hostName: sanitizePodcastHostName(hostName) } };
+}
+
+function scriptFromResearchJob(jobId: string, hostName: string) {
+  const stored = getSharedResearchJob(jobId);
+  if (!stored?.dossier || stored.job.status !== 'done') return null;
+  if (stored.job.parallel?.status === 'running' && stored.dossier.passages.length === 0) return null;
+  const model = buildReportModel(stored.job, stored.dossier);
+  const parallelFirst = [
+    ...stored.dossier.passages.filter(p => p.source.provider === 'Parallel'),
+    ...stored.dossier.passages.filter(p => p.source.provider !== 'Parallel'),
+  ];
+  return roundtableFromResearch({
+    question: stored.job.question,
+    language: stored.job.language,
+    agents: stored.job.agents,
+    answer: model.answer,
+    passages: parallelFirst.map(passage => ({
+      locator: passage.locator,
+      text: passage.text,
+      context: passage.context,
+      provider: passage.source.provider,
+      role: passage.role,
+    })),
+    disagreements: stored.dossier.disagreements,
+    insufficientEvidence: stored.dossier.answer?.insufficientEvidence === true,
+    unresolved: (stored.job.materialParts ?? []).filter(part => part.status === 'unresolved').map(part => part.note),
+    status: stored.job.status,
+    investigation: stored.job.investigation,
+    hostName,
+  });
+}
 
 function sendCompletedResearch(res: Response, replay: ResearchJobResponse, extra: Record<string, unknown>) {
   res.status(200).json({
@@ -614,20 +1249,78 @@ function engineFailure(err: unknown, fallback: string): UpstreamError {
 }
 
 app.post(
+  '/api/research/followup',
+  requireSeekerAuth,
+  aiLimiter,
+  route(async (req, res) => {
+    const dossierId = text(req.body?.dossierId, 160, 'dossierId');
+    const originalQuestion = typeof req.body?.originalQuestion === 'string' ? req.body.originalQuestion.slice(0, 4000) : '';
+    const previousSynthesis = typeof req.body?.previousSynthesis === 'string' ? req.body.previousSynthesis.slice(0, 12000) : '';
+    const userCounterArgument = text(req.body?.userCounterArgument, 1200, 'userCounterArgument');
+    const language = toLang(req.body?.language);
+    const openedSources = Array.isArray(req.body?.openedSources)
+      ? (req.body.openedSources as unknown[]).slice(0, 12).map(item => {
+          const row = item && typeof item === 'object' ? (item as Record<string, unknown>) : {};
+          return {
+            id: typeof row.id === 'string' ? row.id.slice(0, 80) : undefined,
+            label: typeof row.label === 'string' ? row.label.slice(0, 200) : 'Opened source',
+            text: typeof row.text === 'string' ? row.text.slice(0, 2000) : undefined,
+            url: typeof row.url === 'string' ? row.url.slice(0, 500) : undefined,
+          };
+        })
+      : [];
+    res.json(
+      await runResearchFollowUp({
+        dossierId,
+        originalQuestion,
+        previousSynthesis,
+        openedSources,
+        userCounterArgument,
+        language,
+      }),
+    );
+  }),
+);
+
+app.get(
+  '/api/research/followup/:dossierId',
+  route(async (req, res) => {
+    const dossierId = String(req.params.dossierId ?? '').slice(0, 160);
+    const thread = getResearchFollowUpThread(dossierId);
+    if (!thread) {
+      res.status(404).json({ error: 'No follow-up thread for this dossier yet.' });
+      return;
+    }
+    res.json(thread);
+  }),
+);
+
+app.post(
   '/api/analyze',
+  requireSeekerAuth,
   aiLimiter,
   route(async (req, res) => {
     const hadith = text(req.body?.hadith_input, 4000, 'hadith_input');
     const isnad = typeof req.body?.isnad_input === 'string' ? req.body.isnad_input.slice(0, 2000) : '';
     const language = toLang(req.body?.preferred_language);
-    const replay = await replayHadithAnalysis(hadith, language);
-    if (replay) {
-      res.status(200).json(replay);
-      return;
+    const category = typeof req.body?.category === 'string' ? req.body.category.slice(0, 160) : '';
+    const domain = category ? resolveDomainConfig(category) : null;
+    if (category && !domain) throw new UpstreamError('This category has no research agents configured.', 400);
+    if (domain?.controller === 'parallel') {
+      const replay = await replayCategoryAnalysis(hadith, language, domain.label);
+      if (replay) {
+        res.status(200).json(replay);
+        return;
+      }
+    } else {
+      const replay = await replayHadithAnalysis(hadith, language);
+      if (replay) {
+        res.status(200).json(replay);
+        return;
+      }
     }
-    requireAi();
     const id = startResearchJob(
-      () => executeDragonDawwaAnalysis(hadith, isnad, language),
+      () => executeDragonDawwaAnalysis(hadith, isnad, language, undefined, category || undefined),
       err => engineFailure(err, 'The hadith research engine could not complete this request. Please retry.').message,
     );
     res.status(202).json({ id, status: 'running' });
@@ -646,16 +1339,54 @@ app.get(
   }),
 );
 
+app.get(
+  '/api/tts/hadith/status',
+  route(async (_req, res) => {
+    res.json(getHadithTtsStatus());
+  }),
+);
+
+const hadithTtsHandler = route(async (req, res) => {
+  const body = text(req.body?.text, 3000, 'text');
+  const voiceProfile =
+    typeof req.body?.voiceProfile === 'string'
+      ? req.body.voiceProfile.slice(0, 40)
+      : typeof req.body?.voice === 'string'
+        ? req.body.voice.slice(0, 40)
+        : 'tariq';
+  const lang = req.body?.lang ?? 'en';
+  const speed = req.body?.speed ?? 1;
+  const modelId = typeof req.body?.modelId === 'string' ? req.body.modelId.slice(0, 40) : undefined;
+  const speaker = typeof req.body?.speaker === 'string' ? req.body.speaker.slice(0, 80) : undefined;
+  const voiceName =
+    typeof req.body?.voiceName === 'string' ? req.body.voiceName.slice(0, 40) : undefined;
+  const result = await synthesizeHadithVoice({
+    text: body,
+    lang,
+    voiceProfile,
+    speed,
+    modelId,
+    speaker,
+    voiceName,
+  });
+  res.json(result);
+});
+
+app.post('/api/tts/hadith', ttsLimiter, hadithTtsHandler);
+app.post('/api/tts/elevenlabs', ttsLimiter, hadithTtsHandler);
+
 app.post(
   '/api/tts',
+  requireSeekerAuth,
   ttsLimiter,
   route(async (req, res) => {
     const body = text(req.body?.text, 3000, 'text');
     const speaker = typeof req.body?.speaker === 'string' ? req.body.speaker.slice(0, 80) : 'Host';
     const voice = typeof req.body?.voiceName === 'string' ? req.body.voiceName.slice(0, 40) : undefined;
+    const lang = toLang(req.body?.lang);
     requireAi();
     try {
-      res.json(await synthesizeRoundtableVoice(body, speaker, voice));
+      res.json(await synthesizeRoundtableVoice(body, speaker, voice, lang));
     } catch (err) {
       throw engineFailure(err, 'Gemini neural voice failed. The robotic system voice is not used. Please retry.');
     }
@@ -677,6 +1408,7 @@ function mediaType(value: unknown, fallback: string): string {
 
 app.post(
   '/api/extract-hadith-media',
+  requireSeekerAuth,
   aiLimiter,
   route(async (req, res) => {
     const file = base64Field(req.body?.file_base64, 'file_base64');
@@ -693,6 +1425,7 @@ app.post(
 
 app.post(
   '/api/transcribe-audio',
+  requireSeekerAuth,
   aiLimiter,
   route(async (req, res) => {
     const audio = base64Field(req.body?.audio_base64, 'audio_base64');
@@ -706,7 +1439,7 @@ app.post(
   }),
 );
 
-const dataDir = path.resolve(process.env.KF_DATA_DIR || path.join(import.meta.dirname, '.data'));
+const dataDir = persistRoot();
 const editorAccounts = parseEditorAccounts(process.env.EDITORIAL_USERS);
 app.use(
   spiritualRouter({
@@ -725,6 +1458,20 @@ app.use(
     aiLimiter,
   }),
 );
+
+const reviewStore = new HumanReviewStore(path.join(dataDir, 'human-reviews.json'));
+app.use(humanReviewRouter({ accounts: editorAccounts, reviews: reviewStore }));
+if (process.env.REVIEW_DEMO === '1') {
+  app.post('/api/review-demo/seed', (req, res) => {
+    const id = typeof req.body?.id === 'string' && /^[A-Za-z0-9-]{8,80}$/.test(req.body.id) ? req.body.id : randomUUID();
+    if (!req.body?.analysis || typeof req.body.analysis !== 'object') {
+      res.status(400).json({ error: 'analysis is required' });
+      return;
+    }
+    seedResearchJob(id, req.body.analysis);
+    res.status(201).json({ id, status: 'done' });
+  });
+}
 
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'Not found' });
@@ -754,8 +1501,8 @@ if (isProduction) {
   app.use(vite.middlewares);
 }
 
-httpServer.listen(PORT, HOST, () => {
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(
-    `DRAGON DAWWA running on ${publicAppUrl(PORT)} (${isProduction ? 'production' : 'development'}); Gemini neural TTS ${geminiConfigured() ? 'on' : 'off'}`,
+    `DRAGON DAWWA running on ${publicAppUrl(PORT)} (${isProduction ? 'production' : 'development'}); Gemini neural TTS ${geminiConfigured() ? 'on' : 'off'}; Claude synthesis ${anthropicConfigured() ? 'on' : 'off'}`,
   );
 });

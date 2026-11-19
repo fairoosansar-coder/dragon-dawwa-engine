@@ -208,8 +208,57 @@ const WEAK_LATIN = new Set([
   'kitab', 'chain', 'chains', 'matn', 'takhrij', 'rijal', 'shawahid',
 ]);
 
+/** Capitalised religious titles are not the specific subject a passage must name. */
+const TITLE_LATIN = new Set(['allah', 'god', 'lord', 'prophet', 'messenger', 'islam', 'islamic', 'muslim', 'muslims']);
+
+/** A capitalised question word is sentence grammar, not a name the passage must contain. */
+const QUESTION_LATIN = new Set(['what', 'when', 'where', 'which', 'whose', 'whom', 'why', 'how', 'does', 'could', 'should', 'would']);
+
+/**
+ * Capitalised phrase words and hadith misspellings.
+ * “Hades” is not a place the passage must name. “Tokyo” still is.
+ */
+const ANCHOR_SKIP = new Set(['book', 'books', 'hades', 'hadees', 'hadis', 'scripture', 'jews', 'jewish']);
+
+const SPELLING_FORMS: Record<string, readonly string[]> = {
+  neighbor: ['neighbor', 'neighbour'],
+  neighbour: ['neighbor', 'neighbour'],
+  neighbors: ['neighbors', 'neighbours'],
+  neighbours: ['neighbors', 'neighbours'],
+  tawhid: ['tawhid', 'tawheed'],
+  tawheed: ['tawhid', 'tawheed'],
+  hades: ['hadith', 'hadeeth', 'hades'],
+  hadees: ['hadith', 'hadeeth', 'hadees'],
+  hadis: ['hadith', 'hadeeth', 'hadis'],
+  wudu: ['wudu', 'wudhu', 'wuzu'],
+  wudhu: ['wudu', 'wudhu', 'wuzu'],
+  wuzu: ['wudu', 'wudhu', 'wuzu'],
+  zakat: ['zakat', 'zakah'],
+  zakah: ['zakat', 'zakah'],
+  salah: ['salah', 'salat', 'salaah'],
+  salat: ['salah', 'salat', 'salaah'],
+};
+
+/**
+ * A capitalised name in the question, other than a religious title or a weak collection word.
+ * “Tokyo” must appear in a passage about Tokyo. “Prophet” need not, because a narration may say “Messenger”.
+ */
+function requiredAnchors(topic: string): string[] {
+  const anchors: string[] = [];
+  const seen = new Set<string>();
+  for (const word of topic.split(/[^\p{L}\p{M}\p{N}]+/u)) {
+    if (!word || !/^\p{Lu}/u.test(word)) continue;
+    const token = word.toLocaleLowerCase('en').replace(/^\p{M}+/gu, '');
+    if (letterCount(token) < 4 || LATIN_STOP.has(token) || WEAK_LATIN.has(token) || TITLE_LATIN.has(token) || QUESTION_LATIN.has(token) || ANCHOR_SKIP.has(token)) continue;
+    if (seen.has(token)) continue;
+    seen.add(token);
+    anchors.push(token);
+  }
+  return anchors;
+}
+
 function tokenForms(token: string): string[] {
-  const forms = new Set<string>([token]);
+  const forms = new Set<string>([token, ...(SPELLING_FORMS[token] ?? [])]);
   if (token.endsWith('ies') && token.length > 8) forms.add(`${token.slice(0, -3)}y`);
   else if (token.endsWith('s') && !token.endsWith('ss') && token.length > 8) forms.add(token.slice(0, -1));
   else if (!token.endsWith('s') && token.length > 8) forms.add(`${token}s`);
@@ -224,6 +273,8 @@ export function passageSupportsTopic(topic: string, passage: string): boolean {
   if (!usable.length) return false;
   const haystack = comparable(passage).toLocaleLowerCase('en');
   const matched = usable.filter(token => tokenForms(token).some(form => haystack.includes(form)));
+  const anchors = requiredAnchors(topic);
+  if (anchors.some(anchor => !tokenForms(anchor).some(form => haystack.includes(form)))) return false;
   // One incidental word is not enough when the question named several content words.
   if (usable.length >= 3) return matched.length >= 2;
   return matched.length >= 1;

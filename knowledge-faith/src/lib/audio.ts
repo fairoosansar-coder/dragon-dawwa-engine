@@ -7,6 +7,7 @@ interface Playable {
   src: string;
   paused: boolean;
   preload: string;
+  playbackRate?: number;
   play: () => Promise<void>;
   pause: () => void;
   addEventListener: (type: string, listener: () => void) => void;
@@ -16,6 +17,9 @@ let media: Playable | null = null;
 let bound = false;
 let currentId: string | null = null;
 let status: AudioStatus = typeof Audio === 'undefined' ? 'unavailable' : 'idle';
+let currentTime = 0;
+let duration = 0;
+let desiredPlaybackRate = 1;
 let continuation: (() => void) | null = null;
 let externalStop: (() => void) | null = null;
 const listeners = new Set<() => void>();
@@ -26,6 +30,15 @@ function emit() {
 
 function setStatus(next: AudioStatus) {
   status = next;
+  emit();
+}
+
+function setClock(time: number, length: number) {
+  const nextTime = Number.isFinite(time) && time > 0 ? time : 0;
+  const nextLength = Number.isFinite(length) && length > 0 ? length : 0;
+  if (nextTime === currentTime && nextLength === duration) return;
+  currentTime = nextTime;
+  duration = nextLength;
   emit();
 }
 
@@ -51,6 +64,11 @@ function bind(audio: Playable) {
   audio.addEventListener('error', () => {
     if (currentId) setStatus('error');
   });
+  const timed = audio as Playable & { currentTime?: number; duration?: number };
+  const readClock = () => setClock(Number(timed.currentTime) || 0, Number(timed.duration) || 0);
+  audio.addEventListener('timeupdate', readClock);
+  audio.addEventListener('durationchange', readClock);
+  audio.addEventListener('loadedmetadata', readClock);
 }
 
 function element(): Playable | null {
@@ -82,6 +100,11 @@ function start(then?: () => void): Promise<void> {
   }
   if (then) continuation = then;
   stopOthers();
+  try {
+    audio.playbackRate = desiredPlaybackRate;
+  } catch {
+    /* ignore */
+  }
   setStatus('loading');
   return audio.play().then(
     () => undefined,
@@ -89,6 +112,37 @@ function start(then?: () => void): Promise<void> {
       if (currentId) setStatus('error');
     },
   );
+}
+
+export function setAudioPlaybackRate(rate: number) {
+  const clean = Number.isFinite(rate) && rate >= 0.5 && rate <= 2 ? rate : 1;
+  desiredPlaybackRate = clean;
+  if (media) {
+    try {
+      media.playbackRate = clean;
+    } catch {
+      /* ignore */
+    }
+  }
+  emit();
+}
+
+export function getAudioPlaybackRate(): number {
+  return desiredPlaybackRate;
+}
+
+export function seekAudio(id: string, targetSeconds: number) {
+  if (!media || currentId !== id) return;
+  const timed = media as Playable & { currentTime?: number; duration?: number };
+  const dur = Number(timed.duration) || duration;
+  const safeTarget = Math.max(0, Number.isFinite(targetSeconds) ? targetSeconds : 0);
+  const clamped = dur > 0 ? Math.min(dur, safeTarget) : safeTarget;
+  try {
+    timed.currentTime = clamped;
+    setClock(clamped, dur);
+  } catch {
+    /* ignore */
+  }
 }
 
 export function playAudio(id: string, src: string, then?: () => void): Promise<void> {
@@ -101,6 +155,7 @@ export function playAudio(id: string, src: string, then?: () => void): Promise<v
   continuation = null;
   currentId = id;
   audio.pause();
+  setClock(0, 0);
   audio.src = src;
   return start(then);
 }
@@ -118,6 +173,7 @@ export function stopAudio(except?: EventTarget) {
     media.pause();
     media.src = '';
   }
+  setClock(0, 0);
   pauseDocumentMedia(except);
   setStatus(media || typeof Audio !== 'undefined' ? 'idle' : 'unavailable');
 }
@@ -165,18 +221,26 @@ export function resetAudioForTests() {
   setStatus(media ? 'idle' : 'unavailable');
 }
 
-export function useAudioState(): { id: string | null; playing: boolean; status: AudioStatus } {
+export function useAudioState(): { id: string | null; playing: boolean; status: AudioStatus; currentTime: number; duration: number } {
   const snapshot = useSyncExternalStore(
     cb => {
       listeners.add(cb);
       return () => listeners.delete(cb);
     },
-    () => `${currentId ?? ''}|${status}`,
+    () => `${currentId ?? ''}|${status}|${currentTime}|${duration}`,
   );
-  const splitAt = snapshot.lastIndexOf('|');
-  const id = snapshot.slice(0, splitAt);
-  const current = snapshot.slice(splitAt + 1) as AudioStatus;
-  return { id: id || null, playing: current === 'playing', status: current };
+  const parts = snapshot.split('|');
+  const length = Number(parts.pop());
+  const time = Number(parts.pop());
+  const current = parts.pop() as AudioStatus;
+  const id = parts.join('|');
+  return {
+    id: id || null,
+    playing: current === 'playing',
+    status: current,
+    currentTime: Number.isFinite(time) ? time : 0,
+    duration: Number.isFinite(length) ? length : 0,
+  };
 }
 
 export function base64ToObjectUrl(base64: string, mimeType: string): string {

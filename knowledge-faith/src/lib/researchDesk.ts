@@ -1,6 +1,8 @@
 import type { ResearchJobResponse, ResearchNoticeId, ResearchScope } from '../shared/contracts/v1.ts';
+import type { ResearchDeskName } from './route.ts';
 import type { Lang } from '../shared/sources.ts';
 import { postJson } from './api.ts';
+import { getPodcastHostLabel } from './podcastHost.ts';
 
 const HISTORY_KEY = 'kf-research-history';
 
@@ -17,12 +19,42 @@ export function researchRoot(scope: ResearchScope): string {
   return scope === 'knowledge' ? 'hub' : scope;
 }
 
-export function researchHref(scope: ResearchScope, jobId: string, lang: Lang, forwarded: boolean, bookId?: number | null, question?: string): string {
+export function researchHref(
+  scope: ResearchScope,
+  jobId: string,
+  lang: Lang,
+  forwarded: boolean,
+  bookId?: number | null,
+  question?: string,
+  reportId?: string | null,
+): string {
   const params = new URLSearchParams({ job: jobId, lang });
   if (forwarded) params.set('fwd', '1');
   if (bookId && bookId > 0) params.set('book', String(bookId));
-  if (question?.trim()) params.set('q', question.trim().slice(0, 800));
+  if (question?.trim()) params.set('q', question.trim().slice(0, 4000));
+  if (reportId?.trim()) params.set('reportId', reportId.trim());
   return `#/${researchRoot(scope)}/research?${params.toString()}`;
+}
+
+/** Fiqh and Seerah keep their own page. Other desks use the scope address. */
+export function researchDeskHref(
+  desk: ResearchDeskName,
+  scope: ResearchScope,
+  jobId: string,
+  lang: Lang,
+  forwarded: boolean,
+  bookId?: number | null,
+  question?: string,
+  reportId?: string | null,
+): string {
+  if (desk === 'fiqh' || desk === 'seerah') {
+    const params = new URLSearchParams({ job: jobId, lang });
+    if (forwarded) params.set('fwd', '1');
+    if (question?.trim()) params.set('q', question.trim().slice(0, 4000));
+    if (reportId?.trim()) params.set('reportId', reportId.trim());
+    return `#/hub/${desk}?${params.toString()}`;
+  }
+  return researchHref(scope, jobId, lang, forwarded, bookId, question, reportId);
 }
 
 export function readResearchHistory(): StoredResearch[] {
@@ -50,22 +82,27 @@ export interface StartedResearch {
 export async function beginResearch(input: {
   question: string;
   entry: ResearchScope;
+  desk?: ResearchDeskName;
   lang: Lang;
   bookId?: number | null;
   forwarded?: boolean;
   clarified?: boolean;
   priorQuestion?: string | null;
   force?: boolean;
+  domainContext?: string | null;
 }): Promise<StartedResearch> {
   return postJson<StartedResearch>('/api/research/jobs', {
     question: input.question,
     lang: input.lang,
     entry: input.entry,
+    desk: input.desk ?? input.entry,
     bookId: input.bookId ?? null,
     forwarded: input.forwarded === true,
     clarified: input.clarified === true,
     priorQuestion: input.priorQuestion ?? null,
     force: input.force === true,
+    hostName: getPodcastHostLabel(),
+    domainContext: input.domainContext ?? null,
   });
 }
 

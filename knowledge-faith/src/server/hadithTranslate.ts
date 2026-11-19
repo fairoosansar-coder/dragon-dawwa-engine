@@ -1,8 +1,14 @@
 import { Type, type Schema } from '@google/genai';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import path from 'node:path';
+import { deduplicateHonorifics } from '../shared/hadithSegmentation.ts';
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
 import type { Hadith } from '../shared/types.ts';
 import { withoutVanakkam } from '../engine/utils/tamilGreeting.ts';
+import { translateBatchToLanguage, translateTextToLanguage } from './ayahStudyService.ts';
 import { completeJson, geminiConfigured } from './gemini.ts';
+import { persistRoot } from './persist.ts';
 
 const translationSchema: Schema = {
   type: Type.OBJECT,
@@ -26,7 +32,47 @@ export function clearHadithTranslationCache(): void {
 }
 
 function cacheKey(lang: Lang, text: string): string {
-  return `${lang}\0${text}`;
+  return `v3:${lang}\0${text}`;
+}
+
+function diskHadithTranslationPath(lang: Lang, text: string): string {
+  const dir = path.join(persistRoot(), 'hadith-translation-cache');
+  if (!existsSync(dir)) {
+    try {
+      mkdirSync(dir, { recursive: true });
+    } catch {
+      /* ignore */
+    }
+  }
+  const hash = createHash('sha256').update(`v3|${lang}|${text}`).digest('hex').slice(0, 32);
+  return path.join(dir, `${hash}.txt`);
+}
+
+function readCachedTranslation(lang: Lang, text: string): string | null {
+  const mem = cache.get(cacheKey(lang, text));
+  if (mem) return mem;
+  try {
+    const file = diskHadithTranslationPath(lang, text);
+    if (existsSync(file)) {
+      const val = readFileSync(file, 'utf8').trim();
+      if (val) {
+        cache.set(cacheKey(lang, text), val);
+        return val;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function writeCachedTranslation(lang: Lang, text: string, translated: string): void {
+  cache.set(cacheKey(lang, text), translated);
+  try {
+    writeFileSync(diskHadithTranslationPath(lang, text), translated, 'utf8');
+  } catch {
+    /* ignore */
+  }
 }
 
 /** Keep the English source when the model does not return one string per input. */
@@ -35,9 +81,10 @@ export function applyMachineTranslation(texts: string[], translations: string[] 
     return texts.map(text => ({ text, machineTranslation: false }));
   }
   return texts.map((original, i) => {
-    const next = String(translations[i] ?? '').trim();
-    if (!next) return { text: original, machineTranslation: false };
-    return { text: lang === 'ta' ? withoutVanakkam(next) : next, machineTranslation: true };
+    const rawNext = String(translations[i] ?? '').trim();
+    if (!rawNext) return { text: original, machineTranslation: false };
+    const cleaned = deduplicateHonorifics(lang === 'ta' ? withoutVanakkam(rawNext) : rawNext);
+    return { text: cleaned, machineTranslation: true };
   });
 }
 
@@ -53,23 +100,63 @@ function batchEnd(items: { text: string }[], start: number): number {
   return end;
 }
 
-export async function translateStudyTexts(texts: string[], lang: Lang, translate: TextTranslator = geminiStudyTranslator): Promise<RenderedText[]> {
+export async function translateStudyTexts(
+  texts: string[],
+  lang: Lang,
+  translate: TextTranslator = fastStudyTranslator,
+): Promise<RenderedText[]> {
   if (lang === 'en' || texts.length === 0) return texts.map(text => ({ text, machineTranslation: false }));
+  const isCustomTranslator = translate !== fastStudyTranslator;
   const result: RenderedText[] = texts.map(text => ({ text, machineTranslation: false }));
   const missing: { index: number; text: string }[] = [];
   for (let i = 0; i < texts.length; i++) {
     if (!texts[i].trim()) continue;
-    const hit = cache.get(cacheKey(lang, texts[i]));
+    const hit = isCustomTranslator
+      ? cache.get(cacheKey(lang, texts[i])) ?? null
+      : readCachedTranslation(lang, texts[i]);
     if (hit) result[i] = { text: hit, machineTranslation: true };
     else missing.push({ index: i, text: texts[i] });
   }
-  for (let start = 0; start < missing.length; ) {
-    const end = batchEnd(missing, start);
-    const batch = missing.slice(start, end);
+  if (missing.length === 0) return result;
+
+  // Translate up to 16 items immediately in parallel within a 4500ms budget, and warm any remaining items in background!
+  const syncLimit = isCustomTranslator ? missing.length : Math.min(missing.length, 16);
+  const immediateSlice = missing.slice(0, syncLimit);
+  const backgroundSlice = missing.slice(syncLimit);
+
+  if (backgroundSlice.length > 0 && !isCustomTranslator) {
+    setImmediate(() => {
+      void (async () => {
+        for (let start = 0; start < backgroundSlice.length; ) {
+          const end = batchEnd(backgroundSlice, start);
+          const batch = backgroundSlice.slice(start, end);
+          start = end;
+          try {
+            const tr = await translate(batch.map(item => item.text), lang);
+            const app = applyMachineTranslation(batch.map(item => item.text), tr, lang);
+            app.forEach((item, j) => {
+              if (item.machineTranslation) writeCachedTranslation(lang, batch[j].text, item.text);
+            });
+          } catch {
+            /* ignore background warm error */
+          }
+        }
+      })();
+    });
+  }
+
+  for (let start = 0; start < immediateSlice.length; ) {
+    const end = batchEnd(immediateSlice, start);
+    const batch = immediateSlice.slice(start, end);
     start = end;
     let translated: string[] | null = null;
     try {
-      translated = await translate(batch.map(item => item.text), lang);
+      translated = isCustomTranslator
+        ? await translate(batch.map(item => item.text), lang)
+        : await Promise.race([
+            translate(batch.map(item => item.text), lang),
+            new Promise<null>(resolve => setTimeout(() => resolve(null), 4500)),
+          ]);
     } catch (err) {
       console.error('Hadith study rendering failed:', (err as Error)?.message);
     }
@@ -80,7 +167,10 @@ export async function translateStudyTexts(texts: string[], lang: Lang, translate
     );
     applied.forEach((item, j) => {
       result[batch[j].index] = item;
-      if (item.machineTranslation) cache.set(cacheKey(lang, batch[j].text), item.text);
+      if (item.machineTranslation) {
+        if (isCustomTranslator) cache.set(cacheKey(lang, batch[j].text), item.text);
+        else writeCachedTranslation(lang, batch[j].text, item.text);
+      }
     });
   }
   return result;
@@ -91,7 +181,7 @@ export async function localizeHadith(
   hadiths: Hadith[],
   requested: Lang,
   sourceLang: Lang,
-  translate: TextTranslator = geminiStudyTranslator,
+  translate: TextTranslator = fastStudyTranslator,
 ): Promise<Hadith[]> {
   if (requested === 'en' || sourceLang !== 'en') {
     return hadiths.map(h => ({ ...h, machineTranslation: false }));
@@ -116,6 +206,47 @@ export async function localizeHadith(
       machineTranslation: true,
     };
   });
+}
+
+function refineIslamicTerminology(text: string, lang: Lang): string {
+  let out = deduplicateHonorifics(text);
+  if (lang === 'ta') {
+    out = out
+      .replace(/அல்லாஹ்வின் தூதர்\s*(?!\(ஸல்\))/gu, 'அல்லாஹ்வின் தூதர் (ஸல்) ')
+      .replace(/நபி\s*\(\s*ஸல்\s*\)\s*\(\s*ஸல்\s*\)/gu, 'நபி (ஸல்)')
+      .replace(/அல்லாஹ்வின் தூதர்\s*\(ஸல்\)\s*\(ஸல்\)/gu, 'அல்லாஹ்வின் தூதர் (ஸல்)')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+  return deduplicateHonorifics(out);
+}
+
+async function fastStudyTranslator(texts: string[], lang: Lang): Promise<string[] | null> {
+  if (lang !== 'ta' && lang !== 'si') return null;
+  try {
+    // Translate all items concurrently in parallel (each individual request is < 1800 chars so it completes in ~350–600ms)
+    const parallelResults = await Promise.all(
+      texts.map(async item => {
+        if (!item.trim()) return '';
+        const tr = await translateTextToLanguage(item, lang, 'en');
+        return refineIslamicTerminology(lang === 'ta' ? withoutVanakkam(tr) : tr, lang);
+      }),
+    );
+    if (parallelResults.length === texts.length && parallelResults.some((t, i) => t !== texts[i])) {
+      return parallelResults;
+    }
+  } catch {
+    /* fall through to batch/Gemini */
+  }
+  try {
+    const fast = await translateBatchToLanguage(texts, lang);
+    if (Array.isArray(fast) && fast.length === texts.length && fast.some((t, i) => t !== texts[i])) {
+      return fast.map(t => refineIslamicTerminology(lang === 'ta' ? withoutVanakkam(t) : t, lang));
+    }
+  } catch {
+    /* fall through to Gemini */
+  }
+  return geminiStudyTranslator(texts, lang);
 }
 
 async function geminiStudyTranslator(texts: string[], lang: Lang): Promise<string[] | null> {

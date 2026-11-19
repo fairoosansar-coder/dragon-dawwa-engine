@@ -1,6 +1,13 @@
 
 import { narrate } from '../../server/gemini.ts';
 import { hasGeminiApiKey } from '../../server/loadEnv.ts';
+import { narrationDirection } from '../../server/spokenLine.ts';
+import {
+  geminiVoiceNameForSpeaker,
+  isGeminiPrebuiltVoiceName,
+  type GeminiPrebuiltVoiceName,
+} from '../../shared/geminiVoices.ts';
+import type { Lang } from '../../shared/sources.ts';
 
 /**
  * Dragon Dawwa - Gemini Multilingual Speech Generation Engine
@@ -10,10 +17,10 @@ import { hasGeminiApiKey } from '../../server/loadEnv.ts';
  * (gemini-3.8-flash-tts with automatic fallback to gemini-3.8-flash-lite-tts)
  * 
  * Dynamically resolves voice mapping, vocal tone, and speech styling
- * for all six primary podcast studio personas based on the 'speaker' parameter.
+ * for all primary podcast studio personas based on the 'speaker' parameter.
  */
 
-export type PrebuiltVoiceName = 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Zephyr' | 'Aoede' | 'Orus';
+export type PrebuiltVoiceName = GeminiPrebuiltVoiceName;
 
 export interface SpeakerVoiceProfile {
   id: string;
@@ -92,10 +99,29 @@ export const PODCAST_PERSONA_PROFILES: Record<string, SpeakerVoiceProfile> = {
     id: 'yusuf',
     personaName: 'Sheikh Yusuf al-Azhari',
     role: 'Legal Weight & Scholars\' Verdicts Specialist (Agent 5)',
-    voiceName: 'Fenrir',
+    // Charon — must stay distinct from Tariq (Fenrir). Amina keeps Aoede.
+    voiceName: 'Charon',
     gender: 'M',
     style: 'Authoritative, stately, measured male classical jurist providing serene legal perspective and harmonizing consensus gradings across Islamic legal history',
     description: 'The Legal Weight Keeper contextualizing scholar gradings into actionable understanding'
+  },
+  amina: {
+    id: 'amina',
+    personaName: 'Dr. Amina al-Kindi',
+    role: 'Deep Research & Source Verification (Agent 7)',
+    voiceName: 'Aoede',
+    gender: 'F',
+    style: 'Clear, poised, evidence-grounded female researcher citing HadeethEnc records, published grades, explanations, and documented lessons with scholarly precision',
+    description: 'The HadeethEnc Source Specialist feeding retrieved primary records into the roundtable'
+  },
+  farhan: {
+    id: 'farhan',
+    personaName: 'Shaykh Farhan al-Rashed',
+    role: 'Contemporary Fatwa & Field Research Lead',
+    voiceName: 'Charon',
+    gender: 'M',
+    style: 'Measured, authoritative, compassionate contemporary jurist and research synthesizer resolving modern expat and real-world rulings with clarity',
+    description: 'The Contemporary Fatwa & Field Research Synthesizer connecting classical jurisprudence to modern application'
   },
   narrator: {
     id: 'narrator',
@@ -119,87 +145,105 @@ export function getGeminiVoiceForSpeaker(speaker: string): SpeakerVoiceProfile {
 
   const s = speaker.toLowerCase().trim();
 
-  // 1. Dr. Layla al-Qasimi (Isnad Agent / Agent 2)
+  // Studio / Cue / Announcer (before host — "studio" must not fall through to Feroz)
   if (
-    s.includes('layla') || 
-    s.includes('qasimi') || 
-    s.includes('agent 2') || 
-    s.includes('isnad agent') || 
-    s.includes('transmission specialist')
-  ) {
-    return PODCAST_PERSONA_PROFILES.layla;
-  }
-
-  // 2. Dr. Zainab al-Mubarak (Shawahid & Matn Agent / Agent 4)
-  if (
-    s.includes('zainab') || 
-    s.includes('mubarak') || 
-    s.includes('agent 4') || 
-    s.includes('shawahid') || 
-    s.includes('defect') || 
-    s.includes('matn agent')
-  ) {
-    return PODCAST_PERSONA_PROFILES.zainab;
-  }
-
-  // 3. Sheikh Imran al-Hasani (Rijal Agent / Agent 3)
-  if (
-    s.includes('imran') || 
-    s.includes('hasani') || 
-    s.includes('agent 3') || 
-    s.includes('rijal') || 
-    s.includes('jarh')
-  ) {
-    return PODCAST_PERSONA_PROFILES.imran;
-  }
-
-  // 4. Dr. Tariq al-Mansoor (Takhrij Agent / Agent 1)
-  if (
-    s.includes('tariq') || 
-    s.includes('mansoor') || 
-    s.includes('agent 1') || 
-    s.includes('takhrij') || 
-    s.includes('source detective')
-  ) {
-    return PODCAST_PERSONA_PROFILES.tariq;
-  }
-
-  // 5. Sheikh Yusuf al-Azhari (Scholars' Verdicts Agent / Agent 5)
-  if (
-    s.includes('yusuf') || 
-    s.includes('azhari') || 
-    s.includes('agent 5') || 
-    s.includes('verdict') || 
-    s.includes('jurist')
-  ) {
-    return PODCAST_PERSONA_PROFILES.yusuf;
-  }
-
-  // 6. Host (Brother Feroz / Agent 6 Synthesis Moderator / Anchor)
-  if (
-    s.includes('host') || 
-    s.includes('feroz') || 
-    s.includes('anchor') ||
-    s.includes('moderator') || 
-    s.includes('brother') || 
-    s.includes('agent 6')
-  ) {
-    return PODCAST_PERSONA_PROFILES.host;
-  }
-
-  // Studio / Cue / Announcer
-  if (
-    s.includes('narrator') || 
-    s.includes('studio') || 
-    s.includes('announcer') || 
-    s.includes('cue') || 
+    s.includes('narrator') ||
+    s.includes('studio') ||
+    s.includes('announcer') ||
+    s.includes('cue') ||
     s.includes('fx')
   ) {
     return PODCAST_PERSONA_PROFILES.narrator;
   }
 
-  // Default fallback to Host
-  return PODCAST_PERSONA_PROFILES.host;
+  const voice = geminiVoiceNameForSpeaker(speaker);
+  const byVoiceId: Record<PrebuiltVoiceName, SpeakerVoiceProfile | undefined> = {
+    Puck: PODCAST_PERSONA_PROFILES.host,
+    Kore: PODCAST_PERSONA_PROFILES.layla,
+    Fenrir: PODCAST_PERSONA_PROFILES.tariq,
+    Orus: PODCAST_PERSONA_PROFILES.imran,
+    Zephyr: PODCAST_PERSONA_PROFILES.zainab,
+    Charon:
+      s.includes('farhan') || s.includes('rashed') || s.includes('fatwa')
+        ? PODCAST_PERSONA_PROFILES.farhan
+        : PODCAST_PERSONA_PROFILES.yusuf,
+    Aoede: PODCAST_PERSONA_PROFILES.amina,
+  };
+
+  // Prefer persona match by name so Farhan/Yusuf (both Charon) keep correct metadata
+  if (
+    s.includes('layla') ||
+    s.includes('qasimi') ||
+    s.includes('agent 2') ||
+    s.includes('isnad') ||
+    s.includes('transmission specialist')
+  ) {
+    return PODCAST_PERSONA_PROFILES.layla;
+  }
+  if (
+    s.includes('zainab') ||
+    s.includes('mubarak') ||
+    s.includes('agent 4') ||
+    s.includes('shawahid') ||
+    s.includes('defect')
+  ) {
+    return PODCAST_PERSONA_PROFILES.zainab;
+  }
+  if (
+    s.includes('imran') ||
+    s.includes('hasani') ||
+    s.includes('agent 3') ||
+    s.includes('rijal') ||
+    s.includes('jarh')
+  ) {
+    return PODCAST_PERSONA_PROFILES.imran;
+  }
+  if (
+    s.includes('tariq') ||
+    s.includes('mansoor') ||
+    s.includes('agent 1') ||
+    s.includes('takhrij') ||
+    s.includes('source detective')
+  ) {
+    return PODCAST_PERSONA_PROFILES.tariq;
+  }
+  if (
+    s.includes('yusuf') ||
+    s.includes('azhari') ||
+    s.includes('agent 5') ||
+    s.includes('jurist')
+  ) {
+    return PODCAST_PERSONA_PROFILES.yusuf;
+  }
+  if (
+    s.includes('amina') ||
+    s.includes('kindi') ||
+    s.includes('agent 7') ||
+    s.includes('hadeethenc') ||
+    s.includes('deep research')
+  ) {
+    return PODCAST_PERSONA_PROFILES.amina;
+  }
+  if (
+    s.includes('farhan') ||
+    s.includes('rashed') ||
+    s.includes('fatwa') ||
+    s.includes('field research')
+  ) {
+    return PODCAST_PERSONA_PROFILES.farhan;
+  }
+  if (
+    s.includes('host') ||
+    s.includes('feroz') ||
+    s.includes('anchor') ||
+    s.includes('moderator') ||
+    s.includes('brother') ||
+    s.includes('agent 6')
+  ) {
+    return PODCAST_PERSONA_PROFILES.host;
+  }
+
+  return byVoiceId[voice] ?? PODCAST_PERSONA_PROFILES.host;
 }
 
 /**
@@ -212,7 +256,8 @@ export function getAllPodcastPersonas(): SpeakerVoiceProfile[] {
     PODCAST_PERSONA_PROFILES.layla,
     PODCAST_PERSONA_PROFILES.imran,
     PODCAST_PERSONA_PROFILES.zainab,
-    PODCAST_PERSONA_PROFILES.yusuf
+    PODCAST_PERSONA_PROFILES.yusuf,
+    PODCAST_PERSONA_PROFILES.amina,
   ];
 }
 
@@ -229,7 +274,8 @@ export async function synthesizeGeminiVoice(
   text: string,
   speaker: string,
   customVoice?: string,
-  apiKey: string | undefined = process.env.GEMINI_API_KEY
+  apiKey: string | undefined = process.env.GEMINI_API_KEY,
+  lang: Lang = 'en',
 ): Promise<TtsResult> {
   if (!hasGeminiApiKey(apiKey)) {
     throw new Error("GEMINI_API_KEY is not configured on the server.");
@@ -249,9 +295,8 @@ export async function synthesizeGeminiVoice(
 
   // Dynamically resolve voice profile based on speaker parameter
   const baseProfile = getGeminiVoiceForSpeaker(speaker);
-  const validVoices: PrebuiltVoiceName[] = ['Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr', 'Aoede', 'Orus'];
-  const effectiveVoice: PrebuiltVoiceName = (customVoice && validVoices.includes(customVoice as PrebuiltVoiceName))
-    ? (customVoice as PrebuiltVoiceName)
+  const effectiveVoice: PrebuiltVoiceName = isGeminiPrebuiltVoiceName(customVoice)
+    ? customVoice
     : baseProfile.voiceName;
 
   const profile: SpeakerVoiceProfile = {
@@ -259,7 +304,8 @@ export async function synthesizeGeminiVoice(
     voiceName: effectiveVoice,
   };
 
-  const cacheKey = `${profile.voiceName}:${profile.id}:${cleanText}`;
+  const cacheKey = `${lang}:${profile.voiceName}:${profile.id}:${cleanText}`;
+  const speechStyle = narrationDirection(profile.style, lang);
 
   if (audioCache.has(cacheKey)) {
     return audioCache.get(cacheKey)!;
@@ -283,7 +329,7 @@ export async function synthesizeGeminiVoice(
           body: JSON.stringify({
             model,
             input: [{ type: 'user_input', content: [{ type: 'text', text: cleanText,
-              annotations: [{ type: 'speech_metadata', style: profile.style }] }] }],
+              annotations: [{ type: 'speech_metadata', style: speechStyle }] }] }],
             response_format: { type: 'audio' },
             generation_config: { speech_config: [{ voice: profile.voiceName }] },
           }),
@@ -353,19 +399,18 @@ export async function synthesizeRoundtableVoice(
   text: string,
   speaker: string,
   customVoice?: string,
+  lang: Lang = 'en',
 ): Promise<TtsResult> {
   try {
-    return await synthesizeGeminiVoice(text, speaker, customVoice);
+    return await synthesizeGeminiVoice(text, speaker, customVoice, undefined, lang);
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     console.warn(`Interactions TTS failed (${reason}); trying generateContent AUDIO.`);
     const profile = getGeminiVoiceForSpeaker(speaker);
-    const validVoices: PrebuiltVoiceName[] = ['Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr', 'Aoede', 'Orus'];
-    const voiceName: PrebuiltVoiceName =
-      customVoice && validVoices.includes(customVoice as PrebuiltVoiceName)
-        ? (customVoice as PrebuiltVoiceName)
-        : profile.voiceName;
-    const generated = await narrate(text, voiceName, '');
+    const voiceName: PrebuiltVoiceName = isGeminiPrebuiltVoiceName(customVoice)
+      ? customVoice
+      : profile.voiceName;
+    const generated = await narrate(text, voiceName, '', lang);
     return {
       audioBase64: generated.audioBase64,
       mimeType: generated.mimeType || 'audio/wav',

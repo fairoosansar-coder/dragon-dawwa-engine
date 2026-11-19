@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { RecordShare } from '../components/RecordShare.tsx';
-import { Card, ErrorNote, Loading, SectionTitle } from '../components/ui.tsx';
+import { Card, ErrorNote, Loading, SectionTitle, SelectionWash } from '../components/ui.tsx';
 import { claimPlayback, pauseAudio, playAudio, useAudioState } from '../lib/audio.ts';
 import { useRemote } from '../lib/api.ts';
 import { useApp } from '../lib/store.tsx';
@@ -10,6 +10,15 @@ import { PRAYER_ARTICLE, PRAYER_CREDITS } from '../shared/sourceRegistry.ts';
 import type { Lang } from '../shared/sources.ts';
 import { PageBack } from './chrome.tsx';
 import { LibraryReader } from '../views/LibraryReader.tsx';
+
+const TOPIC_MARK: Record<string, string> = {
+  purification: '/assets/icon-worship.jpg',
+  prayer: '/assets/icon-salah.jpg',
+  fasting: '/assets/icon-sawm.jpg',
+  zakah: '/assets/icon-zakah.jpg',
+  hajj: '/assets/icon-hajj.jpg',
+  dhikr: '/assets/icon-dua.jpg',
+};
 
 function useLocationHash(): string {
   const [hash, setHash] = useState(() => (typeof window === 'undefined' ? '' : window.location.hash));
@@ -170,8 +179,10 @@ export function WorshipLibrary({ topicId }: { topicId?: string }) {
         <ul className="grid gap-3 sm:grid-cols-2">
           {WORSHIP_TOPICS.map(item => (
             <li key={item.id}>
-              <a href={`#/spiritual/library/${item.id}?lang=${lang}`} className="block rounded-3xl border border-pine/10 bg-white px-4 py-5 font-display text-xl font-bold text-pine hover:border-gold">
-                {item.title}
+              <a href={`#/spiritual/library/${item.id}?lang=${lang}`} className="relative flex min-h-[5.25rem] items-center overflow-hidden rounded-3xl border border-pine/10 bg-white px-4 py-4 pr-[4.75rem] font-display text-xl font-bold leading-tight text-pine hover:border-gold">
+                <SelectionWash />
+                <img src={TOPIC_MARK[item.id]} alt="" className="pointer-events-none absolute top-1/2 right-3 h-11 w-11 -translate-y-1/2 rounded-xl object-cover shadow-sm" />
+                <span className="relative">{item.title}</span>
               </a>
             </li>
           ))}
@@ -240,9 +251,10 @@ function TopicList({
               <a
                 href={`#/spiritual/library/${topicId}?lang=${lang}&category=${item.id}`}
                 aria-current={item.id === data.categoryId ? 'page' : undefined}
-                className={`block min-h-11 rounded-2xl border px-4 py-3 text-sm font-medium ${item.id === data.categoryId ? 'border-pine bg-pine text-white' : 'border-pine/10 bg-white text-pine hover:border-gold'}`}
+                className={`relative block min-h-11 overflow-hidden rounded-2xl border px-4 py-3 text-sm font-medium ${item.id === data.categoryId ? 'border-pine bg-pine text-white' : 'border-pine/10 bg-white pr-14 text-pine hover:border-gold'}`}
               >
-                {item.title}
+                {item.id !== data.categoryId && <SelectionWash />}
+                <span className="relative">{item.title}</span>
               </a>
             </li>
           ))}

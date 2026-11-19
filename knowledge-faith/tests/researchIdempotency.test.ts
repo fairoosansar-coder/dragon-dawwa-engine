@@ -8,6 +8,8 @@ import {
   findCompletedResearch,
   replayHadithAnalysis,
   replaySharedResearch,
+  supabaseApiOrigin,
+  supabaseResearchConfig,
   type SupabaseResearchConfig,
 } from '../src/server/researchIdempotency.ts';
 import { UpstreamError } from '../src/server/http.ts';
@@ -112,6 +114,49 @@ describe('research idempotency', { concurrency: 1 }, () => {
     await assert.rejects(
       () => findCompletedResearch({ hadithInput: 'text', language: 'en' }, { config, fetch: fetchImpl }),
       (err: unknown) => err instanceof UpstreamError && err.status === 503,
+    );
+  });
+
+  test('an unreachable Supabase host lets the caller start a job', async () => {
+    const fetchImpl: typeof fetch = async () => {
+      throw new TypeError('fetch failed', { cause: Object.assign(new Error('getaddrinfo'), { code: 'ENOTFOUND' }) });
+    };
+    const found = await findCompletedResearch({ hadithInput: 'text', language: 'en' }, { config, fetch: fetchImpl });
+    assert.equal(found, null);
+  });
+
+  test('the direct database host is rewritten to the IPv4 API origin', async () => {
+    const urls: string[] = [];
+    const found = await findCompletedResearch(
+      { hadithInput: 'text', language: 'en' },
+      {
+        config: { ...config, url: 'https://db.abc123.supabase.co/rest/v1' },
+        fetch: jsonFetch([], urls),
+      },
+    );
+    assert.equal(found, null);
+    const url = new URL(urls[0] ?? '');
+    assert.equal(url.origin, 'https://abc123.supabase.co');
+    assert.equal(url.pathname, '/rest/v1/research_records');
+  });
+
+  test('supabase origin drops a database host, credentials, and a pasted REST path', () => {
+    assert.equal(supabaseApiOrigin(' https://db.abc123.supabase.co/rest/v1/ '), 'https://abc123.supabase.co');
+    assert.equal(supabaseApiOrigin('https://abc123.supabase.co/rest/v1'), 'https://abc123.supabase.co');
+    assert.equal(supabaseApiOrigin('postgresql://postgres:secret@db.abc123.supabase.co:5432/postgres'), '');
+    assert.equal(
+      supabaseResearchConfig({
+        SUPABASE_URL: ' https://example.supabase.co/rest/v1/ ',
+        SUPABASE_SERVICE_ROLE_KEY: ' service-\nkey ',
+      })?.url,
+      'https://example.supabase.co',
+    );
+    assert.equal(
+      supabaseResearchConfig({
+        SUPABASE_URL: ' https://example.supabase.co/ ',
+        SUPABASE_SERVICE_ROLE_KEY: ' service-\nkey ',
+      })?.apiKey,
+      'service-key',
     );
   });
 
