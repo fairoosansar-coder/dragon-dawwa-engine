@@ -12,13 +12,15 @@ export type SevenAgentReportOrigin =
   | 'live_synthesis'
   | 'curated_benchmark'
   | 'cached_dossier'
-  | 'sources_only';
+  | 'sources_only'
+  | 'unavailable';
 
 export const SEVEN_AGENT_REPORT_ORIGIN_LABEL: Record<SevenAgentReportOrigin, string> = {
   live_synthesis: 'Live Synthesis',
   curated_benchmark: 'Curated Benchmark',
   cached_dossier: 'Cached Dossier',
   sources_only: 'Sources Only',
+  unavailable: 'Unavailable',
 };
 
 /** Shared evidence row hydrated from `/api/research/jobs` so both endpoints cite the same set. */

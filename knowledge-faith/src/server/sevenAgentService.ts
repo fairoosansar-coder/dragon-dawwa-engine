@@ -1142,9 +1142,10 @@ function toRetrievedPassages(passages: readonly EvidencePassage[]): SevenAgentRe
 }
 
 /**
- * Hydrate passages from an explicit research job id and/or a question-aligned job.
- * An explicit jobId is accepted only when its question aligns and language matches;
- * otherwise fall back to the aligned lookup (stale jobParam must not leak evidence).
+ * Hydrate passages from an explicit research job id, or (when no jobId) a
+ * question-aligned job. An explicit jobId is accepted only when its question
+ * aligns and language matches; if missing, mismatched, or empty — return no
+ * passages (do not substitute another job).
  */
 export function hydrateRetrievedPassagesFromResearchJobs(options: {
   question: string;
@@ -1154,15 +1155,14 @@ export function hydrateRetrievedPassagesFromResearchJobs(options: {
   const jobId = options.jobId?.trim();
   if (jobId) {
     const explicit = getSharedResearchJob(jobId);
-    const passages = explicit?.dossier?.passages;
-    const jobQuestion = explicit?.job?.question;
-    const jobLang = explicit?.job?.language;
+    if (!explicit?.dossier?.passages?.length) return [];
+    const jobQuestion = explicit.job?.question;
+    const jobLang = explicit.job?.language;
     const questionOk =
       Boolean(jobQuestion) && researchQuestionsAlign(jobQuestion!, options.question);
-    const languageOk = !options.language || !jobLang || jobLang === options.language;
-    if (passages?.length && questionOk && languageOk) {
-      return toRetrievedPassages(passages);
-    }
+    const languageOk = !options.language || jobLang === options.language;
+    if (!questionOk || !languageOk) return [];
+    return toRetrievedPassages(explicit.dossier.passages);
   }
   const byQuestion = findSharedResearchJobByQuestion(options.question, options.language);
   if (byQuestion?.dossier?.passages?.length) return toRetrievedPassages(byQuestion.dossier.passages);
@@ -1388,7 +1388,7 @@ function buildGenericTopicFallbackDossier(
     roundtableScriptText: turns.map(t => `${t.speaker.toUpperCase()}: ${t.text}`).join('\n\n'),
     createdAt: new Date().toISOString(),
     status,
-    reportOrigin: 'sources_only',
+    reportOrigin: hasSources ? 'sources_only' : 'unavailable',
     retrievedPassages: hasSources ? retrievedPassages : undefined,
   };
 }
@@ -1664,9 +1664,26 @@ export async function runSevenAgentResearch(
   // — never stamp ta/si onto English prose.
   if (!modernMatch && !isGoldOrRingQuestion(cleanQ)) {
     const built = await buildDynamicDossier(cleanQ, lang, retrievedPassages);
-    const localized = dossierNeedsLocalization(built, lang)
-      ? await localizeDossierToLanguage({ ...built, lang: 'en' }, lang)
-      : built;
+    // Synthesis can outlive job retrieval — re-hydrate so a finished job's passages stick.
+    const freshPassages = hydrateRetrievedPassagesFromResearchJobs({
+      question: cleanQ,
+      language: lang,
+      jobId: options?.jobId,
+    });
+    let afterJob = built;
+    if (freshPassages.length) {
+      if (
+        built.status === 'unavailable' ||
+        (built.status === 'sources_only' && !(built.retrievedPassages?.length))
+      ) {
+        afterJob = buildGenericTopicFallbackDossier(cleanQ, freshPassages);
+      } else {
+        afterJob = { ...built, retrievedPassages: freshPassages };
+      }
+    }
+    const localized = dossierNeedsLocalization(afterJob, lang)
+      ? await localizeDossierToLanguage({ ...afterJob, lang: 'en' }, lang)
+      : afterJob;
     const live = {
       ...localized,
       id: stableId,
@@ -1674,7 +1691,13 @@ export async function runSevenAgentResearch(
       lang,
       status: localized.status,
       reportOrigin: localized.reportOrigin,
-      retrievedPassages: localized.retrievedPassages ?? (retrievedPassages.length ? retrievedPassages : undefined),
+      retrievedPassages:
+        localized.retrievedPassages ??
+        (freshPassages.length
+          ? freshPassages
+          : retrievedPassages.length
+            ? retrievedPassages
+            : undefined),
     };
     // Do not persist sources_only / unavailable stubs as if they were finished verdicts.
     if (live.status === 'live_synthesis' || live.status === 'authored') {
@@ -1729,35 +1752,69 @@ export async function listSevenAgentHistory(lang?: Lang): Promise<{
   };
 }
 
+function withJobHydration(
+  dossier: SevenAgentResearchDossier,
+  lang: Lang,
+  jobId?: string | null,
+): SevenAgentResearchDossier {
+  const retrievedPassages = hydrateRetrievedPassagesFromResearchJobs({
+    question: dossier.question,
+    language: lang,
+    jobId,
+  });
+  if (!retrievedPassages.length) return dossier;
+  if (dossier.retrievedPassages?.length) return dossier;
+  // Unavailable / empty sources_only stubs upgrade to an honest sources_only board.
+  if (dossier.status === 'unavailable' || dossier.status === 'sources_only') {
+    return {
+      ...buildGenericTopicFallbackDossier(dossier.question, retrievedPassages),
+      id: dossier.id,
+      lang: dossier.lang ?? lang,
+      createdAt: dossier.createdAt,
+    };
+  }
+  return { ...dossier, retrievedPassages };
+}
+
 export async function getSevenAgentDossierById(
   id: string,
   lang: Lang = 'en',
+  options?: { jobId?: string | null },
 ): Promise<SevenAgentResearchDossier | null> {
   const cleanId = id.trim();
+  const jobId = options?.jobId ?? null;
   const modernById = resolveModernWorldDossierById(cleanId);
   if (modernById) {
-    return runSevenAgentResearch(modernById.question, lang);
+    return runSevenAgentResearch(modernById.question, lang, { jobId });
   }
   const fromSaved = readServerSavedDossiers().find(item => item.id === cleanId);
   if (fromSaved) {
     if (!isGoldOrRingQuestion(fromSaved.question) && looksLikeGoldRingDossierContent(fromSaved)) {
-      return runSevenAgentResearch(fromSaved.question, lang);
+      return runSevenAgentResearch(fromSaved.question, lang, { jobId });
     }
-    return fromSaved.lang === lang
-      ? fromSaved
-      : runSevenAgentResearch(fromSaved.question, lang);
+    const resolved =
+      fromSaved.lang === lang
+        ? fromSaved
+        : await runSevenAgentResearch(fromSaved.question, lang, { jobId });
+    return withJobHydration(resolved, lang, jobId);
   }
   const fromHistory = readHistoryList().find(item => item.id === cleanId);
   if (fromHistory) {
     if (!isGoldOrRingQuestion(fromHistory.question) && looksLikeGoldRingDossierContent(fromHistory)) {
-      return runSevenAgentResearch(fromHistory.question, lang);
+      return runSevenAgentResearch(fromHistory.question, lang, { jobId });
     }
-    return fromHistory.lang === lang
-      ? fromHistory
-      : runSevenAgentResearch(fromHistory.question, lang);
+    const resolved =
+      fromHistory.lang === lang
+        ? fromHistory
+        : await runSevenAgentResearch(fromHistory.question, lang, { jobId });
+    return withJobHydration(resolved, lang, jobId);
   }
   if (cleanId.startsWith('7agent-gold')) {
-    return runSevenAgentResearch('Can man wear gold ? or small ring or related in gold ?', lang);
+    return runSevenAgentResearch(
+      'Can man wear gold ? or small ring or related in gold ?',
+      lang,
+      { jobId },
+    );
   }
   return null;
 }

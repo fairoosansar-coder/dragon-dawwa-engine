@@ -1,11 +1,10 @@
 /**
  * Auto-link claims / answer paragraphs to retrieved passages when they
- * reference the same verse or source locator (e.g. Qur'an 49:6 ↔ Q49-6).
- * Sets citationExists / citationRelevant; leaves genuinely unverified claims
- * as `insufficient` (does not invent support).
+ * reference the same verse via canonical identity (e.g. Qur'an 49:6 ↔ Q49-6).
  *
- * Science-domain claims keep claimFor's empirical-only diagnostics — verse
- * locator matches must not replace missing-science notes with Qur'an links.
+ * Locator match proves citation existence only — never overwrites failed
+ * relevance, quotation fidelity, or support diagnostics from claimFor.
+ * Science-domain claims keep empirical-only diagnostics untouched.
  */
 
 import type {
@@ -20,17 +19,42 @@ function verseKey(surah: number, ayah: number): string {
   return `${surah}:${ayah}`;
 }
 
-function passageMatchesRef(
+function isQuranPassage(passage: EvidencePassage): boolean {
+  const type = passage.source?.contentType;
+  if (type === 'quran') return true;
+  const provider = (passage.source?.provider ?? '').toLowerCase();
+  return provider.includes('quran') || provider === 'alquran';
+}
+
+/**
+ * Match canonical verse identity only: structured passage id / source.id /
+ * (and locator/title for translation/source_text). Never body text; never
+ * commentary/tafsir/neighbouring context that merely cites the ayah.
+ */
+export function passageMatchesRef(
   passage: EvidencePassage,
   surah: number,
   ayah: number,
 ): boolean {
-  const id = passage.id.replace(/:/g, '-');
-  if (id === `Q${surah}-${ayah}` || passage.id === `Q${surah}:${ayah}`) return true;
+  if (!isQuranPassage(passage)) return false;
+  if (passage.role === 'commentary' || passage.role === 'empirical' || passage.role === 'generated') {
+    return false;
+  }
+  if (passage.context?.startsWith('Neighbouring')) return false;
+
+  const normalizedId = passage.id.replace(/:/g, '-');
+  if (normalizedId === `Q${surah}-${ayah}` || passage.id === `Q${surah}:${ayah}`) return true;
+
   const ref = verseKey(surah, ayah);
-  if (passage.source?.id === ref) return true;
-  const blob = `${passage.locator}\n${passage.source?.title ?? ''}\n${passage.text}`;
-  return new RegExp(`\\b${surah}\\s*[:：]\\s*${ayah}\\b`).test(blob);
+  if (passage.source?.id === ref || passage.source?.id === `Q${ref}`) return true;
+
+  // Locator / title only for the verse itself (translation / source_text), not body.
+  if (passage.role !== 'translation' && passage.role !== 'source_text') return false;
+  const identity = `${passage.locator}\n${passage.source?.title ?? ''}`;
+  return new RegExp(
+    `(?:^|[^\\d])(?:Qur['’]?an\\s+|Surah\\s+)?${surah}\\s*[:：]\\s*${ayah}(?:[^\\d]|$)`,
+    'i',
+  ).test(identity);
 }
 
 /** True when claimFor already recorded a science/empirical retrieval diagnostic. */
@@ -62,10 +86,8 @@ export function passagesReferencedInText(
 }
 
 /**
- * When a claim names a verse present in retrieved passages, attach those
- * passageIds and mark the citation as existing + relevant. Support stays
- * `insufficient` unless it was already `supported`.
- * Skips science-domain claims so empirical-only filtering/diagnostics stay intact.
+ * Attach passageIds when a claim names an opened verse. Sets citationExists
+ * only — preserves citationRelevant, quotationFaithful, support, and note.
  */
 export function linkClaimToRetrievedPassages(
   claim: ClaimEvidence,
@@ -77,20 +99,10 @@ export function linkClaimToRetrievedPassages(
   if (!matched.length) return claim;
 
   const passageIds = [...new Set([...claim.passageIds, ...matched.map(item => item.id)])];
-  const alreadySupported = claim.support === 'supported';
   return {
     ...claim,
     passageIds,
     citationExists: true,
-    citationRelevant: true,
-    support: alreadySupported
-      ? 'supported'
-      : claim.support === 'citation_missing' || claim.support === 'unsupported'
-        ? 'insufficient'
-        : claim.support,
-    note: alreadySupported
-      ? claim.note
-      : `Opened passage(s) ${passageIds.join(', ')} match a verse/source referenced in this claim. A locator match confirms the citation exists; it does not by itself establish the claim wording.`,
   };
 }
 

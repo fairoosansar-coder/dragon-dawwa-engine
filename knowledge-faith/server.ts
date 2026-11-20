@@ -517,7 +517,9 @@ app.get(
   route(async (req, res) => {
     const id = String(req.params.id ?? '').trim();
     const lang = toLang(req.query.lang);
-    const found = await getSevenAgentDossierById(id, lang);
+    const jobRaw = req.query.jobId ?? req.query.job;
+    const jobId = typeof jobRaw === 'string' && jobRaw.trim() ? jobRaw.trim() : null;
+    const found = await getSevenAgentDossierById(id, lang, { jobId });
     if (!found) throw new UpstreamError('Research dossier not found.', 404);
     res.json(found);
   }),

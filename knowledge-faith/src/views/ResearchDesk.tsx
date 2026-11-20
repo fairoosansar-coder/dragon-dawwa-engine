@@ -167,7 +167,8 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     if (askPending || sevenAgentRemote.loading || jobIsLive) setResearchInFlight(true);
   }, [sevenAgentDossier, askPending, sevenAgentRemote.loading, jobIsLive]);
 
-  // Leave sticky flight only when the *current* run's dossier is ready, or the run settled without one.
+  // Leave sticky countdown when a board arrives, or when the run settled without one.
+  // Job / Parallel polling stays independent of board arrival (see jobPollNeeded below).
   useEffect(() => {
     if (askPending) return;
     if (sevenAgentDossier) {
@@ -205,11 +206,10 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     !sevenAgentDossier &&
     (askPending || researchInFlight || sevenAgentRemote.loading || jobIsLive);
 
-  const running = isCountdownActive;
+  // Parallel / job completion poll independently of seven-agent board arrival.
   const parallelPending =
-    !sevenAgentDossier &&
-    remote.data?.job.status === 'done' &&
-    remote.data.job.parallel?.status === 'running';
+    remote.data?.job.status === 'done' && remote.data.job.parallel?.status === 'running';
+  const jobPollNeeded = jobIsLive || parallelPending;
 
   useEffect(() => {
     if (paramLang === 'en' || paramLang === 'ta' || paramLang === 'si') setLang(paramLang);
@@ -236,10 +236,28 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   }, [entry, remote.data?.job.status]);
 
   useEffect(() => {
-    if (!running && !parallelPending) return;
+    // Countdown chrome and unfinished job/Parallel revisions both need reloads.
+    if (!isCountdownActive && !jobPollNeeded) return;
     const timer = window.setInterval(() => remote.reload(), parallelPending ? 2000 : 700);
     return () => window.clearInterval(timer);
-  }, [running, parallelPending, remote.reload]);
+  }, [isCountdownActive, jobPollNeeded, parallelPending, remote.reload]);
+
+  // When the research job finishes after an early sources_only/unavailable board,
+  // re-fetch seven-agent so hydration can attach the completed passages.
+  const priorJobStatusRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const prior = priorJobStatusRef.current;
+    priorJobStatusRef.current = jobStatus;
+    if (prior === jobStatus) return;
+    if (jobStatus !== 'done' && jobStatus !== 'error') return;
+    if (
+      !sevenAgentDossier ||
+      isSourcesOnlyOrUnavailable(sevenAgentDossier) ||
+      !(sevenAgentDossier.retrievedPassages?.length)
+    ) {
+      sevenAgentRemote.reload();
+    }
+  }, [jobStatus, sevenAgentDossier, sevenAgentRemote.reload]);
 
   useEffect(() => {
     const response = remote.data;
@@ -404,10 +422,14 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   const offersPodcast = job?.investigation !== 'blocked' && otherQuestions.length === 0 && (dossier?.passages.length ?? savedReport?.response.dossier?.passages.length ?? 0) > 0;
   /** Pending / sources_only boards must not hide completed research-job passages. */
   const sourcesOnlyBoard = isSourcesOnlyOrUnavailable(sevenAgentDossier);
-  const showResearchJobPassages =
-    Boolean(liveModel && finished && !isCountdownActive && (!sevenAgentDossier || sourcesOnlyBoard));
+  const showCompletedJobReport = Boolean(
+    liveModel && finished && !isCountdownActive && (!sevenAgentDossier || sourcesOnlyBoard),
+  );
+  /** Quick passage list only when the board is incomplete and the job report is not yet ready. */
   const openedPassagesForSourcesOnly =
-    sourcesOnlyBoard && sevenAgentDossier?.retrievedPassages?.length
+    sourcesOnlyBoard &&
+    !showCompletedJobReport &&
+    sevenAgentDossier?.retrievedPassages?.length
       ? sevenAgentDossier.retrievedPassages
       : null;
 
@@ -429,7 +451,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
                   a finished desk report exists without a 7-agent board (board owns CTAs).
                   Hide while countdown/Ask is active — nulling sevenAgentDossier must not
                   unhide the prior finished report under the new countdown. */}
-              {!sevenAgentDossier && !isCountdownActive && liveModel && finished ? (
+              {(!sevenAgentDossier || sourcesOnlyBoard) && !isCountdownActive && liveModel && finished ? (
                 <ResearchActionRow
                   onFullReport={() => {
                     const target =
@@ -465,7 +487,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
           <DomainResearchForm
             desk={desk}
             question={question}
-            running={running}
+            running={isCountdownActive}
             clarify={clarify}
             clarifyText={t.clarifyMeaning}
             onQuestion={setQuestion}
@@ -546,7 +568,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
         </Notice>
       )}
 
-      {sourcesOnlyBoard && !isCountdownActive && (
+      {openedPassagesForSourcesOnly && !isCountdownActive && (
         <section
           data-testid="sources-only-opened-passages"
           className="space-y-3 rounded-3xl border border-gold/60 bg-white p-5"
@@ -555,11 +577,8 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
           <p className="text-sm leading-relaxed text-ink/75">
             Sources found for this question. The executive verdict is unavailable until live synthesis completes — no confidence percentage is claimed.
           </p>
-          {(openedPassagesForSourcesOnly ?? citedPassages).length === 0 && (
-            <p className="text-sm text-muted">No passage was kept for this job yet.</p>
-          )}
           <ul className="space-y-3 text-sm">
-            {(openedPassagesForSourcesOnly ?? []).map(passage => (
+            {openedPassagesForSourcesOnly.map(passage => (
               <li key={passage.id} className="rounded-2xl bg-sand/60 px-4 py-3">
                 <p className="font-semibold text-pine">{passage.locator}</p>
                 <p className="text-xs text-muted">
@@ -586,40 +605,12 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
                 )}
               </li>
             ))}
-            {!openedPassagesForSourcesOnly &&
-              citedPassages.map(passage => (
-                <li key={passage.id} className="rounded-2xl bg-sand/60 px-4 py-3">
-                  <p className="font-semibold text-pine">{passage.locator}</p>
-                  <p className="text-xs text-muted">
-                    {passage.source.provider}
-                    {passage.publishedGrade ? ` · ${passage.publishedGrade}` : ''}
-                  </p>
-                  {passage.arabic ? (
-                    <p className="mt-2 font-arabic text-xl leading-loose" dir="rtl" lang="ar">
-                      {passage.arabic}
-                    </p>
-                  ) : null}
-                  <p className="mt-2 whitespace-pre-wrap leading-relaxed text-ink/85">
-                    <ContentText text={passage.text} />
-                  </p>
-                  {(passage.readerRoute || passage.source.canonicalUrl) && (
-                    <p className="mt-2">
-                      <a
-                        href={passage.readerRoute || passage.source.canonicalUrl}
-                        className="text-xs font-medium text-pine underline"
-                      >
-                        Open reader
-                      </a>
-                    </p>
-                  )}
-                </li>
-              ))}
           </ul>
         </section>
       )}
 
-      {showResearchJobPassages && !sourcesOnlyBoard && liveModel && (
-        <div id="research-full-report" className="space-y-4">
+      {showCompletedJobReport && liveModel && (
+        <div id="research-full-report" className="space-y-4" data-testid="completed-job-report">
           <section className="rounded-3xl border border-gold bg-white p-5" data-research-answer>
             <h2 className="font-display text-2xl font-bold text-pine">Answer</h2>
             {job?.interpretation?.meaning && <p className="mt-2 text-sm leading-relaxed text-ink/80">{job.interpretation.meaning}</p>}

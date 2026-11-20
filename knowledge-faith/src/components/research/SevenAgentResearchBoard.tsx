@@ -455,7 +455,9 @@ export function SevenAgentResearchBoard({
               <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
               <span>
                 {isSourcesOnlyOrUnavailable(dossier)
-                  ? 'Sources Found · Executive Verdict Unavailable'
+                  ? (dossier.retrievedPassages?.length ?? 0) > 0
+                    ? 'Sources Found · Executive Verdict Unavailable'
+                    : 'Executive Verdict Unavailable'
                   : 'Executive Verdict'}
               </span>
             </span>
