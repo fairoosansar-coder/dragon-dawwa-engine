@@ -508,6 +508,9 @@ export function issueSeekerToken(
   options?: { sid?: string | null },
 ): string {
   const sid = typeof options?.sid === 'string' && options.sid.trim() ? options.sid.trim() : newSessionId();
+  // Unique jti so back-to-back re-issues in the same millisecond stay distinct;
+  // logout still invalidates the whole family via shared sid.
+  const jti = crypto.randomUUID();
   const payload = Buffer.from(
     JSON.stringify({
       sub: profile.id,
@@ -528,6 +531,7 @@ export function issueSeekerToken(
       verified: profile.verified,
       createdAt: profile.createdAt,
       sid,
+      jti,
       iat: Date.now(),
     }),
     'utf8',
