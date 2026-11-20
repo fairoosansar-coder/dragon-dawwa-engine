@@ -4,11 +4,20 @@ import path from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
+  isScienceClaimDiagnostic,
   linkClaimToRetrievedPassages,
   linkClaimsToRetrievedPassages,
   passagesReferencedInText,
 } from '../src/server/research/claimPassageLink.ts';
-import { runSevenAgentResearch } from '../src/server/sevenAgentService.ts';
+import {
+  hydrateRetrievedPassagesFromResearchJobs,
+  runSevenAgentResearch,
+} from '../src/server/sevenAgentService.ts';
+import {
+  clearSharedResearchJobs,
+  rememberCompletedSharedJob,
+} from '../src/server/research/jobs.ts';
+import type { ResearchJobResponse } from '../src/shared/contracts/v1.ts';
 import {
   isSourcesOnlyOrUnavailable,
   reportOriginLabel,
@@ -103,6 +112,65 @@ describe('seven-agent audit fixes — ResearchDesk precedence & badges', () => {
   });
 });
 
+describe('seven-agent audit fixes — job hydration validation', () => {
+  it('rejects an explicit jobId when question or language does not match', () => {
+    clearSharedResearchJobs();
+    const jobPassages = [passage('Q49-6', "Qur'an 49:6", 'Investigate news carefully.')];
+    const response: ResearchJobResponse = {
+      contractVersion: '1.0.0',
+      job: {
+        contractVersion: '1.0.0',
+        id: 'job-verify-news',
+        question: 'What does Qur’an 49:6 teach about verifying news?',
+        language: 'en',
+        status: 'done',
+        startedAt: '2026-01-01T00:00:00.000Z',
+        finishedAt: '2026-01-01T00:01:00.000Z',
+        progress: { step: 'done', completed: 1, total: 1 },
+        subquestions: [],
+        coverage: [],
+        errors: [],
+        timingsMs: { totalMs: 10, sources: {} },
+        investigation: 'complete',
+      },
+      dossier: {
+        contractVersion: '1.0.0',
+        jobId: 'job-verify-news',
+        passages: jobPassages,
+        claims: [],
+        unresolved: [],
+        disagreements: [],
+        verificationNote: '',
+        answer: null,
+      },
+    };
+    rememberCompletedSharedJob(response, { scope: 'knowledge', teams: [], bookId: null });
+
+    const mismatchedQuestion = hydrateRetrievedPassagesFromResearchJobs({
+      question: 'Does embryonic development appear in Qur’an 23:14?',
+      language: 'en',
+      jobId: 'job-verify-news',
+    });
+    assert.equal(mismatchedQuestion.length, 0);
+
+    const mismatchedLang = hydrateRetrievedPassagesFromResearchJobs({
+      question: 'What does Qur’an 49:6 teach about verifying news?',
+      language: 'ta',
+      jobId: 'job-verify-news',
+    });
+    assert.equal(mismatchedLang.length, 0);
+
+    const matched = hydrateRetrievedPassagesFromResearchJobs({
+      question: 'What does Qur’an 49:6 teach about verifying news?',
+      language: 'en',
+      jobId: 'job-verify-news',
+    });
+    assert.equal(matched.length, 1);
+    assert.equal(matched[0]?.id, 'Q49-6');
+    clearSharedResearchJobs();
+  });
+});
+
 describe('seven-agent audit fixes — claim-to-passage linking', () => {
   it('auto-links Qur’an 49:6 claims to passage Q49-6 without inventing support', () => {
     const passages = [
@@ -138,6 +206,31 @@ describe('seven-agent audit fixes — claim-to-passage linking', () => {
     assert.equal(still.citationExists, false);
     assert.deepEqual(still.passageIds, []);
     assert.equal(still.support, 'insufficient');
+  });
+
+  it('does not override science-domain empirical diagnostics with Qur’an verse links', () => {
+    const passages = [
+      passage(
+        'Q23-14',
+        "Qur'an 23:14",
+        'Then We made the sperm-drop into a clinging clot, and We made the clot into a lump.',
+      ),
+    ];
+    const scienceClaim: ClaimEvidence = {
+      claim: 'Does embryonic biology in Qur’an 23:14 anticipate modern science?',
+      passageIds: [],
+      support: 'insufficient',
+      citationExists: false,
+      quotationFaithful: null,
+      citationRelevant: false,
+      note: 'No empirical record was retrieved for this part of the question. Religious passages were not used as scientific evidence.',
+    };
+    assert.equal(isScienceClaimDiagnostic(scienceClaim), true);
+    const kept = linkClaimToRetrievedPassages(scienceClaim, passages);
+    assert.deepEqual(kept.passageIds, []);
+    assert.equal(kept.citationExists, false);
+    assert.equal(kept.citationRelevant, false);
+    assert.match(kept.note, /empirical record/);
   });
 });
 

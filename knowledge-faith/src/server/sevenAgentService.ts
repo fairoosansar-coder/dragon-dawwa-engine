@@ -6,6 +6,7 @@ import {
   matchModernWorldBenchmark,
   modernWorldReportId,
   normalizeResearchQuestion,
+  researchQuestionsAlign,
   researchSystemInstructionsForQuestion,
   userFacingResearchQuestion,
 } from '../shared/modernWorldBenchmarks.ts';
@@ -1140,16 +1141,29 @@ function toRetrievedPassages(passages: readonly EvidencePassage[]): SevenAgentRe
   }));
 }
 
-/** Hydrate passages from an explicit research job id and/or a question-aligned job. */
+/**
+ * Hydrate passages from an explicit research job id and/or a question-aligned job.
+ * An explicit jobId is accepted only when its question aligns and language matches;
+ * otherwise fall back to the aligned lookup (stale jobParam must not leak evidence).
+ */
 export function hydrateRetrievedPassagesFromResearchJobs(options: {
   question: string;
   language?: Lang;
   jobId?: string | null;
 }): SevenAgentRetrievedPassage[] {
-  const fromJobId = options.jobId?.trim()
-    ? getSharedResearchJob(options.jobId.trim())?.dossier?.passages
-    : undefined;
-  if (fromJobId?.length) return toRetrievedPassages(fromJobId);
+  const jobId = options.jobId?.trim();
+  if (jobId) {
+    const explicit = getSharedResearchJob(jobId);
+    const passages = explicit?.dossier?.passages;
+    const jobQuestion = explicit?.job?.question;
+    const jobLang = explicit?.job?.language;
+    const questionOk =
+      Boolean(jobQuestion) && researchQuestionsAlign(jobQuestion!, options.question);
+    const languageOk = !options.language || !jobLang || jobLang === options.language;
+    if (passages?.length && questionOk && languageOk) {
+      return toRetrievedPassages(passages);
+    }
+  }
   const byQuestion = findSharedResearchJobByQuestion(options.question, options.language);
   if (byQuestion?.dossier?.passages?.length) return toRetrievedPassages(byQuestion.dossier.passages);
   return [];

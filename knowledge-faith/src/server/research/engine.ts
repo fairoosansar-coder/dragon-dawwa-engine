@@ -15,7 +15,7 @@ import { contentTokens, passageSupportsTopic } from '../../shared/research.ts';
 import { verifyClaim } from '../../shared/research/claims.ts';
 import {
   linkAnswerCitationsToPassages,
-  linkClaimsToRetrievedPassages,
+  linkClaimToRetrievedPassages,
 } from './claimPassageLink.ts';
 import { asksScience, decomposeQuestion } from '../../shared/research/decompose.ts';
 import {
@@ -414,8 +414,13 @@ export async function executeResearch(input: {
         }
       : undefined;
     const rawClaims = plan.subquestions.map(sub => claimFor(sub, passages, coverage, interpretation, corpusSplit));
-    // Auto-link claims/answers that name verses present in the opened packet (e.g. 49:6 ↔ Q49-6).
-    const claims = linkClaimsToRetrievedPassages(rawClaims, passages);
+    // Auto-link non-science claims/answers that name verses in the opened packet (e.g. 49:6 ↔ Q49-6).
+    // Science subquestions keep claimFor empirical-only diagnostics untouched.
+    const claims = rawClaims.map((claim, index) => {
+      const sub = plan.subquestions[index];
+      if (sub && (sub.domain === 'science' || asksScience(sub.text))) return claim;
+      return linkClaimToRetrievedPassages(claim, passages);
+    });
     const linkedAnswer = linkAnswerCitationsToPassages(researchAnswer, passages);
     const unresolved = claims.filter(claim => claim.support !== 'supported').map(claim => `${claim.claim} — ${claim.note}`);
     for (const note of materialReview?.unresolved ?? []) {

@@ -3,6 +3,9 @@
  * reference the same verse or source locator (e.g. Qur'an 49:6 ↔ Q49-6).
  * Sets citationExists / citationRelevant; leaves genuinely unverified claims
  * as `insufficient` (does not invent support).
+ *
+ * Science-domain claims keep claimFor's empirical-only diagnostics — verse
+ * locator matches must not replace missing-science notes with Qur'an links.
  */
 
 import type {
@@ -11,6 +14,7 @@ import type {
   ResearchAnswer,
 } from '../../shared/contracts/v1.ts';
 import { ayahsMentioned } from '../../shared/research.ts';
+import { asksScience } from '../../shared/research/decompose.ts';
 
 function verseKey(surah: number, ayah: number): string {
   return `${surah}:${ayah}`;
@@ -27,6 +31,14 @@ function passageMatchesRef(
   if (passage.source?.id === ref) return true;
   const blob = `${passage.locator}\n${passage.source?.title ?? ''}\n${passage.text}`;
   return new RegExp(`\\b${surah}\\s*[:：]\\s*${ayah}\\b`).test(blob);
+}
+
+/** True when claimFor already recorded a science/empirical retrieval diagnostic. */
+export function isScienceClaimDiagnostic(claim: ClaimEvidence): boolean {
+  if (asksScience(claim.claim)) return true;
+  return /scientific retrieval|empirical record|religious passages were not used as scientific/i.test(
+    claim.note,
+  );
 }
 
 /** Passages in the job packet that match verse refs named in `text`. */
@@ -53,11 +65,14 @@ export function passagesReferencedInText(
  * When a claim names a verse present in retrieved passages, attach those
  * passageIds and mark the citation as existing + relevant. Support stays
  * `insufficient` unless it was already `supported`.
+ * Skips science-domain claims so empirical-only filtering/diagnostics stay intact.
  */
 export function linkClaimToRetrievedPassages(
   claim: ClaimEvidence,
   passages: readonly EvidencePassage[],
 ): ClaimEvidence {
+  if (isScienceClaimDiagnostic(claim)) return claim;
+
   const matched = passagesReferencedInText(claim.claim, passages);
   if (!matched.length) return claim;
 
