@@ -79,6 +79,8 @@ function packDossier(input: {
       .map(turn => `${turn.speaker.toUpperCase()}: ${turn.text}`)
       .join('\n\n'),
     createdAt: new Date().toISOString(),
+    status: 'authored',
+    reportOrigin: 'curated_benchmark',
   };
 }
 

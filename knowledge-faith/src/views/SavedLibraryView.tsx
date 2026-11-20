@@ -217,7 +217,9 @@ export function SavedLibraryView() {
                         style={{ backgroundColor: '#FEF3C7', color: '#78350F', borderColor: '#F59E0B' }}
                         className="rounded-full border px-2.5 py-0.5 font-mono text-[11px] font-extrabold"
                       >
-                        {dossier.confidenceScore}% · Verdict
+                        {dossier.confidenceScore == null
+                          ? 'Sources only'
+                          : `${dossier.confidenceScore}% · Verdict`}
                       </span>
                       <span
                         style={

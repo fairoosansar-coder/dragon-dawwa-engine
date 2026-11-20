@@ -79,6 +79,8 @@ describe('DD-145 hub live cleanup', () => {
       verdictHeadline: englishBody.slice(0, 80),
       verdictClassification: 'SCHOLARLY SYNTHESIS',
       confidenceScore: 98,
+      status: 'live_synthesis',
+      reportOrigin: 'live_synthesis',
       executiveSummary: englishBody,
       agents: [
         {

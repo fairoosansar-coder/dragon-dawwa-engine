@@ -140,7 +140,9 @@ export function RecentSevenAgentDossiers({
                       style={{ backgroundColor: '#FEF3C7', color: '#78350F', borderColor: '#F59E0B' }}
                       className="rounded-full border px-2 py-0.5 font-mono text-[10px] font-extrabold"
                     >
-                      {item.confidenceScore}% · 7/7 Agents
+                      {item.confidenceScore == null
+                        ? 'Sources only · no verdict %'
+                        : `${item.confidenceScore}% · 7/7 Agents`}
                     </span>
                     <span
                       style={{ backgroundColor: '#CCFBF1', color: '#115E59' }}

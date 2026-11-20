@@ -116,10 +116,14 @@ export const QURAN_SYNTHESIS_HEART =
  * Per-request Parallel briefs substitute `finalSynthesisSystemPrompt(language)`
  * so English is never frozen at module load.
  */
+/**
+ * Desk reconciliation for Qur'an / Fiqh / Seerah Parallel briefs.
+ * Omits LIVE_DOSSIER_OUTPUT_SCHEMA — that schema names Hadith takhrij / isnad / rijal
+ * roles for the Knowledge Hub 7-agent board only (see sevenAgentService).
+ */
 export const RECONCILIATION_BASE_PROMPT = [
   REBUTTAL_AND_SYNTHESIS_PERSONA,
   RATIONAL_CIVILIZATIONAL_PROOF_DNA,
-  LIVE_DOSSIER_OUTPUT_SCHEMA,
   CIVILIZATIONAL_BRIDGE_PROMPT.trim(),
   OPENED_CLASSICAL_LIMIT,
   QURAN_SYNTHESIS_HEART,
@@ -128,6 +132,18 @@ export const RECONCILIATION_BASE_PROMPT = [
 /** Final synthesis system prompt for every desk except hadith authentication. */
 export function finalSynthesisSystemPrompt(language: string = 'en'): string {
   return [RECONCILIATION_BASE_PROMPT, dossierLanguageInstruction(language)].join('\n\n');
+}
+
+/**
+ * Knowledge Hub 7-agent live synthesis prompt (includes Gold Ring agent roster with
+ * Hadith / Isnad roles). Not used for pure Qur'an / Fiqh / Seerah desk routing.
+ */
+export function sevenAgentLiveSynthesisSystemPrompt(language: string = 'en'): string {
+  return [
+    RECONCILIATION_BASE_PROMPT,
+    LIVE_DOSSIER_OUTPUT_SCHEMA,
+    dossierLanguageInstruction(language),
+  ].join('\n\n');
 }
 
 /** Resolve an agent's system prompt for a Parallel request language. */

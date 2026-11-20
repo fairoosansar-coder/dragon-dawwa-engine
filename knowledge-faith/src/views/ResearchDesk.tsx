@@ -14,7 +14,10 @@ import { SevenAgentCountdownCard } from '../components/research/SevenAgentCountd
 import { SevenAgentResearchBoard } from '../components/research/SevenAgentResearchBoard.tsx';
 import { ResearchActionRow, ResearchFrame } from '../engine/ResearchFrame.tsx';
 import { researchQuestionsAlign } from '../shared/modernWorldBenchmarks.ts';
-import type { SevenAgentResearchDossier } from '../shared/sevenAgentTypes.ts';
+import {
+  isSourcesOnlyOrUnavailable,
+  type SevenAgentResearchDossier,
+} from '../shared/sevenAgentTypes.ts';
 import { DomainResearchForm } from './DomainResearchForm.tsx';
 import { questionsToResearch, separateQuestions } from '../shared/research/questions.ts';
 import { useApp } from '../lib/store.tsx';
@@ -105,9 +108,13 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
 
   const sevenAgentRemote = useRemote<SevenAgentResearchDossier>(
     reportIdParam
-      ? `/api/research/seven-agents/${encodeURIComponent(reportIdParam)}?lang=${researchLang}`
+      ? `/api/research/seven-agents/${encodeURIComponent(reportIdParam)}?lang=${researchLang}${
+          jobParam ? `&job=${encodeURIComponent(jobParam)}` : ''
+        }`
       : activeResearchQuery
-        ? `/api/research/seven-agents?q=${encodeURIComponent(activeResearchQuery)}&lang=${researchLang}`
+        ? `/api/research/seven-agents?q=${encodeURIComponent(activeResearchQuery)}&lang=${researchLang}${
+            jobParam ? `&job=${encodeURIComponent(jobParam)}` : ''
+          }`
         : null,
   );
   const dossierMatchesActiveQuestion = (dossier: SevenAgentResearchDossier | null | undefined) => {
@@ -160,7 +167,8 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     if (askPending || sevenAgentRemote.loading || jobIsLive) setResearchInFlight(true);
   }, [sevenAgentDossier, askPending, sevenAgentRemote.loading, jobIsLive]);
 
-  // Leave sticky flight only when the *current* run's dossier is ready, or the run settled without one.
+  // Leave sticky countdown when a board arrives, or when the run settled without one.
+  // Job / Parallel polling stays independent of board arrival (see jobPollNeeded below).
   useEffect(() => {
     if (askPending) return;
     if (sevenAgentDossier) {
@@ -198,11 +206,10 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     !sevenAgentDossier &&
     (askPending || researchInFlight || sevenAgentRemote.loading || jobIsLive);
 
-  const running = isCountdownActive;
+  // Parallel / job completion poll independently of seven-agent board arrival.
   const parallelPending =
-    !sevenAgentDossier &&
-    remote.data?.job.status === 'done' &&
-    remote.data.job.parallel?.status === 'running';
+    remote.data?.job.status === 'done' && remote.data.job.parallel?.status === 'running';
+  const jobPollNeeded = jobIsLive || parallelPending;
 
   useEffect(() => {
     if (paramLang === 'en' || paramLang === 'ta' || paramLang === 'si') setLang(paramLang);
@@ -229,10 +236,54 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   }, [entry, remote.data?.job.status]);
 
   useEffect(() => {
-    if (!running && !parallelPending) return;
+    // Countdown chrome and unfinished job/Parallel revisions both need reloads.
+    if (!isCountdownActive && !jobPollNeeded) return;
     const timer = window.setInterval(() => remote.reload(), parallelPending ? 2000 : 700);
     return () => window.clearInterval(timer);
-  }, [running, parallelPending, remote.reload]);
+  }, [isCountdownActive, jobPollNeeded, parallelPending, remote.reload]);
+
+  // When the research job or Parallel revision finishes, re-fetch seven-agent so
+  // board retrievedPassages stay shared with the job report — but never abort an
+  // in-flight synthesis (useRemote.reload bumps nonce and drops that response).
+  // Live synthesis already re-hydrates freshPassages after buildDynamicDossier.
+  // If we skip due to loading, leave priorEvidenceSyncRef untouched so the settle
+  // stays pending and this effect retries when loading flips false.
+  const parallelStatus = remote.data?.job.parallel?.status;
+  const priorEvidenceSyncRef = useRef<{ job?: string; parallel?: string }>({});
+  useEffect(() => {
+    const prior = priorEvidenceSyncRef.current;
+    const jobSettled =
+      prior.job !== jobStatus && (jobStatus === 'done' || jobStatus === 'error');
+    const parallelSettled =
+      prior.parallel === 'running' &&
+      parallelStatus !== 'running' &&
+      Boolean(parallelStatus);
+    if (!jobSettled && !parallelSettled) {
+      // Track intermediate states (e.g. parallel → running) so transitions stay detectable.
+      priorEvidenceSyncRef.current = {
+        job: jobStatus,
+        parallel: parallelStatus,
+      };
+      return;
+    }
+    // Settlement pending — do not consume until we can act (or decide no refresh).
+    if (sevenAgentRemote.loading) return;
+    priorEvidenceSyncRef.current = {
+      job: jobStatus,
+      parallel: parallelStatus,
+    };
+    const needsHydrationRefresh =
+      !sevenAgentDossier ||
+      isSourcesOnlyOrUnavailable(sevenAgentDossier) ||
+      !(sevenAgentDossier.retrievedPassages?.length);
+    if (needsHydrationRefresh) sevenAgentRemote.reload();
+  }, [
+    jobStatus,
+    parallelStatus,
+    sevenAgentDossier,
+    sevenAgentRemote.loading,
+    sevenAgentRemote.reload,
+  ]);
 
   useEffect(() => {
     const response = remote.data;
@@ -395,6 +446,18 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   );
   const otherQuestions = job ? separateQuestions(job.question).slice(1) : [];
   const offersPodcast = job?.investigation !== 'blocked' && otherQuestions.length === 0 && (dossier?.passages.length ?? savedReport?.response.dossier?.passages.length ?? 0) > 0;
+  /** Pending / sources_only boards must not hide completed research-job passages. */
+  const sourcesOnlyBoard = isSourcesOnlyOrUnavailable(sevenAgentDossier);
+  const showCompletedJobReport = Boolean(
+    liveModel && finished && !isCountdownActive && (!sevenAgentDossier || sourcesOnlyBoard),
+  );
+  /** Quick passage list only when the board is incomplete and the job report is not yet ready. */
+  const openedPassagesForSourcesOnly =
+    sourcesOnlyBoard &&
+    !showCompletedJobReport &&
+    sevenAgentDossier?.retrievedPassages?.length
+      ? sevenAgentDossier.retrievedPassages
+      : null;
 
   return (
     <div className="space-y-6">
@@ -414,7 +477,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
                   a finished desk report exists without a 7-agent board (board owns CTAs).
                   Hide while countdown/Ask is active — nulling sevenAgentDossier must not
                   unhide the prior finished report under the new countdown. */}
-              {!sevenAgentDossier && !isCountdownActive && liveModel && finished ? (
+              {(!sevenAgentDossier || sourcesOnlyBoard) && !isCountdownActive && liveModel && finished ? (
                 <ResearchActionRow
                   onFullReport={() => {
                     const target =
@@ -422,26 +485,31 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
                       document.getElementById('research-full-report');
                     target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }}
-                  onRoundtable={() => {
-                    if (!activeResearchQuery && question.trim().length >= 3) {
-                      setRoundtableOpen(true);
-                      void submit(undefined, { asked: question.trim() });
-                      return;
-                    }
-                    setRoundtableOpen(true);
-                    window.setTimeout(() => {
-                      const studio = document.getElementById('seven-agent-roundtable-studio');
-                      if (studio) {
-                        studio.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        const playBtn = studio.querySelector(
-                          '[data-testid="roundtable-play-all-btn"]',
-                        ) as HTMLButtonElement | null;
-                        playBtn?.click();
-                      } else if (job && offersPodcast) {
-                        window.location.hash = `#/podcast?job=${job.id}&lang=${lang}`;
-                      }
-                    }, 80);
-                  }}
+                  // Sources-only / unavailable boards lock Roundtable — hide CTA (don't no-op or divert to podcast).
+                  onRoundtable={
+                    sourcesOnlyBoard
+                      ? undefined
+                      : () => {
+                          if (!activeResearchQuery && question.trim().length >= 3) {
+                            setRoundtableOpen(true);
+                            void submit(undefined, { asked: question.trim() });
+                            return;
+                          }
+                          setRoundtableOpen(true);
+                          window.setTimeout(() => {
+                            const studio = document.getElementById('seven-agent-roundtable-studio');
+                            if (studio) {
+                              studio.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                              const playBtn = studio.querySelector(
+                                '[data-testid="roundtable-play-all-btn"]',
+                              ) as HTMLButtonElement | null;
+                              playBtn?.click();
+                            } else if (job && offersPodcast) {
+                              window.location.hash = `#/podcast?job=${job.id}&lang=${lang}`;
+                            }
+                          }, 80);
+                        }
+                  }
                 />
               ) : null}
             </>
@@ -450,7 +518,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
           <DomainResearchForm
             desk={desk}
             question={question}
-            running={running}
+            running={isCountdownActive}
             clarify={clarify}
             clarifyText={t.clarifyMeaning}
             onQuestion={setQuestion}
@@ -510,8 +578,8 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
         <SevenAgentResearchBoard
           dossier={sevenAgentDossier}
           lang={lang}
-          roundtableOpen={roundtableOpen}
-          onToggleRoundtable={setRoundtableOpen}
+          roundtableOpen={sourcesOnlyBoard ? false : roundtableOpen}
+          onToggleRoundtable={sourcesOnlyBoard ? undefined : setRoundtableOpen}
         />
       )}
       {remote.error && !savedReport && !sevenAgentDossier && !isCountdownActive && (
@@ -531,8 +599,49 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
         </Notice>
       )}
 
-      {liveModel && finished && !sevenAgentDossier && !isCountdownActive && (
-        <div id="research-full-report" className="space-y-4">
+      {openedPassagesForSourcesOnly && !isCountdownActive && (
+        <section
+          data-testid="sources-only-opened-passages"
+          className="space-y-3 rounded-3xl border border-gold/60 bg-white p-5"
+        >
+          <h2 className="font-display text-xl font-bold text-pine">Opened passages</h2>
+          <p className="text-sm leading-relaxed text-ink/75">
+            Sources found for this question. The executive verdict is unavailable until live synthesis completes — no confidence percentage is claimed.
+          </p>
+          <ul className="space-y-3 text-sm">
+            {openedPassagesForSourcesOnly.map(passage => (
+              <li key={passage.id} className="rounded-2xl bg-sand/60 px-4 py-3">
+                <p className="font-semibold text-pine">{passage.locator}</p>
+                <p className="text-xs text-muted">
+                  {passage.provider}
+                  {passage.publishedGrade ? ` · ${passage.publishedGrade}` : ''}
+                </p>
+                {passage.arabic ? (
+                  <p className="mt-2 font-arabic text-xl leading-loose" dir="rtl" lang="ar">
+                    {passage.arabic}
+                  </p>
+                ) : null}
+                <p className="mt-2 whitespace-pre-wrap leading-relaxed text-ink/85">
+                  <ContentText text={passage.text} />
+                </p>
+                {(passage.readerRoute || passage.canonicalUrl) && (
+                  <p className="mt-2">
+                    <a
+                      href={passage.readerRoute || passage.canonicalUrl || '#'}
+                      className="text-xs font-medium text-pine underline"
+                    >
+                      Open reader
+                    </a>
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {showCompletedJobReport && liveModel && (
+        <div id="research-full-report" className="space-y-4" data-testid="completed-job-report">
           <section className="rounded-3xl border border-gold bg-white p-5" data-research-answer>
             <h2 className="font-display text-2xl font-bold text-pine">Answer</h2>
             {job?.interpretation?.meaning && <p className="mt-2 text-sm leading-relaxed text-ink/80">{job.interpretation.meaning}</p>}

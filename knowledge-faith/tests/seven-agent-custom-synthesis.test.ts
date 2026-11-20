@@ -22,7 +22,7 @@ describe('custom seven-agent synthesis path', () => {
     assert.match(sevenAgentSource, /completeAnthropicJson/);
     assert.match(sevenAgentSource, /GEMINI_SYNTHESIS_FALLBACK_MODEL/);
     assert.match(sevenAgentSource, /Anthropic→Gemini fallback reason/);
-    assert.match(sevenAgentSource, /finalSynthesisSystemPrompt/);
+    assert.match(sevenAgentSource, /sevenAgentLiveSynthesisSystemPrompt/);
     assert.match(sevenAgentSource, /dossierPayloadComplete/);
     assert.match(REBUTTAL_AND_SYNTHESIS_PERSONA, /Lead Scholarly Synthesizer/);
     assert.equal(/Promise\.race\(\[[\s\S]*5500/.test(sevenAgentSource), false);
@@ -35,7 +35,13 @@ describe('custom seven-agent synthesis path', () => {
     assert.match(sevenAgentSource, /RATIONAL_CIVILIZATIONAL_PROOF_DNA/);
     assert.match(sevenAgentSource, /LIVE_DOSSIER_OUTPUT_SCHEMA/);
     assert.match(sevenAgentSource, /dossierLanguageInstruction/);
-    assert.match(sevenAgentSource, /AWAITING LIVE SYNTHESIS/);
+    assert.match(sevenAgentSource, /confidenceScore: null/);
+    assert.match(sevenAgentSource, /sources_only/);
+    assert.match(sevenAgentSource, /hydrateRetrievedPassagesFromResearchJobs/);
+    assert.equal(sevenAgentSource.includes('confidenceScore: 90,'), false);
+    assert.equal(sevenAgentSource.includes('confidenceScore: 90\n'), false);
+    assert.equal(sevenAgentSource.includes("'Awaiting live 7-agent synthesis'"), false);
+    assert.equal(sevenAgentSource.includes('"Awaiting live 7-agent synthesis"'), false);
   });
 
   it('does not split a unified multi-sentence custom prompt at the first ?', () => {
