@@ -242,22 +242,30 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     return () => window.clearInterval(timer);
   }, [isCountdownActive, jobPollNeeded, parallelPending, remote.reload]);
 
-  // When the research job finishes after an early sources_only/unavailable board,
-  // re-fetch seven-agent so hydration can attach the completed passages.
-  const priorJobStatusRef = useRef<string | undefined>(undefined);
+  // When the research job or Parallel revision finishes, re-fetch seven-agent so
+  // board retrievedPassages stay shared with the job report.
+  const parallelStatus = remote.data?.job.parallel?.status;
+  const priorEvidenceSyncRef = useRef<{ job?: string; parallel?: string }>({});
   useEffect(() => {
-    const prior = priorJobStatusRef.current;
-    priorJobStatusRef.current = jobStatus;
-    if (prior === jobStatus) return;
-    if (jobStatus !== 'done' && jobStatus !== 'error') return;
-    if (
+    const prior = priorEvidenceSyncRef.current;
+    const jobSettled =
+      prior.job !== jobStatus && (jobStatus === 'done' || jobStatus === 'error');
+    const parallelSettled =
+      prior.parallel === 'running' &&
+      parallelStatus !== 'running' &&
+      Boolean(parallelStatus);
+    priorEvidenceSyncRef.current = {
+      job: jobStatus,
+      parallel: parallelStatus,
+    };
+    if (!jobSettled && !parallelSettled) return;
+    const needsHydrationRefresh =
+      parallelSettled ||
       !sevenAgentDossier ||
       isSourcesOnlyOrUnavailable(sevenAgentDossier) ||
-      !(sevenAgentDossier.retrievedPassages?.length)
-    ) {
-      sevenAgentRemote.reload();
-    }
-  }, [jobStatus, sevenAgentDossier, sevenAgentRemote.reload]);
+      !(sevenAgentDossier.retrievedPassages?.length);
+    if (needsHydrationRefresh) sevenAgentRemote.reload();
+  }, [jobStatus, parallelStatus, sevenAgentDossier, sevenAgentRemote.reload]);
 
   useEffect(() => {
     const response = remote.data;
@@ -459,26 +467,31 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
                       document.getElementById('research-full-report');
                     target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }}
-                  onRoundtable={() => {
-                    if (!activeResearchQuery && question.trim().length >= 3) {
-                      setRoundtableOpen(true);
-                      void submit(undefined, { asked: question.trim() });
-                      return;
-                    }
-                    setRoundtableOpen(true);
-                    window.setTimeout(() => {
-                      const studio = document.getElementById('seven-agent-roundtable-studio');
-                      if (studio) {
-                        studio.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        const playBtn = studio.querySelector(
-                          '[data-testid="roundtable-play-all-btn"]',
-                        ) as HTMLButtonElement | null;
-                        playBtn?.click();
-                      } else if (job && offersPodcast) {
-                        window.location.hash = `#/podcast?job=${job.id}&lang=${lang}`;
-                      }
-                    }, 80);
-                  }}
+                  // Sources-only / unavailable boards lock Roundtable — hide CTA (don't no-op or divert to podcast).
+                  onRoundtable={
+                    sourcesOnlyBoard
+                      ? undefined
+                      : () => {
+                          if (!activeResearchQuery && question.trim().length >= 3) {
+                            setRoundtableOpen(true);
+                            void submit(undefined, { asked: question.trim() });
+                            return;
+                          }
+                          setRoundtableOpen(true);
+                          window.setTimeout(() => {
+                            const studio = document.getElementById('seven-agent-roundtable-studio');
+                            if (studio) {
+                              studio.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                              const playBtn = studio.querySelector(
+                                '[data-testid="roundtable-play-all-btn"]',
+                              ) as HTMLButtonElement | null;
+                              playBtn?.click();
+                            } else if (job && offersPodcast) {
+                              window.location.hash = `#/podcast?job=${job.id}&lang=${lang}`;
+                            }
+                          }, 80);
+                        }
+                  }
                 />
               ) : null}
             </>

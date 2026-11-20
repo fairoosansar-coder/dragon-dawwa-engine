@@ -1752,11 +1752,11 @@ export async function listSevenAgentHistory(lang?: Lang): Promise<{
   };
 }
 
-function withJobHydration(
+async function withJobHydration(
   dossier: SevenAgentResearchDossier,
   lang: Lang,
   jobId?: string | null,
-): SevenAgentResearchDossier {
+): Promise<SevenAgentResearchDossier> {
   const retrievedPassages = hydrateRetrievedPassagesFromResearchJobs({
     question: dossier.question,
     language: lang,
@@ -1765,12 +1765,26 @@ function withJobHydration(
   if (!retrievedPassages.length) return dossier;
   if (dossier.retrievedPassages?.length) return dossier;
   // Unavailable / empty sources_only stubs upgrade to an honest sources_only board.
+  // buildGenericTopicFallbackDossier is English — localize before stamping ta/si.
   if (dossier.status === 'unavailable' || dossier.status === 'sources_only') {
-    return {
+    const englishFallback: SevenAgentResearchDossier = {
       ...buildGenericTopicFallbackDossier(dossier.question, retrievedPassages),
       id: dossier.id,
-      lang: dossier.lang ?? lang,
+      lang: 'en',
       createdAt: dossier.createdAt,
+    };
+    if (!dossierNeedsLocalization(englishFallback, lang)) {
+      return { ...englishFallback, lang };
+    }
+    const localized = await localizeDossierToLanguage(englishFallback, lang);
+    return {
+      ...localized,
+      id: dossier.id,
+      lang,
+      createdAt: dossier.createdAt,
+      retrievedPassages: localized.retrievedPassages?.length
+        ? localized.retrievedPassages
+        : retrievedPassages,
     };
   }
   return { ...dossier, retrievedPassages };

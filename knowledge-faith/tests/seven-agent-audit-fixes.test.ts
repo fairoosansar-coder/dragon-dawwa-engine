@@ -33,6 +33,7 @@ const boardSource = readFileSync(
   path.join(root, 'src/components/research/SevenAgentResearchBoard.tsx'),
   'utf8',
 );
+const frameSource = readFileSync(path.join(root, 'src/engine/ResearchFrame.tsx'), 'utf8');
 const serverSource = readFileSync(path.join(root, 'server.ts'), 'utf8');
 const serviceSource = readFileSync(path.join(root, 'src/server/sevenAgentService.ts'), 'utf8');
 
@@ -165,7 +166,11 @@ describe('seven-agent audit fixes — ResearchDesk precedence & badges', () => {
     assert.match(deskSource, /completed-job-report/);
     assert.match(deskSource, /jobPollNeeded/);
     assert.match(deskSource, /sevenAgentRemote\.reload\(\)/);
+    assert.match(deskSource, /parallelSettled/);
+    assert.match(deskSource, /prior\.parallel === 'running'/);
+    assert.match(deskSource, /sourcesOnlyBoard\s*\?\s*undefined/);
     assert.match(deskSource, /job=\$\{encodeURIComponent\(jobParam\)\}/);
+    assert.match(frameSource, /onRoundtable\?/);
     assert.match(boardSource, /seven-agent-report-origin-badge/);
     assert.match(boardSource, /Sources Found · Executive Verdict Unavailable/);
     assert.match(boardSource, /Executive Verdict Unavailable/);
@@ -174,6 +179,8 @@ describe('seven-agent audit fixes — ResearchDesk precedence & badges', () => {
     assert.match(serverSource, /getSevenAgentDossierById\(id, lang, \{ jobId \}\)/);
     assert.match(serviceSource, /withJobHydration/);
     assert.match(serviceSource, /freshPassages/);
+    assert.match(serviceSource, /localizeDossierToLanguage\(englishFallback/);
+    assert.match(serviceSource, /dossierNeedsLocalization\(englishFallback/);
   });
 });
 
