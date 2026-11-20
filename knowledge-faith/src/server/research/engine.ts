@@ -13,6 +13,10 @@ import type { Lang } from '../../shared/sources.ts';
 import type { Evidence } from '../../shared/types.ts';
 import { contentTokens, passageSupportsTopic } from '../../shared/research.ts';
 import { verifyClaim } from '../../shared/research/claims.ts';
+import {
+  linkAnswerCitationsToPassages,
+  linkClaimToRetrievedPassages,
+} from './claimPassageLink.ts';
 import { asksScience, decomposeQuestion } from '../../shared/research/decompose.ts';
 import {
   acceptedCampaign,
@@ -409,7 +413,15 @@ export async function executeResearch(input: {
           revision: 1,
         }
       : undefined;
-    const claims = plan.subquestions.map(sub => claimFor(sub, passages, coverage, interpretation, corpusSplit));
+    const rawClaims = plan.subquestions.map(sub => claimFor(sub, passages, coverage, interpretation, corpusSplit));
+    // Auto-link non-science claims/answers that name verses in the opened packet (e.g. 49:6 ↔ Q49-6).
+    // Science subquestions keep claimFor empirical-only diagnostics untouched.
+    const claims = rawClaims.map((claim, index) => {
+      const sub = plan.subquestions[index];
+      if (sub && (sub.domain === 'science' || asksScience(sub.text))) return claim;
+      return linkClaimToRetrievedPassages(claim, passages);
+    });
+    const linkedAnswer = linkAnswerCitationsToPassages(researchAnswer, passages);
     const unresolved = claims.filter(claim => claim.support !== 'supported').map(claim => `${claim.claim} — ${claim.note}`);
     for (const note of materialReview?.unresolved ?? []) {
       if (!unresolved.includes(note)) unresolved.push(note);
@@ -462,7 +474,7 @@ export async function executeResearch(input: {
           'Citation existence, quotation fidelity and claim support are checked separately. A citation id alone is not support. This is not a scholarly verdict and not a claim of complete coverage.',
           parallelConsult?.setup ?? (parallelConsult?.liveCallMade ? CONFIDENCE_NOTE : ''),
         ].filter(Boolean).join(' '),
-        answer: researchAnswer,
+        answer: linkedAnswer,
       },
     };
     if (input.parallel?.agents?.length) result.parallelConsult = parallelConsult;
