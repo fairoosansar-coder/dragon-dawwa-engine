@@ -67,7 +67,9 @@ describe('Claude synthesis hybrid wiring', () => {
     const ta = finalSynthesisSystemPrompt('ta');
     const si = finalSynthesisSystemPrompt('si');
     assert.equal(en.includes(RATIONAL_CIVILIZATIONAL_PROOF_DNA), true);
-    assert.equal(en.includes(LIVE_DOSSIER_OUTPUT_SCHEMA), true);
+    // Desk reconciliation omits Hadith isnad/rijal roster; seven-agent live path adds it separately.
+    assert.equal(en.includes(LIVE_DOSSIER_OUTPUT_SCHEMA), false);
+    assert.equal(en.includes('Isnad'), false);
     assert.match(dossierLanguageInstruction('ta'), /natively in scholarly Tamil/);
     assert.match(dossierLanguageInstruction('si'), /natively in scholarly Sinhala/);
     assert.equal(ta.includes(dossierLanguageInstruction('ta')), true);

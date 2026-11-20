@@ -37,9 +37,11 @@ import {
   type HadithPlaybackSpeed,
   type HadithVoiceProfileId,
 } from '../../shared/hadithVoices.ts';
-import type {
-  SevenAgentResearchDossier,
-  SpecialistAgentFinding,
+import {
+  isSourcesOnlyOrUnavailable,
+  reportOriginLabel,
+  type SevenAgentResearchDossier,
+  type SpecialistAgentFinding,
 } from '../../shared/sevenAgentTypes.ts';
 import { LANGUAGE_NAMES, type Lang } from '../../shared/sources.ts';
 
@@ -451,13 +453,35 @@ export function SevenAgentResearchBoard({
               className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold tracking-wider"
             >
               <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-              <span>Executive Verdict</span>
+              <span>
+                {isSourcesOnlyOrUnavailable(dossier)
+                  ? 'Sources Found · Executive Verdict Unavailable'
+                  : 'Executive Verdict'}
+              </span>
             </span>
+            {isSourcesOnlyOrUnavailable(dossier) || dossier.confidenceScore == null ? (
+              <span
+                data-testid="seven-agent-sources-only-banner"
+                style={{ backgroundColor: '#FEF3C7', color: '#78350F', borderColor: '#F59E0B' }}
+                className="rounded-full border px-3 py-1 text-xs font-extrabold"
+              >
+                {dossier.verdictClassification}
+              </span>
+            ) : (
+              <span
+                style={{ backgroundColor: '#FEF3C7', color: '#78350F', borderColor: '#F59E0B' }}
+                className="rounded-full border px-3 py-1 font-mono text-xs font-extrabold"
+              >
+                {dossier.confidenceScore}% · {dossier.verdictClassification}
+              </span>
+            )}
             <span
-              style={{ backgroundColor: '#FEF3C7', color: '#78350F', borderColor: '#F59E0B' }}
-              className="rounded-full border px-3 py-1 font-mono text-xs font-extrabold"
+              data-testid="seven-agent-report-origin-badge"
+              style={{ backgroundColor: '#F8F5EE', color: '#57534E', borderColor: '#E7E0D2' }}
+              className="rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]"
+              title="Report origin"
             >
-              {dossier.confidenceScore}% · {dossier.verdictClassification}
+              {reportOriginLabel(dossier.reportOrigin)}
             </span>
           </div>
 

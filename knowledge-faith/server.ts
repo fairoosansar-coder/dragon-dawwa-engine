@@ -484,7 +484,9 @@ const sevenAgentHandler = route(async (req, res) => {
   const qRaw = req.method === 'POST' ? (req.body?.question ?? req.body?.q) : (req.query.q ?? req.query.question);
   const question = text(qRaw, 2000, 'question');
   const lang = toLang(req.method === 'POST' ? req.body?.lang : req.query.lang);
-  res.json(await runSevenAgentResearch(question, lang));
+  const jobRaw = req.method === 'POST' ? req.body?.jobId ?? req.body?.job : req.query.jobId ?? req.query.job;
+  const jobId = typeof jobRaw === 'string' && jobRaw.trim() ? jobRaw.trim() : null;
+  res.json(await runSevenAgentResearch(question, lang, { jobId }));
 });
 
 app.get('/api/research/seven-agents', sevenAgentHandler);

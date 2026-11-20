@@ -14,7 +14,10 @@ import { SevenAgentCountdownCard } from '../components/research/SevenAgentCountd
 import { SevenAgentResearchBoard } from '../components/research/SevenAgentResearchBoard.tsx';
 import { ResearchActionRow, ResearchFrame } from '../engine/ResearchFrame.tsx';
 import { researchQuestionsAlign } from '../shared/modernWorldBenchmarks.ts';
-import type { SevenAgentResearchDossier } from '../shared/sevenAgentTypes.ts';
+import {
+  isSourcesOnlyOrUnavailable,
+  type SevenAgentResearchDossier,
+} from '../shared/sevenAgentTypes.ts';
 import { DomainResearchForm } from './DomainResearchForm.tsx';
 import { questionsToResearch, separateQuestions } from '../shared/research/questions.ts';
 import { useApp } from '../lib/store.tsx';
@@ -105,9 +108,13 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
 
   const sevenAgentRemote = useRemote<SevenAgentResearchDossier>(
     reportIdParam
-      ? `/api/research/seven-agents/${encodeURIComponent(reportIdParam)}?lang=${researchLang}`
+      ? `/api/research/seven-agents/${encodeURIComponent(reportIdParam)}?lang=${researchLang}${
+          jobParam ? `&job=${encodeURIComponent(jobParam)}` : ''
+        }`
       : activeResearchQuery
-        ? `/api/research/seven-agents?q=${encodeURIComponent(activeResearchQuery)}&lang=${researchLang}`
+        ? `/api/research/seven-agents?q=${encodeURIComponent(activeResearchQuery)}&lang=${researchLang}${
+            jobParam ? `&job=${encodeURIComponent(jobParam)}` : ''
+          }`
         : null,
   );
   const dossierMatchesActiveQuestion = (dossier: SevenAgentResearchDossier | null | undefined) => {
@@ -395,6 +402,14 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   );
   const otherQuestions = job ? separateQuestions(job.question).slice(1) : [];
   const offersPodcast = job?.investigation !== 'blocked' && otherQuestions.length === 0 && (dossier?.passages.length ?? savedReport?.response.dossier?.passages.length ?? 0) > 0;
+  /** Pending / sources_only boards must not hide completed research-job passages. */
+  const sourcesOnlyBoard = isSourcesOnlyOrUnavailable(sevenAgentDossier);
+  const showResearchJobPassages =
+    Boolean(liveModel && finished && !isCountdownActive && (!sevenAgentDossier || sourcesOnlyBoard));
+  const openedPassagesForSourcesOnly =
+    sourcesOnlyBoard && sevenAgentDossier?.retrievedPassages?.length
+      ? sevenAgentDossier.retrievedPassages
+      : null;
 
   return (
     <div className="space-y-6">
@@ -510,8 +525,8 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
         <SevenAgentResearchBoard
           dossier={sevenAgentDossier}
           lang={lang}
-          roundtableOpen={roundtableOpen}
-          onToggleRoundtable={setRoundtableOpen}
+          roundtableOpen={sourcesOnlyBoard ? false : roundtableOpen}
+          onToggleRoundtable={sourcesOnlyBoard ? undefined : setRoundtableOpen}
         />
       )}
       {remote.error && !savedReport && !sevenAgentDossier && !isCountdownActive && (
@@ -531,7 +546,79 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
         </Notice>
       )}
 
-      {liveModel && finished && !sevenAgentDossier && !isCountdownActive && (
+      {sourcesOnlyBoard && !isCountdownActive && (
+        <section
+          data-testid="sources-only-opened-passages"
+          className="space-y-3 rounded-3xl border border-gold/60 bg-white p-5"
+        >
+          <h2 className="font-display text-xl font-bold text-pine">Opened passages</h2>
+          <p className="text-sm leading-relaxed text-ink/75">
+            Sources found for this question. The executive verdict is unavailable until live synthesis completes — no confidence percentage is claimed.
+          </p>
+          {(openedPassagesForSourcesOnly ?? citedPassages).length === 0 && (
+            <p className="text-sm text-muted">No passage was kept for this job yet.</p>
+          )}
+          <ul className="space-y-3 text-sm">
+            {(openedPassagesForSourcesOnly ?? []).map(passage => (
+              <li key={passage.id} className="rounded-2xl bg-sand/60 px-4 py-3">
+                <p className="font-semibold text-pine">{passage.locator}</p>
+                <p className="text-xs text-muted">
+                  {passage.provider}
+                  {passage.publishedGrade ? ` · ${passage.publishedGrade}` : ''}
+                </p>
+                {passage.arabic ? (
+                  <p className="mt-2 font-arabic text-xl leading-loose" dir="rtl" lang="ar">
+                    {passage.arabic}
+                  </p>
+                ) : null}
+                <p className="mt-2 whitespace-pre-wrap leading-relaxed text-ink/85">
+                  <ContentText text={passage.text} />
+                </p>
+                {(passage.readerRoute || passage.canonicalUrl) && (
+                  <p className="mt-2">
+                    <a
+                      href={passage.readerRoute || passage.canonicalUrl || '#'}
+                      className="text-xs font-medium text-pine underline"
+                    >
+                      Open reader
+                    </a>
+                  </p>
+                )}
+              </li>
+            ))}
+            {!openedPassagesForSourcesOnly &&
+              citedPassages.map(passage => (
+                <li key={passage.id} className="rounded-2xl bg-sand/60 px-4 py-3">
+                  <p className="font-semibold text-pine">{passage.locator}</p>
+                  <p className="text-xs text-muted">
+                    {passage.source.provider}
+                    {passage.publishedGrade ? ` · ${passage.publishedGrade}` : ''}
+                  </p>
+                  {passage.arabic ? (
+                    <p className="mt-2 font-arabic text-xl leading-loose" dir="rtl" lang="ar">
+                      {passage.arabic}
+                    </p>
+                  ) : null}
+                  <p className="mt-2 whitespace-pre-wrap leading-relaxed text-ink/85">
+                    <ContentText text={passage.text} />
+                  </p>
+                  {(passage.readerRoute || passage.source.canonicalUrl) && (
+                    <p className="mt-2">
+                      <a
+                        href={passage.readerRoute || passage.source.canonicalUrl}
+                        className="text-xs font-medium text-pine underline"
+                      >
+                        Open reader
+                      </a>
+                    </p>
+                  )}
+                </li>
+              ))}
+          </ul>
+        </section>
+      )}
+
+      {showResearchJobPassages && !sourcesOnlyBoard && liveModel && (
         <div id="research-full-report" className="space-y-4">
           <section className="rounded-3xl border border-gold bg-white p-5" data-research-answer>
             <h2 className="font-display text-2xl font-bold text-pine">Answer</h2>

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { ResearchAssignmentView, ResearchJobResponse, ResearchJobView } from '../../shared/contracts/v1.ts';
+import { researchQuestionsAlign } from '../../shared/modernWorldBenchmarks.ts';
 import { sanitizePodcastHostName } from '../../shared/podcastHost.ts';
 import { researchFingerprint } from '../../shared/research/coordinator.ts';
 import type { Lang } from '../../shared/sources.ts';
@@ -72,6 +73,27 @@ export function getSharedResearchJob(id: string): ResearchJobResponse | undefine
   const job = jobs.get(id);
   if (job) return persisted(job);
   return readArchivedResearchJob(id);
+}
+
+/**
+ * Find an in-memory (or archived-by-id) research job whose question aligns with
+ * the seven-agent query so both endpoints share the same retrieved passages.
+ */
+export function findSharedResearchJobByQuestion(
+  question: string,
+  language?: Lang,
+): ResearchJobResponse | undefined {
+  prune();
+  const needle = question.trim();
+  if (!needle) return undefined;
+  let best: StoredJob | undefined;
+  for (const stored of jobs.values()) {
+    if (!researchQuestionsAlign(stored.job.question, needle)) continue;
+    if (language && stored.job.language !== language) continue;
+    if (!stored.dossier?.passages?.length) continue;
+    if (!best || (stored.createdAt ?? 0) > (best.createdAt ?? 0)) best = stored;
+  }
+  return best ? persisted(best) : undefined;
 }
 
 export function cancelSharedResearchJob(id: string): ResearchJobResponse | undefined {

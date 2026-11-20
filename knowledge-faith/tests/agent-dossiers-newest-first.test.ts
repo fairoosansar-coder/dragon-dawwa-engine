@@ -22,6 +22,8 @@ function stubDossier(
     verdictHeadline: 'stub',
     verdictClassification: 'stub',
     confidenceScore: 90,
+    status: 'live_synthesis',
+    reportOrigin: 'live_synthesis',
     executiveSummary: 'stub',
     agents: [],
     scienceForesight: {

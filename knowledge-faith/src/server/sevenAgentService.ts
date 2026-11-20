@@ -14,7 +14,10 @@ import {
   sortDossiersNewestFirst,
   type ModernScienceForesight,
   type RoundtableTurn,
+  type SevenAgentReportOrigin,
   type SevenAgentResearchDossier,
+  type SevenAgentRetrievedPassage,
+  type SevenAgentSynthesisStatus,
   type SpecialistAgentFinding,
 } from '../shared/sevenAgentTypes.ts';
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
@@ -32,13 +35,18 @@ import { composeNativeRoundtableTurns } from './nativeRoundtable.ts';
 import { persistRoot } from './persist.ts';
 import {
   dossierLanguageInstruction,
-  finalSynthesisSystemPrompt,
   LIVE_DOSSIER_OUTPUT_SCHEMA,
   parallelRequestForDesk,
   RATIONAL_CIVILIZATIONAL_PROOF_DNA,
+  sevenAgentLiveSynthesisSystemPrompt,
 } from './research/agentConfig.ts';
 import { GEMINI_SYNTHESIS_FALLBACK_MODEL } from './research/finalSynthesis.ts';
+import {
+  findSharedResearchJobByQuestion,
+  getSharedResearchJob,
+} from './research/jobs.ts';
 import { consultParallel } from './research/parallelTask.ts';
+import type { EvidencePassage } from '../shared/contracts/v1.ts';
 
 function dossierCachePath(hash: string): string {
   const dir = path.join(persistRoot(), 'seven-agent-cache');
@@ -495,6 +503,8 @@ function buildGoldAndRingsEnglishDossier(question: string): SevenAgentResearchDo
     roundtableTurns,
     roundtableScriptText,
     createdAt: new Date().toISOString(),
+    status: 'authored',
+    reportOrigin: 'curated_benchmark',
   };
 }
 
@@ -737,7 +747,7 @@ async function synthesizeDynamicDossierPayload(
   language: Lang = 'en',
 ): Promise<{ payload: GeneratedDossierPayload; provider: 'anthropic' | 'gemini'; model: string } | null> {
   const system = [
-    finalSynthesisSystemPrompt(language),
+    sevenAgentLiveSynthesisSystemPrompt(language),
     'You are also the Dragon Dawwa 7-Agent Research Engine. Output ONLY the dossier JSON object described by the user.',
   ].join('\n\n');
   const user = dossierSynthesisUserPrompt(question, evidencePacket, language);
@@ -1027,7 +1037,7 @@ async function generateRoundtableAfterSynthesis(
     })
     .join('\n\n');
   const system = [
-    finalSynthesisSystemPrompt(language),
+    sevenAgentLiveSynthesisSystemPrompt(language),
     'You are the Dragon Dawwa Roundtable Studio Director.',
     'Write a 5-turn scholarly roundtable that cites SPECIFIC Qur’an ayahs (Surah:Ayah), Hadith collection numbers, and classical sources from the completed synthesis below.',
     RATIONAL_CIVILIZATIONAL_PROOF_DNA,
@@ -1117,13 +1127,64 @@ function sevenAgentLiveSynthesisEnabled(): boolean {
   return process.env.NODE_TEST_CONTEXT == null;
 }
 
-async function buildDynamicDossier(question: string, language: Lang = 'en'): Promise<SevenAgentResearchDossier> {
+function toRetrievedPassages(passages: readonly EvidencePassage[]): SevenAgentRetrievedPassage[] {
+  return passages.map(passage => ({
+    id: passage.id,
+    locator: passage.locator,
+    text: passage.text,
+    arabic: passage.arabic,
+    provider: passage.source.provider,
+    publishedGrade: passage.publishedGrade,
+    readerRoute: passage.readerRoute,
+    canonicalUrl: passage.source.canonicalUrl,
+  }));
+}
+
+/** Hydrate passages from an explicit research job id and/or a question-aligned job. */
+export function hydrateRetrievedPassagesFromResearchJobs(options: {
+  question: string;
+  language?: Lang;
+  jobId?: string | null;
+}): SevenAgentRetrievedPassage[] {
+  const fromJobId = options.jobId?.trim()
+    ? getSharedResearchJob(options.jobId.trim())?.dossier?.passages
+    : undefined;
+  if (fromJobId?.length) return toRetrievedPassages(fromJobId);
+  const byQuestion = findSharedResearchJobByQuestion(options.question, options.language);
+  if (byQuestion?.dossier?.passages?.length) return toRetrievedPassages(byQuestion.dossier.passages);
+  return [];
+}
+
+function withProvenance(
+  dossier: SevenAgentResearchDossier,
+  patch: {
+    status: SevenAgentSynthesisStatus;
+    reportOrigin: SevenAgentReportOrigin;
+    confidenceScore?: number | null;
+    retrievedPassages?: SevenAgentRetrievedPassage[];
+  },
+): SevenAgentResearchDossier {
+  return {
+    ...dossier,
+    status: patch.status,
+    reportOrigin: patch.reportOrigin,
+    confidenceScore:
+      patch.confidenceScore !== undefined ? patch.confidenceScore : dossier.confidenceScore,
+    retrievedPassages: patch.retrievedPassages ?? dossier.retrievedPassages,
+  };
+}
+
+async function buildDynamicDossier(
+  question: string,
+  language: Lang = 'en',
+  retrievedPassages: SevenAgentRetrievedPassage[] = [],
+): Promise<SevenAgentResearchDossier> {
   // Full custom-query path: Parallel retrieval → Claude Sonnet synthesis → Gemini fallback → post-synthesis roundtable.
   if (!sevenAgentLiveSynthesisEnabled()) {
     console.info(
       'Seven-agent custom query: live synthesis skipped (unit test / SEVEN_AGENT_LIVE_SYNTHESIS=0); using topic-bound offline board.',
     );
-    return buildGenericTopicFallbackDossier(question);
+    return buildGenericTopicFallbackDossier(question, retrievedPassages);
   }
 
   const evidencePacket = await retrieveSevenAgentEvidencePacket(question, language);
@@ -1132,7 +1193,7 @@ async function buildDynamicDossier(question: string, language: Lang = 'en'): Pro
     console.error(
       'Seven-agent custom query fell through to static board: both Anthropic and Gemini synthesis unavailable or incomplete.',
     );
-    return buildGenericTopicFallbackDossier(question);
+    return buildGenericTopicFallbackDossier(question, retrievedPassages);
   }
 
   const { payload: generated } = synthesized;
@@ -1169,33 +1230,60 @@ async function buildDynamicDossier(question: string, language: Lang = 'en'): Pro
     roundtableTurns: turns,
     roundtableScriptText: turns.map(t => `${t.speaker.toUpperCase()}: ${t.text}`).join('\n\n'),
     createdAt: new Date().toISOString(),
+    status: 'live_synthesis',
+    reportOrigin: 'live_synthesis',
+    retrievedPassages: retrievedPassages.length ? retrievedPassages : undefined,
   };
 }
 
-function buildGenericTopicFallbackDossier(question: string): SevenAgentResearchDossier {
+function buildGenericTopicFallbackDossier(
+  question: string,
+  retrievedPassages: SevenAgentRetrievedPassage[] = [],
+): SevenAgentResearchDossier {
   const modern = resolveModernWorldDossierByQuestion(question);
-  if (modern) return modern;
+  if (modern) {
+    return withProvenance(modern, {
+      status: 'authored',
+      reportOrigin: 'curated_benchmark',
+      retrievedPassages: retrievedPassages.length ? retrievedPassages : modern.retrievedPassages,
+    });
+  }
 
   const cleanQ = userFacingResearchQuestion(question);
+  const hasSources = retrievedPassages.length > 0;
+  const status: SevenAgentSynthesisStatus = hasSources ? 'sources_only' : 'unavailable';
+  const citationLines = hasSources
+    ? retrievedPassages.slice(0, 8).map(passage => passage.locator)
+    : ['Executive verdict unavailable — live synthesis has not completed.'];
+
   const agents: SpecialistAgentFinding[] = (Object.keys(LOCALIZED_AGENT_HEADERS.en) as Array<
     SpecialistAgentFinding['agentId']
   >).map((agentId, index) => ({
     agentNumber: index + 1,
     agentId,
     ...LOCALIZED_AGENT_HEADERS.en[agentId],
-    verdictBadge: 'OPENED-SOURCES SYNTHESIS PENDING LIVE MODEL',
-    confidenceScore: '90.0%',
+    verdictBadge: hasSources ? 'SOURCES FOUND · VERDICT UNAVAILABLE' : 'LIVE SYNTHESIS UNAVAILABLE',
+    confidenceScore: '—',
     isScienceSpotlight: agentId === 'modern_science',
-    summary:
-      agentId === 'executive_synthesis'
-        ? `A full 7-agent scholarly synthesis for “${cleanQ}” is awaiting the live model. All seven specialist sections remain open for this exact question—retry when synthesis is available.`
-        : `Specialist section ${index + 1} addresses the seeker’s question: “${cleanQ}”. Opened Qur’an, Hadith, and Seerah evidence will fill this card when live synthesis completes.`,
-    keyPoints: [
-      `Question: ${cleanQ.slice(0, 220)}`,
-      'Seven specialist roles stay visible while the live model prepares citations.',
-      'Retry synthesis for a complete evidence-backed verdict.',
-    ],
-    citations: ['Awaiting live 7-agent synthesis'],
+    summary: hasSources
+      ? agentId === 'executive_synthesis'
+        ? `Opened sources were retrieved for “${cleanQ}”, but the executive verdict is unavailable until live 7-agent synthesis completes.`
+        : `Specialist section ${index + 1} stays open for “${cleanQ}”. Cite only the opened passages listed below; no live synthesis verdict is claimed.`
+      : agentId === 'executive_synthesis'
+        ? `Live 7-agent synthesis is unavailable for “${cleanQ}”. No executive verdict or confidence score is claimed.`
+        : `Specialist section ${index + 1} cannot produce a live finding for “${cleanQ}” until a synthesis provider is available.`,
+    keyPoints: hasSources
+      ? [
+          `Question: ${cleanQ.slice(0, 220)}`,
+          `${retrievedPassages.length} opened passage(s) from the research job are shared below.`,
+          'Executive verdict remains unavailable — no fake confidence is shown.',
+        ]
+      : [
+          `Question: ${cleanQ.slice(0, 220)}`,
+          'No live synthesis provider completed for this question.',
+          'Retry when Claude/Gemini synthesis is available; do not treat this board as a verdict.',
+        ],
+    citations: citationLines,
   }));
 
   const turns: RoundtableTurn[] = [
@@ -1203,31 +1291,37 @@ function buildGenericTopicFallbackDossier(question: string): SevenAgentResearchD
       speaker: 'Brother Feroz (Host)',
       role: 'Executive Roundtable Moderator',
       voiceProfile: 'tariq',
-      text: `Assalamu Alaikum. Today's roundtable opens on the seeker's question: “${cleanQ}”`,
+      text: hasSources
+        ? `Assalamu Alaikum. Opened sources were found for “${cleanQ}”, but the executive verdict is unavailable until live synthesis completes.`
+        : `Assalamu Alaikum. Live synthesis is unavailable for “${cleanQ}”, so we are not presenting a confidence score or executive verdict.`,
     },
     {
       speaker: 'Dr. Tariq al-Mansoor',
       role: 'Agent 02 · Hadith Specialist',
       voiceProfile: 'tariq',
-      text: 'We will ground the answer in opened Hadith and Seerah once live retrieval finishes—reporting only authenticated reports for this topic.',
+      text: hasSources
+        ? 'We report only the opened Hadith and Seerah passages already retrieved for this question — no unverified grades.'
+        : 'Without live synthesis we withhold specialist findings rather than inventing citations.',
     },
     {
       speaker: 'Shaykh Farhan al-Rashed',
       role: 'Agent 04 · Fiqh Lead',
       voiceProfile: 'yusuf',
-      text: 'Classical fiqh will map any practical rulings to the schools’ consensus on this exact question, without inventing citations.',
+      text: 'Classical fiqh rulings are not asserted until opened sources and live synthesis support them.',
     },
     {
       speaker: 'Dr. Zainab al-Mubarak',
       role: 'Agent 06 · Science Foresight',
       voiceProfile: 'noor',
-      text: 'Modern Science foresight will highlight empirical hikmah that aligns with revelation for this topic when synthesis completes.',
+      text: 'Modern Science foresight is deferred until a live synthesis model can ground empirical hikmah in opened evidence.',
     },
     {
       speaker: 'Brother Feroz (Host)',
       role: 'Executive Roundtable Moderator',
       voiceProfile: 'tariq',
-      text: 'Please retry the 7-agent synthesis shortly for the full evidence-backed roundtable on this question.',
+      text: hasSources
+        ? 'Please review the opened passages below. Retry 7-agent synthesis for a full evidence-backed verdict.'
+        : 'Please retry the 7-agent synthesis when a provider is available.',
     },
   ];
 
@@ -1235,39 +1329,53 @@ function buildGenericTopicFallbackDossier(question: string): SevenAgentResearchD
     id: `7agent-topic-${createHash('sha256').update(cleanQ.toLowerCase()).digest('hex').slice(0, 12)}`,
     question: cleanQ,
     lang: 'en',
-    verdictHeadline: `7-Agent Synthesis Preparing for: “${cleanQ.slice(0, 160)}”`,
-    verdictClassification: 'AWAITING LIVE SYNTHESIS',
-    confidenceScore: 90,
-    executiveSummary: `The board is prepared for “${cleanQ}”. Retry when the live synthesis model is available for a complete seven-agent scholarly dossier, or open a Modern World hub card for a dedicated preloaded topic.`,
+    verdictHeadline: hasSources
+      ? `Sources Found · Executive Verdict Unavailable`
+      : `Executive Verdict Unavailable for: “${cleanQ.slice(0, 140)}”`,
+    verdictClassification: hasSources ? 'SOURCES ONLY' : 'SYNTHESIS UNAVAILABLE',
+    confidenceScore: null,
+    executiveSummary: hasSources
+      ? `Opened Qur’an, Tafsir, and/or Hadith passages were retrieved for “${cleanQ}”. Live 7-agent synthesis has not completed, so no executive verdict or confidence percentage is shown.`
+      : `Live 7-agent synthesis is unavailable for “${cleanQ}”. No confidence score is claimed. Retry when Claude or Gemini synthesis is available.`,
     agents,
     scienceForesight: {
-      headline: 'Science foresight will address this exact question',
+      headline: hasSources
+        ? 'Science foresight deferred — sources opened without live synthesis'
+        : 'Science foresight unavailable without live synthesis',
       badge: '🔬 MODERN SCIENCE ALIGNMENT · 1 STEP AHEAD',
-      summary:
-        'Empirical foresight will be generated for the seeker’s topic once live synthesis is available.',
+      summary: hasSources
+        ? 'Empirical foresight is withheld until live synthesis can cite opened evidence for this question.'
+        : 'Empirical foresight is not generated when synthesis providers are unavailable.',
       empiricalPillars: [
         {
-          domain: 'Topic-Bound Evidence',
-          finding: 'Each research job regenerates citations for the active question.',
-          oneStepAheadNote: 'Revelation-first answers stay matched to the seeker’s inquiry.',
+          domain: 'Honest Empty State',
+          finding: hasSources
+            ? 'Retrieved passages remain visible; the executive verdict is not invented.'
+            : 'No fake confidence or placeholder verdict is shown.',
+          oneStepAheadNote: 'Prefer honest pending states over fabricated certainty.',
         },
         {
-          domain: 'Full 7-Agent Structure',
-          finding: 'All specialist sections remain visible while synthesis prepares.',
-          oneStepAheadNote: 'Seekers keep a complete board layout, not a collapsed stub.',
+          domain: 'Shared Evidence Set',
+          finding: hasSources
+            ? 'Passages are hydrated from the matching research job so both endpoints share the same evidence.'
+            : 'When a research job later opens sources, this board can hydrate them without a disconnected run.',
+          oneStepAheadNote: 'Research jobs and seven-agent synthesis cite one evidence set.',
         },
         {
-          domain: 'Empirical Hikmah',
-          finding: 'Science pillars will illuminate hikmah relevant to this question.',
-          oneStepAheadNote: 'Modern observations illustrate guidance without replacing revelation.',
+          domain: 'Retry Path',
+          finding: 'A later live synthesis can upgrade this board without discarding opened sources.',
+          oneStepAheadNote: 'Sources-only is a status, not a final scholarly ruling.',
         },
       ],
       methodologicalNote:
-        'Fallback preserves structure and question binding; live models supply richer citations when available.',
+        'Fallback never assigns a fake confidence percentage. Live models supply the executive verdict when available.',
     },
     roundtableTurns: turns,
     roundtableScriptText: turns.map(t => `${t.speaker.toUpperCase()}: ${t.text}`).join('\n\n'),
     createdAt: new Date().toISOString(),
+    status,
+    reportOrigin: 'sources_only',
+    retrievedPassages: hasSources ? retrievedPassages : undefined,
   };
 }
 
@@ -1481,7 +1589,9 @@ function cacheAcceptableForQuestion(cached: SevenAgentResearchDossier, cleanQ: s
   if (!cached.agents || cached.agents.length !== 7) return false;
   if (normalizeResearchQuestion(cached.question) !== normalizeResearchQuestion(cleanQ)) return false;
   if (cached.verdictClassification === 'AWAITING LIVE SYNTHESIS') return false;
-  if (/board is prepared for|Retry when the live synthesis model/i.test(cached.executiveSummary ?? '')) {
+  if (cached.status === 'sources_only' || cached.status === 'unavailable') return false;
+  if (cached.confidenceScore === 90 && cached.verdictClassification?.includes('AWAITING')) return false;
+  if (/board is prepared for|Retry when the live synthesis model|Awaiting live 7-agent synthesis/i.test(cached.executiveSummary ?? '')) {
     return false;
   }
   if (!isGoldOrRingQuestion(cleanQ) && looksLikeGoldRingDossierContent(cached)) return false;
@@ -1495,6 +1605,7 @@ function cacheAcceptableForQuestion(cached: SevenAgentResearchDossier, cleanQ: s
 export async function runSevenAgentResearch(
   question: string,
   lang: Lang,
+  options?: { jobId?: string | null },
 ): Promise<SevenAgentResearchDossier> {
   const cleanQ = userFacingResearchQuestion(question.trim().slice(0, 1200));
   const modernMatch = matchModernWorldBenchmark(cleanQ) ?? matchModernWorldBenchmark(question);
@@ -1510,9 +1621,25 @@ export async function runSevenAgentResearch(
     ? `7agent-modern-${modernMatch.id}`
     : `7agent-${hash.slice(0, 16)}`;
 
+  const retrievedPassages = hydrateRetrievedPassagesFromResearchJobs({
+    question: cleanQ,
+    language: lang,
+    jobId: options?.jobId,
+  });
+
   const cached = readDiskDossier(hash);
   if (cached && cacheAcceptableForQuestion(cached, cleanQ)) {
-    const hydrated = { ...cached, id: stableId, question: cleanQ };
+    const hydrated = withProvenance(
+      { ...cached, id: stableId, question: cleanQ },
+      {
+        status: cached.status === 'authored' ? 'authored' : 'live_synthesis',
+        reportOrigin: 'cached_dossier',
+        confidenceScore: cached.confidenceScore,
+        retrievedPassages: retrievedPassages.length
+          ? retrievedPassages
+          : cached.retrievedPassages,
+      },
+    );
     recordInHistory(hydrated);
     return hydrated;
   }
@@ -1522,7 +1649,7 @@ export async function runSevenAgentResearch(
   // English fallback boards (live synthesis off/failed) MUST pass through localizeDossierToLanguage
   // — never stamp ta/si onto English prose.
   if (!modernMatch && !isGoldOrRingQuestion(cleanQ)) {
-    const built = await buildDynamicDossier(cleanQ, lang);
+    const built = await buildDynamicDossier(cleanQ, lang, retrievedPassages);
     const localized = dossierNeedsLocalization(built, lang)
       ? await localizeDossierToLanguage({ ...built, lang: 'en' }, lang)
       : built;
@@ -1531,8 +1658,14 @@ export async function runSevenAgentResearch(
       id: stableId,
       question: cleanQ,
       lang,
+      status: localized.status,
+      reportOrigin: localized.reportOrigin,
+      retrievedPassages: localized.retrievedPassages ?? (retrievedPassages.length ? retrievedPassages : undefined),
     };
-    writeDiskDossier(hash, live);
+    // Do not persist sources_only / unavailable stubs as if they were finished verdicts.
+    if (live.status === 'live_synthesis' || live.status === 'authored') {
+      writeDiskDossier(hash, live);
+    }
     recordInHistory(live);
     return live;
   }
@@ -1543,11 +1676,18 @@ export async function runSevenAgentResearch(
       resolveModernWorldDossierById(modernWorldReportId(modernMatch.id))!
     : buildGoldAndRingsEnglishDossier(cleanQ);
 
-  const localized = {
-    ...(await localizeDossierToLanguage(baseEn, lang)),
-    id: stableId,
-    question: cleanQ,
-  };
+  const localized = withProvenance(
+    {
+      ...(await localizeDossierToLanguage(baseEn, lang)),
+      id: stableId,
+      question: cleanQ,
+    },
+    {
+      status: 'authored',
+      reportOrigin: 'curated_benchmark',
+      retrievedPassages: retrievedPassages.length ? retrievedPassages : undefined,
+    },
+  );
   writeDiskDossier(hash, localized);
   recordInHistory(localized);
   return localized;
