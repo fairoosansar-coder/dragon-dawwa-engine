@@ -64,8 +64,18 @@ describe('DD-148 Hub research UI blink / flicker', () => {
   });
 
   it('hides legacy full-report fallbacks while countdown/Ask is active', () => {
-    assert.match(deskSource, /!sevenAgentDossier && !isCountdownActive && liveModel && finished/);
-    assert.match(deskSource, /liveModel && finished && !sevenAgentDossier && !isCountdownActive/);
+    // Align with ResearchDesk (~449–457): keep results hidden while countdown/Ask is
+    // active, then show the completed job report as soon as retrieval finishes —
+    // including when the seven-agent board is sources_only (do not require a null dossier).
+    assert.match(deskSource, /sourcesOnlyBoard = isSourcesOnlyOrUnavailable\(sevenAgentDossier\)/);
+    assert.match(
+      deskSource,
+      /showCompletedJobReport = Boolean\(\s*liveModel && finished && !isCountdownActive && \(!sevenAgentDossier \|\| sourcesOnlyBoard\),\s*\)/,
+    );
+    assert.match(
+      deskSource,
+      /\(!sevenAgentDossier \|\| sourcesOnlyBoard\) && !isCountdownActive && liveModel && finished/,
+    );
     assert.match(deskSource, /unhide the prior finished report under the new countdown/);
   });
 
@@ -203,17 +213,20 @@ describe('DD-148 mid-Ask auth while UI still shows signed-in seeker', () => {
     const reissued = reissueSeekerTokenForRequest(req, registered.user);
     assert.equal(sessionIdFromSignedToken(reissued), sidA);
 
-    // Distinct sibling token with the same sid (explicit iat change via new issue).
+    // Distinct sibling token with the same sid; jti keeps same-ms issues unique.
     const tokenB = issueSeekerToken(registered.user, { sid: sidA });
     assert.notEqual(tokenA, tokenB);
     assert.equal(sessionIdFromSignedToken(tokenB), sidA);
     assert.ok(verifySeekerToken(tokenA));
     assert.ok(verifySeekerToken(tokenB));
+    assert.match(seekerServerSource, /\bjti\b/);
+    assert.match(seekerServerSource, /crypto\.randomUUID\(\)/);
 
-    // Logout presents B only — A must die via shared sid.
+    // Logout presents B only — A must die via shared sid (same-second siblings included).
     revokeSeekerToken(tokenB);
     assert.equal(verifySeekerToken(tokenB), null);
     assert.equal(verifySeekerToken(tokenA), null);
+    assert.equal(verifySeekerToken(reissued), null);
   });
 
   it('auth retry rebuild strips prior Authorization before setting healed Bearer', () => {
