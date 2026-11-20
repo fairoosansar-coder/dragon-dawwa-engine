@@ -243,7 +243,9 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   }, [isCountdownActive, jobPollNeeded, parallelPending, remote.reload]);
 
   // When the research job or Parallel revision finishes, re-fetch seven-agent so
-  // board retrievedPassages stay shared with the job report.
+  // board retrievedPassages stay shared with the job report — but never abort an
+  // in-flight synthesis (useRemote.reload bumps nonce and drops that response).
+  // Live synthesis already re-hydrates freshPassages after buildDynamicDossier.
   const parallelStatus = remote.data?.job.parallel?.status;
   const priorEvidenceSyncRef = useRef<{ job?: string; parallel?: string }>({});
   useEffect(() => {
@@ -259,13 +261,19 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
       parallel: parallelStatus,
     };
     if (!jobSettled && !parallelSettled) return;
+    if (sevenAgentRemote.loading) return;
     const needsHydrationRefresh =
-      parallelSettled ||
       !sevenAgentDossier ||
       isSourcesOnlyOrUnavailable(sevenAgentDossier) ||
       !(sevenAgentDossier.retrievedPassages?.length);
     if (needsHydrationRefresh) sevenAgentRemote.reload();
-  }, [jobStatus, parallelStatus, sevenAgentDossier, sevenAgentRemote.reload]);
+  }, [
+    jobStatus,
+    parallelStatus,
+    sevenAgentDossier,
+    sevenAgentRemote.loading,
+    sevenAgentRemote.reload,
+  ]);
 
   useEffect(() => {
     const response = remote.data;

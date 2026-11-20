@@ -168,6 +168,8 @@ describe('seven-agent audit fixes — ResearchDesk precedence & badges', () => {
     assert.match(deskSource, /sevenAgentRemote\.reload\(\)/);
     assert.match(deskSource, /parallelSettled/);
     assert.match(deskSource, /prior\.parallel === 'running'/);
+    assert.match(deskSource, /if \(sevenAgentRemote\.loading\) return;/);
+    assert.equal(/needsHydrationRefresh\s*=\s*[\s\S]*?parallelSettled\s*\|\|/.test(deskSource), false);
     assert.match(deskSource, /sourcesOnlyBoard\s*\?\s*undefined/);
     assert.match(deskSource, /job=\$\{encodeURIComponent\(jobParam\)\}/);
     assert.match(frameSource, /onRoundtable\?/);
