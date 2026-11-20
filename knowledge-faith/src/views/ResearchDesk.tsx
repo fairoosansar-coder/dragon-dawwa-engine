@@ -246,6 +246,8 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   // board retrievedPassages stay shared with the job report — but never abort an
   // in-flight synthesis (useRemote.reload bumps nonce and drops that response).
   // Live synthesis already re-hydrates freshPassages after buildDynamicDossier.
+  // If we skip due to loading, leave priorEvidenceSyncRef untouched so the settle
+  // stays pending and this effect retries when loading flips false.
   const parallelStatus = remote.data?.job.parallel?.status;
   const priorEvidenceSyncRef = useRef<{ job?: string; parallel?: string }>({});
   useEffect(() => {
@@ -256,12 +258,20 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
       prior.parallel === 'running' &&
       parallelStatus !== 'running' &&
       Boolean(parallelStatus);
+    if (!jobSettled && !parallelSettled) {
+      // Track intermediate states (e.g. parallel → running) so transitions stay detectable.
+      priorEvidenceSyncRef.current = {
+        job: jobStatus,
+        parallel: parallelStatus,
+      };
+      return;
+    }
+    // Settlement pending — do not consume until we can act (or decide no refresh).
+    if (sevenAgentRemote.loading) return;
     priorEvidenceSyncRef.current = {
       job: jobStatus,
       parallel: parallelStatus,
     };
-    if (!jobSettled && !parallelSettled) return;
-    if (sevenAgentRemote.loading) return;
     const needsHydrationRefresh =
       !sevenAgentDossier ||
       isSourcesOnlyOrUnavailable(sevenAgentDossier) ||
