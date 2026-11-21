@@ -19,6 +19,19 @@ const CANONICAL_496_ASSERTION_EN =
   'Qur’an 49:6 instructs believers to verify news brought by a wrongdoer so they do not harm people out of ignorance.';
 
 /**
+ * True quotation marks / intentional quoted propositions — not mid-word
+ * apostrophes in Qur'an, contractions (it's, don't), or possessives (wrongdoer's).
+ */
+function hasQuotedProposition(text: string): boolean {
+  if (/["“”«»]/.test(text)) return true;
+  // Curly singles: require a left opening quote (Qur’an uses only a right apostrophe).
+  if (/(^|[^\p{L}])‘[^’\n]{3,}’(?!\p{L})/u.test(text)) return true;
+  // Straight singles: paired quotes bounded outside letters/digits (not Qur'an / it's).
+  if (/(^|[^\p{L}\d])'[^'\n]{3,}'(?![\p{L}\d])/u.test(text)) return true;
+  return false;
+}
+
+/**
  * Prefer a concrete assertion over the canonical English interrogative Ask when
  * verifying support. Locator/ID match still only sets citationExists — never support.
  *
@@ -28,7 +41,7 @@ const CANONICAL_496_ASSERTION_EN =
 export function claimAssertionFromQuestion(question: string): string {
   const q = question.trim().replace(/\s+/g, ' ');
   // Quoted propositions must reach verifyClaim unchanged for fidelity checks.
-  if (/["“”«»]/.test(q) || /'[^']{8,}'/.test(q) || /‘[^’]{8,}’/.test(q)) return q;
+  if (hasQuotedProposition(q)) return q;
   // Non-English script: keep the submitted wording (no English rewrite).
   if (/[\u0B80-\u0BFF\u0D80-\u0DFF\u0600-\u06FF]/u.test(q)) return q;
   if (!/49\s*[:：]\s*6/.test(q)) return q;

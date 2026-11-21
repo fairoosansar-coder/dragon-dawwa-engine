@@ -26,6 +26,20 @@ describe('claim assertion phrasing', () => {
     assert.equal(assertion.includes('?'), false);
   });
 
+  it('rewrites when Qur\'an / wrongdoer\'s apostrophes are present (not true quotes)', () => {
+    const withPossessive =
+      "What does Qur'an 49:6 say about verifying a wrongdoer's report before acting on it?";
+    const assertion = claimAssertionFromQuestion(withPossessive);
+    assert.notEqual(assertion, withPossessive);
+    assert.match(assertion, /verify news brought by a wrongdoer/i);
+    assert.equal(assertion.includes('?'), false);
+
+    const withContraction =
+      "What does Qur'an 49:6 say about verifying a report before it's acted on?";
+    assert.notEqual(claimAssertionFromQuestion(withContraction), withContraction);
+    assert.match(claimAssertionFromQuestion(withContraction), /verify news brought by a wrongdoer/i);
+  });
+
   it('preserves contrary, negated, and quoted 49:6 propositions', () => {
     const contrary =
       'Qur’an 49:6 says reports from wrongdoers need no verification.';
@@ -35,6 +49,9 @@ describe('claim assertion phrasing', () => {
     const quoted =
       'Does Qur’an 49:6 say "believe every report without investigation"?';
     assert.equal(claimAssertionFromQuestion(quoted), quoted);
+    const singleQuoted =
+      "Does Qur'an 49:6 say 'believe every report without investigation'?";
+    assert.equal(claimAssertionFromQuestion(singleQuoted), singleQuoted);
   });
 
   it('does not inject an English claim for Tamil or Sinhala Asks', () => {
