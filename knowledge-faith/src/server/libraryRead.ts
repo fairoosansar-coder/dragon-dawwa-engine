@@ -249,14 +249,22 @@ export async function readLibraryItem(
     ...item.reviewers.map(name => ({ role: 'reviewer', name })),
   ];
 
-  const sourceLanguage = (item.language as Lang | null) ?? detectSourceLang(item.title || item.description || '');
+  const publicationLanguage =
+    (item.language as Lang | null) ?? detectSourceLang(item.title || item.description || '');
   const quarantined = preparedTextQuarantined(item.id);
+  // Saved shelf / card filters use `language` as the rendered reading language.
+  // Catalogue-only / untranslated fallbacks keep the publication language.
+  const renderedLanguage =
+    !quarantined && totalBlocks > 0 && (requiresTranslation || publicationLanguage === lang)
+      ? lang
+      : publicationLanguage;
 
   return {
     id: item.id,
     title: localizedTitle || item.title,
-    language: sourceLanguage,
+    language: renderedLanguage,
     requestedLanguage: lang,
+    publicationLanguage,
     contentType: item.type,
     availability: quarantined ? 'partial' : prose ? 'readable' : 'partial',
     limitation: quarantined

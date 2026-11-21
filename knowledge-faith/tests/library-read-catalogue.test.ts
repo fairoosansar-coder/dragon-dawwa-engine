@@ -5,6 +5,15 @@ import {
   readerBlocksFromItemHtml,
 } from '../src/server/libraryRead.ts';
 
+describe('library reader language labeling', () => {
+  it('keeps publication language when there is no rendered book prose', () => {
+    const empty = readerBlocksFromItemHtml(null);
+    assert.equal(empty.prose, false);
+    // Contract: catalogue-only items must not stamp the requested UI language as
+    // the rendered reader language (see live Discover Islam ta over en).
+  });
+});
+
 describe('library reader catalogue honesty (offline fixture)', () => {
   it('does not promote a catalogue description into readable book prose', () => {
     const empty = readerBlocksFromItemHtml(null);

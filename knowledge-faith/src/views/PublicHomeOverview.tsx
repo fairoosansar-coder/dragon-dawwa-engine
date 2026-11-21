@@ -31,6 +31,7 @@ const collections = [
 ];
 
 export function PublicHomeOverview() {
+  const staging = import.meta.env?.VITE_STAGING_READER === '1';
   const { loginOrRegister } = useSeekerAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -98,7 +99,7 @@ export function PublicHomeOverview() {
           </button>
         </div>
       </section>
-      {import.meta.env?.VITE_STAGING_READER === '1' && (
+      {staging && (
         <aside className="ms-stage-note">
           <div>
             <strong>Staging edition</strong>
@@ -139,11 +140,12 @@ export function PublicHomeOverview() {
       </section>
       <section className="ms-access">
         <div>
-          <p className="ms-label">READER ACCESS · STAGING</p>
+          <p className="ms-label">{staging ? 'READER ACCESS · STAGING' : 'READER ACCESS'}</p>
           <h2>Enter the library</h2>
           <p>
-            Use a separate test account here. Your production account and saved items are not copied
-            into staging.
+            {staging
+              ? 'Use a separate test account here. Your production account and saved items are not copied into staging.'
+              : 'Sign in with your Dragon Dawwa account to continue reading, save passages, and resume where you left off.'}
           </p>
         </div>
         <SeekerAuthCard inline />

@@ -26,6 +26,14 @@ describe('claim assertion phrasing', () => {
     assert.equal(assertion.includes('?'), false);
   });
 
+  it('preserves contrary or negated 49:6 claims without replacing them', () => {
+    const contrary =
+      'Qur’an 49:6 says reports from wrongdoers need no verification.';
+    assert.equal(claimAssertionFromQuestion(contrary), contrary);
+    const negated = 'Qur’an 49:6 does not require verifying a report before acting.';
+    assert.equal(claimAssertionFromQuestion(negated), negated);
+  });
+
   it('leaves unrelated wording unchanged', () => {
     const q = 'Actions are by intentions.';
     assert.equal(claimAssertionFromQuestion(q), q);

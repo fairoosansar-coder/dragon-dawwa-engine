@@ -207,7 +207,14 @@ export function BookReader({ itemId, backHref = libraryReturn() }: { itemId: num
 }
 
 function cardFromDocument(data: ReadBook): BookCard {
-  const language = data.language === 'ta' || data.language === 'si' ? data.language : 'en';
+  // Prefer the rendered reader language so a Tamil reading stays on the Tamil shelf.
+  const rendered =
+    data.language === 'ta' || data.language === 'si' || data.language === 'en'
+      ? data.language
+      : data.requestedLanguage === 'ta' || data.requestedLanguage === 'si'
+        ? data.requestedLanguage
+        : 'en';
+  const language = rendered;
   return {
     id: data.id,
     title: data.title || 'Untitled book',
