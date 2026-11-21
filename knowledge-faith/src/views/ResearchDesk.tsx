@@ -451,11 +451,9 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   const showCompletedJobReport = Boolean(
     liveModel && finished && !isCountdownActive && (!sevenAgentDossier || sourcesOnlyBoard),
   );
-  /** Quick passage list only when the board is incomplete and the job report is not yet ready. */
+  /** Keep opened source texts visible on sources_only boards without requiring Expand. */
   const openedPassagesForSourcesOnly =
-    sourcesOnlyBoard &&
-    !showCompletedJobReport &&
-    sevenAgentDossier?.retrievedPassages?.length
+    sourcesOnlyBoard && sevenAgentDossier?.retrievedPassages?.length
       ? sevenAgentDossier.retrievedPassages
       : null;
 

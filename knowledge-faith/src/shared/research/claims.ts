@@ -1,5 +1,6 @@
 import type { ClaimEvidence, ClaimSupport } from '../contracts/v1.ts';
 import { contentTokens, passageSupportsTopic } from '../research.ts';
+import { evaluateVerificationClaimAgainstPassages } from './claimMeaning.ts';
 
 const QUOTE_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ['“', '”'],
@@ -36,8 +37,9 @@ export interface ClaimPassage {
 
 /**
  * A citation id is not support, and a word match only identifies a candidate passage.
- * A claim is labeled 'supported' ONLY when the passage contains the verbatim quotation or exact claim wording.
- * Word/token matches without verbatim establishment are labeled 'insufficient' (candidate passage).
+ * Exact quotation / exact claim wording → supported with quotationFaithful true|null as appropriate.
+ * Conservative meaning check (opened edition text) can support a faithful paraphrase with quotationFaithful: null.
+ * Word/token overlap alone stays 'insufficient'.
  */
 export function verifyClaim(claim: string, citationId: string, passages: readonly ClaimPassage[]): ClaimEvidence {
   const passage = passages.find(item => item.id === citationId);
@@ -70,8 +72,44 @@ export function verifyClaim(claim: string, citationId: string, passages: readonl
   const exactMatch =
     faithful === true ||
     (compactClaim.length >= 12 && body.toLowerCase().includes(compactClaim.toLowerCase()));
-  const relevant = passageSupportsTopic(claim, passage.text) || exactMatch;
-  const support: ClaimSupport = exactMatch ? 'supported' : relevant ? 'insufficient' : 'unsupported';
+  if (exactMatch) {
+    return {
+      claim,
+      passageIds: [citationId],
+      support: 'supported',
+      citationExists: true,
+      quotationFaithful: faithful,
+      citationRelevant: true,
+      note: 'The passage contains the exact quoted wording. This is not an independent scholarly verdict.',
+    };
+  }
+
+  const meaning = evaluateVerificationClaimAgainstPassages(claim, passages, citationId);
+  if (meaning.support === 'supported' && meaning.passageId) {
+    return {
+      claim,
+      passageIds: [meaning.passageId],
+      support: 'supported',
+      citationExists: true,
+      quotationFaithful: null,
+      citationRelevant: true,
+      note: meaning.note,
+    };
+  }
+  if (meaning.support === 'unsupported' && meaning.note.includes('contrary')) {
+    return {
+      claim,
+      passageIds: [citationId],
+      support: 'unsupported',
+      citationExists: true,
+      quotationFaithful: null,
+      citationRelevant: false,
+      note: meaning.note,
+    };
+  }
+
+  const relevant = passageSupportsTopic(claim, passage.text);
+  const support: ClaimSupport = relevant ? 'insufficient' : 'unsupported';
   return {
     claim,
     passageIds: [citationId],
@@ -79,11 +117,9 @@ export function verifyClaim(claim: string, citationId: string, passages: readonl
     citationExists: true,
     quotationFaithful: faithful,
     citationRelevant: relevant,
-    note: exactMatch
-      ? 'The passage contains the exact quoted wording. This is not an independent scholarly verdict.'
-      : relevant
-        ? 'Candidate passage identified by word match. A word match does not automatically establish that a claim is supported.'
-        : 'The citation exists. The claim is not established by that passage.',
+    note: relevant
+      ? 'Candidate passage identified by word match. A word match does not automatically establish that a claim is supported.'
+      : 'The citation exists. The claim is not established by that passage.',
   };
 }
 

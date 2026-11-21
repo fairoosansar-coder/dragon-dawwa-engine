@@ -182,3 +182,12 @@ export function linkAnswerCitationsToPassages(
     }),
   };
 }
+
+export {
+  evaluateVerificationClaimAgainstPassages,
+  isContraryVerificationClaim,
+  isVerificationMeaningClaim,
+  passageEstablishesVerificationMeaning,
+  type ClaimPassageSupportResult,
+  type PassageMeaningSupport,
+} from '../../shared/research/claimMeaning.ts';
