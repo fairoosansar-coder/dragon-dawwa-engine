@@ -4,6 +4,7 @@ import type {
   HadeethEncRetrievedRecord,
 } from '../types/hadith.ts';
 import { publishedAuthenticity, sourcedNarratorChain } from './reportPresentation.ts';
+import { findingLabel } from './automatedFinding.ts';
 import {
   bindReport,
   isChinaQuestion,
@@ -747,6 +748,15 @@ export function buildFullReportMarkdown(analysis: DragonDawwaAnalysis, lang: Lan
     `"${enriched.query_hadith}"`,
     '',
     `## Executive Synthesis & Final Verdict (Agent 6)`,
+    `- **Automated result**: ${findingLabel(enriched.automated_finding)}`,
+    ...(enriched.automated_finding
+      ? [
+          `- **Method**: ${enriched.automated_finding.method}. This source check is not an independent chain authentication or legal ruling.`,
+          ...enriched.automated_finding.sources.map(
+            r => `- [HadeethEnc #${r.id}](${r.url}): ${r.grade || 'No published grade'}.`,
+          ),
+        ]
+      : []),
     `- **Final Status**: ${a6.final_status}`,
     `- **Published grade on the authenticity indicator**: ${grade.grade}`,
     `- **Grade source**: ${grade.source}`,

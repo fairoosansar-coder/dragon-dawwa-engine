@@ -8,7 +8,7 @@ import { readName } from '../src/server/names.ts';
 import { getAsma } from '../src/server/asma.ts';
 
 describe('live retrieval', () => {
-  it('opens a Discover Islam item inside the reader', { timeout: 30_000 }, async () => {
+  it('live-provider: opens a Discover Islam item inside the reader', { timeout: 30_000 }, async () => {
     const item = await readLibraryItem(2845389, 'en');
     assert.equal(item.availability === 'source_unavailable', false);
     assert.equal(item.language, 'en');

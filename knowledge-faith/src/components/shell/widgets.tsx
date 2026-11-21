@@ -297,15 +297,29 @@ export function PrayerStrip() {
     const nextZone = remote.data?.timezone;
     if (nextZone && nextZone !== timeZone) setTimeZone(nextZone);
   }, [remote.data, timeZone]);
+  const timetableDateIso = useMemo(() => {
+    const raw = remote.data?.gregorian?.trim();
+    if (!raw) return null;
+    const dmy = /^(\d{2})-(\d{2})-(\d{4})$/.exec(raw);
+    if (dmy) return `${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+    return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null;
+  }, [remote.data?.gregorian]);
+
+  const staleTimetable = useMemo(() => {
+    if (!remote.data || !timetableDateIso) return false;
+    const todayIso = prayerQueryDate(now, remote.data.timezone);
+    return Boolean(todayIso && timetableDateIso !== todayIso);
+  }, [remote.data, timetableDateIso, now]);
+
   const upcoming = useMemo(() => {
-    if (!remote.data) return null;
+    if (!remote.data || staleTimetable) return null;
     const timings = applyPrayerOffsets(remote.data.timings, offsets);
     const next = nextPrayer(
       { Fajr: timings.Fajr, Dhuhr: timings.Dhuhr, Asr: timings.Asr, Maghrib: timings.Maghrib, Isha: timings.Isha },
       minutesInZone(now, remote.data.timezone),
     );
     return { name: next.name, time: timings[next.name] };
-  }, [remote.data, offsets, now]);
+  }, [remote.data, offsets, now, staleTimetable]);
 
   if (!place) {
     return (
@@ -320,6 +334,11 @@ export function PrayerStrip() {
       <span className="text-sm text-muted">{place.name}</span>
       {remote.loading && <Loading />}
       {remote.error && <span className="text-sm text-ink">{remote.error}</span>}
+      {staleTimetable && remote.data && (
+        <span className="text-sm font-medium text-ink" data-testid="prayer-strip-stale">
+          Timetable dated {remote.data.gregorian} · refresh for today’s countdown
+        </span>
+      )}
       {upcoming && (
         <span className="font-display text-lg font-bold text-pine">
           {t.nextPrayer}: {upcoming.name} · {upcoming.time}

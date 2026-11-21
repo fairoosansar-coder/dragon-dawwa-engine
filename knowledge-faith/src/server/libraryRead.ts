@@ -1,6 +1,10 @@
 import type { Lang } from '../shared/sources.ts';
 import type { LibraryBlock, LibraryDocument, LibraryMedia } from '../shared/libraryDocument.ts';
 import { articleBlocks } from '../shared/readableText.ts';
+import {
+  PREPARED_TEXT_QUARANTINE_MESSAGE,
+  preparedTextQuarantined,
+} from '../shared/bookReadiness.ts';
 import { ISLAMHOUSE_RIGHTS } from '../shared/sourceRegistry.ts';
 import { translateTextToLanguage } from './ayahStudyService.ts';
 import { getCuratedLibraryDocument } from './curatedKnowledgePaths.ts';
@@ -32,6 +36,23 @@ function limitation(item: ItemPayload, prose: boolean): string | null {
     return 'Full text was not in the item API, and no attachment was listed. The description below is the catalogue summary, not the work.';
   }
   return 'Full text was not in the item API, and no attachment was listed.';
+}
+
+/**
+ * Catalogue description must never become reader blocks. Only item HTML is prose.
+ * Exported for offline fixture coverage of Discover Islam / PDF-only items.
+ */
+export function readerBlocksFromItemHtml(html: string | null): {
+  blocks: LibraryBlock[];
+  prose: boolean;
+} {
+  const blocks = html ? articleBlocks(html) : [];
+  return { blocks, prose: blocks.some(block => block.kind === 'paragraph') };
+}
+
+/** Exported for offline fixture coverage of catalogue/PDF limitation copy. */
+export function catalogueLimitation(item: Pick<ItemPayload, 'description' | 'files'>, prose: boolean): string | null {
+  return limitation(item as ItemPayload, prose);
 }
 
 const SINHALA_SCRIPT_RE = /[\u0D80-\u0DFF]/u;
@@ -156,13 +177,9 @@ export async function readLibraryItem(
     };
   }
 
-  let allBlocks = item.html ? articleBlocks(item.html) : [];
-  if (allBlocks.length === 0 && item.description) {
-    allBlocks = articleBlocks(`<p>${item.description}</p>`);
-  }
-
+  // Catalogue description must never become reader prose / "full text".
+  const { blocks: allBlocks, prose } = readerBlocksFromItemHtml(item.html);
   const totalBlocks = allBlocks.length;
-  const prose = allBlocks.some(block => block.kind === 'paragraph');
   const media: LibraryMedia[] = item.files.map(file => {
     const kind = mediaKind(file.extension, file.play);
     return {
@@ -232,17 +249,22 @@ export async function readLibraryItem(
     ...item.reviewers.map(name => ({ role: 'reviewer', name })),
   ];
 
+  const sourceLanguage = (item.language as Lang | null) ?? detectSourceLang(item.title || item.description || '');
+  const quarantined = preparedTextQuarantined(item.id);
+
   return {
     id: item.id,
     title: localizedTitle || item.title,
-    language: lang,
+    language: sourceLanguage,
     requestedLanguage: lang,
     contentType: item.type,
-    availability: prose ? 'readable' : 'partial',
-    limitation: limitation(item, prose),
+    availability: quarantined ? 'partial' : prose ? 'readable' : 'partial',
+    limitation: quarantined
+      ? PREPARED_TEXT_QUARANTINE_MESSAGE
+      : limitation(item, prose),
     description: localizedDescription,
     descriptionIsFullText: false,
-    blocks: localizedBlocks,
+    blocks: quarantined ? [] : localizedBlocks,
     page: safePage,
     pageSize: usePagination ? pageSize : totalBlocks || pageSize,
     totalPages: usePagination ? totalPages : 1,

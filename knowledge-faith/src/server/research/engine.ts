@@ -14,6 +14,7 @@ import type { Evidence } from '../../shared/types.ts';
 import { contentTokens, passageSupportsTopic } from '../../shared/research.ts';
 import { verifyClaim } from '../../shared/research/claims.ts';
 import {
+  claimAssertionFromQuestion,
   linkAnswerCitationsToPassages,
   linkClaimToRetrievedPassages,
 } from './claimPassageLink.ts';
@@ -1556,6 +1557,7 @@ function claimFor(
     unnamed: readonly { surah: number; ayah: number }[];
   } | null,
 ): ClaimEvidence {
+  const assertion = claimAssertionFromQuestion(sub.text);
   if (sub.domain === 'science' || asksScience(sub.text)) {
     const papers = passages.filter(item => item.role === 'empirical');
     if (coverage.some(note => note.kind === 'science_not_configured')) {
@@ -1597,7 +1599,7 @@ function claimFor(
     if (!words && !campaigns && !unnamed) {
       const unavailable = coverage.some(note => note.kind === 'source_unavailable' || note.kind === 'language_unavailable');
       return {
-        claim: sub.text,
+        claim: assertion,
         passageIds: [] as string[],
         support: 'insufficient' as const,
         citationExists: false,
@@ -1614,7 +1616,7 @@ function claimFor(
       ...(split?.unnamed ?? []).map(verse => `Q${verse.surah}-${verse.ayah}`),
     ];
     return {
-      claim: sub.text,
+      claim: assertion,
       passageIds: [...new Set(ids)].filter(id => passages.some(passage => passage.id === id)).slice(0, 12),
       support: 'supported' as const,
       citationExists: true,
@@ -1625,7 +1627,7 @@ function claimFor(
   }
   if (!sub.queries.length) {
     return {
-      claim: sub.text,
+      claim: assertion,
       passageIds: [] as string[],
       support: 'insufficient' as const,
       citationExists: false,
@@ -1637,11 +1639,16 @@ function claimFor(
   const related = passages.filter(item => {
     if (item.role === 'empirical' || item.context?.startsWith('Neighbouring')) return false;
     const blob = `${item.text}\n${item.arabic ?? ''}`;
-    return passageSupportsTopic(sub.text, blob) || themeWordingSupports(sub.text, blob);
+    return (
+      passageSupportsTopic(sub.text, blob) ||
+      themeWordingSupports(sub.text, blob) ||
+      passageSupportsTopic(assertion, blob) ||
+      themeWordingSupports(assertion, blob)
+    );
   });
   if (!related.length) {
     return {
-      claim: sub.text,
+      claim: assertion,
       passageIds: [] as string[],
       support: 'insufficient' as const,
       citationExists: false,
@@ -1654,13 +1661,17 @@ function claimFor(
           : 'Available evidence does not sufficiently support an answer to this part of the question.',
     };
   }
-  const best = [...related].sort((a, b) => score(sub.text, b.text) - score(sub.text, a.text))[0];
-  const check = verifyClaim(sub.text, best.id, related.map(item => ({ id: item.id, text: item.text })));
+  const best = [...related].sort((a, b) => score(assertion, b.text) - score(assertion, a.text))[0];
+  const check = verifyClaim(assertion, best.id, related.map(item => ({ id: item.id, text: item.text })));
   const passageIds = related.map(item => item.id).slice(0, 8);
-  const onSubject = related.some(item => themeWordingSupports(sub.text, `${item.text}\n${item.arabic ?? ''}`));
+  const onSubject = related.some(item =>
+    themeWordingSupports(sub.text, `${item.text}\n${item.arabic ?? ''}`) ||
+    themeWordingSupports(assertion, `${item.text}\n${item.arabic ?? ''}`),
+  );
   if (check.support === 'unsupported' && onSubject) {
     return {
       ...check,
+      claim: assertion,
       support: 'insufficient',
       citationRelevant: true,
       passageIds,
@@ -1670,6 +1681,7 @@ function claimFor(
   if (check.support === 'insufficient' || check.support === 'supported') {
     return {
       ...check,
+      claim: assertion,
       passageIds,
       note:
         check.support === 'supported'
@@ -1677,7 +1689,7 @@ function claimFor(
           : 'The retrieved passages share this subject. They are cited for what they say. A word match does not add a number or a grade that they do not state.',
     };
   }
-  return check;
+  return { ...check, claim: assertion };
 }
 
 function studyPassage(record: StudyHadithRecord, lang: Lang, retrievedAt: string, hash: string): EvidencePassage {

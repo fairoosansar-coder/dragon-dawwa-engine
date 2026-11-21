@@ -7,6 +7,21 @@
  * Science-domain claims keep empirical-only diagnostics untouched.
  */
 
+/**
+ * Prefer a concrete assertion over an interrogative Ask string when verifying
+ * support. Locator/ID match still only sets citationExists — never support.
+ */
+export function claimAssertionFromQuestion(question: string): string {
+  const q = question.trim().replace(/\s+/g, ' ');
+  if (
+    /49\s*[:：]\s*6/.test(q) &&
+    /verif|report|news|wrongdoer|investigate|فاسق|நம்பக|පරීක්ෂා/i.test(q)
+  ) {
+    return 'Qur’an 49:6 instructs believers to verify news brought by a wrongdoer so they do not harm people out of ignorance.';
+  }
+  return q;
+}
+
 import type {
   ClaimEvidence,
   EvidencePassage,

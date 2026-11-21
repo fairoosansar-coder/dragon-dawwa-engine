@@ -135,6 +135,10 @@ export function SavedLibraryView() {
                   ? 'සුරැකි නියෝජිත 7 පර්යේෂණ වාර්තා, අල්-කුර්ආන් සහ හදීස්'
                   : 'Saved 7-Agent Research Dossiers, Qur’an Verses & Hadiths'}
             </h1>
+            <a className="ms-saved-books" href="#/books?shelf=saved">
+              {lang === 'ta' ? 'சேமித்த நூல்கள்' : lang === 'si' ? 'සුරැකි පොත්' : 'Open saved books'}{' '}
+              <span aria-hidden="true">↗</span>
+            </a>
           </div>
 
           <a

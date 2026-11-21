@@ -48,9 +48,10 @@ describe('7-Agent Hadith Research & Roundtable with HadeethEnc (Agent 7)', () =>
     assert.ok(h4508.published_grade);
     assert.ok(h4508.collection_attribution);
 
-    // 3. HadeethEnc records fed into Agents 1 and 5, opinions attributed, interpretation distinguished
-    assert.ok(analysis.agent_1_takhrij.sources.some(s => s.hadith_number.includes('4508')));
-    assert.ok(analysis.agent_5_scholars_verdict.gradings.some(g => g.reference.includes('4508')));
+    // 3. #4508 concerns preceding Ramadan; keep its metadata in discovery,
+    // never pass its published grade off as a grade of the Saturday narration.
+    assert.ok(!analysis.automated_finding?.sources.some(r => r.id === '4508'));
+    assert.ok(!analysis.agent_5_scholars_verdict.gradings.some(g => /HadeethEnc\s*#4508/i.test(g.reference)));
     assert.ok(a7.attributed_opinions.length >= 2);
     assert.ok(a7.agent_interpretation.length > 20);
     assert.ok(a7.responses_to_agents.length >= 3);

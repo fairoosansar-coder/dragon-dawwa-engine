@@ -202,11 +202,11 @@ describe('seven-agent audit fixes — job hydration validation', () => {
     ];
     rememberCompletedSharedJob(
       jobResponse('job-verify-news', 'What does Qur’an 49:6 teach about verifying news?', 'en', verifyPassages),
-      { scope: 'knowledge', teams: [], bookId: null },
+      { scope: 'knowledge', teams: [], bookId: null, noticeId: null, forwardedFrom: null },
     );
     rememberCompletedSharedJob(
       jobResponse('job-embryo', 'Does embryonic development appear in Qur’an 23:14?', 'en', embryoPassages),
-      { scope: 'knowledge', teams: [], bookId: null },
+      { scope: 'knowledge', teams: [], bookId: null, noticeId: null, forwardedFrom: null },
     );
 
     // Mismatched question: do not substitute the embryo job even though it aligns with the ask.
@@ -256,7 +256,7 @@ describe('seven-agent audit fixes — job hydration validation', () => {
     const verifyPassages = [passage('Q49-6', "Qur'an 49:6", 'Investigate news carefully.')];
     rememberCompletedSharedJob(
       jobResponse('job-verify-hydrate', question, 'en', verifyPassages),
-      { scope: 'knowledge', teams: [], bookId: null },
+      { scope: 'knowledge', teams: [], bookId: null, noticeId: null, forwardedFrom: null },
     );
 
     const live = await runSevenAgentResearch(question, 'en', { jobId: 'job-verify-hydrate' });
@@ -281,7 +281,7 @@ describe('seven-agent audit fixes — job hydration validation', () => {
         'en',
         [passage('Q49-6', "Qur'an 49:6", 'Investigate.')],
       ),
-      { scope: 'knowledge', teams: [], bookId: null },
+      { scope: 'knowledge', teams: [], bookId: null, noticeId: null, forwardedFrom: null },
     );
     const reopened = await getSevenAgentDossierById(emptyStub.id, 'en', {
       jobId: 'job-stub-hydrate',
