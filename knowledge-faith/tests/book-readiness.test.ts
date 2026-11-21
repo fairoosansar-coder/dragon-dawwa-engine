@@ -26,12 +26,24 @@ describe('claim assertion phrasing', () => {
     assert.equal(assertion.includes('?'), false);
   });
 
-  it('preserves contrary or negated 49:6 claims without replacing them', () => {
+  it('preserves contrary, negated, and quoted 49:6 propositions', () => {
     const contrary =
       'Qur’an 49:6 says reports from wrongdoers need no verification.';
     assert.equal(claimAssertionFromQuestion(contrary), contrary);
     const negated = 'Qur’an 49:6 does not require verifying a report before acting.';
     assert.equal(claimAssertionFromQuestion(negated), negated);
+    const quoted =
+      'Does Qur’an 49:6 say "believe every report without investigation"?';
+    assert.equal(claimAssertionFromQuestion(quoted), quoted);
+  });
+
+  it('does not inject an English claim for Tamil or Sinhala Asks', () => {
+    const ta =
+      'குர்ஆன் 49:6 ஒரு செய்தியை சரிபார்ப்பது பற்றி என்ன சொல்கிறது?';
+    assert.equal(claimAssertionFromQuestion(ta), ta);
+    const si =
+      'කුර්ආන් 49:6 ප්‍රවෘත්තියක් සනාථ කිරීම ගැන කුමක් පවසයිද?';
+    assert.equal(claimAssertionFromQuestion(si), si);
   });
 
   it('leaves unrelated wording unchanged', () => {

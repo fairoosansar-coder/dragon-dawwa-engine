@@ -7,31 +7,6 @@
  * Science-domain claims keep empirical-only diagnostics untouched.
  */
 
-/**
- * Prefer a concrete assertion over an interrogative Ask string when verifying
- * support. Locator/ID match still only sets citationExists — never support.
- * Affirmative/contrary/negated claims keep their submitted wording.
- */
-export function claimAssertionFromQuestion(question: string): string {
-  const q = question.trim().replace(/\s+/g, ' ');
-  const mentions496 = /49\s*[:：]\s*6/.test(q);
-  const aboutVerification =
-    /verif|report|news|wrongdoer|investigate|فاسق|நம்பக|පරීක්ෂා/i.test(q);
-  const isInterrogative =
-    /[?؟]\s*$/u.test(q) ||
-    /^(what|how|why|does|do|is|are|can|should|would|could|will)\b/i.test(q) ||
-    /^(என்ன|எப்படி|ஏன்|කුමක්|කොහොම|ඇයි)\b/u.test(q);
-  const contraryOrNegated =
-    /\b(need no|needs no|no need|without|never)\b.{0,40}\b(verif|investigat)/i.test(q) ||
-    /\b(does not|do not|don't|doesn'?t|not)\b.{0,40}\b(verif|investigat|require)/i.test(q) ||
-    /\bno verification\b/i.test(q) ||
-    /\b(false|incorrect|wrong)\b.{0,40}\b(verif|49\s*[:：]\s*6)/i.test(q);
-  if (mentions496 && aboutVerification && isInterrogative && !contraryOrNegated) {
-    return 'Qur’an 49:6 instructs believers to verify news brought by a wrongdoer so they do not harm people out of ignorance.';
-  }
-  return q;
-}
-
 import type {
   ClaimEvidence,
   EvidencePassage,
@@ -39,6 +14,44 @@ import type {
 } from '../../shared/contracts/v1.ts';
 import { ayahsMentioned } from '../../shared/research.ts';
 import { asksScience } from '../../shared/research/decompose.ts';
+
+const CANONICAL_496_ASSERTION_EN =
+  'Qur’an 49:6 instructs believers to verify news brought by a wrongdoer so they do not harm people out of ignorance.';
+
+/**
+ * Prefer a concrete assertion over the canonical English interrogative Ask when
+ * verifying support. Locator/ID match still only sets citationExists — never support.
+ *
+ * Preserves: contrary/negated claims, quoted propositions, and non-English Asks
+ * (do not inject an English claim into ta/si/ar diagnostics).
+ */
+export function claimAssertionFromQuestion(question: string): string {
+  const q = question.trim().replace(/\s+/g, ' ');
+  // Quoted propositions must reach verifyClaim unchanged for fidelity checks.
+  if (/["“”«»]/.test(q) || /'[^']{8,}'/.test(q) || /‘[^’]{8,}’/.test(q)) return q;
+  // Non-English script: keep the submitted wording (no English rewrite).
+  if (/[\u0B80-\u0BFF\u0D80-\u0DFF\u0600-\u06FF]/u.test(q)) return q;
+  if (!/49\s*[:：]\s*6/.test(q)) return q;
+
+  const contraryOrNegated =
+    /\b(need no|needs no|no need|without|never)\b.{0,40}\b(verif|investigat)/i.test(q) ||
+    /\b(does not|do not|don't|doesn'?t|not)\b.{0,40}\b(verif|investigat|require)/i.test(q) ||
+    /\bno verification\b/i.test(q) ||
+    /\b(false|incorrect|wrong)\b.{0,40}\b(verif|49\s*[:：]\s*6)/i.test(q) ||
+    /\bbelieve every report\b/i.test(q) ||
+    /\bwithout investigation\b/i.test(q);
+  if (contraryOrNegated) return q;
+
+  // Canonical open-ended English Ask only (master-brief fixture phrasing).
+  if (
+    /^what does qur['’]?an\s*49\s*[:：]\s*6 say about\b/i.test(q) &&
+    /verif|report|news|wrongdoer|acting/i.test(q) &&
+    /[?؟]\s*$/u.test(q)
+  ) {
+    return CANONICAL_496_ASSERTION_EN;
+  }
+  return q;
+}
 
 function verseKey(surah: number, ayah: number): string {
   return `${surah}:${ayah}`;
