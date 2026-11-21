@@ -186,6 +186,7 @@ describe('claim passage support — meaning verification', () => {
     for (const claim of [
       'Qur’an 49:6 says believers must not verify a wrongdoer’s report before acting.',
       'Qur’an 49:6 says believers should not verify news from a fasiq.',
+      'Qur’an 49:6 says to act on the news without checking it.',
     ]) {
       assert.equal(isContraryVerificationClaim(claim), true, claim);
       const check = verifyClaim(claim, 'Q49-6', [{ id: 'Q49-6', text: SI_496 }]);
@@ -193,10 +194,19 @@ describe('claim passage support — meaning verification', () => {
       assert.equal(check.support, 'unsupported', claim);
       assert.match(check.note, /contrary/i, claim);
     }
-    const affirming =
-      'Qur’an 49:6 teaches believers do not act without verifying a wrongdoer’s news, lest they harm people through ignorance.';
-    assert.equal(isContraryVerificationClaim(affirming), false);
-    assert.equal(verifyClaim(affirming, 'Q49-6', [{ id: 'Q49-6', text: SI_496 }]).support, 'supported');
+  });
+
+  it('keeps until-verify / whether-or-not / should-not-skip paraphrases faithful and supportable', () => {
+    for (const claim of [
+      'Qur’an 49:6 teaches believers do not act until you verify a wrongdoer’s report, lest they harm people through ignorance.',
+      'Qur’an 49:6 teaches believers to consider whether or not to verify a wrongdoer’s news before acting, lest they harm people through ignorance.',
+      'Qur’an 49:6 teaches believers should not skip verifying a wrongdoer’s report, lest they harm people through ignorance.',
+      'Qur’an 49:6 teaches believers do not act without verifying a wrongdoer’s news, lest they harm people through ignorance.',
+    ]) {
+      assert.equal(isContraryVerificationClaim(claim), false, claim);
+      const check = verifyClaim(claim, 'Q49-6', [{ id: 'Q49-6', text: SI_496 }]);
+      assert.equal(check.support, 'supported', claim);
+    }
   });
 
   it('does not hard-reject unrelated claims that only share invented-detail wording', () => {

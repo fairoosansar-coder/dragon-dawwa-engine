@@ -43,16 +43,38 @@ export function isContraryVerificationClaim(claim: string): boolean {
   return deniesVerificationItself(q);
 }
 
-/** “must not act … without checking” affirms verification; do not treat as contrary. */
+/**
+ * Faithful nested phrasing that affirms verification (not contrary):
+ * “do not act without/until verifying”, “should not skip verifying”, “whether or not to verify”.
+ */
 function affirmsVerificationViaNestedNegation(q: string): boolean {
+  const verifyStem = String.raw`(?:verif\w*|investigat\w*|check(?:s|ed|ing)?)`;
   return (
-    /\b((do|does|did) not|don't|doesn'?t|must not|should not|never|not)\b.{0,50}\b(act|acting|harm|proceed|believe)\b.{0,50}\bwithout\b.{0,30}\b(verif|investigat|check)/i.test(
-      q,
-    ) ||
-    /\bwithout\b.{0,20}\b(verif|investigat|check).{0,40}\b(do not|don't|lest|so (that )?they (do not|don't))\b/i.test(q) ||
-    /\b(lest|so (that )?they (do not|don't))\b.{0,60}\b(harm|act).{0,40}\b(without|before).{0,20}\b(verif|investigat|check)/i.test(
-      q,
-    )
+    // do/must/should not act … without verifying
+    new RegExp(
+      String.raw`\b((do|does|did) not|don't|doesn'?t|must not|should not|never|not)\b.{0,50}\b(act|acting|harm|proceed|believe)\b.{0,50}\bwithout\b.{0,30}\b${verifyStem}\b`,
+      'i',
+    ).test(q) ||
+    // do not act until / before / unless you verify
+    new RegExp(
+      String.raw`\b((do|does|did) not|don't|doesn'?t|must not|should not|never|not)\b.{0,50}\b(act|acting|harm|proceed|believe)\b.{0,40}\b(until|before|unless)\b.{0,30}\b${verifyStem}\b`,
+      'i',
+    ).test(q) ||
+    // should/must/do not skip verifying
+    new RegExp(
+      String.raw`\b((do|does|did) not|don't|doesn'?t|must not|should not)\b.{0,20}\bskip(?:ping)?\b.{0,20}\b${verifyStem}\b`,
+      'i',
+    ).test(q) ||
+    // deliberative “whether or not to verify” (not a denial of verification)
+    new RegExp(String.raw`\bwhether or not to\b.{0,20}\b${verifyStem}\b`, 'i').test(q) ||
+    new RegExp(
+      String.raw`\bwithout\b.{0,20}\b${verifyStem}\b.{0,40}\b(do not|don't|lest|so (that )?they (do not|don't))\b`,
+      'i',
+    ).test(q) ||
+    new RegExp(
+      String.raw`\b(lest|so (that )?they (do not|don't))\b.{0,60}\b(harm|act).{0,40}\b(without|before|until)\b.{0,20}\b${verifyStem}\b`,
+      'i',
+    ).test(q)
   );
 }
 
@@ -63,9 +85,9 @@ function deniesVerificationItself(q: string): boolean {
   return (
     new RegExp(String.raw`\b(need no|needs no|no need)\b.{0,40}\b${verifyWord}\b`, 'i').test(q) ||
     new RegExp(String.raw`\bnever\b.{0,40}\b${verifyWord}\b`, 'i').test(q) ||
-    // Include bare not / must not / should not so “must not verify” stays contrary.
+    // must/should/do not verify — omit bare \bnot\b so “whether or not to verify” is not contrary.
     new RegExp(
-      String.raw`\b(does not|do not|don't|doesn'?t|must not|should not|not)\b.{0,40}\b${verifyWord}\b`,
+      String.raw`\b(does not|do not|don't|doesn'?t|must not|should not)\b.{0,40}\b${verifyWord}\b`,
       'i',
     ).test(q) ||
     /\bno verification\b/i.test(q) ||
