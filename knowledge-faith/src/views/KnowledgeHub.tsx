@@ -18,6 +18,7 @@ import { ADMIN_SETTINGS_EVENT, readAdminSettings, submitScholarQuestion } from '
 import { KnowledgeShelf } from './KnowledgePaths.tsx';
 import { LibraryReader } from './LibraryReader.tsx';
 import { SavedLibraryView } from './SavedLibraryView.tsx';
+import { LibrarySearchBar } from '../components/hub/LibrarySearchBar.tsx';
 import { EmptyState, FeatureCard, PrayerStrip } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, Loading, Notice, SectionTitle } from '../components/ui.tsx';
 import { DomainResearchForm } from './DomainResearchForm.tsx';
@@ -327,6 +328,8 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
       </div>
 
       <PrayerStrip />
+
+      <LibrarySearchBar surahs={surahs.data ?? null} />
 
       <section className="space-y-2.5" data-testid="hub-desk-cards" aria-label={t.shortcuts}>
         <SectionTitle>{t.shortcuts}</SectionTitle>
