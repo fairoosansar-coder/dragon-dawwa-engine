@@ -1675,13 +1675,20 @@ function claimFor(
     related.map(item => ({ id: item.id, text: item.text })),
   );
   const linkedIds = namedVerse.map(item => item.id);
-  const passageIds = [...new Set([...linkedIds, ...related.map(item => item.id)])].slice(0, 8);
+  // Verifier-supporting IDs first so the 8-cap cannot drop the establishing text.
+  const passageIds = [
+    ...new Set([...(check.passageIds ?? []), ...linkedIds, ...related.map(item => item.id)]),
+  ].slice(0, 8);
   const onSubject = related.some(item =>
     themeWordingSupports(sub.text, `${item.text}\n${item.arabic ?? ''}`) ||
     themeWordingSupports(assertion, `${item.text}\n${item.arabic ?? ''}`),
   );
-  // Do not soften a contrary assertion that verifyClaim already rejected.
-  if (check.support === 'unsupported' && onSubject && !/contrary claim/i.test(check.note)) {
+  // Do not soften contrary / invented assertions that verifyClaim already rejected.
+  if (
+    check.support === 'unsupported' &&
+    onSubject &&
+    !/contrary claim|adds details|does not establish/i.test(check.note)
+  ) {
     return {
       ...check,
       claim: assertion,

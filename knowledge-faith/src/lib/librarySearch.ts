@@ -35,9 +35,17 @@ export type LibraryRefParse =
   | { ok: true; surah: number; ayah: number; surahName: string }
   | { ok: false; reason: 'empty' | 'not_ref' | 'invalid_bounds'; message: string };
 
+/** Must match server.ts books API `q` truncate (`slice(0, 80)`). */
+export const LIBRARY_TITLE_QUERY_MAX = 80;
+
 /** Normalize Unicode / whitespace for title matching (preserve native script). */
 export function normalizeLibraryQuery(raw: string): string {
   return raw.normalize('NFC').replace(/\s+/g, ' ').trim();
+}
+
+/** Bound title queries to the same 80-char server limit before request / compare. */
+export function truncateLibraryTitleQuery(raw: string): string {
+  return normalizeLibraryQuery(raw).slice(0, LIBRARY_TITLE_QUERY_MAX);
 }
 
 /**
@@ -124,4 +132,22 @@ export function catalogueBookToHit(row: CatalogueBookRow, requestedLang: Lang): 
 /** True when the query looks like a verse ref attempt (digits + colon/dot). */
 export function looksLikeVerseRef(raw: string): boolean {
   return /^\d{1,3}\s*[:.]\s*\d{0,3}$/.test(normalizeLibraryQuery(raw));
+}
+
+/**
+ * True only when catalogue results belong to the normalized submitted title query.
+ * Prevents opening a previous query’s first hit after an in-debounce edit+submit.
+ */
+export function catalogueResultsMatchSubmit(input: {
+  submittedQuery: string;
+  catalogueQuery: string | null | undefined;
+  catalogueLang: string | null | undefined;
+  requestedLang: Lang;
+  itemCount: number;
+}): boolean {
+  const submitted = truncateLibraryTitleQuery(input.submittedQuery);
+  if (!submitted || looksLikeVerseRef(submitted) || submitted.length < 3) return false;
+  if (input.catalogueLang !== input.requestedLang) return false;
+  if (truncateLibraryTitleQuery(input.catalogueQuery ?? '') !== submitted) return false;
+  return input.itemCount >= 0;
 }

@@ -184,10 +184,13 @@ export function linkAnswerCitationsToPassages(
 }
 
 export {
+  claimAddsUnestablishedDetail,
+  claimStatesVerificationProposition,
   evaluateVerificationClaimAgainstPassages,
   isContraryVerificationClaim,
   isVerificationMeaningClaim,
   passageEstablishesVerificationMeaning,
+  passageInvertsVerificationMeaning,
   type ClaimPassageSupportResult,
   type PassageMeaningSupport,
 } from '../../shared/research/claimMeaning.ts';

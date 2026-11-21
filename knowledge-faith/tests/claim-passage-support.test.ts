@@ -106,4 +106,79 @@ describe('claim passage support — meaning verification', () => {
     );
     assert.notEqual(check.support, 'supported');
   });
+
+  it('does not support invented propositions that only share the 49:6 theme', () => {
+    const truth = verifyClaim(
+      'Qur’an 49:6 says a wrongdoer always tells the truth.',
+      'Q49-6',
+      [{ id: 'Q49-6', text: SI_496 }],
+    );
+    assert.notEqual(truth.support, 'supported');
+    assert.equal(truth.support, 'unsupported');
+    assert.match(truth.note, /does not establish|adds details/i);
+
+    const witnesses = verifyClaim(
+      'Qur’an 49:6 requires verifying every report with exactly four witnesses.',
+      'Q49-6',
+      [{ id: 'Q49-6', text: SI_496 }],
+    );
+    assert.notEqual(witnesses.support, 'supported');
+    assert.equal(witnesses.support, 'unsupported');
+  });
+
+  it('treats nested-negation paraphrases as faithful, not contrary', () => {
+    const nested =
+      'Qur’an 49:6 teaches believers do not act on a wrongdoer’s news without verifying, lest they harm people through ignorance.';
+    assert.equal(isContraryVerificationClaim(nested), false);
+    const check = verifyClaim(nested, 'Q49-6', [{ id: 'Q49-6', text: SI_496 }]);
+    assert.equal(check.support, 'supported');
+    assert.equal(check.quotationFaithful, null);
+  });
+
+  it('does not support unrelated Surah 49 fragments or other-ayah claims', () => {
+    const fragment = verifyClaim(
+      'Qur’an 49 mentions a wrongdoer and ignorance.',
+      'Q49-6',
+      [{ id: 'Q49-6', text: SI_496 }],
+    );
+    assert.notEqual(fragment.support, 'supported');
+
+    const otherAyah = verifyClaim(
+      'Qur’an 2:255 is the Throne Verse about Allah’s knowledge, and it mentions 49:6 harm.',
+      'Q49-6',
+      [{ id: 'Q49-6', text: SI_496 }],
+    );
+    assert.notEqual(otherAyah.support, 'supported');
+  });
+
+  it('does not support when the opened body inverts verification polarity', () => {
+    const inverted =
+      'When a wrongdoer brings news, never verify it before acting, even if you harm people out of ignorance.';
+    const meaning = passageEstablishesVerificationMeaning(inverted);
+    assert.equal(meaning.supported, false);
+    assert.match(meaning.reason, /invert|polarity|never verify/i);
+
+    const assertion = claimAssertionFromQuestion(CANONICAL_ASK);
+    const check = verifyClaim(assertion, 'Q49-6', [{ id: 'Q49-6', text: inverted }]);
+    assert.notEqual(check.support, 'supported');
+  });
+
+  it('does not support invented count qualifiers such as exactly three times', () => {
+    const threeTimes = verifyClaim(
+      'Qur’an 49:6 requires checking every report exactly three times.',
+      'Q49-6',
+      [{ id: 'Q49-6', text: SI_496 }],
+    );
+    assert.notEqual(threeTimes.support, 'supported');
+    assert.equal(threeTimes.support, 'unsupported');
+    assert.match(threeTimes.note, /does not establish|adds details/i);
+  });
+
+  it('treats must-not-act-without-checking as faithful nested negation', () => {
+    const nested =
+      'Qur’an 49:6 says believers must not act on a report without checking it, lest they harm people through ignorance.';
+    assert.equal(isContraryVerificationClaim(nested), false);
+    const check = verifyClaim(nested, 'Q49-6', [{ id: 'Q49-6', text: SI_496 }]);
+    assert.equal(check.support, 'supported');
+  });
 });

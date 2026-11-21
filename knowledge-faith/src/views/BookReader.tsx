@@ -90,15 +90,21 @@ export function BookReader({
           : 'text';
   const [representation, setRepresentation] = useState<BookRepresentation>(initialRep);
   const [page, setPage] = useState(() => route.readerPage ?? resumePageFor(itemId));
+  /** PDF page is only observable via our controlled input / arrows / route — not iframe scroll. */
+  const [pdfPageConfirmed, setPdfPageConfirmed] = useState(() => Boolean(route.readerPage));
   const [settings, setSettings] = useState(false);
   const [size, setSize] = useStored<'sm' | 'md' | 'lg'>('kf-library-text', 'md');
   const [bookmarkNotice, setBookmarkNotice] = useState<string | null>(null);
   const [bookmarks, setBookmarks] = useState<BookPageLocator[]>(() => readBookPageBookmarks());
   const saved = useSavedBooks();
 
+  // New PDF bookmarks always bind to the attachment actually displayed.
+  const displayedAttachmentId = pdfMedia?.sourceUrl ?? data?.pageAttachmentId ?? null;
+  const attachmentMismatch =
+    Boolean(route.attachmentId && displayedAttachmentId && route.attachmentId !== displayedAttachmentId);
   const attachmentId =
     representation === 'pdf'
-      ? route.attachmentId ?? pdfMedia?.sourceUrl ?? data?.pageAttachmentId ?? null
+      ? displayedAttachmentId
       : data?.pageAttachmentId && textPageSource === 'pdf'
         ? data.pageAttachmentId
         : null;
@@ -110,11 +116,19 @@ export function BookReader({
         ? Math.min(Math.max(page, 1), pages.length)
         : 1;
   const body = representation === 'text' ? pages[current - 1] : undefined;
-  const pdfPageObservable = representation === 'pdf' && Boolean(pdfMedia);
+  const pdfPageObservable =
+    representation === 'pdf' && Boolean(pdfMedia) && pdfPageConfirmed && Number.isInteger(current) && current >= 1;
+
+  function setPdfPage(next: number) {
+    const safe = Math.max(1, Math.trunc(next) || 1);
+    setPage(safe);
+    setPdfPageConfirmed(true);
+  }
 
   useEffect(() => {
     const next = parseBookReaderParams(params);
     setPage(next.readerPage ?? resumePageFor(itemId));
+    setPdfPageConfirmed(Boolean(next.readerPage));
     setSettings(false);
     setBookmarkNotice(null);
     if (next.representation === 'pdf' || next.representation === 'text') {
@@ -130,10 +144,15 @@ export function BookReader({
     else if (pages.length > 0) setRepresentation('text');
   }, [data, pages.length, pdfMedia, route.representation]);
 
+  // Clamp text page when pages load or route page intentionally changes — do not
+  // snap back to route.readerPage merely because representation toggled PDF↔text.
   useEffect(() => {
     if (representation !== 'text' || !data || pages.length === 0) return;
-    setPage(Math.min(Math.max(route.readerPage ?? resumePageFor(itemId), 1), pages.length));
-  }, [data, itemId, pages.length, representation, route.readerPage]);
+    setPage(prev => {
+      const preferred = route.readerPage ?? prev;
+      return Math.min(Math.max(preferred, 1), pages.length);
+    });
+  }, [data, itemId, pages.length, route.readerPage]);
 
   useEffect(() => {
     if (!data || pages.length === 0 || representation !== 'text') return;
@@ -148,17 +167,19 @@ export function BookReader({
         if (event.key === 'ArrowRight') setPage(value => Math.min(pages.length || 1, Math.max(value, 1) + 1));
         if (event.key === 'ArrowLeft') setPage(value => Math.max(1, value - 1));
       } else if (representation === 'pdf') {
-        if (event.key === 'ArrowRight') setPage(value => Math.max(value, 1) + 1);
-        if (event.key === 'ArrowLeft') setPage(value => Math.max(1, value - 1));
+        if (event.key === 'ArrowRight') setPdfPage(Math.max(page, 1) + 1);
+        if (event.key === 'ArrowLeft') setPdfPage(Math.max(1, page - 1));
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [pages.length, representation]);
+  }, [page, pages.length, representation]);
 
   const activeLocator = useMemo(() => {
     if (!data) return null;
-    if (representation === 'pdf' && !attachmentId) return null;
+    if (representation === 'pdf') {
+      if (!attachmentId || !pdfPageObservable || attachmentMismatch) return null;
+    }
     if (representation === 'text' && pages.length === 0) return null;
     if (representation === 'text' && quarantined) return null;
     return {
@@ -168,7 +189,17 @@ export function BookReader({
       lang: editionLang,
       attachmentId: representation === 'pdf' ? attachmentId : null,
     };
-  }, [attachmentId, current, data, editionLang, pages.length, quarantined, representation]);
+  }, [
+    attachmentId,
+    attachmentMismatch,
+    current,
+    data,
+    editionLang,
+    pages.length,
+    pdfPageObservable,
+    quarantined,
+    representation,
+  ]);
 
   const alreadyBookmarked = Boolean(
     activeLocator && bookmarks.some(item => sameBookPageLocator(item, activeLocator)),
@@ -179,12 +210,16 @@ export function BookReader({
   }
 
   function bookmarkCurrentPage() {
-    if (!data || !activeLocator) {
-      setBookmarkNotice('This page cannot be bookmarked yet.');
+    if (representation === 'pdf' && mismatch) {
+      setBookmarkNotice('Resolve the PDF attachment mismatch before bookmarking.');
       return;
     }
     if (representation === 'pdf' && !pdfPageObservable) {
-      setBookmarkNotice('Bookmark the current PDF page only when the page number is observable.');
+      setBookmarkNotice('Set the PDF page in the page control before bookmarking. In-viewer scrolling is not tracked.');
+      return;
+    }
+    if (!data || !activeLocator) {
+      setBookmarkNotice('This page cannot be bookmarked yet.');
       return;
     }
     const result = upsertBookPageBookmark({
@@ -238,11 +273,7 @@ export function BookReader({
   const card = data ? cardFromDocument(data) : null;
   const bookSaved = card ? saved.has(card.id) : false;
   const author = data?.credits.find(credit => credit.role === 'author' && credit.name)?.name ?? null;
-  const mismatch =
-    route.attachmentId &&
-    pdfMedia &&
-    route.representation === 'pdf' &&
-    route.attachmentId !== pdfMedia.sourceUrl;
+  const mismatch = attachmentMismatch && representation === 'pdf';
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -285,8 +316,17 @@ export function BookReader({
             onClick={() => (alreadyBookmarked ? removeCurrentBookmark() : bookmarkCurrentPage())}
             className="inline-flex min-h-10 items-center rounded-full border border-pine/20 px-3 text-sm font-medium text-pine"
           >
-            {alreadyBookmarked ? 'Page bookmarked' : 'Bookmark this page'}
+            {alreadyBookmarked
+              ? 'Page bookmarked'
+              : representation === 'pdf'
+                ? `Bookmark PDF page ${current}`
+                : 'Bookmark this page'}
           </button>
+        )}
+        {representation === 'pdf' && pdfMedia && !pdfPageObservable && !mismatch && (
+          <span className="text-xs text-muted" data-testid="pdf-page-unobserved">
+            Set the PDF page below to enable bookmarking (in-viewer scrolling is not tracked).
+          </span>
         )}
       </div>
       {settings && (
@@ -341,8 +381,8 @@ export function BookReader({
       {mismatch && (
         <div className="mb-4" data-testid="bookmark-attachment-mismatch">
           <Notice>
-            This bookmark’s PDF attachment no longer matches the current edition file. Reopen the source PDF from
-            book details, or continue with the available file.
+            This bookmark’s PDF attachment no longer matches the file on screen. Page bookmarking is paused until you
+            reopen the current attachment — new bookmarks always use the displayed file identity.
           </Notice>
           {pdfMedia && (
             <a
@@ -354,6 +394,7 @@ export function BookReader({
                 attachmentId: pdfMedia.sourceUrl,
               })}
               className="mt-2 inline-flex min-h-10 items-center text-sm font-medium text-pine underline"
+              data-testid="resolve-pdf-attachment"
             >
               Open current PDF attachment
             </a>
@@ -433,6 +474,7 @@ export function BookReader({
           {representation === 'pdf' && pdfMedia && (
             <div className="space-y-3" data-testid="original-pdf-surface" data-reader-page={current}>
               <iframe
+                key={`${pdfMedia.sourceUrl}#${current}`}
                 title={`${data.title || 'Book'} PDF page ${current}`}
                 src={pdfViewSrc(pdfMedia.viewUrl, current)}
                 className="min-h-[70vh] w-full rounded-2xl border border-pine/15 bg-white"
@@ -446,7 +488,7 @@ export function BookReader({
                     value={current}
                     aria-label="PDF page"
                     data-testid="pdf-page-input"
-                    onChange={event => setPage(Math.max(1, Number(event.target.value) || 1))}
+                    onChange={event => setPdfPage(Number(event.target.value) || 1)}
                     className="ml-2 w-20 rounded-full border border-pine/20 px-3 py-2 text-sm"
                   />
                 </label>
@@ -460,6 +502,10 @@ export function BookReader({
                   Open original PDF file
                 </a>
               </div>
+              <p className="text-xs text-muted">
+                Bookmark uses the page number in this control (bound to the displayed PDF file). Scrolling inside the
+                viewer alone does not update it.
+              </p>
             </div>
           )}
           {representation === 'text' && pages.length > 1 && (

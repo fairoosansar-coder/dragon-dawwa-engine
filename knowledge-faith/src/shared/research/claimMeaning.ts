@@ -32,29 +32,120 @@ function firstMatchSpan(haystack: string, pattern: RegExp): string | null {
   return compactSpan(haystack.slice(start, end));
 }
 
-/** True when the assertion denies or inverts verification-before-acting. */
+/**
+ * True when the assertion denies or inverts verification-before-acting.
+ * Nested negation that affirms verification (“do not act without verifying”) is NOT contrary.
+ */
 export function isContraryVerificationClaim(claim: string): boolean {
   const q = claim.trim();
+  // Faithful nested negation: forbids unchecked action / harm, not verification itself.
+  if (affirmsVerificationViaNestedNegation(q)) return false;
+  return deniesVerificationItself(q);
+}
+
+/** “must not act … without checking” affirms verification; do not treat as contrary. */
+function affirmsVerificationViaNestedNegation(q: string): boolean {
   return (
-    /\b(need no|needs no|no need|without|never)\b.{0,40}\b(verif|investigat|check)/i.test(q) ||
-    /\b(does not|do not|don't|doesn'?t|not)\b.{0,40}\b(verif|investigat|require|check)/i.test(q) ||
+    /\b((do|does|did) not|don't|doesn'?t|must not|never|not)\b.{0,50}\b(act|acting|harm|proceed|believe)\b.{0,50}\bwithout\b.{0,30}\b(verif|investigat|check)/i.test(
+      q,
+    ) ||
+    /\bwithout\b.{0,20}\b(verif|investigat|check).{0,40}\b(do not|don't|lest|so (that )?they (do not|don't))\b/i.test(q) ||
+    /\b(lest|so (that )?they (do not|don't))\b.{0,60}\b(harm|act).{0,40}\b(without|before).{0,20}\b(verif|investigat|check)/i.test(
+      q,
+    )
+  );
+}
+
+/** Negation scoped to verification itself (never verify / no need to check). */
+function deniesVerificationItself(q: string): boolean {
+  return (
+    /\b(need no|needs no|no need)\b.{0,40}\b(verif|investigat|check)/i.test(q) ||
+    /\bnever\b.{0,40}\b(verif|investigat|check)/i.test(q) ||
+    /\b(does not|do not|don't|doesn'?t)\b.{0,40}\b(verif|investigat|check)\b/i.test(q) ||
     /\bno verification\b/i.test(q) ||
+    // Act/believe without verifying — but not when nested negation already affirmed verification.
     /\b(act|acting|believe|believing|proceed)\b.{0,40}\b(without|no)\b.{0,20}\b(verif|investigat|check|checking)\b/i.test(q) ||
-    /\bwithout (investigation|verification|checking)\b/i.test(q) ||
     /\bbelieve every report\b/i.test(q) ||
     /\bact on the news without\b/i.test(q)
   );
 }
 
-/** True when the claim is about verifying news / reports before acting (English paraphrase space). */
-export function isVerificationMeaningClaim(claim: string): boolean {
-  if (isContraryVerificationClaim(claim)) return true;
+/**
+ * Passage body that contains the theme tokens but inverts polarity
+ * (e.g. “never verify … even if you harm people out of ignorance”).
+ */
+export function passageInvertsVerificationMeaning(passageText: string): boolean {
+  const body = compactSpan(passageText);
+  if (!body) return false;
+  if (affirmsVerificationViaNestedNegation(body)) return false;
+  return deniesVerificationItself(body);
+}
+
+/**
+ * Extra / invented content the opened 49:6 theme does not establish
+ * (e.g. “always tells the truth”, “exactly four witnesses”, “exactly three times”).
+ */
+export function claimAddsUnestablishedDetail(claim: string): boolean {
   const q = claim.trim();
-  const mentionsVerse = /49\s*[:：]\s*6/.test(q) || /qur['’]?an\s*49/i.test(q);
+  return (
+    /\balways\b.{0,40}\b(truth|true|honest|reliable|trustworthy)\b/i.test(q) ||
+    /\b(truth|true|honest|reliable|trustworthy)\b.{0,40}\balways\b/i.test(q) ||
+    /\btells? the truth\b/i.test(q) ||
+    /\bnever lies\b/i.test(q) ||
+    /\b(exactly|precisely|only)\s+\w+\s+witness/i.test(q) ||
+    /\b\d+\s+witness/i.test(q) ||
+    /\bfour witnesses?\b/i.test(q) ||
+    /\btwo witnesses?\b/i.test(q) ||
+    // Invented timing / count qualifiers the verse does not state.
+    /\b(exactly|precisely)\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+times?\b/i.test(q) ||
+    /\b(check|verif|investigat)\w*.{0,40}\b(\d+|three|twice|thrice)\s+times?\b/i.test(q) ||
+    /\b(\d+|three|twice|thrice)\s+times?\b.{0,40}\b(check|verif|investigat)/i.test(q) ||
+    /\bmust believe\b/i.test(q) ||
+    /\bwithout evidence\b/i.test(q)
+  );
+}
+
+/** Core proposition of 49:6: verify/investigate news from a wrongdoer to avoid harm through ignorance. */
+export function claimStatesVerificationProposition(claim: string): boolean {
+  const q = claim.trim();
+  if (isContraryVerificationClaim(q) || claimAddsUnestablishedDetail(q)) return false;
+  const hasVerify = VERIFY_VERB.test(q) || /\binvestigat/i.test(q);
+  const hasNewsOrBearer = NEWS_NOUN.test(q) || NEWS_BEARER.test(q) || /\breport\b/i.test(q) || /\bnews\b/i.test(q);
+  const hasPurpose =
+    HARM_IGNORANCE.test(q) ||
+    /\bignora/i.test(q) ||
+    /\bharm\b/i.test(q) ||
+    /\bbefore acting\b/i.test(q) ||
+    /\bso (that )?they (do not|don't)\b/i.test(q) ||
+    /\binstructs?\b.{0,80}\bverif/i.test(q) ||
+    /\brequires?\b.{0,40}\bverif/i.test(q) ||
+    /\bteaches?\b.{0,80}\binvestigat/i.test(q);
+  // Canonical / faithful paraphrases name verification + news/bearer (+ purpose or verse framing).
+  return hasVerify && hasNewsOrBearer && (hasPurpose || /49\s*[:：]\s*6/.test(q));
+}
+
+/**
+ * True when the claim is specifically about 49:6 verification / news / harm-from-ignorance.
+ * Mentions of another ayah, or only “Qur’an 49” + a fragment word, are out of scope.
+ */
+export function isVerificationMeaningClaim(claim: string): boolean {
+  const q = claim.trim();
+  // Must name 49:6 specifically — not Surah 49 generally or a different ayah.
+  const names496 = /49\s*[:：]\s*6/.test(q) || /qur['’]?an\s*49\s*[:：]\s*6/i.test(q);
+  if (!names496) return false;
+  // Reject when another verse is the primary subject (e.g. “2:255 … and also 49:6”).
+  const otherVerse = q.match(/\b(\d{1,3})\s*[:：]\s*(\d{1,3})\b/g) ?? [];
+  const only496 = otherVerse.every(ref => /49\s*[:：]\s*6/.test(ref));
+  if (!only496 && otherVerse.length > 1) return false;
+
+  if (isContraryVerificationClaim(q)) return true;
+  if (claimAddsUnestablishedDetail(q)) return true; // theme space so we reject support explicitly
+
   const verifyTheme =
     VERIFY_VERB.test(q) &&
     (NEWS_NOUN.test(q) || NEWS_BEARER.test(q) || /\breport\b/i.test(q) || /\bacting\b/i.test(q));
-  return mentionsVerse && (verifyTheme || /wrongdoer|ignorance|harm/i.test(q));
+  // Require verify theme — not merely “wrongdoer/harm/ignorance” without verification.
+  return verifyTheme || claimStatesVerificationProposition(q);
 }
 
 /**
@@ -77,6 +168,16 @@ export function passageEstablishesVerificationMeaning(passageText: string): Pass
     verify: VERIFY_VERB.test(body),
     harmFromIgnorance: HARM_IGNORANCE.test(body),
   };
+  // Keyword conjunction alone is not enough when the span inverts polarity.
+  if (passageInvertsVerificationMeaning(body)) {
+    return {
+      supported: false,
+      supportingSpan: null,
+      reason:
+        'The opened passage mentions verification theme words but inverts their polarity (e.g. never verify / act without checking). That cannot establish support.',
+      elements,
+    };
+  }
   const supported =
     elements.newsBearer && elements.news && elements.verify && elements.harmFromIgnorance;
   if (!supported) {
@@ -113,7 +214,8 @@ export interface ClaimPassageSupportResult {
 /**
  * Evaluate the displayed assertion against opened passage objects.
  * Keeps ID linking separate: this never sets citationExists from locator alone.
- * Paraphrases use quotationFaithful: null. Contrary assertions are never supported.
+ * Paraphrases use quotationFaithful: null. Contrary / invented assertions are never supported.
+ * Passage theme alone is not enough — the assertion’s full proposition must be established.
  */
 export function evaluateVerificationClaimAgainstPassages(
   claim: string,
@@ -130,6 +232,16 @@ export function evaluateVerificationClaimAgainstPassages(
       passageId: preferredPassageId ?? passages[0]?.id ?? null,
     };
   }
+  if (claimAddsUnestablishedDetail(claim)) {
+    return {
+      support: 'unsupported',
+      citationRelevant: false,
+      quotationFaithful: null,
+      supportingSpan: null,
+      note: 'The assertion adds details (or contradicts the verse theme) that the opened passage does not establish.',
+      passageId: preferredPassageId ?? passages[0]?.id ?? null,
+    };
+  }
   if (!isVerificationMeaningClaim(claim)) {
     return {
       support: 'insufficient',
@@ -138,6 +250,16 @@ export function evaluateVerificationClaimAgainstPassages(
       supportingSpan: null,
       note: 'No conservative meaning rule applies to this assertion against the opened passages.',
       passageId: null,
+    };
+  }
+  if (!claimStatesVerificationProposition(claim)) {
+    return {
+      support: 'insufficient',
+      citationRelevant: false,
+      quotationFaithful: null,
+      supportingSpan: null,
+      note: 'The assertion does not state the verification / wrongdoer / harm-from-ignorance proposition established by the opened passage.',
+      passageId: preferredPassageId ?? passages[0]?.id ?? null,
     };
   }
   const ordered = preferredPassageId

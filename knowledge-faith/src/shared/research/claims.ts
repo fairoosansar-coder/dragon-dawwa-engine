@@ -96,7 +96,10 @@ export function verifyClaim(claim: string, citationId: string, passages: readonl
       note: meaning.note,
     };
   }
-  if (meaning.support === 'unsupported' && meaning.note.includes('contrary')) {
+  if (
+    meaning.support === 'unsupported' &&
+    (/contrary/i.test(meaning.note) || /does not establish|adds details/i.test(meaning.note))
+  ) {
     return {
       claim,
       passageIds: [citationId],

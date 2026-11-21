@@ -5,10 +5,13 @@ import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
   catalogueBookToHit,
+  catalogueResultsMatchSubmit,
   libraryVerseHit,
   looksLikeVerseRef,
   normalizeLibraryQuery,
   parseLibraryVerseRef,
+  truncateLibraryTitleQuery,
+  LIBRARY_TITLE_QUERY_MAX,
 } from '../src/lib/librarySearch.ts';
 import type { SurahInfo } from '../src/shared/types.ts';
 
@@ -119,6 +122,55 @@ describe('library search — catalogue hits', () => {
     assert.equal(looksLikeVerseRef('ab'), false);
     assert.equal(looksLikeVerseRef('18:'), true);
     assert.equal(looksLikeVerseRef('18:10'), true);
+  });
+
+  it('refuses to open catalogue hits that belong to a previous query', () => {
+    assert.equal(
+      catalogueResultsMatchSubmit({
+        submittedQuery: 'new title',
+        catalogueQuery: 'old title',
+        catalogueLang: 'en',
+        requestedLang: 'en',
+        itemCount: 3,
+      }),
+      false,
+    );
+    assert.equal(
+      catalogueResultsMatchSubmit({
+        submittedQuery: 'new title',
+        catalogueQuery: 'new title',
+        catalogueLang: 'en',
+        requestedLang: 'en',
+        itemCount: 3,
+      }),
+      true,
+    );
+    assert.equal(
+      catalogueResultsMatchSubmit({
+        submittedQuery: '18:10',
+        catalogueQuery: '18:10',
+        catalogueLang: 'en',
+        requestedLang: 'en',
+        itemCount: 1,
+      }),
+      false,
+    );
+  });
+
+  it('truncates title queries to the same 80-char server limit before compare', () => {
+    const long = 'a'.repeat(120);
+    const truncated = truncateLibraryTitleQuery(long);
+    assert.equal(truncated.length, LIBRARY_TITLE_QUERY_MAX);
+    assert.equal(
+      catalogueResultsMatchSubmit({
+        submittedQuery: long,
+        catalogueQuery: truncated,
+        catalogueLang: 'en',
+        requestedLang: 'en',
+        itemCount: 2,
+      }),
+      true,
+    );
   });
 });
 

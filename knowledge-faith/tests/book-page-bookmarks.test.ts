@@ -279,4 +279,38 @@ describe('typed book-page bookmarks', () => {
     );
     assert.equal(readBookPageBookmarks(storage).length, 2);
   });
+
+  it('binds PDF bookmarks to the displayed attachment identity, not a stale route att', () => {
+    const storage = new MemoryStorage();
+    const displayed = 'https://islamhouse.com/files/current.pdf';
+    const stale = 'https://islamhouse.com/files/old.pdf';
+    // Simulate reader policy: always upsert with the displayed file identity.
+    upsertBookPageBookmark(
+      {
+        itemId: 55,
+        representation: 'pdf',
+        page: 12,
+        lang: 'en',
+        attachmentId: displayed,
+        anchor: null,
+        title: 'Displayed',
+        publicationLanguage: 'en',
+      },
+      storage,
+    );
+    const list = readBookPageBookmarks(storage);
+    assert.equal(list.length, 1);
+    assert.equal(list[0]?.attachmentId, displayed);
+    assert.notEqual(list[0]?.attachmentId, stale);
+    assert.equal(
+      sameBookPageLocator(list[0]!, {
+        itemId: 55,
+        representation: 'pdf',
+        page: 12,
+        lang: 'en',
+        attachmentId: stale,
+      }),
+      false,
+    );
+  });
 });

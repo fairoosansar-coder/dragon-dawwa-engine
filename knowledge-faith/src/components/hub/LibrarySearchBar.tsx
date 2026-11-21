@@ -4,10 +4,12 @@ import { useApp } from '../../lib/store.tsx';
 import { useQuranEdition } from '../../lib/quranEdition.ts';
 import {
   catalogueBookToHit,
+  catalogueResultsMatchSubmit,
   libraryVerseHit,
   looksLikeVerseRef,
   normalizeLibraryQuery,
   parseLibraryVerseRef,
+  truncateLibraryTitleQuery,
   type LibraryBookHit,
   type LibrarySearchHit,
 } from '../../lib/librarySearch.ts';
@@ -66,7 +68,9 @@ export function LibrarySearchBar({ surahs }: { surahs: SurahInfo[] | null }) {
       : null;
 
   const titleQuery =
-    !verseHit && !looksLikeVerseRef(debounced) && debounced.length >= 3 ? debounced : '';
+    !verseHit && !looksLikeVerseRef(debounced) && debounced.length >= 3
+      ? truncateLibraryTitleQuery(debounced)
+      : '';
   const catalogueUrl = titleQuery
     ? `/api/library/books?lang=${lang}&page=1&q=${encodeURIComponent(titleQuery)}&sort=title`
     : null;
@@ -97,6 +101,16 @@ export function LibrarySearchBar({ surahs }: { surahs: SurahInfo[] | null }) {
       setFeedback('Enter a Qur’an reference (e.g. 18:10) or a book title (3+ characters).');
       return;
     }
+    // Advance debounce immediately so results match the submitted query.
+    setDebounced(trimmed);
+    writeSessionQuery(trimmed);
+
+    const submittedLooksLikeRef = looksLikeVerseRef(trimmed);
+    // Reference-shaped input needs chapter metadata — never silently no-op on 18:10.
+    if (submittedLooksLikeRef && !surahs?.length) {
+      setFeedback('Chapter metadata is still loading — try again in a moment.');
+      return;
+    }
     if (surahs?.length) {
       const parsed = parseLibraryVerseRef(trimmed, surahs);
       if (parsed.ok) {
@@ -112,19 +126,28 @@ export function LibrarySearchBar({ surahs }: { surahs: SurahInfo[] | null }) {
         return;
       }
     }
-    if (looksLikeVerseRef(trimmed) && verseParse && !verseParse.ok && verseParse.reason === 'invalid_bounds') {
-      setFeedback(verseParse.message);
-      return;
-    }
     if (trimmed.length < 3) {
       setFeedback('Book title search needs at least 3 characters.');
       return;
     }
-    if (hits[0]) {
-      openHit(hits[0]);
+    const titleSubmit = truncateLibraryTitleQuery(trimmed);
+    // Only open a book hit when catalogue results belong to this exact submitted query.
+    const resultsMatchSubmit = catalogueResultsMatchSubmit({
+      submittedQuery: titleSubmit,
+      catalogueQuery: catalogue.data?.query,
+      catalogueLang: catalogue.data?.lang,
+      requestedLang: lang,
+      itemCount: catalogue.data?.items?.length ?? -1,
+    });
+    if (resultsMatchSubmit && (catalogue.data?.items.length ?? 0) > 0) {
+      openHit(catalogueBookToHit(catalogue.data!.items[0]!, lang));
       return;
     }
-    if (showNoResults) setFeedback('No matching book titles in this language.');
+    if (resultsMatchSubmit && (catalogue.data?.items.length ?? 0) === 0) {
+      setFeedback('No matching book titles in this language.');
+      return;
+    }
+    setFeedback('Searching for that title…');
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -144,6 +167,8 @@ export function LibrarySearchBar({ surahs }: { surahs: SurahInfo[] | null }) {
       event.preventDefault();
       setActiveIndex(index => (index <= 0 ? hits.length - 1 : index - 1));
     } else if (event.key === 'Enter' && activeIndex >= 0 && hits[activeIndex]) {
+      // Do not open hits that belong to a previous debounced query.
+      if (normalizeLibraryQuery(query) !== debounced) return;
       event.preventDefault();
       openHit(hits[activeIndex]!);
     }
