@@ -1,6 +1,7 @@
 import { readMedia, allowedMediaUrl } from './media.ts';
 import { pagesFromBlocks, pagesFromPdf, textFromPdfItems } from '../shared/bookShelf.ts';
 import type { ReaderBlock } from '../shared/bookShelf.ts';
+import { preparedTextQuarantined } from '../shared/bookReadiness.ts';
 import type { LibraryDocument } from '../shared/libraryDocument.ts';
 
 interface PdfTextItem {
@@ -44,7 +45,12 @@ async function extract(data: Uint8Array): Promise<string[]> {
 }
 
 /** Article text is paged as prose. A PDF is paged from the publication file. */
-export async function readingPages(document: Pick<LibraryDocument, 'blocks' | 'media'>): Promise<{ blocks: ReaderBlock[] }[]> {
+export async function readingPages(
+  document: Pick<LibraryDocument, 'id' | 'blocks' | 'media'>,
+): Promise<{ blocks: ReaderBlock[] }[]> {
+  // Quarantined titles keep the original PDF link for download, but must never
+  // extract prepared reader pages from that PDF.
+  if (preparedTextQuarantined(document.id)) return [];
   if (document.blocks.some(block => block.kind === 'paragraph')) return pagesFromBlocks(document.blocks);
   const pdf = document.media.find(file => file.kind === 'pdf');
   if (!pdf) return [];

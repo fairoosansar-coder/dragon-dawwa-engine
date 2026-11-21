@@ -5,7 +5,6 @@ import type { UserAccount } from './types/wall.ts';
 import { SAMPLE_HADITHS } from './data/sampleHadiths.ts';
 import { getLocalizedAnalysis } from './utils/localizedAnalysis.ts';
 import { buildFullReportMarkdown } from './utils/agent7SourceResearch.ts';
-import { humanVerificationMarkdown } from './components/HumanVerification.tsx';
 import { reportIdFor } from './utils/reportPresentation.ts';
 import { reportIdentity } from '../shared/research/revision.ts';
 import { bindReport } from './utils/reportBinding.ts';
@@ -490,15 +489,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
 
   const downloadFullReport = useCallback(() => {
     if (!displayed) return;
-    const bound = bindReport(displayed);
-    const identity = reportIdentity(bound, reportIdFor(bound.query_hadith), displayed.content_language ?? lang);
-    const fullMarkdown = buildFullReportMarkdown(displayed, displayed.content_language ?? lang) + humanVerificationMarkdown({
-      question: bound.query_hadith,
-      reportId: identity.reportId,
-      revision: identity.revision,
-      languageLabel: displayed.content_language ?? lang,
-      generatedAt: bound.generated_at ?? '',
-    });
+    const fullMarkdown = buildFullReportMarkdown(displayed, displayed.content_language ?? lang);
     const blob = new Blob([fullMarkdown], { type: 'text/markdown;charset=utf-8' });
     const href = URL.createObjectURL(blob);
     const a = document.createElement('a');

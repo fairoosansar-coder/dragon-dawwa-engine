@@ -161,6 +161,7 @@ export interface Agent7SourceResearch {
 }
 
 export interface DragonDawwaAnalysis {
+  automated_finding?: import('../utils/automatedFinding.ts').AutomatedFinding;
   app_name: 'Dragon Dawwa' | string;
   version?: string;
   platform_owner?: string;

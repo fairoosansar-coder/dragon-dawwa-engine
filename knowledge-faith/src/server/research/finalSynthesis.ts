@@ -148,7 +148,7 @@ async function viaGemini(system: string, user: string, signal?: AbortSignal): Pr
       consensus_and_disagreements: string;
       executive_report_markdown: string;
       podcast_script: string;
-    }>(`${system}\n\n${user}`, hostReconciliationSchema, [GEMINI_SYNTHESIS_FALLBACK_MODEL, 'gemini-flash-latest', 'gemini-2.5-flash'], signal);
+      }>(`${system}\n\n${user}`, hostReconciliationSchema, [GEMINI_SYNTHESIS_FALLBACK_MODEL, 'gemini-flash-latest'], signal);
     const podcast = String(value.podcast_script ?? '').trim();
     const report = String(value.executive_report_markdown ?? '').trim();
     if (!podcast || !report) return null;

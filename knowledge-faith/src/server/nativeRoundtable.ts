@@ -102,7 +102,7 @@ export async function composeNativeRoundtableTurns(
     try {
       const { value } = await generateJsonWithModels<{
         turns: Array<{ speaker: string; text: string }>;
-      }>(`${system}\n\n${user}`, turnSchema, ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-2.5-flash']);
+      }>(`${system}\n\n${user}`, turnSchema, ['gemini-3.8-flash', 'gemini-flash-latest']);
       const next = mergeNativeTurns(turns, value?.turns);
       if (next) return next;
     } catch (err) {

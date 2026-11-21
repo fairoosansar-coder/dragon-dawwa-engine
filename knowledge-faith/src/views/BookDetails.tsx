@@ -2,6 +2,10 @@ import { useEffect } from 'react';
 import { X } from 'lucide-react';
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
 import { authorLine, hasPdf, type BookCard, type BookDetail } from '../shared/bookShelf.ts';
+import {
+  PREPARED_TEXT_QUARANTINE_MESSAGE,
+  preparedTextQuarantined,
+} from '../shared/bookReadiness.ts';
 import { useRemote } from '../lib/api.ts';
 import { useSavedBooks, savedFromCard } from '../lib/savedBooks.ts';
 import { BookCover } from './BookCover.tsx';
@@ -77,7 +81,21 @@ export function BookDetails({
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <a href={`#/books/item/${book.id}`} className="inline-flex min-h-11 items-center rounded-full bg-moss px-5 text-sm font-semibold text-white">Read</a>
+                {preparedTextQuarantined(book.id) ? (
+                  <span
+                    className="inline-flex min-h-11 items-center rounded-full border border-amber-700/30 bg-amber-50 px-5 text-sm font-semibold text-amber-950"
+                    data-testid="prepared-text-quarantine"
+                  >
+                    Prepared text under review
+                  </span>
+                ) : (
+                  <a
+                    href={`#/books/item/${book.id}`}
+                    className="inline-flex min-h-11 items-center rounded-full bg-moss px-5 text-sm font-semibold text-white"
+                  >
+                    Read
+                  </a>
+                )}
                 <button
                   type="button"
                   aria-pressed={saved}
@@ -87,6 +105,11 @@ export function BookDetails({
                   {saved ? 'Saved' : 'Save'}
                 </button>
               </div>
+              {preparedTextQuarantined(book.id) && (
+                <p className="text-sm leading-relaxed text-ink/80" data-testid="prepared-text-quarantine-note">
+                  {PREPARED_TEXT_QUARANTINE_MESSAGE}
+                </p>
+              )}
               <a href={`#/books/research?book=${book.id}`} className="inline-flex text-sm font-medium text-pine underline decoration-gold underline-offset-4">
                 Research this book
               </a>
@@ -119,8 +142,14 @@ export function BookDetails({
                           {file.size && <span className="mt-0.5 block text-xs text-muted">{file.size}</span>}
                         </span>
                         <span className="flex shrink-0 gap-3 text-sm font-medium">
-                          <a href={`#/books/item/${book.id}`} className="text-pine">Read</a>
-                          <a href={file.url} target="_blank" rel="noreferrer" className="text-pine">Download</a>
+                          {!preparedTextQuarantined(book.id) && (
+                            <a href={`#/books/item/${book.id}`} className="text-pine">
+                              Read
+                            </a>
+                          )}
+                          <a href={file.url} target="_blank" rel="noreferrer" className="text-pine">
+                            {file.extension.toUpperCase() === 'PDF' ? 'Open PDF' : 'Download'}
+                          </a>
                         </span>
                       </li>
                     ))}

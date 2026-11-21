@@ -249,19 +249,15 @@ describe('human review rules', () => {
     });
   }
 
-  it('shows two blank signature panels and does not invent a reviewer', () => {
+  it('keeps the archive readable without requiring signatures or inventing an automated verdict', () => {
     const analysis = dossier();
     const html = renderToStaticMarkup(React.createElement(HadithReportPaper, { analysis, currentLanguage: 'en' }));
-    assert.match(html, /Human Verification &amp; Sign-off|Human Verification & Sign-off/);
-    assert.match(html, /Awaiting human verification/);
-    assert.match(html, /Reviewer 1 — Sources &amp; Evidence|Reviewer 1 — Sources & Evidence/);
-    assert.match(html, /Reviewer 2 — Findings &amp; Interpretation|Reviewer 2 — Findings & Interpretation/);
+    assert.doesNotMatch(html, /Human Verification &amp; Sign-off|Awaiting human verification|Reviewer [12] —/);
+    assert.match(html, /Archived result · automated source check not recorded/);
     assert.match(html, /https:\/\/sunnah.com\/bukhari:553/);
     assert.match(html, /Bukhari heard Muslim ibn Ibrahim directly/);
     assert.equal(html.includes('Test Reviewer'), false);
-    assert.equal(html.includes('cryptographic digital signature'), true);
-    assert.match(html, /hr-signoff-page/);
-    assert.match(html, /hr-sign-hand/);
+    assert.doesNotMatch(html, /hr-signoff-page|hr-sign-hand/);
     const localized = getLocalizedAnalysis(analysis, 'en');
     const enriched = bindReport(localized.agent_7_source_research ? localized : localized);
     const identity = reportIdentity(enriched, reportIdFor(enriched.query_hadith), 'en');

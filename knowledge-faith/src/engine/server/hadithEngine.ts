@@ -3,6 +3,7 @@ import type { DragonDawwaAnalysis, HadeethEncRetrievedRecord } from "../types/ha
 import { getLocalizedAnalysis } from "../utils/localizedAnalysis.ts";
 import { attachAgent7ToAnalysis } from "../utils/agent7SourceResearch.ts";
 import { SAMPLE_HADITHS } from "../data/sampleHadiths.ts";
+import { matchesNarration, decideFinding, type AutomatedFinding } from '../utils/automatedFinding.ts';
 import { loadHadeeth, searchHadeeth } from "../../server/hadeethenc.ts";
 import { hasGeminiApiKey } from "../../server/loadEnv.ts";
 import { anthropicConfigured, completeAnthropicJson } from "../../server/anthropic.ts";
@@ -296,9 +297,7 @@ async function retrieveLiveHadeethEncForDossier(
   const records: HadeethEncRetrievedRecord[] = [];
   for (const record of opened.records) {
     const isSeed = seedIds.includes(record.id);
-    const isDirect = hadithInput.length >= 12 &&
-      (record.text.toLowerCase().includes(hadithInput.slice(0, 24).toLowerCase()) ||
-        record.title.toLowerCase().includes(hadithInput.slice(0, 24).toLowerCase()));
+    const isDirect = matchesNarration(hadithInput, record.title, record.text, record.arabic ?? null);
     records.push({
       id: record.id,
       title: record.title,
@@ -480,6 +479,7 @@ Isnad / Chain (if provided): ${isnadInput && isnadInput.trim().length > 0 ? isna
 Return one JSON object for the full 7-agent dossier. Required top-level keys include app_name, query_hadith, agent_1_takhrij, agent_2_isnad, agent_3_rijal, agent_4_shawahid_matn, agent_5_scholars_verdict, and agent_6_synthesis (with final_status, purity_confidence_score, consensus_and_disagreements, executive_report_markdown, podcast_script). Cite only opened HadeethEnc records and supplied text. Never invent a citation.`;
 
   const finalizeModelDossier = (parsed: DragonDawwaAnalysis): DragonDawwaAnalysis | null => {
+    parsed.query_hadith = hadithInput;
     parsed.version = parsed.version || "2.5 Enterprise Engine";
     parsed.platform_owner = parsed.platform_owner || "Prime Dragon Technologies (Pvt) Ltd";
     parsed.designed_and_created_by = parsed.designed_and_created_by || "Aegis Intelligence Pvt Ltd, Sri Lanka";
@@ -489,7 +489,12 @@ Return one JSON object for the full 7-agent dossier. Required top-level keys inc
     const spoken = `${parsed.agent_6_synthesis?.podcast_script ?? ''}\n${parsed.agent_6_synthesis?.executive_report_markdown ?? ''}`;
     parsed.content_language = scriptMatchesLanguage(spoken, preferredLanguage) ? preferredLanguage : undefined;
     if (!parsed.content_language || !parsed.agent_6_synthesis) return null;
-    return stampDossier(enrichAnalysisWithHadeethEnc(parsed, preferredLanguage, liveRecords, liveActivity), preferredLanguage);
+    return stampDossier(
+      enrichAnalysisWithHadeethEnc(parsed, preferredLanguage, liveRecords, liveActivity),
+      preferredLanguage,
+      liveRecords,
+      'model-assisted',
+    );
   };
 
   // Prefer Claude Sonnet for the multi-persona hadith synthesis write-up; fall back to Gemini.
@@ -555,11 +560,36 @@ Return one JSON object for the full 7-agent dossier. Required top-level keys inc
   // Known benchmarks keep their localized dossier. A Tamil or Sinhala request is localized before it is shown.
   const baseDossier = selectBaseDossierForInput(hadithInput, preferredLanguage, liveRecords);
   const localized = enrichAnalysisWithHadeethEnc(baseDossier, preferredLanguage, liveRecords, liveActivity);
-  return stampDossier(localized, preferredLanguage);
+  return stampDossier(
+    localized,
+    preferredLanguage,
+    liveRecords,
+    benchmark ? 'benchmark-and-source-check' : 'source-check',
+  );
 }
 
-function stampDossier(analysis: DragonDawwaAnalysis, preferredLanguage: 'en' | 'ta' | 'si'): DragonDawwaAnalysis {
+function stampDossier(
+  analysis: DragonDawwaAnalysis,
+  preferredLanguage: 'en' | 'ta' | 'si',
+  liveRecords: HadeethEncRetrievedRecord[],
+  method: AutomatedFinding['method'],
+): DragonDawwaAnalysis {
   const bound = bindReport(analysis);
+  bound.automated_finding = decideFinding(bound.query_hadith, liveRecords, method);
+  const supported = new Set(bound.automated_finding.sources.map(r => r.id));
+  // Keep discovery candidates in Agent 7, not in the target's grading table.
+  const candidateIds = new Set(
+    [...(bound.agent_7_source_research?.retrieved_records ?? []), ...liveRecords].map(r => r.id),
+  );
+  bound.agent_1_takhrij.sources = bound.agent_1_takhrij.sources.filter(r => {
+    const id =
+      /^#(\d+)$/.exec(r.hadith_number)?.[1] ||
+      (/HadeethEnc/i.test(r.collection) ? r.hadith_number.match(/\d+/)?.[0] : undefined);
+    return !id || !candidateIds.has(id) || supported.has(id);
+  });
+  bound.agent_5_scholars_verdict.gradings = bound.agent_5_scholars_verdict.gradings.filter(r =>
+    [...r.reference.matchAll(/HadeethEnc\s*#(\d+)/gi)].every(m => supported.has(m[1])),
+  );
   const spoken = `${bound.agent_6_synthesis?.podcast_script ?? ''}\n${bound.agent_6_synthesis?.executive_report_markdown ?? ''}`;
   if (scriptMatchesLanguage(spoken, preferredLanguage)) bound.content_language = preferredLanguage;
   return bound;

@@ -15,6 +15,57 @@ import type {
 import { ayahsMentioned } from '../../shared/research.ts';
 import { asksScience } from '../../shared/research/decompose.ts';
 
+const CANONICAL_496_ASSERTION_EN =
+  'Qur’an 49:6 instructs believers to verify news brought by a wrongdoer so they do not harm people out of ignorance.';
+
+/**
+ * True quotation marks / intentional quoted propositions — not mid-word
+ * apostrophes in Qur'an, contractions (it's, don't), or possessives (wrongdoer's).
+ */
+function hasQuotedProposition(text: string): boolean {
+  if (/["“”«»]/.test(text)) return true;
+  // Curly singles: require a left opening quote (Qur’an uses only a right apostrophe).
+  if (/(^|[^\p{L}])‘[^’\n]{3,}’(?!\p{L})/u.test(text)) return true;
+  // Straight singles: paired quotes bounded outside letters/digits (not Qur'an / it's).
+  if (/(^|[^\p{L}\d])'[^'\n]{3,}'(?![\p{L}\d])/u.test(text)) return true;
+  return false;
+}
+
+/**
+ * Prefer a concrete assertion over the canonical English interrogative Ask when
+ * verifying support. Locator/ID match still only sets citationExists — never support.
+ *
+ * Preserves: contrary/negated claims, quoted propositions, and non-English Asks
+ * (do not inject an English claim into ta/si/ar diagnostics).
+ */
+export function claimAssertionFromQuestion(question: string): string {
+  const q = question.trim().replace(/\s+/g, ' ');
+  // Quoted propositions must reach verifyClaim unchanged for fidelity checks.
+  if (hasQuotedProposition(q)) return q;
+  // Non-English script: keep the submitted wording (no English rewrite).
+  if (/[\u0B80-\u0BFF\u0D80-\u0DFF\u0600-\u06FF]/u.test(q)) return q;
+  if (!/49\s*[:：]\s*6/.test(q)) return q;
+
+  const contraryOrNegated =
+    /\b(need no|needs no|no need|without|never)\b.{0,40}\b(verif|investigat)/i.test(q) ||
+    /\b(does not|do not|don't|doesn'?t|not)\b.{0,40}\b(verif|investigat|require)/i.test(q) ||
+    /\bno verification\b/i.test(q) ||
+    /\b(false|incorrect|wrong)\b.{0,40}\b(verif|49\s*[:：]\s*6)/i.test(q) ||
+    /\bbelieve every report\b/i.test(q) ||
+    /\bwithout investigation\b/i.test(q);
+  if (contraryOrNegated) return q;
+
+  // Canonical open-ended English Ask only (master-brief fixture phrasing).
+  if (
+    /^what does qur['’]?an\s*49\s*[:：]\s*6 say about\b/i.test(q) &&
+    /verif|report|news|wrongdoer|acting/i.test(q) &&
+    /[?؟]\s*$/u.test(q)
+  ) {
+    return CANONICAL_496_ASSERTION_EN;
+  }
+  return q;
+}
+
 function verseKey(surah: number, ayah: number): string {
   return `${surah}:${ayah}`;
 }

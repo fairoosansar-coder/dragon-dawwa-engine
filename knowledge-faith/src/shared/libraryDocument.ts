@@ -25,8 +25,14 @@ export interface LibraryCredit {
 export interface LibraryDocument {
   id: number;
   title: string;
+  /**
+   * Language of the rendered reader content (after any translation).
+   * Saved cards / shelf filters use this field.
+   */
   language: string | null;
   requestedLanguage: string;
+  /** Original publication language from the catalogue, when known. */
+  publicationLanguage?: string | null;
   contentType: string;
   availability: LibraryAvailability;
   /** Precise limit. A catalogue description is never presented as the work. */

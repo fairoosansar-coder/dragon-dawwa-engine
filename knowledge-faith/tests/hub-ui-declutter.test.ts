@@ -78,8 +78,13 @@ describe('DD-146 Hub research UI declutter', () => {
   });
 
   it('hides ResearchFrame Full Report / Roundtable CTAs while idle or when 7-agent board owns actions', () => {
-    assert.match(deskSource, /!sevenAgentDossier && liveModel && finished/);
+    assert.match(
+      deskSource,
+      /\(!sevenAgentDossier \|\| sourcesOnlyBoard\) && !isCountdownActive && liveModel && finished/,
+    );
     assert.match(deskSource, /ResearchActionRow/);
+    assert.match(boardSource, /board-listen-verdict-btn/);
+    assert.match(boardSource, /board-open-roundtable-btn/);
   });
 
   it('keeps Saved Library collapsed to question + verdict + one Expand CTA', () => {

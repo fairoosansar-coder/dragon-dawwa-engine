@@ -21,6 +21,7 @@ import {
 import { LANGUAGE_NAMES } from '../../shared/sources.ts';
 import type { RouteRoot } from '../../lib/route.ts';
 import { useShell } from '../../lib/shell.tsx';
+import { ReadingBrand, ReadingNav } from './ReadingMasthead.tsx';
 import { UI_FONT_SCALES, UI_THEMES, useApp } from '../../lib/store.tsx';
 import { profileFontClass } from '../../lib/typography.ts';
 import { useAudioState } from '../../lib/audio.ts';
@@ -211,21 +212,14 @@ export function AppFrame({
         style={{ backgroundColor: '#FAF7F0', color: '#18221D' }}
         className="flex min-h-dvh w-full flex-col bg-[#FAF7F0] text-[#18221D]"
       >
-        <header
-          style={{ backgroundColor: '#FAF7F0', borderColor: '#E6DEC8' }}
-          className="flex h-12 shrink-0 items-center justify-between border-b border-[#E6DEC8] px-4 sm:px-6"
-        >
-          <span className="font-display text-sm font-bold tracking-tight text-[#0F5132]">
-            DRAGON DAWWA
-          </span>
-          <a
-            href="#/about"
-            className="text-xs font-medium text-stone-600 transition hover:text-[#0F5132]"
-          >
-            About
+        <header className="ms-public-header">
+          <ReadingBrand />
+          <ReadingNav path="hub" signed={false} />
+          <a href="#/about" className="ms-about">
+            About the library
           </a>
         </header>
-        <main id="main" className="flex flex-1 items-center justify-center px-4 py-6">
+        <main id="main" className="ms-public-main">
           {children}
         </main>
       </div>
@@ -234,6 +228,8 @@ export function AppFrame({
 
   return (
     <div
+      data-ms-desk={path}
+      data-ms-section={segments[0] ?? 'home'}
       style={{ backgroundColor: UI_THEMES[uiTheme]?.sand || '#F7F3E8' }}
       className={`${profileFontClass(lang)} flex w-full flex-col bg-sand text-ink ${
         quranBook ? 'h-dvh overflow-hidden' : 'min-h-dvh'
@@ -423,6 +419,7 @@ export function AppFrame({
               className="border-t border-stone-200/60 py-1 md:hidden"
             />
           )}
+          <ReadingNav path={path} sub={segments[0]} signed={isAuthenticated} />
         </header>
       )}
 

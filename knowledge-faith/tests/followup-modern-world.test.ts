@@ -23,11 +23,11 @@ describe('full upgrade: roles, models, follow-up persona, hub track', () => {
   });
 
   it('keeps opened hadiths even when the user wording is not verbatim', () => {
-    const passage = {
-      contractVersion: '1',
+    const passage: EvidencePassage = {
+      contractVersion: '1.0.0',
       id: 'H1',
       locator: 'HadeethEnc 1',
-      role: 'quotation',
+      role: 'source_text',
       text: 'Actions are by intentions.',
       arabic: 'إنما الأعمال بالنيات',
       originalLanguage: 'en',
@@ -35,7 +35,7 @@ describe('full upgrade: roles, models, follow-up persona, hub track', () => {
       readerRoute: null,
       publishedGrade: null,
       source: {
-        contractVersion: '1',
+        contractVersion: '1.0.0',
         provider: 'HadeethEnc',
         id: '1',
         title: 'Intentions',
@@ -45,11 +45,16 @@ describe('full upgrade: roles, models, follow-up persona, hub track', () => {
         credits: [],
         canonicalUrl: 'https://hadeethenc.com/1',
         contentType: 'hadith',
-        rights: { license: 'source', attributionRequired: true, commercialUse: false, notes: null },
+        rights: {
+          source: 'HadeethEnc',
+          conditions: 'attribution',
+          generatedWork: false,
+          checkedOn: '1970-01-01T00:00:00.000Z',
+        },
         retrievedAt: new Date(0).toISOString(),
         contentHash: null,
       },
-    } as EvidencePassage;
+    };
     const { kept, rejected } = retainRelevantPassages({
       question: 'Why does intention matter in worship today?',
       passages: [passage],

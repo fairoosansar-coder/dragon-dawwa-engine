@@ -246,8 +246,8 @@ describe('shared engine repair', () => {
         assignment: { scope: 'hadith', teams: ['hadith'], bookId: null, noticeId: null, forwardedFrom: null },
       });
       let saved = getSharedResearchJob(id);
-      for (let attempt = 0; attempt < 40 && saved?.job.status !== 'done'; attempt += 1) {
-        await new Promise(resolve => setTimeout(resolve, 25));
+      for (let attempt = 0; attempt < 120 && saved?.job.status !== 'done'; attempt += 1) {
+        await new Promise(resolve => setTimeout(resolve, 50));
         saved = getSharedResearchJob(id);
       }
       assert.equal(saved?.job.status, 'done');

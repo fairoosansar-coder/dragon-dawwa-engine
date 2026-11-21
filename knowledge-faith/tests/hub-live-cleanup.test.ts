@@ -62,7 +62,7 @@ describe('DD-145 hub live cleanup', () => {
 
   it('localizes English fallback boards before stamping ta/si', () => {
     assert.match(sevenAgentSource, /dossierNeedsLocalization/);
-    assert.match(sevenAgentSource, /localizeDossierToLanguage\(\{ \.\.\.built, lang: 'en' \}, lang\)/);
+    assert.match(sevenAgentSource, /localizeDossierToLanguage\(\{ \.\.\.afterJob, lang: 'en' \}, lang\)/);
     assert.match(sevenAgentSource, /composeNativeRoundtableTurns/);
     assert.match(sevenAgentSource, /citedRoundtableFromAgents\(question, generated, agents, language\)/);
     assert.match(sevenAgentSource, /dossierBodyProseSample/);

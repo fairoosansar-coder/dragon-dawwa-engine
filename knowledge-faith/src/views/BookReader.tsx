@@ -4,6 +4,10 @@ import { useRemote } from '../lib/api.ts';
 import { useApp, useStored } from '../lib/store.tsx';
 import { savedFromCard, useSavedBooks } from '../lib/savedBooks.ts';
 import { mostlyArabic, type BookCard, type ReaderBlock } from '../shared/bookShelf.ts';
+import {
+  PREPARED_TEXT_QUARANTINE_MESSAGE,
+  preparedTextQuarantined,
+} from '../shared/bookReadiness.ts';
 import type { LibraryDocument } from '../shared/libraryDocument.ts';
 import { ErrorNote, Loading, Notice } from '../components/ui.tsx';
 
@@ -44,7 +48,12 @@ function rememberPage(id: number, page: number) {
 
 export function BookReader({ itemId, backHref = libraryReturn() }: { itemId: number; backHref?: string }) {
   const { lang } = useApp();
-  const remote = useRemote<ReadBook>(Number.isInteger(itemId) && itemId > 0 ? `/api/library/read/${itemId}?lang=${lang}&pages=1` : null);
+  const quarantined = preparedTextQuarantined(itemId);
+  const remote = useRemote<ReadBook>(
+    Number.isInteger(itemId) && itemId > 0 && !quarantined
+      ? `/api/library/read/${itemId}?lang=${lang}&pages=1`
+      : null,
+  );
   const data = remote.data && remote.data.id === itemId && remote.data.requestedLanguage === lang ? remote.data : null;
   const pages = data?.pages ?? [];
   const [page, setPage] = useState(() => storedPage(itemId));
@@ -116,9 +125,21 @@ export function BookReader({ itemId, backHref = libraryReturn() }: { itemId: num
           </div>
         </div>
       )}
-      {remote.loading && !data && <Loading label="Opening this book" />}
-      {remote.error && <ErrorNote message={remote.error} onRetry={remote.reload} />}
-      {data && (
+      {quarantined && (
+        <div className="mb-4 space-y-3" data-testid="prepared-text-quarantine-reader">
+          <Notice>{PREPARED_TEXT_QUARANTINE_MESSAGE}</Notice>
+          <p className="text-sm text-ink/75">
+            Direct prepared-text entry and audio generation are blocked for this title. Use the original PDF from
+            book details when available.
+          </p>
+          <a href={backHref} className="inline-flex min-h-10 items-center text-sm font-medium text-pine underline">
+            Back to library
+          </a>
+        </div>
+      )}
+      {remote.loading && !data && !quarantined && <Loading label="Opening this book" />}
+      {remote.error && !quarantined && <ErrorNote message={remote.error} onRetry={remote.reload} />}
+      {data && !quarantined && (
         <>
           <header className="mb-4 text-center">
             <h1 className="font-display text-2xl font-bold text-pine sm:text-3xl" lang={data.language ?? undefined}>{data.title || 'Untitled book'}</h1>
@@ -186,7 +207,14 @@ export function BookReader({ itemId, backHref = libraryReturn() }: { itemId: num
 }
 
 function cardFromDocument(data: ReadBook): BookCard {
-  const language = data.language === 'ta' || data.language === 'si' ? data.language : 'en';
+  // Prefer the rendered reader language so a Tamil reading stays on the Tamil shelf.
+  const rendered =
+    data.language === 'ta' || data.language === 'si' || data.language === 'en'
+      ? data.language
+      : data.requestedLanguage === 'ta' || data.requestedLanguage === 'si'
+        ? data.requestedLanguage
+        : 'en';
+  const language = rendered;
   return {
     id: data.id,
     title: data.title || 'Untitled book',

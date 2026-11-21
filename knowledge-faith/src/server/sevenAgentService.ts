@@ -784,7 +784,7 @@ async function synthesizeDynamicDossierPayload(
     const { value, model } = await generateJsonWithModels<GeneratedDossierPayload>(
       `${system}\n\n${user}`,
       geminiDossierSchema,
-      [GEMINI_SYNTHESIS_FALLBACK_MODEL, 'gemini-flash-latest', 'gemini-2.5-flash'],
+      [GEMINI_SYNTHESIS_FALLBACK_MODEL, 'gemini-flash-latest'],
     );
     const payload = normalizeGeneratedDossier(value);
     if (dossierPayloadComplete(payload)) {
@@ -1089,7 +1089,7 @@ async function generateRoundtableAfterSynthesis(
       const { value } = await generateJsonWithModels<{ turns: Array<{ speaker: string; text: string }> }>(
         `${system}\n\n${user}`,
         roundtableAfterSynthesisSchema,
-        [GEMINI_SYNTHESIS_FALLBACK_MODEL, 'gemini-flash-latest', 'gemini-2.5-flash'],
+        [GEMINI_SYNTHESIS_FALLBACK_MODEL, 'gemini-flash-latest'],
       );
       const merged = mergePostSynthesisTurns(fallback, value?.turns);
       if (merged) {
@@ -1599,7 +1599,11 @@ async function localizeDossierToLanguage(
   };
 }
 
-function cacheAcceptableForQuestion(cached: SevenAgentResearchDossier, cleanQ: string): boolean {
+function cacheAcceptableForQuestion(
+  cached: SevenAgentResearchDossier,
+  cleanQ: string,
+  requestedLang: Lang,
+): boolean {
   if (!cached.agents || cached.agents.length !== 7) return false;
   if (normalizeResearchQuestion(cached.question) !== normalizeResearchQuestion(cleanQ)) return false;
   if (cached.verdictClassification === 'AWAITING LIVE SYNTHESIS') return false;
@@ -1608,6 +1612,8 @@ function cacheAcceptableForQuestion(cached: SevenAgentResearchDossier, cleanQ: s
   if (/board is prepared for|Retry when the live synthesis model|Awaiting live 7-agent synthesis/i.test(cached.executiveSummary ?? '')) {
     return false;
   }
+  // Never serve English prose stamped as ta/si from disk cache.
+  if (dossierNeedsLocalization(cached, requestedLang)) return false;
   if (!isGoldOrRingQuestion(cleanQ) && looksLikeGoldRingDossierContent(cached)) return false;
   if (looksLikeMetaCacheIsolationDialogue(cached.roundtableTurns)) return false;
   const modern = matchModernWorldBenchmark(cleanQ);
@@ -1642,7 +1648,7 @@ export async function runSevenAgentResearch(
   });
 
   const cached = readDiskDossier(hash);
-  if (cached && cacheAcceptableForQuestion(cached, cleanQ)) {
+  if (cached && cacheAcceptableForQuestion(cached, cleanQ, lang)) {
     const hydrated = withProvenance(
       { ...cached, id: stableId, question: cleanQ },
       {
@@ -1725,7 +1731,10 @@ export async function runSevenAgentResearch(
       retrievedPassages: retrievedPassages.length ? retrievedPassages : undefined,
     },
   );
-  writeDiskDossier(hash, localized);
+  // Persist only when the board actually matches the requested language script.
+  if (!dossierNeedsLocalization(localized, lang)) {
+    writeDiskDossier(hash, localized);
+  }
   recordInHistory(localized);
   return localized;
 }

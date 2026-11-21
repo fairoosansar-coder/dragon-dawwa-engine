@@ -128,7 +128,7 @@ async function writeRebuttal(input: {
       const { value, model } = await generateJsonWithModels<{ reply: string }>(
         `${system}\n\n${user}`,
         replySchema,
-        [GEMINI_SYNTHESIS_FALLBACK_MODEL, 'gemini-flash-latest', 'gemini-2.5-flash'],
+        [GEMINI_SYNTHESIS_FALLBACK_MODEL, 'gemini-flash-latest'],
       );
       const reply = String(value.reply ?? '').trim();
       if (reply) return { reply, model, provider: 'gemini' };

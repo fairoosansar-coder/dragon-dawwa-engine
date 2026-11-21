@@ -44,6 +44,22 @@ export function toneForGrade(grade: string): GradeTone {
  * It does not convert a model score into a percentage.
  */
 export function publishedAuthenticity(analysis: DragonDawwaAnalysis): PublishedGrade {
+  const decision = analysis.automated_finding;
+  if (decision) {
+    const source = decision.sources.map(r => `HadeethEnc #${r.id}`).join(', ');
+    if (decision.status === 'conflicting-grades') {
+      return { grade: 'Grades differ', tone: 'unspecified', source };
+    }
+    const grade = decision.sources.find(r => r.grade)?.grade;
+    if (!grade) {
+      return {
+        grade: 'Not established',
+        tone: 'unspecified',
+        source: source || 'No directly matched opened source.',
+      };
+    }
+    return { grade, tone: toneForGrade(grade), source };
+  }
   const grading = analysis.agent_5_scholars_verdict?.gradings?.find(g => g.grading?.trim());
   if (grading) {
     return {

@@ -12,7 +12,7 @@ import {
 } from '../utils/reportPresentation.ts';
 import { authenticityAndLaw, bindReport, splitNarration } from '../utils/reportBinding.ts';
 import { reportIdentity } from '../../shared/research/revision.ts';
-import { HumanVerification } from './HumanVerification.tsx';
+import { findingLabel } from '../utils/automatedFinding.ts';
 import type { SourceTakhrij } from '../types/hadith.ts';
 
 const AGENTS = [
@@ -156,7 +156,6 @@ export const HadithReportPaper: React.FC<{
   currentLanguage?: SupportedLanguage;
   readerName?: string;
 }> = ({ analysis, currentLanguage = 'en', readerName }) => {
-  const [reviewLabel, setReviewLabel] = React.useState('Awaiting human verification');
   const enriched = bindReport(
     analysis.agent_7_source_research ? analysis : attachAgent7ToAnalysis(analysis, currentLanguage),
   );
@@ -183,8 +182,10 @@ export const HadithReportPaper: React.FC<{
         <p className="hr-brand">DRAGON DAWWA · By Aegis Intelligence</p>
         <h1 className="hr-title">Complete Hadith Research Report</h1>
         <p className="hr-verify-chip">
-          <strong data-testid="human-review-status">{reviewLabel}</strong>
-          <a href="#hr-section-signoff">View human review</a>
+          <span>Machine-assisted research</span>
+          <strong data-testid="automated-research-status">
+            {findingLabel(enriched.automated_finding)}
+          </strong>
         </p>
         <div className="hr-meta">
           <span>Date<strong>{when}</strong></span>
@@ -202,10 +203,26 @@ export const HadithReportPaper: React.FC<{
           <a key={agent.n} href={`#hr-section-${agent.n}`}>{agent.n} {agent.role}</a>
         ))}
         <a href="#hr-section-completeness">Research completeness</a>
-        <a href="#hr-section-signoff">Human verification</a>
       </nav>
 
       <div className="hr-verdict">
+        {enriched.automated_finding && (
+          <div data-testid="automated-source-finding">
+            <strong>Automated source check</strong>
+            <p>
+              Method: {enriched.automated_finding.method}. This finding concerns the submitted
+              wording, not an independent chain authentication or legal ruling.
+            </p>
+            {enriched.automated_finding.sources.map(r => (
+              <p key={r.id}>
+                <a href={r.url} target="_blank" rel="noreferrer">
+                  HadeethEnc #{r.id}
+                </a>{' '}
+                · {r.grade || 'No published grade'}
+              </p>
+            ))}
+          </div>
+        )}
         <div className="hr-ring-wrap">
           <div
             className="hr-ring"
@@ -453,17 +470,7 @@ export const HadithReportPaper: React.FC<{
         </section>
       )}
 
-      <div className="hr-signoff-page">
-        <HumanVerification
-          jobId={enriched.research_job_id}
-          question={enriched.query_hadith}
-          reportId={reportId}
-          revision={identity.revision}
-          language={currentLanguage}
-          languageLabel={languageName}
-          generatedAt={enriched.generated_at ?? ''}
-          onStatus={setReviewLabel}
-        />
+      <div>
         <p className="hr-designed">Designed and Created by Aegis Intelligence Pvt Ltd, Sri Lanka | Operated by Prime Dragon Technologies</p>
       </div>
     </article>

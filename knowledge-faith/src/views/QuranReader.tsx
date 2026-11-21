@@ -299,7 +299,7 @@ function Library({
           />
           <div className="relative max-w-[72%] px-4 py-4 sm:max-w-xl sm:px-6 sm:py-5">
             <p className="text-[9px] font-semibold tracking-[0.24em] text-[#E6C665]">QUR’AN</p>
-            <h1 className="mt-1 font-display text-lg font-bold leading-snug text-[#F9E7B9] sm:text-xl">{t.quranTitle}</h1>
+            <h1 className="ms-quran-title mt-1 font-display text-lg font-bold leading-snug text-[#F9E7B9] sm:text-xl">{t.quranTitle}</h1>
             <p className="mt-1 text-xs text-stone-300">{t.quranSubtitle}</p>
           </div>
         </header>

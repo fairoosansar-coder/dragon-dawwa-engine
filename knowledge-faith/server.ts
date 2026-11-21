@@ -25,6 +25,10 @@ import { loadKnowledgeShelf, loadLibrary, loadLibraryItem } from './src/server/i
 import { loadBookDetail, loadBookMeta, loadBookShelf, loadBookStats } from './src/server/bookShelf.ts';
 import { readingPages } from './src/server/pdfPages.ts';
 import { readLibraryItem } from './src/server/libraryRead.ts';
+import {
+  PREPARED_TEXT_QUARANTINE_MESSAGE,
+  preparedTextQuarantined,
+} from './src/shared/bookReadiness.ts';
 import { allowedMediaUrl, readMedia } from './src/server/media.ts';
 import { listNames, readName } from './src/server/names.ts';
 import { cancelSharedResearchJob, getSharedResearchJob, startSharedResearchJob } from './src/server/research/jobs.ts';
@@ -419,6 +423,16 @@ app.get(
     const document = await readLibraryItem(id, toLang(req.query.lang), new Date(), requestedPage);
     if (req.query.pages !== '1') {
       res.json(document);
+      return;
+    }
+    // Enforce prepared-text quarantine before PDF page extraction. Original PDF
+    // media links remain on the document for download/open.
+    if (preparedTextQuarantined(id)) {
+      res.json({
+        ...document,
+        pages: [],
+        limitation: document.limitation || PREPARED_TEXT_QUARANTINE_MESSAGE,
+      });
       return;
     }
     const pages = await readingPages(document);

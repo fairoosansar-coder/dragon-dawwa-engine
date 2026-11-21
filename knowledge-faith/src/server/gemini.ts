@@ -19,7 +19,8 @@ import { UpstreamError } from './http.ts';
 import { hasGeminiApiKey } from './loadEnv.ts';
 import { narrationDirection, spokenTranscript } from './spokenLine.ts';
 
-const TEXT_MODELS = (process.env.GEMINI_TEXT_MODELS ?? 'gemini-3.8-flash,gemini-flash-latest,gemini-2.5-flash')
+// gemini-2.5-flash is unavailable to new users and stalls fallback chains; keep 3.8 + flash-latest.
+const TEXT_MODELS = (process.env.GEMINI_TEXT_MODELS ?? 'gemini-3.8-flash,gemini-flash-latest')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
