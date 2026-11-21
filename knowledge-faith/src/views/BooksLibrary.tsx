@@ -1,10 +1,18 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { LANGUAGE_NAMES, LANGS, type Lang } from '../shared/sources.ts';
 import { authorLine, bookMatches, type BookCard, type BookMeta, type BookShelfResponse, type BookStats } from '../shared/bookShelf.ts';
 import { useRemote } from '../lib/api.ts';
 import { useShell } from '../lib/shell.tsx';
 import { useApp } from '../lib/store.tsx';
 import { cardFromSaved, useSavedBooks } from '../lib/savedBooks.ts';
+import {
+  BOOK_PAGE_BOOKMARKS_KEY,
+  bookmarkLabel,
+  buildBookReaderHash,
+  readBookPageBookmarks,
+  removeBookPageBookmark,
+  type BookPageLocator,
+} from '../lib/bookPageBookmark.ts';
 import type { ViewProps } from '../App.tsx';
 import { ErrorNote, Loading } from '../components/ui.tsx';
 import { BookCover } from './BookCover.tsx';
@@ -30,7 +38,9 @@ function shelfOf(value: string | null): 'all' | 'essential' | 'saved' {
 
 export default function BooksLibrary({ sub, segments = [], params = new URLSearchParams() }: ViewProps) {
   const itemId = sub === 'item' ? Number(segments[1]) : 0;
-  if (sub === 'item' && Number.isInteger(itemId) && itemId > 0) return <BookReader itemId={itemId} />;
+  if (sub === 'item' && Number.isInteger(itemId) && itemId > 0) {
+    return <BookReader itemId={itemId} params={params} />;
+  }
   return <BooksShelf params={params} />;
 }
 
@@ -120,8 +130,21 @@ function BooksShelf({ params }: { params: URLSearchParams }) {
 
   const view = shelf === 'saved' ? savedView : live;
   const savedCount = saved.books.filter(book => book.language === lang).length;
+  const [pageBookmarks, setPageBookmarks] = useState<BookPageLocator[]>(() => readBookPageBookmarks());
   const preview = view?.items.find(item => item.id === detailsId) ?? view?.featured ?? saved.books.filter(book => book.id === detailsId).map(cardFromSaved)[0] ?? null;
   const showFeatured = shelf === 'all' && !searching && !category && format === 'any' && sort === 'newest' && page === 1 && view?.featured;
+
+  useEffect(() => {
+    function refresh() {
+      setPageBookmarks(readBookPageBookmarks());
+    }
+    refresh();
+    function onStorage(event: StorageEvent) {
+      if (event.key === BOOK_PAGE_BOOKMARKS_KEY) refresh();
+    }
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [shelf]);
 
   function openDetails(id: number) {
     writeHash({ details: String(id) });
@@ -260,6 +283,47 @@ function BooksShelf({ params }: { params: URLSearchParams }) {
 
       {shelf !== 'saved' && remote.loading && !live && <Loading label="Opening the library" />}
       {shelf !== 'saved' && remote.error && <ErrorNote message={remote.error} onRetry={remote.reload} />}
+
+      {shelf === 'saved' && pageBookmarks.length > 0 && (
+        <section className="space-y-2 rounded-2xl border border-pine/10 bg-white p-4" data-testid="saved-page-bookmarks">
+          <h2 className="font-display text-base font-bold text-pine">Bookmarked pages</h2>
+          <p className="text-xs text-muted">PDF and prepared-text pages are stored separately from saved titles.</p>
+          <ul className="space-y-2">
+            {pageBookmarks.map(locator => (
+              <li
+                key={`${locator.itemId}-${locator.representation}-${locator.page}-${locator.lang}-${locator.attachmentId ?? ''}`}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-parchment px-3 py-2"
+              >
+                <a
+                  href={buildBookReaderHash({
+                    itemId: locator.itemId,
+                    representation: locator.representation,
+                    readerPage: locator.page,
+                    lang: locator.lang,
+                    attachmentId: locator.attachmentId,
+                  })}
+                  className="min-w-0 flex-1 text-sm font-medium text-pine underline decoration-gold underline-offset-2"
+                >
+                  {bookmarkLabel(locator)}
+                  <span className="mt-0.5 block text-xs font-normal text-muted">
+                    {locator.representation === 'pdf' ? 'Original PDF' : 'Prepared text'} · {LANGUAGE_NAMES[locator.lang].english}
+                  </span>
+                </a>
+                <button
+                  type="button"
+                  className="min-h-10 shrink-0 rounded-full border border-pine/20 px-3 text-xs font-medium text-pine"
+                  onClick={() => {
+                    removeBookPageBookmark(locator);
+                    setPageBookmarks(readBookPageBookmarks());
+                  }}
+                >
+                  Remove page
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {view && (
         <>

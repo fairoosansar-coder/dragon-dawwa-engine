@@ -56,4 +56,11 @@ export interface LibraryDocument {
   retrievedAt: string;
   rights: RightsMetadata;
   index: 'fresh' | 'updated' | 'new';
+  /**
+   * How reader pages were produced when `pages=1` was requested.
+   * `pdf` = original PDF page sequence; `text` = prepared/prose blocks; `none` = empty.
+   */
+  pageSource?: 'pdf' | 'text' | 'none';
+  /** Attachment identity used for PDF extraction / PDF bookmarks (sourceUrl). */
+  pageAttachmentId?: string | null;
 }

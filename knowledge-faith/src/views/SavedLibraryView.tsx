@@ -9,6 +9,14 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useRemote } from '../lib/api.ts';
+import {
+  BOOK_PAGE_BOOKMARKS_KEY,
+  bookmarkLabel,
+  buildBookReaderHash,
+  readBookPageBookmarks,
+  removeBookPageBookmark,
+  type BookPageLocator,
+} from '../lib/bookPageBookmark.ts';
 import { usePronunciation, withPronunciation } from '../lib/pronunciation.ts';
 import { useQuranEdition } from '../lib/quranEdition.ts';
 import { useApp } from '../lib/store.tsx';
@@ -67,7 +75,20 @@ export function SavedLibraryView() {
   const [filter, setFilter] = useState<'all' | 'research' | 'quran' | 'hadith'>('all');
   const [expandedDossierId, setExpandedDossierId] = useState<string | null>(null);
   const [openRoundtableForId, setOpenRoundtableForId] = useState<string | null>(null);
+  const [pageBookmarks, setPageBookmarks] = useState<BookPageLocator[]>(() => readBookPageBookmarks());
   const activeLangLabel = LANGUAGE_NAMES[lang]?.native ?? 'English';
+
+  useEffect(() => {
+    function refresh() {
+      setPageBookmarks(readBookPageBookmarks());
+    }
+    refresh();
+    function onStorage(event: StorageEvent) {
+      if (event.key === BOOK_PAGE_BOOKMARKS_KEY) refresh();
+    }
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   const serverHistory = useRemote<HistoryPayload>(`/api/research/seven-agents/history?lang=${lang}`);
 
@@ -139,6 +160,39 @@ export function SavedLibraryView() {
               {lang === 'ta' ? 'சேமித்த நூல்கள்' : lang === 'si' ? 'සුරැකි පොත්' : 'Open saved books'}{' '}
               <span aria-hidden="true">↗</span>
             </a>
+            {pageBookmarks.length > 0 && (
+              <div className="mt-3 space-y-2" data-testid="saved-library-page-bookmarks">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">Bookmarked pages</p>
+                <ul className="space-y-1.5">
+                  {pageBookmarks.slice(0, 6).map(locator => (
+                    <li key={`${locator.itemId}-${locator.representation}-${locator.page}-${locator.lang}-${locator.attachmentId ?? ''}`}>
+                      <a
+                        href={buildBookReaderHash({
+                          itemId: locator.itemId,
+                          representation: locator.representation,
+                          readerPage: locator.page,
+                          lang: locator.lang,
+                          attachmentId: locator.attachmentId,
+                        })}
+                        className="text-sm font-medium text-pine underline decoration-gold underline-offset-2"
+                      >
+                        {bookmarkLabel(locator)}
+                      </a>
+                      <button
+                        type="button"
+                        className="ml-2 text-xs text-muted underline"
+                        onClick={() => {
+                          removeBookPageBookmark(locator);
+                          setPageBookmarks(readBookPageBookmarks());
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           <a

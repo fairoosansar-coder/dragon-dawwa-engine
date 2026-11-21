@@ -431,12 +431,23 @@ app.get(
       res.json({
         ...document,
         pages: [],
+        pageSource: 'none',
+        pageAttachmentId: null,
         limitation: document.limitation || PREPARED_TEXT_QUARANTINE_MESSAGE,
       });
       return;
     }
     const pages = await readingPages(document);
-    res.json({ ...document, pages });
+    const hasProse = document.blocks.some(block => block.kind === 'paragraph');
+    const pdf = document.media.find(file => file.kind === 'pdf');
+    const pageSource =
+      pages.length === 0 ? 'none' : hasProse ? 'text' : pdf ? 'pdf' : 'text';
+    res.json({
+      ...document,
+      pages,
+      pageSource,
+      pageAttachmentId: pageSource === 'pdf' ? pdf?.sourceUrl ?? null : null,
+    });
   }),
 );
 
