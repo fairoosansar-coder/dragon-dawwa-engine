@@ -46,7 +46,7 @@ export function isContraryVerificationClaim(claim: string): boolean {
 /** “must not act … without checking” affirms verification; do not treat as contrary. */
 function affirmsVerificationViaNestedNegation(q: string): boolean {
   return (
-    /\b((do|does|did) not|don't|doesn'?t|must not|never|not)\b.{0,50}\b(act|acting|harm|proceed|believe)\b.{0,50}\bwithout\b.{0,30}\b(verif|investigat|check)/i.test(
+    /\b((do|does|did) not|don't|doesn'?t|must not|should not|never|not)\b.{0,50}\b(act|acting|harm|proceed|believe)\b.{0,50}\bwithout\b.{0,30}\b(verif|investigat|check)/i.test(
       q,
     ) ||
     /\bwithout\b.{0,20}\b(verif|investigat|check).{0,40}\b(do not|don't|lest|so (that )?they (do not|don't))\b/i.test(q) ||
@@ -56,15 +56,24 @@ function affirmsVerificationViaNestedNegation(q: string): boolean {
   );
 }
 
-/** Negation scoped to verification itself (never verify / no need to check). */
+/** Negation scoped to verification itself (never verify / must not verify / no need to check). */
 function deniesVerificationItself(q: string): boolean {
+  // Use verif\w* / check(?:…) so “verify/checking” match (bare \bverif\b fails on “verify”).
+  const verifyWord = String.raw`(?:verif\w*|investigat\w*|check(?:s|ed|ing)?)`;
   return (
-    /\b(need no|needs no|no need)\b.{0,40}\b(verif|investigat|check)/i.test(q) ||
-    /\bnever\b.{0,40}\b(verif|investigat|check)/i.test(q) ||
-    /\b(does not|do not|don't|doesn'?t)\b.{0,40}\b(verif|investigat|check)\b/i.test(q) ||
+    new RegExp(String.raw`\b(need no|needs no|no need)\b.{0,40}\b${verifyWord}\b`, 'i').test(q) ||
+    new RegExp(String.raw`\bnever\b.{0,40}\b${verifyWord}\b`, 'i').test(q) ||
+    // Include bare not / must not / should not so “must not verify” stays contrary.
+    new RegExp(
+      String.raw`\b(does not|do not|don't|doesn'?t|must not|should not|not)\b.{0,40}\b${verifyWord}\b`,
+      'i',
+    ).test(q) ||
     /\bno verification\b/i.test(q) ||
-    // Act/believe without verifying — but not when nested negation already affirmed verification.
-    /\b(act|acting|believe|believing|proceed)\b.{0,40}\b(without|no)\b.{0,20}\b(verif|investigat|check|checking)\b/i.test(q) ||
+    // Act/believe without verifying — nested affirmation already returned false above.
+    new RegExp(
+      String.raw`\b(act|acting|believe|believing|proceed)\b.{0,40}\b(without|no)\b.{0,20}\b${verifyWord}\b`,
+      'i',
+    ).test(q) ||
     /\bbelieve every report\b/i.test(q) ||
     /\bact on the news without\b/i.test(q)
   );
@@ -222,6 +231,18 @@ export function evaluateVerificationClaimAgainstPassages(
   passages: readonly { id: string; text: string }[],
   preferredPassageId?: string | null,
 ): ClaimPassageSupportResult {
+  // Gate first: invented-detail / contrary rejects apply only inside 49:6 verification theme space.
+  // Unrelated research claims fall through to verifyClaim word-match scoring.
+  if (!isVerificationMeaningClaim(claim)) {
+    return {
+      support: 'insufficient',
+      citationRelevant: false,
+      quotationFaithful: null,
+      supportingSpan: null,
+      note: 'No conservative meaning rule applies to this assertion against the opened passages.',
+      passageId: null,
+    };
+  }
   if (isContraryVerificationClaim(claim)) {
     return {
       support: 'unsupported',
@@ -240,16 +261,6 @@ export function evaluateVerificationClaimAgainstPassages(
       supportingSpan: null,
       note: 'The assertion adds details (or contradicts the verse theme) that the opened passage does not establish.',
       passageId: preferredPassageId ?? passages[0]?.id ?? null,
-    };
-  }
-  if (!isVerificationMeaningClaim(claim)) {
-    return {
-      support: 'insufficient',
-      citationRelevant: false,
-      quotationFaithful: null,
-      supportingSpan: null,
-      note: 'No conservative meaning rule applies to this assertion against the opened passages.',
-      passageId: null,
     };
   }
   if (!claimStatesVerificationProposition(claim)) {

@@ -181,4 +181,46 @@ describe('claim passage support — meaning verification', () => {
     const check = verifyClaim(nested, 'Q49-6', [{ id: 'Q49-6', text: SI_496 }]);
     assert.equal(check.support, 'supported');
   });
+
+  it('treats must-not-verify / should-not-verify as contrary, not supported', () => {
+    for (const claim of [
+      'Qur’an 49:6 says believers must not verify a wrongdoer’s report before acting.',
+      'Qur’an 49:6 says believers should not verify news from a fasiq.',
+    ]) {
+      assert.equal(isContraryVerificationClaim(claim), true, claim);
+      const check = verifyClaim(claim, 'Q49-6', [{ id: 'Q49-6', text: SI_496 }]);
+      assert.notEqual(check.support, 'supported', claim);
+      assert.equal(check.support, 'unsupported', claim);
+      assert.match(check.note, /contrary/i, claim);
+    }
+    const affirming =
+      'Qur’an 49:6 teaches believers do not act without verifying a wrongdoer’s news, lest they harm people through ignorance.';
+    assert.equal(isContraryVerificationClaim(affirming), false);
+    assert.equal(verifyClaim(affirming, 'Q49-6', [{ id: 'Q49-6', text: SI_496 }]).support, 'supported');
+  });
+
+  it('does not hard-reject unrelated claims that only share invented-detail wording', () => {
+    // Without 49:6 theme, invented-detail patterns must not short-circuit verifyClaim.
+    const meaning = evaluateVerificationClaimAgainstPassages(
+      'The narrator always tells the truth about fasting.',
+      [{ id: 'E65003', text: 'Fasting is mentioned in several places.' }],
+    );
+    assert.equal(meaning.support, 'insufficient');
+    assert.match(meaning.note, /No conservative meaning rule/i);
+
+    const truth = verifyClaim(
+      'The narrator always tells the truth about fasting.',
+      'E65003',
+      [{ id: 'E65003', text: 'Fasting is mentioned in several places.' }],
+    );
+    assert.equal(/adds details|contrary claim/i.test(truth.note), false);
+    assert.notEqual(truth.support, 'supported');
+
+    const witnesses = verifyClaim(
+      'The case requires two witnesses for the contract.',
+      'E65004',
+      [{ id: 'E65004', text: 'A different ruling about prayer times.' }],
+    );
+    assert.equal(/adds details|opened passage does not establish/i.test(witnesses.note), false);
+  });
 });

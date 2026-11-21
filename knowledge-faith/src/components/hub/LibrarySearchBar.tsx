@@ -61,6 +61,8 @@ export function LibrarySearchBar({ surahs }: { surahs: SurahInfo[] | null }) {
     setActiveIndex(-1);
   }, [debounced, lang]);
 
+  const SEARCHING_TITLE = 'Searching for that title…';
+
   const verseParse = surahs?.length ? parseLibraryVerseRef(debounced, surahs) : null;
   const verseHit =
     verseParse?.ok && quranEdition.editionKey
@@ -89,6 +91,37 @@ export function LibrarySearchBar({ surahs }: { surahs: SurahInfo[] | null }) {
   const showNoResults =
     Boolean(titleQuery) && !catalogue.loading && !catalogue.error && !stale && bookHits.length === 0;
 
+  // Clear sticky “Searching…” once hits arrive, loading ends, or no catalogue fetch will run.
+  useEffect(() => {
+    if (feedback !== SEARCHING_TITLE) return;
+    if (!titleQuery) {
+      setFeedback(null);
+      return;
+    }
+    if (catalogue.loading || stale) return;
+    if (catalogue.error) {
+      setFeedback(null);
+      return;
+    }
+    if (catalogue.data && catalogueResultsMatchSubmit({
+      submittedQuery: titleQuery,
+      catalogueQuery: catalogue.data.query,
+      catalogueLang: catalogue.data.lang,
+      requestedLang: lang,
+      itemCount: catalogue.data.items?.length ?? -1,
+    })) {
+      setFeedback(catalogue.data.items.length === 0 ? 'No matching book titles in this language.' : null);
+    }
+  }, [
+    feedback,
+    titleQuery,
+    catalogue.loading,
+    catalogue.error,
+    catalogue.data,
+    stale,
+    lang,
+  ]);
+
   function openHit(hit: LibrarySearchHit) {
     setFeedback(null);
     window.location.hash = hit.hash;
@@ -111,20 +144,25 @@ export function LibrarySearchBar({ surahs }: { surahs: SurahInfo[] | null }) {
       setFeedback('Chapter metadata is still loading — try again in a moment.');
       return;
     }
-    if (surahs?.length) {
-      const parsed = parseLibraryVerseRef(trimmed, surahs);
-      if (parsed.ok) {
-        if (!quranEdition.editionKey) {
-          setFeedback('Meaning edition is still loading — try again in a moment.');
+    if (submittedLooksLikeRef) {
+      if (surahs?.length) {
+        const parsed = parseLibraryVerseRef(trimmed, surahs);
+        if (parsed.ok) {
+          if (!quranEdition.editionKey) {
+            setFeedback('Meaning edition is still loading — try again in a moment.');
+            return;
+          }
+          openHit(libraryVerseHit(parsed, lang, quranEdition.editionKey));
           return;
         }
-        openHit(libraryVerseHit(parsed, lang, quranEdition.editionKey));
-        return;
+        if (parsed.reason === 'invalid_bounds') {
+          setFeedback(parsed.message);
+          return;
+        }
       }
-      if (parsed.reason === 'invalid_bounds') {
-        setFeedback(parsed.message);
-        return;
-      }
+      // Incomplete ref (e.g. 18:) never catalogues — do not leave sticky Searching.
+      setFeedback('Enter a complete Qur’an reference (e.g. 18:10).');
+      return;
     }
     if (trimmed.length < 3) {
       setFeedback('Book title search needs at least 3 characters.');
@@ -147,7 +185,7 @@ export function LibrarySearchBar({ surahs }: { surahs: SurahInfo[] | null }) {
       setFeedback('No matching book titles in this language.');
       return;
     }
-    setFeedback('Searching for that title…');
+    setFeedback(SEARCHING_TITLE);
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {

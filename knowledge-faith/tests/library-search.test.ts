@@ -186,4 +186,12 @@ describe('library search — Hub wiring', () => {
     assert.equal(/\/api\/analyze/.test(bar), false);
     assert.equal(/beginResearch|DomainResearchForm/.test(bar), false);
   });
+
+  it('clears Searching feedback for incomplete verse refs and when catalogue settles', () => {
+    const bar = readFileSync(path.join(root, 'src/components/hub/LibrarySearchBar.tsx'), 'utf8');
+    assert.match(bar, /Enter a complete Qur.an reference/);
+    assert.match(bar, /SEARCHING_TITLE/);
+    assert.match(bar, /feedback !== SEARCHING_TITLE/);
+    assert.match(bar, /setFeedback\(null\)/);
+  });
 });
