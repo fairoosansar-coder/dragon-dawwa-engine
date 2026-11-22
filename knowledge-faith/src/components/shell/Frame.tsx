@@ -213,11 +213,17 @@ export function AppFrame({
         className="flex min-h-dvh w-full flex-col bg-[#FAF7F0] text-[#18221D]"
       >
         <header className="ms-public-header">
-          <ReadingBrand />
+          <ReadingBrand openPassage={import.meta.env?.VITE_OPEN_PASSAGE !== '0'} />
           <ReadingNav path="hub" signed={false} />
-          <a href="#/about" className="ms-about">
-            About the library
-          </a>
+          {import.meta.env?.VITE_OPEN_PASSAGE === '0' ? (
+            <a href="#/about" className="ms-about">
+              About the library
+            </a>
+          ) : (
+            <span className="op-locale" lang="en">
+              English
+            </span>
+          )}
         </header>
         <main id="main" className="ms-public-main">
           {children}

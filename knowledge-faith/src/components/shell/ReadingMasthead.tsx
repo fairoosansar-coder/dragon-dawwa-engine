@@ -9,4 +9,28 @@ export function ReadingNav({path,sub,signed}:{path:string;sub?:string;signed:boo
     return <a key={href} href={href} aria-current={current?'page':undefined} onClick={e=>{if(!signed&&i){e.preventDefault();requestAuthenticatedNavigation(href,copy[lang][i])}}}>{copy[lang][i]}</a>;
   })}</nav>;
 }
-export function ReadingBrand(){return <a className="ms-brand" href="#/hub"><span aria-hidden="true">DD</span><b>DRAGON DAWWA<small>BY AEGIS INTELLIGENCE</small></b></a>}
+export function ReadingBrand({ openPassage = false }: { openPassage?: boolean }) {
+  if (openPassage) {
+    return (
+      <a className="ms-brand op-brand" href="#/hub">
+        <img
+          alt="Open Passage"
+          src={`${import.meta.env?.BASE_URL || '/'}assets/open-passage-mark.svg`}
+          width={40}
+          height={32}
+        />
+        <b>
+          Open Passage<small>BY AEGIS INTELLIGENCE</small>
+        </b>
+      </a>
+    );
+  }
+  return (
+    <a className="ms-brand" href="#/hub">
+      <span aria-hidden="true">DD</span>
+      <b>
+        DRAGON DAWWA<small>BY AEGIS INTELLIGENCE</small>
+      </b>
+    </a>
+  );
+}
