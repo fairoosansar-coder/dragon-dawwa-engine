@@ -1471,7 +1471,7 @@ app.post(
 
 const dataDir = persistRoot();
 const editorAccounts = parseEditorAccounts(process.env.EDITORIAL_USERS);
-app.use(openPassageRouter());
+app.use('/api/open-passage', openPassageRouter());
 app.use(
   spiritualRouter({
     store: new EditorialStore(path.join(dataDir, 'editorial.json')),

@@ -78,7 +78,7 @@ async function offlineSpeak(lines: Array<{ voice: string; text: string }>): Prom
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (!line.text.trim()) continue;
-      const wavPath = path.join(dir, ``${i}.wav`);
+      const wavPath = path.join(dir, `p${i}.wav`);
       const textPath = path.join(dir, `speech-${i}.txt`);
       await writeFile(textPath, line.text);
       try {
