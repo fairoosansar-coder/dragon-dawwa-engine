@@ -496,6 +496,9 @@ export function buildGoogleOAuthRedirectUrl(returnTo?: string, callbackPath?: st
 }
 
 let gisScriptPromise: Promise<boolean> | null = null;
+let gisInitializedClientId: string | null = null;
+type GisCredentialHandler = (credential: string) => void | Promise<void>;
+const gisCredentialHandlers = new Map<string, GisCredentialHandler>();
 
 export function ensureGoogleGisLoaded(): Promise<boolean> {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
@@ -528,6 +531,41 @@ export function ensureGoogleGisLoaded(): Promise<boolean> {
     document.head.appendChild(script);
   });
   return gisScriptPromise;
+}
+
+/**
+ * Shared GIS Identity initialize so Open Passage GoogleGate and SeekerAuthCard
+ * do not overwrite each other's credential callback.
+ */
+export async function ensureGoogleIdentityInitialized(clientId: string): Promise<boolean> {
+  const trimmed = clientId.trim();
+  if (!trimmed) return false;
+  if (!(await ensureGoogleGisLoaded()) || !window.google?.accounts?.id) return false;
+  if (gisInitializedClientId === trimmed) return true;
+  window.google.accounts.id.initialize({
+    client_id: trimmed,
+    ux_mode: 'popup',
+    itp_support: true,
+    callback: response => {
+      if (!response.credential) return;
+      const handlers = [...gisCredentialHandlers.values()];
+      const handler = handlers[handlers.length - 1];
+      if (handler) void handler(response.credential);
+    },
+  });
+  gisInitializedClientId = trimmed;
+  return true;
+}
+
+/** Register a credential handler; last registered wins while mounted. Returns unsubscribe. */
+export function subscribeGoogleGisCredential(
+  id: string,
+  handler: GisCredentialHandler,
+): () => void {
+  gisCredentialHandlers.set(id, handler);
+  return () => {
+    if (gisCredentialHandlers.get(id) === handler) gisCredentialHandlers.delete(id);
+  };
 }
 
 export async function loginOrRegisterSeeker(input: {
