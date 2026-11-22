@@ -215,7 +215,7 @@ export function OpenPassageHome() {
           <p>
             {staging
               ? 'Use a separate test account here. Your production account and saved items are not copied into staging.'
-              : 'Sign in with Google or your Dragon Dawwa account to save passages, open the library, and continue researching.'}
+              : 'Sign in to Open Passage to save passages, open the library, and continue researching.'}
           </p>
         </div>
         <SeekerAuthCard inline />
@@ -225,9 +225,4 @@ export function OpenPassageHome() {
   );
 }
 
-export function openPassageUiEnabled(): boolean {
-  const flag = import.meta.env?.VITE_OPEN_PASSAGE;
-  if (flag === '0' || flag === 'false') return false;
-  // Default on for this feature branch; kill with VITE_OPEN_PASSAGE=0.
-  return flag !== 'off';
-}
+export { openPassageUiEnabled } from '../../lib/productBrand.ts';

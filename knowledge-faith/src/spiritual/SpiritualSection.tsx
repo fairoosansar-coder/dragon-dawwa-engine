@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import {openPassageUiEnabled, productName} from '../lib/productBrand.ts';
 import { SP } from './i18n.ts';
 import { Hub } from './Hub.tsx';
 import { GuideView } from './GuideView.tsx';
@@ -18,7 +19,7 @@ function isSlot(value: string | undefined): value is SlotId {
 export default function SpiritualSection({ segments = [] }: { segments?: string[] }) {
   const [root, a, b] = segments;
   useEffect(() => {
-    document.title = `${SP.en.title} · ${SP.en.brand}`;
+    document.title = `${SP.en.title} · ${openPassageUiEnabled() ? productName : SP.en.brand}`;
   }, []);
 
   let view = <Hub />;

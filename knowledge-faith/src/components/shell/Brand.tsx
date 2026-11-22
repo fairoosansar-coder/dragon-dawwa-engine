@@ -1,4 +1,5 @@
 import { useApp } from '../../lib/store.tsx';
+import {openPassageUiEnabled, openPassageMark, productWordmark} from '../../lib/productBrand.ts';
 
 /** Gold ring seal. The letters sit in the circle, as on the desk sidebar. */
 function CarvedSeal() {
@@ -20,13 +21,13 @@ export function BrandLockup({ tone = 'ivory' }: { tone?: 'emerald' | 'ivory' }) 
   const { t } = useApp();
   const onEmerald = tone === 'emerald';
   return (
-    <a href="#/quran/wall" className="flex min-w-0 items-center gap-2.5 rounded-xl">
-      <CarvedSeal />
+    <a href={openPassageUiEnabled() ? '#/hub' : '#/quran/wall'} className="flex min-w-0 items-center gap-2.5 rounded-xl">
+      {openPassageUiEnabled() ? <img src={openPassageMark} width={40} height={32} alt=""/> : <CarvedSeal />}
       <span className="min-w-0 leading-tight">
         <span
           className={`block truncate font-['Cormorant_Garamond',Georgia,serif] text-[13px] font-semibold tracking-[0.08em] ${onEmerald ? 'text-[#F6E7C1]' : 'text-pine'}`}
         >
-          DRAGON DAWWA
+          {productWordmark}
         </span>
         <span className={`mt-1 block h-px w-8 bg-gradient-to-r ${onEmerald ? 'from-[#C6A15A] to-transparent' : 'from-gold to-transparent'}`} aria-hidden />
         <span className={`mt-1 block truncate font-['Cormorant_Garamond',Georgia,serif] text-[12.5px] italic leading-none ${onEmerald ? 'text-[#E7D7B0]' : 'text-muted'}`}>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Check, ChevronDown, Copy, HelpCircle, LogIn, LogOut, Settings, ShieldCheck, Sparkles, User, X } from 'lucide-react';
 import { RubElHizb } from '../engine/ds/ornaments.tsx';
 import { ProfileSettingsPanel } from './ProfileSettingsPanel.tsx';
+import {productName, productWordmark} from '../lib/productBrand.ts';
 import {
   buildGoogleOAuthRedirectUrl,
   ensureGoogleGisLoaded,
@@ -678,7 +679,7 @@ export function SeekerAuthCard({
           <div>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[#0F5132]/20 bg-[#FAF7F0] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#0F5132]">
               <Sparkles className="h-3 w-3 text-[#C6A15A]" aria-hidden />
-              DRAGON DAWWA · ACCOUNT
+              {productWordmark} · Account
             </span>
             <h2 className="mt-1.5 font-display text-lg font-bold text-[#18221D] sm:text-xl">
               Your Seeker Profile
@@ -854,10 +855,10 @@ export function SeekerAuthCard({
         <div>
           <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#0F5132]">
             <Sparkles className="h-3.5 w-3.5 text-[#C6A15A]" aria-hidden />
-            <span>DRAGON DAWWA</span>
+            <span>{productWordmark}</span>
           </div>
           <h1 className="mt-1 font-display text-xl font-bold tracking-tight text-[#18221D]">
-            {pendingDesk ? `Sign in to ${pendingDesk}` : 'Welcome to Dragon Dawwa'}
+            {pendingDesk ? `Sign in to ${pendingDesk}` : `Welcome to ${productName}`}
           </h1>
           <p data-auth-modal-subtitle className="mt-0.5 text-xs text-stone-600">
             Sign in with your username, email, phone number, or Google.

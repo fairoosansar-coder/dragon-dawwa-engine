@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import {productWordmark} from '../../lib/productBrand.ts';
 import {
   Award,
   Bookmark,
@@ -1222,7 +1223,7 @@ export function SevenAgentResearchBoard({
                 style={{ color: '#B45309' }}
                 className="text-[11px] font-extrabold uppercase tracking-widest"
               >
-                ✦ DRAGON DAWWA LIVE · MULTI-VOICE ROUNDTABLE STUDIO
+                ✦ {productWordmark} Live · Multi-voice Roundtable Studio
               </p>
               <h3
                 style={{ color: '#0F2922' }}

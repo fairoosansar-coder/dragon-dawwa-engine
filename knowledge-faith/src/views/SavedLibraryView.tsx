@@ -9,6 +9,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useRemote } from '../lib/api.ts';
+import {openPassageUiEnabled, productName} from '../lib/productBrand.ts';
 import {
   BOOK_PAGE_BOOKMARKS_KEY,
   bookmarkLabel,
@@ -143,7 +144,7 @@ export function SavedLibraryView() {
               className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold tracking-wider"
             >
               <Bookmark className="h-3.5 w-3.5 text-[#D4AF37]" aria-hidden />
-              <span>PERSONAL SAVED LIBRARY & DOSSIERS</span>
+              <span>{openPassageUiEnabled() ? `${productName} · Saved library` : 'PERSONAL SAVED LIBRARY & DOSSIERS'}</span>
             </span>
 
             <h1

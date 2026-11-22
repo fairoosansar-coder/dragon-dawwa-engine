@@ -22,6 +22,7 @@ import { LANGUAGE_NAMES } from '../../shared/sources.ts';
 import type { RouteRoot } from '../../lib/route.ts';
 import { useShell } from '../../lib/shell.tsx';
 import { ReadingBrand, ReadingNav } from './ReadingMasthead.tsx';
+import {openPassageUiEnabled, openPassageMark, productWordmark} from '../../lib/productBrand.ts';
 import { UI_FONT_SCALES, UI_THEMES, useApp } from '../../lib/store.tsx';
 import { profileFontClass } from '../../lib/typography.ts';
 import { useAudioState } from '../../lib/audio.ts';
@@ -213,7 +214,7 @@ export function AppFrame({
         className="flex min-h-dvh w-full flex-col bg-[#FAF7F0] text-[#18221D]"
       >
         <header className="ms-public-header">
-          <ReadingBrand openPassage={import.meta.env?.VITE_OPEN_PASSAGE !== '0'} />
+          <ReadingBrand openPassage={openPassageUiEnabled()} />
           <ReadingNav path="hub" signed={false} />
           {import.meta.env?.VITE_OPEN_PASSAGE === '0' ? (
             <a href="#/about" className="ms-about">
@@ -274,11 +275,12 @@ export function AppFrame({
               className="flex min-w-0 items-center gap-2.5 justify-self-start"
             >
               <a
-                href="#/quran/wall"
+                href={openPassageUiEnabled() ? '#/hub' : '#/quran/wall'}
                 data-header-brand
+                aria-label={productWordmark}
                 className="inline-flex shrink-0 items-center gap-2 rounded-xl"
               >
-                <span
+                {openPassageUiEnabled() ? <img src={openPassageMark} alt="" width={36} height={30}/> : <span
                   className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#073C30] shadow-2xs"
                   aria-hidden
                 >
@@ -289,9 +291,9 @@ export function AppFrame({
                   <span className="relative font-['Cormorant_Garamond',Georgia,serif] text-xs font-semibold tracking-[0.08em] text-[#F6E7C1]">
                     DD
                   </span>
-                </span>
-                <span className="hidden font-['Cormorant_Garamond',Georgia,serif] text-[13px] font-bold tracking-[0.08em] text-pine sm:inline">
-                  DRAGON DAWWA
+                </span>}
+                <span className={`${openPassageUiEnabled() ? 'inline' : 'hidden sm:inline'} font-['Cormorant_Garamond',Georgia,serif] text-[13px] font-bold tracking-[0.02em] text-pine`}>
+                  {productWordmark}
                 </span>
               </a>
               <span className="hidden h-4 w-px shrink-0 bg-stone-300/80 sm:block" aria-hidden />

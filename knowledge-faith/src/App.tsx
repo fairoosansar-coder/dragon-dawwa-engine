@@ -15,6 +15,7 @@ import {
 } from './lib/seekerAuth.ts';
 import { PublicHomeOverview } from './views/PublicHomeOverview.tsx';
 import { openPassageUiEnabled } from './views/openPassage/OpenPassageHome.tsx';
+import {productWordmark} from './lib/productBrand.ts';
 
 const KnowledgeHub = lazy(() => import('./views/KnowledgeHub.tsx'));
 const QuranReader = lazy(() => import('./views/QuranReader.tsx'));
@@ -106,7 +107,7 @@ function Shell() {
   const route = ROUTES.find(item => item.path === location.path) ?? ROUTES[0];
   const View = route.view;
   const opened = openedResearchDesk(location.path, location.segments);
-  const sectionTitle = opened?.desk === 'fiqh' ? 'Fiqh' : opened?.desk === 'seerah' ? 'Seerah' : location.path === 'quran' ? t.quranTitle : t[route.label];
+  const sectionTitle = openPassageUiEnabled() && location.path === 'hub' && location.segments[0] === 'saved' ? 'Saved' : opened?.desk === 'fiqh' ? 'Fiqh' : opened?.desk === 'seerah' ? 'Seerah' : location.path === 'quran' ? t.quranTitle : t[route.label];
   const routeKey = `${location.path}/${location.segments.join('/')}?${location.params.toString()}`;
   const rawHash = typeof window === 'undefined' ? '#/hub' : window.location.hash || '';
   const onPublicHome = isPublicHomeHash(rawHash);
@@ -142,10 +143,10 @@ function Shell() {
   useEffect(() => {
     if (location.path === 'spiritual' && isAuthenticated) return;
     const publicTitle =
-      import.meta.env?.VITE_OPEN_PASSAGE === '0'
+      !openPassageUiEnabled()
         ? `${t.navHub} · DRAGON DAWWA`
         : 'Explore the Qur’an and Hadith · Open Passage';
-    document.title = isAuthenticated ? `${sectionTitle} · DRAGON DAWWA` : publicTitle;
+    document.title = isAuthenticated ? `${sectionTitle} · ${productWordmark}` : publicTitle;
   }, [sectionTitle, location.path, isAuthenticated, t.navHub]);
 
   return (
