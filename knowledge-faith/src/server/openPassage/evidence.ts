@@ -9,7 +9,13 @@ const STOP = new Set(
   ),
 );
 
-type VerseIndex = { verses: Record<string, string>; tokens: Record<string, Set<string>>; df: Map<string, number> };
+type VerseIndex = {
+  verses: Record<string, string>;
+  tokens: Record<string, Set<string>>;
+  df: Map<string, number>;
+  /** Precomputed once — avoid `Object.keys(tokens).length` inside the scoring loop. */
+  size: number;
+};
 
 let cached: VerseIndex | null = null;
 
@@ -38,7 +44,7 @@ function loadVerseIndex(): VerseIndex {
     tokenMap[ref] = set;
     for (const term of set) df.set(term, (df.get(term) || 0) + 1);
   }
-  cached = { verses, tokens: tokenMap, df };
+  cached = { verses, tokens: tokenMap, df, size: Object.keys(tokenMap).length };
   return cached;
 }
 
@@ -47,12 +53,13 @@ export async function openPassageEvidence(question: string): Promise<OpenPassage
   const terms = tokens(question);
   let refs = [...question.matchAll(/\b(\d{1,3}:\d{1,3})\b/g)].map(match => match[1]);
   if (!refs.length) {
+    const corpusSize = index.size;
     const scored = Object.entries(index.tokens)
       .map(([ref, set]) => {
         let score = 0;
         for (const term of terms) {
           if (set.has(term)) {
-            score += Math.log((Object.keys(index.tokens).length + 1) / ((index.df.get(term) || 0) + 1));
+            score += Math.log((corpusSize + 1) / ((index.df.get(term) || 0) + 1));
           }
         }
         return { score, ref };
