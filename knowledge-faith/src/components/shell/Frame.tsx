@@ -22,6 +22,7 @@ import { LANGUAGE_NAMES } from '../../shared/sources.ts';
 import type { RouteRoot } from '../../lib/route.ts';
 import { useShell } from '../../lib/shell.tsx';
 import { ReadingBrand, ReadingNav } from './ReadingMasthead.tsx';
+import { openPassageUiEnabled } from '../../views/openPassage/OpenPassageHome.tsx';
 import { UI_FONT_SCALES, UI_THEMES, useApp } from '../../lib/store.tsx';
 import { profileFontClass } from '../../lib/typography.ts';
 import { useAudioState } from '../../lib/audio.ts';
@@ -213,11 +214,17 @@ export function AppFrame({
         className="flex min-h-dvh w-full flex-col bg-[#FAF7F0] text-[#18221D]"
       >
         <header className="ms-public-header">
-          <ReadingBrand />
+          <ReadingBrand openPassage={openPassageUiEnabled()} />
           <ReadingNav path="hub" signed={false} />
-          <a href="#/about" className="ms-about">
-            About the library
-          </a>
+          {openPassageUiEnabled() ? (
+            <span className="op-locale" lang="en">
+              English
+            </span>
+          ) : (
+            <a href="#/about" className="ms-about">
+              About the library
+            </a>
+          )}
         </header>
         <main id="main" className="ms-public-main">
           {children}

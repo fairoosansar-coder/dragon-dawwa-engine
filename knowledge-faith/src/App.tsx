@@ -14,6 +14,7 @@ import {
   useSeekerAuth,
 } from './lib/seekerAuth.ts';
 import { PublicHomeOverview } from './views/PublicHomeOverview.tsx';
+import { openPassageUiEnabled } from './views/openPassage/OpenPassageHome.tsx';
 
 const KnowledgeHub = lazy(() => import('./views/KnowledgeHub.tsx'));
 const QuranReader = lazy(() => import('./views/QuranReader.tsx'));
@@ -113,7 +114,9 @@ function Shell() {
   useEffect(() => {
     if (isAuthenticated && typeof window !== 'undefined') {
       const h = window.location.hash.trim();
-      if (h === '' || h === '#' || h === '#/') {
+      // Stay on Open Passage public home after GoogleGate seeker sync so resume
+      // can keep researching; do not bounce empty `#/` to the Faith Wall.
+      if ((h === '' || h === '#' || h === '#/') && !openPassageUiEnabled()) {
         window.history.replaceState(null, '', '#/quran/wall');
         window.dispatchEvent(new HashChangeEvent('hashchange'));
         return;
@@ -138,7 +141,10 @@ function Shell() {
 
   useEffect(() => {
     if (location.path === 'spiritual' && isAuthenticated) return;
-    document.title = `${isAuthenticated ? sectionTitle : t.navHub} · DRAGON DAWWA`;
+    const publicTitle = openPassageUiEnabled()
+      ? 'Explore the Qur’an and Hadith · Open Passage'
+      : `${t.navHub} · DRAGON DAWWA`;
+    document.title = isAuthenticated ? `${sectionTitle} · DRAGON DAWWA` : publicTitle;
   }, [sectionTitle, location.path, isAuthenticated, t.navHub]);
 
   return (
@@ -150,7 +156,10 @@ function Shell() {
       <Suspense fallback={<Loading />}>
         {location.path === 'about' ? (
           <AboutView />
-        ) : !isAuthenticated ? (
+        ) : !isAuthenticated || (openPassageUiEnabled() && onPublicHome) ? (
+          // Keep Open Passage research desk mounted after GoogleGate mints a
+          // member pass + seeker session so resume can continue the question.
+          // Library routes still flip to the authenticated shell below.
           <PublicHomeOverview />
         ) : opened && location.path !== 'hadith' ? (
           <ResearchDesk entry={opened.entry} desk={opened.desk} params={location.params} />
