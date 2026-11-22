@@ -7,6 +7,18 @@ import type { OpenPassageReport } from './reportFormat.ts';
 
 export type OpenPassageAudioMode = 'brief' | 'podcast';
 
+/**
+ * Map podcast speakers to the host voice when the label is exactly "Host"
+ * or a named host such as "Brother Feroz (Host)".
+ */
+export function isOpenPassageHostSpeaker(speaker: string): boolean {
+  const s = speaker.trim();
+  if (!s) return false;
+  if (/^host$/i.test(s)) return true;
+  if (/\(\s*host\s*\)/i.test(s)) return true;
+  return false;
+}
+
 function wavBase64ToBuffer(audioBase64: string): Buffer {
   const raw = audioBase64.includes(',') ? audioBase64.split(',').pop()! : audioBase64;
   return Buffer.from(raw, 'base64');
@@ -66,7 +78,7 @@ async function offlineSpeak(lines: Array<{ voice: string; text: string }>): Prom
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (!line.text.trim()) continue;
-      const wavPath = path.join(dir, `p${i}.wav`);
+      const wavPath = path.join(dir, ``${i}.wav`);
       const textPath = path.join(dir, `speech-${i}.txt`);
       await writeFile(textPath, line.text);
       try {
@@ -157,7 +169,7 @@ export async function renderOpenPassageAudio(
       }
     }
     const lines = report.turns.map(turn => ({
-      speaker: (turn.speaker === 'Host' ? 'Host' : 'Guest') as 'Host' | 'Guest',
+      speaker: (isOpenPassageHostSpeaker(turn.speaker) ? 'Host' : 'Guest') as 'Host' | 'Guest',
       text: turn.text,
       citations: [] as string[],
     }));
@@ -176,7 +188,7 @@ export async function renderOpenPassageAudio(
     mode === 'brief'
       ? [{ voice: 'slt', text: `${report.question}. ${report.status}. ${report.summary}` }]
       : report.turns.map(turn => ({
-          voice: turn.speaker === 'Host' ? 'slt' : 'rms',
+          voice: isOpenPassageHostSpeaker(turn.speaker) ? 'slt' : 'rms',
           text: turn.text,
         }));
   const bytes = await offlineSpeak(lines);
