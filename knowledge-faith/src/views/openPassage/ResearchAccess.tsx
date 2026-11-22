@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ensureGoogleIdentityInitialized,
-  setGoogleGisActiveHandler,
   signInWithGoogleCredential,
   subscribeGoogleGisCredential,
   writeSeekerSession,
@@ -123,9 +122,7 @@ export function GoogleGate({ resume }: { resume: () => void }) {
           throw Error();
         }
         if (!active) return;
-        setGoogleGisActiveHandler('open-passage-gate');
         mount.current.replaceChildren();
-        mount.current.onpointerenter = () => setGoogleGisActiveHandler('open-passage-gate');
         window.google.accounts.id.renderButton(mount.current, {
           type: 'standard',
           text: 'continue_with',
@@ -144,7 +141,6 @@ export function GoogleGate({ resume }: { resume: () => void }) {
     return () => {
       active = false;
       unsubscribe();
-      if (mount.current) mount.current.onpointerenter = null;
     };
   }, []);
 
