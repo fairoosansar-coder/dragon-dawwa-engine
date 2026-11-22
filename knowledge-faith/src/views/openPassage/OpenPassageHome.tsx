@@ -7,7 +7,7 @@ import {
   useSeekerAuth,
 } from '../../lib/seekerAuth.ts';
 import { GuestResearch } from './GuestResearch.tsx';
-import { readAccess } from './ResearchAccess.tsx';
+import { readAccess, writeAccess } from './ResearchAccess.tsx';
 
 
 const sources = [
@@ -27,12 +27,39 @@ const sources = [
 
 const example = 'What does the Qur’an say about kindness?';
 
+
+const PENDING_DESK_KEY = 'op-research-v1:pending-desk';
+
+function readPendingDesk(): { q: string; n: number } | null {
+  try {
+    const raw = sessionStorage.getItem(PENDING_DESK_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { q?: unknown; n?: unknown };
+    if (typeof parsed.q === 'string' && parsed.q.trim().length >= 3 && typeof parsed.n === 'number') {
+      return { q: parsed.q.trim(), n: parsed.n };
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function writePendingDesk(next: { q: string; n: number } | null): void {
+  try {
+    if (next) sessionStorage.setItem(PENDING_DESK_KEY, JSON.stringify(next));
+    else sessionStorage.removeItem(PENDING_DESK_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Public Open Passage entrance — selective port from the Cursor kit (does not replace library auth). */
 export function OpenPassageHome() {
   const staging = import.meta.env?.VITE_STAGING_READER === '1';
   const { loginOrRegister } = useSeekerAuth();
   const [question, setQuestion] = useState(() => readAccess('draft'));
-  const [research, setResearch] = useState<{ q: string; n: number } | null>(null);
+  // Rehydrate after seeker-session remount so GoogleGate resume keeps the desk.
+  const [research, setResearch] = useState<{ q: string; n: number } | null>(() => readPendingDesk());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -73,7 +100,12 @@ export function OpenPassageHome() {
 
   function explore(value: string) {
     if (value.trim().length >= 3) {
-      setResearch(previous => ({ q: value.trim(), n: (previous?.n ?? 0) + 1 }));
+      setResearch(previous => {
+        const next = { q: value.trim(), n: (previous?.n ?? 0) + 1 };
+        writeAccess('draft', next.q);
+        writePendingDesk(next);
+        return next;
+      });
     }
   }
 

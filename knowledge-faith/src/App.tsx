@@ -114,7 +114,9 @@ function Shell() {
   useEffect(() => {
     if (isAuthenticated && typeof window !== 'undefined') {
       const h = window.location.hash.trim();
-      if (h === '' || h === '#' || h === '#/') {
+      // Stay on Open Passage public home after GoogleGate seeker sync so resume
+      // can keep researching; do not bounce empty `#/` to the Faith Wall.
+      if ((h === '' || h === '#' || h === '#/') && !openPassageUiEnabled()) {
         window.history.replaceState(null, '', '#/quran/wall');
         window.dispatchEvent(new HashChangeEvent('hashchange'));
         return;

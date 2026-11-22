@@ -201,6 +201,40 @@ test('demo sample report carries a stable revision for matching audio', () => {
   assert.match(String(sample.markdown || ''), /Revision: op-kindness-sample-v1/);
 });
 
+
+test('SeekerAuthCard and GoogleGate share GIS init without direct initialize overwrite', () => {
+  const root = path.dirname(fileURLToPath(import.meta.url));
+  const modal = readFileSync(path.join(root, '../src/components/SeekerAuthModal.tsx'), 'utf8');
+  const access = readFileSync(path.join(root, '../src/views/openPassage/ResearchAccess.tsx'), 'utf8');
+  const auth = readFileSync(path.join(root, '../src/lib/seekerAuth.ts'), 'utf8');
+  assert.doesNotMatch(modal, /gId\.initialize\s*\(/);
+  assert.doesNotMatch(access, /\.initialize\s*\(/);
+  assert.match(modal, /ensureGoogleIdentityInitialized/);
+  assert.match(modal, /subscribeGoogleGisCredential/);
+  assert.match(modal, /setGoogleGisActiveHandler/);
+  assert.match(access, /setGoogleGisActiveHandler/);
+  assert.match(auth, /export function setGoogleGisActiveHandler/);
+  assert.match(auth, /gisActiveHandlerId/);
+  assert.equal((auth.match(/window\.google\.accounts\.id\.initialize/g) || []).length, 1);
+});
+
+test('GoogleGate resumes research before seeker session flip; App keeps OP desk on public home', () => {
+  const root = path.dirname(fileURLToPath(import.meta.url));
+  const access = readFileSync(path.join(root, '../src/views/openPassage/ResearchAccess.tsx'), 'utf8');
+  const app = readFileSync(path.join(root, '../src/App.tsx'), 'utf8');
+  const home = readFileSync(path.join(root, '../src/views/openPassage/OpenPassageHome.tsx'), 'utf8');
+  const resumeAt = access.indexOf('done.current()');
+  const signInAt = access.indexOf('signInWithGoogleCredential(credential)');
+  assert.ok(resumeAt > 0 && signInAt > 0 && resumeAt < signInAt);
+  assert.match(app, /openPassageUiEnabled\(\)\s*&&\s*onPublicHome/);
+  assert.match(app, /PublicHomeOverview/);
+  // Authenticated empty-home must not bounce to Faith Wall while OP is enabled.
+  assert.match(app, /!openPassageUiEnabled\(\)/);
+  assert.match(app, /#\/quran\/wall/);
+  assert.match(home, /op-research-v1:pending-desk/);
+  assert.match(home, /readPendingDesk|writePendingDesk/);
+});
+
 test('startOpenPassageJob reuses an existing full report before new-job quotas', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'op-jobs-'));
   try {

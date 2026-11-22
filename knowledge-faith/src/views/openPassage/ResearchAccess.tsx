@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ensureGoogleIdentityInitialized,
+  setGoogleGisActiveHandler,
   signInWithGoogleCredential,
   subscribeGoogleGisCredential,
   writeSeekerSession,
@@ -100,8 +101,9 @@ export function GoogleGate({ resume }: { resume: () => void }) {
             };
             if (!body.token) throw Error();
             writeAccess('member', body.token);
-            // Sync the client seeker session so Read Qur'an / Hadith / Saved work
-            // without a full page reload after the research-gate Google sign-in.
+            // Resume the unlocked question while the research desk is still mounted.
+            // Seeker session sync below must not abandon the desk (App keeps OP home).
+            if (active) done.current();
             try {
               await signInWithGoogleCredential(credential);
             } catch {
@@ -109,7 +111,6 @@ export function GoogleGate({ resume }: { resume: () => void }) {
                 writeSeekerSession({ token: body.seeker.token, user: body.seeker.user });
               }
             }
-            if (active) done.current();
           } catch {
             if (active) {
               setMessage(
@@ -122,7 +123,9 @@ export function GoogleGate({ resume }: { resume: () => void }) {
           throw Error();
         }
         if (!active) return;
+        setGoogleGisActiveHandler('open-passage-gate');
         mount.current.replaceChildren();
+        mount.current.onpointerenter = () => setGoogleGisActiveHandler('open-passage-gate');
         window.google.accounts.id.renderButton(mount.current, {
           type: 'standard',
           text: 'continue_with',
@@ -141,6 +144,7 @@ export function GoogleGate({ resume }: { resume: () => void }) {
     return () => {
       active = false;
       unsubscribe();
+      if (mount.current) mount.current.onpointerenter = null;
     };
   }, []);
 
