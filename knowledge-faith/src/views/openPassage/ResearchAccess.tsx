@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { ensureGoogleGisLoaded } from '../../lib/seekerAuth.ts';
+import {
+  ensureGoogleIdentityInitialized,
+  signInWithGoogleCredential,
+  subscribeGoogleGisCredential,
+  writeSeekerSession,
+  type SeekerUser,
+} from '../../lib/seekerAuth.ts';
 
 /** Same-origin Open Passage API (never hardcode preview ports). */
 export const guestBase = '/api/open-passage';
@@ -65,6 +71,7 @@ export function GoogleGate({ resume }: { resume: () => void }) {
 
   useEffect(() => {
     let active = true;
+    let unsubscribe = () => {};
     (async () => {
       try {
         const response = await fetch(`${guestBase}/google-config`);
@@ -77,36 +84,44 @@ export function GoogleGate({ resume }: { resume: () => void }) {
           );
           return;
         }
-        if (!await ensureGoogleGisLoaded() || !window.google?.accounts?.id || !mount.current) {
+        unsubscribe = subscribeGoogleGisCredential('open-passage-gate', async credential => {
+          if (!active) return;
+          setMessage('Verifying your Google sign-in…');
+          try {
+            const verify = await fetch(`${guestBase}/google`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ credential }),
+            });
+            if (!verify.ok) throw Error();
+            const body = (await verify.json()) as {
+              token?: string;
+              seeker?: { token?: string; user?: SeekerUser };
+            };
+            if (!body.token) throw Error();
+            writeAccess('member', body.token);
+            // Sync the client seeker session so Read Qur'an / Hadith / Saved work
+            // without a full page reload after the research-gate Google sign-in.
+            try {
+              await signInWithGoogleCredential(credential);
+            } catch {
+              if (body.seeker?.token && body.seeker.user) {
+                writeSeekerSession({ token: body.seeker.token, user: body.seeker.user });
+              }
+            }
+            if (active) done.current();
+          } catch {
+            if (active) {
+              setMessage(
+                'Google sign-in could not be verified. Please try again. Your question is still here.',
+              );
+            }
+          }
+        });
+        if (!(await ensureGoogleIdentityInitialized(clientId)) || !window.google?.accounts?.id || !mount.current) {
           throw Error();
         }
         if (!active) return;
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          ux_mode: 'popup',
-          callback: async result => {
-            if (!active || !result.credential) return;
-            setMessage('Verifying your Google sign-in…');
-            try {
-              const verify = await fetch(`${guestBase}/google`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ credential: result.credential }),
-              });
-              if (!verify.ok) throw Error();
-              const body = (await verify.json()) as { token?: string };
-              if (!body.token) throw Error();
-              writeAccess('member', body.token);
-              if (active) done.current();
-            } catch {
-              if (active) {
-                setMessage(
-                  'Google sign-in could not be verified. Please try again. Your question is still here.',
-                );
-              }
-            }
-          },
-        });
         mount.current.replaceChildren();
         window.google.accounts.id.renderButton(mount.current, {
           type: 'standard',
@@ -125,6 +140,7 @@ export function GoogleGate({ resume }: { resume: () => void }) {
     })();
     return () => {
       active = false;
+      unsubscribe();
     };
   }, []);
 
