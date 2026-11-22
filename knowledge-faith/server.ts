@@ -110,6 +110,7 @@ import { publicAppUrl, viteDevServerOptions } from './src/server/publicUrl.ts';
 import { EditorialStore, parseEditorAccounts } from './src/server/spiritual/editorialStore.ts';
 import { spiritualRouter } from './src/server/spiritual/routes.ts';
 import { studioRouter } from './src/server/studio/routes.ts';
+import { openPassageRouter } from './src/server/openPassage/routes.ts';
 import { HumanReviewStore } from './src/server/research/humanReviewStore.ts';
 import { humanReviewRouter } from './src/server/research/humanReviewRoutes.ts';
 import { applyPersistDir, persistRoot } from './src/server/persist.ts';
@@ -1470,6 +1471,7 @@ app.post(
 
 const dataDir = persistRoot();
 const editorAccounts = parseEditorAccounts(process.env.EDITORIAL_USERS);
+app.use(openPassageRouter());
 app.use(
   spiritualRouter({
     store: new EditorialStore(path.join(dataDir, 'editorial.json')),
