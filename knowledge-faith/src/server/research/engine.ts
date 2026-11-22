@@ -17,6 +17,7 @@ import {
   claimAssertionFromQuestion,
   linkAnswerCitationsToPassages,
   linkClaimToRetrievedPassages,
+  passagesReferencedInText,
 } from './claimPassageLink.ts';
 import { asksScience, decomposeQuestion } from '../../shared/research/decompose.ts';
 import {
@@ -1661,14 +1662,33 @@ function claimFor(
           : 'Available evidence does not sufficiently support an answer to this part of the question.',
     };
   }
-  const best = [...related].sort((a, b) => score(assertion, b.text) - score(assertion, a.text))[0];
-  const check = verifyClaim(assertion, best.id, related.map(item => ({ id: item.id, text: item.text })));
-  const passageIds = related.map(item => item.id).slice(0, 8);
+  // Prefer verse passages named by the assertion (e.g. Q49-6) over neighbours/tafsir for support.
+  const namedVerse = passagesReferencedInText(assertion, related);
+  const ranked = [...related].sort((a, b) => score(assertion, b.text) - score(assertion, a.text));
+  const preferred =
+    namedVerse.find(item => item.role === 'translation' || item.role === 'source_text') ??
+    namedVerse[0] ??
+    ranked[0];
+  const check = verifyClaim(
+    assertion,
+    preferred.id,
+    related.map(item => ({ id: item.id, text: item.text })),
+  );
+  const linkedIds = namedVerse.map(item => item.id);
+  // Verifier-supporting IDs first so the 8-cap cannot drop the establishing text.
+  const passageIds = [
+    ...new Set([...(check.passageIds ?? []), ...linkedIds, ...related.map(item => item.id)]),
+  ].slice(0, 8);
   const onSubject = related.some(item =>
     themeWordingSupports(sub.text, `${item.text}\n${item.arabic ?? ''}`) ||
     themeWordingSupports(assertion, `${item.text}\n${item.arabic ?? ''}`),
   );
-  if (check.support === 'unsupported' && onSubject) {
+  // Do not soften contrary / invented assertions that verifyClaim already rejected.
+  if (
+    check.support === 'unsupported' &&
+    onSubject &&
+    !/contrary claim|adds details|does not establish/i.test(check.note)
+  ) {
     return {
       ...check,
       claim: assertion,
@@ -1689,7 +1709,7 @@ function claimFor(
           : 'The retrieved passages share this subject. They are cited for what they say. A word match does not add a number or a grade that they do not state.',
     };
   }
-  return { ...check, claim: assertion };
+  return { ...check, claim: assertion, passageIds: passageIds.length ? passageIds : check.passageIds };
 }
 
 function studyPassage(record: StudyHadithRecord, lang: Lang, retrievedAt: string, hash: string): EvidencePassage {
