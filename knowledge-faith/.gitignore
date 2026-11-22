@@ -4,3 +4,4 @@ dist/
 !.env.example
 *.log
 .data/
+.guest-data/
