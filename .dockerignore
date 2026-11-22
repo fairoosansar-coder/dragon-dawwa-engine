@@ -1,0 +1,9 @@
+**
+!knowledge-faith/
+!knowledge-faith/**
+knowledge-faith/node_modules
+knowledge-faith/dist
+knowledge-faith/.data
+knowledge-faith/.guest-data
+knowledge-faith/.env*
+knowledge-faith/**/*.sqlite*
