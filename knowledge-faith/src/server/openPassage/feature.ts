@@ -1,9 +1,14 @@
 import { getGoogleAuthConfig } from '../seekerAuth.ts';
 
-/** Kill switch: set OPEN_PASSAGE_PUBLIC=0 to disable the public desk without deleting data. */
+/** Opt-in only: unset/empty/falsey keeps the public research API off (production-safe default). */
+export function isOpenPassageFlagEnabled(raw: unknown): boolean {
+  const value = String(raw ?? '').trim().toLowerCase();
+  return value === '1' || value === 'true' || value === 'on' || value === 'yes';
+}
+
+/** Public research API: set OPEN_PASSAGE_PUBLIC=1 (or true/on/yes) to enable. Default off. */
 export function openPassagePublicEnabled(): boolean {
-  const raw = (process.env.OPEN_PASSAGE_PUBLIC ?? '1').trim().toLowerCase();
-  return raw !== '0' && raw !== 'false' && raw !== 'off' && raw !== 'no';
+  return isOpenPassageFlagEnabled(process.env.OPEN_PASSAGE_PUBLIC);
 }
 
 /**

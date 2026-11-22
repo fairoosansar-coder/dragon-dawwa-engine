@@ -225,9 +225,8 @@ export function OpenPassageHome() {
   );
 }
 
+/** Frontend opt-in: set VITE_OPEN_PASSAGE=1 (or true/on/yes) at build time. Default off. */
 export function openPassageUiEnabled(): boolean {
-  const flag = import.meta.env?.VITE_OPEN_PASSAGE;
-  if (flag === '0' || flag === 'false') return false;
-  // Default on for this feature branch; kill with VITE_OPEN_PASSAGE=0.
-  return flag !== 'off';
+  const flag = String(import.meta.env?.VITE_OPEN_PASSAGE ?? '').trim().toLowerCase();
+  return flag === '1' || flag === 'true' || flag === 'on' || flag === 'yes';
 }

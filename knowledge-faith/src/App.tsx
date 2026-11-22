@@ -141,10 +141,9 @@ function Shell() {
 
   useEffect(() => {
     if (location.path === 'spiritual' && isAuthenticated) return;
-    const publicTitle =
-      import.meta.env?.VITE_OPEN_PASSAGE === '0'
-        ? `${t.navHub} · DRAGON DAWWA`
-        : 'Explore the Qur’an and Hadith · Open Passage';
+    const publicTitle = openPassageUiEnabled()
+      ? 'Explore the Qur’an and Hadith · Open Passage'
+      : `${t.navHub} · DRAGON DAWWA`;
     document.title = isAuthenticated ? `${sectionTitle} · DRAGON DAWWA` : publicTitle;
   }, [sectionTitle, location.path, isAuthenticated, t.navHub]);
 

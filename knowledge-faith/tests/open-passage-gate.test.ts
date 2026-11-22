@@ -8,7 +8,13 @@ import { OpenPassageGate } from '../src/server/openPassage/accessGate.ts';
 import { finalizeOpenPassageReport } from '../src/server/openPassage/reportFormat.ts';
 import { openPassageEvidence } from '../src/server/openPassage/evidence.ts';
 import { isOpenPassageHostSpeaker } from '../src/server/openPassage/audio.ts';
-import { openPassageGoogleClientId } from '../src/server/openPassage/feature.ts';
+import {
+  isOpenPassageFlagEnabled,
+  openPassageGoogleClientId,
+  openPassagePublicEnabled,
+} from '../src/server/openPassage/feature.ts';
+import { openPassageRouter } from '../src/server/openPassage/routes.ts';
+import express from 'express';
 import {
   fillOpenPassageStartQuotaForTests,
   getOpenPassageGate,
@@ -143,6 +149,98 @@ test('podcast host voice matches named hosts, not only exact Host', () => {
   assert.equal(isOpenPassageHostSpeaker('Analyst'), false);
   assert.equal(isOpenPassageHostSpeaker('Guest'), false);
   assert.equal(isOpenPassageHostSpeaker(''), false);
+});
+
+test('unset Open Passage flags keep UI helper and public API inactive (opt-in default)', () => {
+  const prev = process.env.OPEN_PASSAGE_PUBLIC;
+  try {
+    delete process.env.OPEN_PASSAGE_PUBLIC;
+    assert.equal(openPassagePublicEnabled(), false);
+    assert.equal(isOpenPassageFlagEnabled(undefined), false);
+    assert.equal(isOpenPassageFlagEnabled(''), false);
+    assert.equal(isOpenPassageFlagEnabled('0'), false);
+    assert.equal(isOpenPassageFlagEnabled('false'), false);
+    assert.equal(isOpenPassageFlagEnabled('off'), false);
+
+    const root = path.dirname(fileURLToPath(import.meta.url));
+    const home = readFileSync(path.join(root, '../src/views/openPassage/OpenPassageHome.tsx'), 'utf8');
+    const frame = readFileSync(path.join(root, '../src/components/shell/Frame.tsx'), 'utf8');
+    const app = readFileSync(path.join(root, '../src/App.tsx'), 'utf8');
+    // Frontend must require an explicit truthy VITE_OPEN_PASSAGE — no default-on branch.
+    assert.match(home, /export function openPassageUiEnabled/);
+    assert.match(home, /flag === '1'/);
+    assert.doesNotMatch(home, /Default on for this feature branch/);
+    assert.doesNotMatch(home, /flag !== 'off'/);
+    assert.match(frame, /openPassageUiEnabled\(\)/);
+    assert.doesNotMatch(frame, /VITE_OPEN_PASSAGE\s*!==\s*'0'/);
+    assert.match(app, /openPassageUiEnabled\(\)/);
+    assert.doesNotMatch(app, /VITE_OPEN_PASSAGE\s*===\s*'0'/);
+  } finally {
+    if (prev === undefined) delete process.env.OPEN_PASSAGE_PUBLIC;
+    else process.env.OPEN_PASSAGE_PUBLIC = prev;
+  }
+});
+
+test('explicit staging enablement activates public API and UI flag helpers', async () => {
+  const prev = process.env.OPEN_PASSAGE_PUBLIC;
+  const listen = async (
+    flag: string | undefined,
+  ): Promise<{ accessStatus: number; accessBody: string; healthStatus: number; healthPublic: boolean | undefined }> => {
+    if (flag === undefined) delete process.env.OPEN_PASSAGE_PUBLIC;
+    else process.env.OPEN_PASSAGE_PUBLIC = flag;
+    const app = express();
+    app.use(express.json());
+    app.use('/api/open-passage', openPassageRouter());
+    return await new Promise((resolve, reject) => {
+      const server = app.listen(0, '127.0.0.1', async () => {
+        try {
+          const { port } = server.address() as { port: number };
+          const base = `http://127.0.0.1:${port}/api/open-passage`;
+          const health = await fetch(`${base}/health`);
+          const access = await fetch(`${base}/access`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: '{}',
+          });
+          const healthJson = (await health.json().catch(() => ({}))) as { public?: boolean };
+          resolve({
+            accessStatus: access.status,
+            accessBody: await access.text(),
+            healthStatus: health.status,
+            healthPublic: healthJson.public,
+          });
+        } catch (err) {
+          reject(err);
+        } finally {
+          server.close();
+        }
+      });
+    });
+  };
+  try {
+    assert.equal(isOpenPassageFlagEnabled('1'), true);
+    assert.equal(isOpenPassageFlagEnabled('true'), true);
+    assert.equal(isOpenPassageFlagEnabled('ON'), true);
+    assert.equal(isOpenPassageFlagEnabled('yes'), true);
+
+    process.env.OPEN_PASSAGE_PUBLIC = '1';
+    assert.equal(openPassagePublicEnabled(), true);
+
+    const off = await listen(undefined);
+    assert.equal(off.accessStatus, 404);
+    assert.match(off.accessBody, /disabled/i);
+    assert.equal(off.healthStatus, 200);
+    assert.equal(off.healthPublic, false);
+
+    const on = await listen('1');
+    assert.equal(on.healthStatus, 200);
+    assert.equal(on.healthPublic, true);
+    assert.equal(on.accessStatus, 200);
+    assert.match(on.accessBody, /"token"/);
+  } finally {
+    if (prev === undefined) delete process.env.OPEN_PASSAGE_PUBLIC;
+    else process.env.OPEN_PASSAGE_PUBLIC = prev;
+  }
 });
 
 test('openPassageGoogleClientId falls back to GOOGLE_OIDC_CLIENT_ID via getGoogleAuthConfig', () => {
