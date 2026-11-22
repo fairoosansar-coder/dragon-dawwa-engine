@@ -27,7 +27,6 @@ const sources = [
 
 const example = 'What does the Qur’an say about kindness?';
 
-
 const PENDING_DESK_KEY = 'op-research-v1:pending-desk';
 
 function readPendingDesk(): { q: string; n: number } | null {
@@ -99,14 +98,12 @@ export function OpenPassageHome() {
   }, []);
 
   function explore(value: string) {
-    if (value.trim().length >= 3) {
-      setResearch(previous => {
-        const next = { q: value.trim(), n: (previous?.n ?? 0) + 1 };
-        writeAccess('draft', next.q);
-        writePendingDesk(next);
-        return next;
-      });
-    }
+    const trimmed = value.trim();
+    if (trimmed.length < 3) return;
+    const next = { q: trimmed, n: (research?.n ?? 0) + 1 };
+    writeAccess('draft', next.q);
+    writePendingDesk(next);
+    setResearch(next);
   }
 
   return (

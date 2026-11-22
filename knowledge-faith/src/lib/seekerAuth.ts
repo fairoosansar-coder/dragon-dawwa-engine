@@ -581,7 +581,9 @@ export function subscribeGoogleGisCredential(
   gisCredentialHandlers.set(id, handler);
   if (!gisActiveHandlerId) gisActiveHandlerId = id;
   return () => {
-    if (gisCredentialHandlers.get(id) === handler) gisCredentialHandlers.delete(id);
+    // Only clear/reassign active when this unsubscribe still owns the map entry.
+    if (gisCredentialHandlers.get(id) !== handler) return;
+    gisCredentialHandlers.delete(id);
     if (gisActiveHandlerId === id) {
       const remaining = [...gisCredentialHandlers.keys()];
       gisActiveHandlerId = remaining[remaining.length - 1] ?? null;
