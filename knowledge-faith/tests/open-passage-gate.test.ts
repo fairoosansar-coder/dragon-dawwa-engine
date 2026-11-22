@@ -1,11 +1,22 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { OpenPassageGate } from '../src/server/openPassage/accessGate.ts';
 import { finalizeOpenPassageReport } from '../src/server/openPassage/reportFormat.ts';
 import { openPassageEvidence } from '../src/server/openPassage/evidence.ts';
+import { isOpenPassageHostSpeaker } from '../src/server/openPassage/audio.ts';
+import { openPassageGoogleClientId } from '../src/server/openPassage/feature.ts';
+import {
+  fillOpenPassageStartQuotaForTests,
+  getOpenPassageGate,
+  resetOpenPassageJobsForTests,
+  seedOpenPassageJobForTests,
+  startOpenPassageJob,
+} from '../src/server/openPassage/jobs.ts';
+import { UpstreamError } from '../src/server/http.ts';
 
 test('guest pass allows one successful custom report then requires Google', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'op-gate-'));
@@ -122,4 +133,119 @@ test('evidence opener resolves an explicit Qur’an reference', async () => {
   const rows = await openPassageEvidence('Please open Qur’an 49:6 for study');
   assert.ok(rows.some(row => row.id === 'quran:49:6'));
   assert.ok(rows[0].canonicalUrl.includes('quran.com/49/6'));
+});
+
+test('podcast host voice matches named hosts, not only exact Host', () => {
+  assert.equal(isOpenPassageHostSpeaker('Host'), true);
+  assert.equal(isOpenPassageHostSpeaker('host'), true);
+  assert.equal(isOpenPassageHostSpeaker('Brother Feroz (Host)'), true);
+  assert.equal(isOpenPassageHostSpeaker('Sister Amina (host)'), true);
+  assert.equal(isOpenPassageHostSpeaker('Analyst'), false);
+  assert.equal(isOpenPassageHostSpeaker('Guest'), false);
+  assert.equal(isOpenPassageHostSpeaker(''), false);
+});
+
+test('openPassageGoogleClientId falls back to GOOGLE_OIDC_CLIENT_ID via getGoogleAuthConfig', () => {
+  const keys = [
+    'OPEN_PASSAGE_GOOGLE_CLIENT_ID',
+    'GOOGLE_CLIENT_ID',
+    'GOOGLE_OIDC_CLIENT_ID',
+    'VITE_GOOGLE_CLIENT_ID',
+  ] as const;
+  const prev: Record<string, string | undefined> = {};
+  for (const key of keys) prev[key] = process.env[key];
+  try {
+    for (const key of keys) delete process.env[key];
+    process.env.GOOGLE_OIDC_CLIENT_ID = 'oidc-fallback-client.apps.googleusercontent.com';
+    assert.equal(openPassageGoogleClientId(), 'oidc-fallback-client.apps.googleusercontent.com');
+
+    process.env.OPEN_PASSAGE_GOOGLE_CLIENT_ID = 'op-override.apps.googleusercontent.com';
+    assert.equal(openPassageGoogleClientId(), 'op-override.apps.googleusercontent.com');
+  } finally {
+    for (const key of keys) {
+      if (prev[key] === undefined) delete process.env[key];
+      else process.env[key] = prev[key];
+    }
+  }
+});
+
+test('open-passage router is mounted under /api/open-passage with relative routes', () => {
+  const root = path.dirname(fileURLToPath(import.meta.url));
+  const routesSrc = readFileSync(path.join(root, '../src/server/openPassage/routes.ts'), 'utf8');
+  const serverSrc = readFileSync(path.join(root, '../server.ts'), 'utf8');
+  const jobsSrc = readFileSync(path.join(root, '../src/server/openPassage/jobs.ts'), 'utf8');
+  const sevenSrc = readFileSync(path.join(root, '../src/server/sevenAgentService.ts'), 'utf8');
+  assert.match(serverSrc, /app\.use\(\s*['"]\/api\/open-passage['"]\s*,\s*openPassageRouter\(\)\s*\)/);
+  assert.doesNotMatch(routesSrc, /router\.(get|post)\(\s*['"]\/api\/open-passage/);
+  assert.match(routesSrc, /router\.get\(\s*['"]\/health['"]/);
+  assert.match(routesSrc, /router\.post\(\s*['"]\/google['"]/);
+  assert.match(routesSrc, /limitGuestIssuance/);
+  assert.match(routesSrc, /limitGoogleIssuance/);
+  assert.match(routesSrc, /verifyGoogleIdToken[\s\S]*limitGoogleIssuance/);
+  assert.match(jobsSrc, /OPEN_PASSAGE_QUESTION_MAX/);
+  assert.match(jobsSrc, /Keep questions under 1,200 characters/);
+  assert.match(jobsSrc, /new UpstreamError\([\s\S]*429/);
+  assert.match(jobsSrc, /openPassageDesk:\s*true/);
+  assert.match(jobsSrc, /mimeType/);
+  assert.match(sevenSrc, /export type BuildDynamicDossierOptions/);
+  assert.match(sevenSrc, /openPassageDesk && retrievedPassages\.length/);
+  assert.match(sevenSrc, /await retrieveSevenAgentEvidencePacket/);
+});
+
+test('demo sample report carries a stable revision for matching audio', () => {
+  const root = path.dirname(fileURLToPath(import.meta.url));
+  const sample = JSON.parse(
+    readFileSync(path.join(root, '../public/assets/guest-sample/report.json'), 'utf8'),
+  ) as { revision?: string; markdown?: string };
+  assert.equal(sample.revision, 'op-kindness-sample-v1');
+  assert.match(String(sample.markdown || ''), /Revision: op-kindness-sample-v1/);
+});
+
+test('startOpenPassageJob reuses an existing full report before new-job quotas', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'op-jobs-'));
+  try {
+    resetOpenPassageJobsForTests(path.join(dir, 'gate.sqlite'));
+    const gate = getOpenPassageGate();
+    const token = gate.mint(false);
+    const question = 'Please open Qur’an 49:6 for verifying news';
+    const seedId = 'seed-full-job-1';
+    seedOpenPassageJobForTests({
+      id: seedId,
+      time: Date.now(),
+      state: 'ready',
+      sources: [],
+      result: {
+        question,
+        status: 'Seven-role AI research report',
+        full: true,
+        summary: 'Verify news carefully.',
+        sections: [],
+        sources: [],
+        limit: 'test',
+        turns: [],
+        markdown: '# test',
+        revision: 'op-test-seed',
+      },
+      audio: {},
+    });
+    const jobsView: Record<string, { result?: { full?: boolean } }> = {
+      [seedId]: { result: { full: true } },
+    };
+    assert.equal(gate.reserve(token, question, seedId, jobsView), seedId);
+    gate.finish(seedId, true);
+
+    fillOpenPassageStartQuotaForTests(30);
+    const first = startOpenPassageJob(token, question);
+    assert.equal(first.id, seedId);
+    const second = startOpenPassageJob(token, question);
+    assert.equal(second.id, seedId);
+
+    assert.throws(
+      () => startOpenPassageJob(token, 'a'.repeat(1201)),
+      (err: unknown) => err instanceof UpstreamError && err.status === 400,
+    );
+  } finally {
+    resetOpenPassageJobsForTests(path.join(dir, 'gate-reset.sqlite'));
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
