@@ -21,7 +21,7 @@ function SectionReader({ collection, section, onBack }: { collection: string; se
   const { t, lang } = useApp();
   const [shown, setShown] = useState(PAGE);
   const { data, error, loading, reload } = useRemote<{ items: Hadith[]; total: number }>(
-    `/api/hadith/${collection}/section/${section.id}?lang=${lang}&limit=${shown}`,
+    `/api/hadith/${collection}/section/${section.id}?lang=${lang}&limit=${shown}&readerFallback=1`,
   );
   return (
     <>
@@ -49,7 +49,7 @@ function Lookup({ collection }: { collection: string }) {
   const { t, lang } = useApp();
   const [input, setInput] = useState('');
   const [number, setNumber] = useState<number | null>(null);
-  const { data, error, loading } = useRemote<Hadith>(number ? `/api/hadith/${collection}/${number}?lang=${lang}` : null);
+  const { data, error, loading } = useRemote<Hadith>(number ? `/api/hadith/${collection}/${number}?lang=${lang}&readerFallback=1` : null);
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -241,7 +241,7 @@ function HadithDossiersDesk() {
 
 function SavedHadithItem({ collection, number }: { collection: string; number: number }) {
   const { lang } = useApp();
-  const { data, error, loading, reload } = useRemote<Hadith>(`/api/hadith/${collection}/${number}?lang=${lang}`);
+  const { data, error, loading, reload } = useRemote<Hadith>(`/api/hadith/${collection}/${number}?lang=${lang}&readerFallback=1`);
   if (loading) return <Loading />;
   if (error) return <ErrorNote message={error} onRetry={reload} />;
   return data ? <HadithCard hadith={data} /> : null;

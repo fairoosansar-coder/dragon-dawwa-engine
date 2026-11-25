@@ -24,7 +24,9 @@ export function BookDetails({
   onOpenLanguage: (lang: Lang, id: number) => void;
 }) {
   const remote = useRemote<BookDetail>(`/api/library/books/${id}?lang=${lang}`);
-  const book = remote.data?.lang === lang && remote.data.book?.id === id ? remote.data.book : preview?.id === id ? preview : null;
+  const book = remote.data?.lang === lang
+    ? (remote.data.book?.id === id ? remote.data.book : null)
+    : preview?.id === id && preview.language === lang ? preview : null;
   const translations = (remote.data?.lang === lang ? remote.data.translations : []).filter(item => item.lang !== lang);
   const { has, toggle } = useSavedBooks();
   const saved = book ? has(book.id) : false;
@@ -156,7 +158,14 @@ export function BookDetails({
                   </ul>
                 </section>
               )}
-              {translations.length > 0 && (
+              <p className="rounded-2xl bg-parchment px-4 py-3 text-xs leading-relaxed text-ink/70">
+                Published by IslamHouse. The text is shown as published by its authors and translators.
+                {book.sourceUrl && <a href={book.sourceUrl} target="_blank" rel="noreferrer" className="ml-1 font-medium text-pine underline">View on IslamHouse</a>}
+              </p>
+            </>
+          )}
+          {!book && remote.data?.lang===lang && remote.data.limitation && <p role="status" className="text-sm text-ink/75">{remote.data.limitation}</p>}
+          {translations.length > 0 && (
                 <section>
                   <h4 className="text-xs font-semibold uppercase tracking-[0.16em] text-pine">Also available in</h4>
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -173,18 +182,6 @@ export function BookDetails({
                   </div>
                 </section>
               )}
-              {remote.data?.limitation && !remote.data.book && <p className="text-sm text-ink/75">{remote.data.limitation}</p>}
-              <p className="rounded-2xl bg-parchment px-4 py-3 text-xs leading-relaxed text-ink/70">
-                Published by IslamHouse. The text is shown as published by its authors and translators.
-                {book.sourceUrl && (
-                  <>
-                    {' '}
-                    <a href={book.sourceUrl} target="_blank" rel="noreferrer" className="font-medium text-pine underline">View on IslamHouse</a>
-                  </>
-                )}
-              </p>
-            </>
-          )}
         </div>
       </aside>
     </div>

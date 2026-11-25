@@ -14,7 +14,7 @@ import {
   type HadeethSearchHit,
 } from '../shared/hadeethenc.ts';
 import { fetchJson, UpstreamError } from './http.ts';
-import { loadCollection, missingTranslation, searchCollection } from './hadeethenc/collection.ts';
+import { loadCollection, searchCollection } from './hadeethenc/collection.ts';
 
 const ROOT = 'https://hadeethenc.com/api/v1';
 
@@ -62,7 +62,7 @@ export async function loadHadeeth(lang: Lang, id: string): Promise<EncyclopediaH
   if (!/^\d{1,12}$/.test(id)) throw new UpstreamError(HADEETH_UNAVAILABLE, 404);
   const stored = loadCollection(lang, id);
   if (stored) return stored;
-  if (missingTranslation(lang, id)) throw new UpstreamError(HADEETH_UNAVAILABLE, 404);
+  // An older import may lack an edition since published at the source.
   try {
     const body = await fetchJson<unknown>(`${ROOT}/hadeeths/one/?language=${lang}&id=${id}`, HADEETHENC_TTL_MS);
     const parsed = parseHadeeth(body, lang);
@@ -72,4 +72,12 @@ export async function loadHadeeth(lang: Lang, id: string): Promise<EncyclopediaH
     if (err instanceof UpstreamError && err.status === 404) throw new UpstreamError(HADEETH_UNAVAILABLE, 404);
     throw err;
   }
+}
+
+export async function loadHadeethOriginal(id: string) {
+  if (!/^\d{1,12}$/.test(id)) throw new UpstreamError('Unknown hadith ID',404);
+  const body=await fetchJson<{id:unknown;hadeeth?:unknown}>(`${ROOT}/hadeeths/one/?language=ar&id=${id}`,HADEETHENC_TTL_MS);
+  if (!body || String(body.id)!==id || typeof body.hadeeth!=='string' || !/[\u0621-\u064a]/u.test(body.hadeeth))
+    throw new UpstreamError('HadeethEnc returned an unreadable Arabic record',502);
+  return {id,lang:'ar',text:body.hadeeth,sourceUrl:`https://hadeethenc.com/ar/browse/hadith/${id}`};
 }

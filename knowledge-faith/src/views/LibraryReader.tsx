@@ -99,7 +99,7 @@ export function LibraryReader({ itemId, backHref }: { itemId: number; backHref: 
   const isPlaying = lineTts.isPlayingSession(sessionId);
   const isLoading = lineTts.isLoadingSession(sessionId);
   const profile = resolveHadithVoiceProfile(voiceProfile);
-  const effectiveLang: Lang = lang;
+  const effectiveLang: Lang = data?.language==='en'||data?.language==='ta'||data?.language==='si' ? data.language : lang;
   const langLabel = LANGUAGE_NAMES[effectiveLang]?.native ?? 'English';
   const loadingText = loadingAudioLabel(effectiveLang);
   const totalPages = data?.totalPages ?? 1;

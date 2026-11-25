@@ -18,7 +18,7 @@ import { getHijriMonth } from './src/server/hijriMonth.ts';
 import { suggestZakahFields } from './src/server/zakahDraft.ts';
 import { UpstreamError } from './src/server/http.ts';
 import { encyclopediaEvidence, hadithEvidence, verseEvidence } from './src/server/grounding.ts';
-import { loadHadeeth, loadHadeethCategories, loadHadeethList, searchHadeeth } from './src/server/hadeethenc.ts';
+import { loadHadeeth, loadHadeethOriginal, loadHadeethCategories, loadHadeethList, searchHadeeth } from './src/server/hadeethenc.ts';
 import { pageByRelevance } from './src/shared/hadeethenc.ts';
 import { askPilot, loadPilotEpisode } from './src/server/pilot.ts';
 import { loadKnowledgeShelf, loadLibrary, loadLibraryItem } from './src/server/islamhouse.ts';
@@ -356,14 +356,17 @@ app.get(
   route(async (req, res) => {
     const raw = Number(req.query.limit);
     const limit = Number.isInteger(raw) && raw > 0 ? raw : undefined;
-    res.json(await getSection(String(req.params.collection), Number(req.params.n), toLang(req.query.lang), limit));
+    res.json(await getSection(String(req.params.collection), Number(req.params.n), toLang(req.query.lang), limit,req.query.readerFallback==='1'));
   }),
 );
 
 app.get(
   '/api/hadith/:collection/:number',
   route(async (req, res) => {
-    const hadith = await getHadith(String(req.params.collection), Number(req.params.number), toLang(req.query.lang));
+    let hadith = await getHadith(String(req.params.collection), Number(req.params.number), toLang(req.query.lang));
+    if (!hadith && req.query.readerFallback==='1' && req.query.lang==='ta') {
+      hadith=await getHadith(String(req.params.collection), Number(req.params.number),'en');
+    }
     if (!hadith) throw new UpstreamError('Hadith not found', 404);
     res.json(hadith);
   }),
@@ -396,6 +399,7 @@ app.get(
 );
 
 app.get('/api/hadeeth/:id', route(async (req, res) => res.json(await loadHadeeth(toLang(req.query.lang), String(req.params.id)))));
+app.get('/api/hadeeth/:id/original', route(async (req,res) => res.json(await loadHadeethOriginal(String(req.params.id)))));
 
 app.get(
   '/api/library/items',

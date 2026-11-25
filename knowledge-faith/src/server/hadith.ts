@@ -119,15 +119,24 @@ export async function getSection(
   section: number,
   lang: Lang,
   limit?: number,
+  readerFallback = false,
 ): Promise<{ items: Hadith[]; total: number }> {
   const collection = requireCollection(collectionId);
   if (!Number.isInteger(section) || section < 1) throw new UpstreamError('Invalid section', 400);
   const edition = hadithEdition(collection, lang);
   const [translated, arabic] = await Promise.all([
-    fetchJson<RawFile>(`${BASE}/editions/${edition.edition}/sections/${section}.min.json`, 7 * DAY),
+    fetchJson<RawFile>(`${BASE}/editions/${edition.edition}/sections/${section}.min.json`, 7 * DAY).catch(err=>{
+      if (readerFallback && edition.lang==='ta' && err instanceof UpstreamError && err.status===404)
+        return {hadiths:[],metadata:{name:'',section:{}}} as RawFile;
+      throw err;
+    }),
     arabicFile(collection.id, `sections/${section}`),
   ]);
-  const merged = merge(collection.id, translated.hadiths, arabic?.hadiths ?? [], edition.lang, translated.metadata.section);
+  let merged = merge(collection.id, translated.hadiths, arabic?.hadiths ?? [], edition.lang, translated.metadata.section);
+  if (readerFallback && edition.lang==='ta') {
+    const english = await fetchJson<RawFile>(`${BASE}/editions/eng-${collection.id}/sections/${section}.min.json`,7*DAY).catch(()=>null);
+    if (english) merged=fillMissingEditionRows(merged,merge(collection.id,english.hadiths,arabic?.hadiths??[],'en',english.metadata.section));
+  }
   const cap = limit && Number.isFinite(limit) ? Math.max(1, Math.min(Math.floor(limit), merged.length)) : merged.length;
   const sliced = merged.slice(0, cap);
   // Warm remaining section items in background if a page limit was requested
@@ -146,6 +155,12 @@ export async function getSection(
     }),
   }));
   return { items, total: merged.length };
+}
+
+export function fillMissingEditionRows(primary: Hadith[], alternate: Hadith[]): Hadith[] {
+  const seen=new Set(primary.map(h=>`${h.collection}:${h.number}`));
+  return [...primary,...alternate.filter(h=>h.lang==='en' && h.text.trim() && !seen.has(`${h.collection}:${h.number}`))]
+    .sort((a,b)=>a.number-b.number);
 }
 
 export async function getHadith(collectionId: string, number: number, lang: Lang): Promise<Hadith | null> {

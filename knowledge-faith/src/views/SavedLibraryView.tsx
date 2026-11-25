@@ -59,7 +59,7 @@ function SavedVerseList({ refs }: { refs: string[] }) {
 
 function SavedHadithItem({ collection, number }: { collection: string; number: number }) {
   const { lang } = useApp();
-  const { data, error, loading, reload } = useRemote<Hadith>(`/api/hadith/${collection}/${number}?lang=${lang}`);
+  const { data, error, loading, reload } = useRemote<Hadith>(`/api/hadith/${collection}/${number}?lang=${lang}&readerFallback=1`);
   if (loading) return <Loading />;
   if (error) return <ErrorNote message={error} onRetry={reload} />;
   return data ? <HadithCard hadith={data} /> : null;

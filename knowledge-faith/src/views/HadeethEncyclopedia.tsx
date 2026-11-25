@@ -76,6 +76,8 @@ function MissingEdition({id,lang}:{id:string;lang:Lang}) {
   const alternatives=(['en','ta','si'] as const).filter(x=>x!==lang);
   const a=useRemote<EncyclopediaHadith>(`/api/hadeeth/${id}?lang=${alternatives[0]}`);
   const b=useRemote<EncyclopediaHadith>(`/api/hadeeth/${id}?lang=${alternatives[1]}`);
+  const original=useRemote<{id:string;lang:string;text:string;sourceUrl:string}>(`/api/hadeeth/${id}/original`);
+  const arabic=original.data?.id===id && original.data.lang==='ar' ? original.data : null;
   return <section className="space-y-3" lang={lang} data-testid="hadith-missing-edition">
     <p>{ta ? `ஹதீஸ் எண் ${id}க்கான தமிழ் மொழிபெயர்ப்பு HadeethEnc இல் கிடைக்கவில்லை.` :
       si ? `HadeethEnc හි ${id} හදීසය සඳහා සිංහල පරිවර්තනයක් නොමැත.` :
@@ -88,6 +90,12 @@ function MissingEdition({id,lang}:{id:string;lang:Lang}) {
         <a className="underline" href={`https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/tam-muslim/${ref}.min.json`} target="_blank" rel="noreferrer">ஆதாரம்: தமிழ் பதிப்பு, பதிவு {ref}</a></> :
         <a className="underline" href="https://islamkalvi.com/?p=1355" target="_blank" rel="noreferrer">இதே அறிவிப்பை இஸ்லாம்கல்வியில் தமிழில் படிக்கவும்</a>}
     </div>}
+    {arabic && <div className="space-y-2 rounded-2xl border border-pine/15 p-4" data-testid="hadith-original">
+      <h2 className="font-semibold">{ta?'அரபு மூல உரை':si?'මුල් අරාබි පාඨය':'Original Arabic text'}</h2>
+      <blockquote dir="rtl" lang="ar" className="whitespace-pre-line text-right leading-loose">{arabic.text}</blockquote>
+      <a href={arabic.sourceUrl} target="_blank" rel="noreferrer" className="text-sm underline">HadeethEnc · {id}</a>
+    </div>}
+    {original.error && <button onClick={original.reload} className="underline">{ta?'அரபு மூல உரையை மீண்டும் தேடவும்':si?'අරාබි පාඨය නැවත සොයන්න':'Retry original Arabic lookup'}</button>}
     <div className="flex flex-wrap gap-3">{[a.data,b.data].map((item,i)=>item?.id===id && item.lang===alternatives[i]?
       <a key={item.lang} href={`#/hadith/${id}?lang=${item.lang}`} className="rounded-xl border px-3 py-2 underline" lang={item.lang}>
         {item.lang==='en'?'Read in English':item.lang==='ta'?'தமிழில் படிக்கவும்':'සිංහලෙන් කියවන්න'}

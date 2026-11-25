@@ -252,27 +252,30 @@ export async function readLibraryItem(
   const publicationLanguage =
     (item.language as Lang | null) ?? detectSourceLang(item.title || item.description || '');
   const quarantined = preparedTextQuarantined(item.id);
+  // A provider may return the untouched source on failure. Never label that page translated.
+  const failedPage = requiresTranslation && sliceToRender.some((b,i)=>b.kind==='paragraph' &&
+    textNeedsTranslationToLang(b.text,lang) && localizedBlocks[i]?.text.trim()===b.text.trim());
   // Saved shelf / card filters use `language` as the rendered reading language.
   // Catalogue-only / untranslated fallbacks keep the publication language.
   const renderedLanguage =
-    !quarantined && totalBlocks > 0 && (requiresTranslation || publicationLanguage === lang)
+    !quarantined && !failedPage && totalBlocks > 0 && (requiresTranslation || publicationLanguage === lang)
       ? lang
       : publicationLanguage;
 
   return {
     id: item.id,
-    title: localizedTitle || item.title,
+    title: failedPage ? item.title : localizedTitle || item.title,
     language: renderedLanguage,
     requestedLanguage: lang,
     publicationLanguage,
     contentType: item.type,
-    availability: quarantined ? 'partial' : prose ? 'readable' : 'partial',
+    availability: quarantined || failedPage ? 'partial' : prose ? 'readable' : 'partial',
     limitation: quarantined
       ? PREPARED_TEXT_QUARANTINE_MESSAGE
-      : limitation(item, prose),
-    description: localizedDescription,
+      : failedPage ? `The requested translation is incomplete. This page is shown in the original publication language (${publicationLanguage}).` : limitation(item, prose),
+    description: failedPage ? item.description : localizedDescription,
     descriptionIsFullText: false,
-    blocks: quarantined ? [] : localizedBlocks,
+    blocks: quarantined ? [] : failedPage ? sliceToRender : localizedBlocks,
     page: safePage,
     pageSize: usePagination ? pageSize : totalBlocks || pageSize,
     totalPages: usePagination ? totalPages : 1,
