@@ -155,7 +155,7 @@ export function openPassageRouter(): express.Router {
     '/jobs/:id',
     route((req, res) => {
       try {
-        const job = getOpenPassageJob(String(req.params.id));
+        const job = getOpenPassageJob(String(req.params.id), req.headers.authorization?.match(/^Bearer (.+)$/)?.[1]);
         res.json({
           state: job.state,
           sources: job.sources,
@@ -177,7 +177,7 @@ export function openPassageRouter(): express.Router {
           res.status(404).json({ detail: 'Unknown audio mode.' });
           return;
         }
-        const rendered = await openPassageJobAudio(String(req.params.id), mode);
+        const rendered = await openPassageJobAudio(String(req.params.id), mode, req.headers.authorization?.match(/^Bearer (.+)$/)?.[1]);
         res.setHeader('Content-Type', rendered.mimeType);
         res.send(rendered.bytes);
       } catch (err) {

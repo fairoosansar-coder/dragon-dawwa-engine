@@ -8,5 +8,4 @@ ARG RAILWAY_GIT_COMMIT_SHA
 ENV VITE_OPEN_PASSAGE=1 OPEN_PASSAGE_PUBLIC=1
 RUN npm run typecheck && npm run build && mkdir -p /app/.data && chown -R node:node /app/.data
 ENV NODE_ENV=production DD_PERSIST_DIR=/app/.data OPEN_PASSAGE_GATE_DB=/app/.data/gate.sqlite
-USER node
-CMD ["sh","-c","umask 077; if [ -z \"$DD_SIGNING_SECRET\" ]; then test -s .data/.staging-signing || node -e \"require('fs').writeFileSync('.data/.staging-signing',require('crypto').randomBytes(48).toString('hex'),{mode:384})\"; export DD_SIGNING_SECRET=$(cat .data/.staging-signing); fi; exec node --import tsx server.ts"]
+CMD ["sh","-ec","umask 077; node scripts/staging-volume.cjs; export DD_PERSIST_DIR=/app/.data/live OPEN_PASSAGE_GATE_DB=/app/.data/live/gate.sqlite OP_RECOVERED_REPORT_DIR=/app/.data/live/recovered-reports; unset OP_RESTORE_ACCESS_KEY_ID OP_RESTORE_SECRET_ACCESS_KEY; export DD_SIGNING_SECRET=${DD_SIGNING_SECRET:-$(cat /app/.data/live/.staging-signing)}; exec setpriv --reuid=node --regid=node --init-groups node --import tsx server.ts"]

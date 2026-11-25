@@ -1,4 +1,6 @@
 import { randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { UpstreamError } from '../http.ts';
 import { buildDynamicDossier } from '../sevenAgentService.ts';
 import type { SevenAgentRetrievedPassage } from '../../shared/sevenAgentTypes.ts';
@@ -204,10 +206,20 @@ export function startOpenPassageJob(token: string, questionRaw: string): { id: s
   return { id: key };
 }
 
-export function getOpenPassageJob(id: string): OpenPassageJob {
+export function getOpenPassageJob(id: string, pass = ''): OpenPassageJob {
   expireJobs();
   const job = jobs.get(id);
   if (!job) {
+    const dir = process.env.OP_RECOVERED_REPORT_DIR;
+    if (dir && /^[A-Za-z0-9_-]{1,128}$/.test(id) && getOpenPassageGate().ownsRecoveredJob(pass, id)) {
+      try {
+        const data = JSON.parse(readFileSync(join(dir, `${id}.json`), 'utf8'));
+        if (data.result && Array.isArray(data.sources)) {
+          const recovered: OpenPassageJob = { id, time: Date.now(), state: 'ready', sources: data.sources, result: data.result, audio: {} };
+          return recovered;
+        }
+      } catch { /* Missing export: keep existing not-found behavior. */ }
+    }
     throw new UpstreamError('This private reading session has expired.', 404);
   }
   return job;
@@ -216,8 +228,9 @@ export function getOpenPassageJob(id: string): OpenPassageJob {
 export async function openPassageJobAudio(
   id: string,
   mode: OpenPassageAudioMode,
+  pass = '',
 ): Promise<{ bytes: Buffer; mimeType: string }> {
-  const job = getOpenPassageJob(id);
+  const job = getOpenPassageJob(id, pass);
   if (!job.result || (mode !== 'brief' && mode !== 'podcast')) {
     throw new UpstreamError('Report not ready.', 409);
   }

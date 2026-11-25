@@ -23,7 +23,10 @@ type Report = {
 };
 
 async function call(path: string, init?: RequestInit) {
-  const response = await fetch(`${guestBase}/jobs${path}`, init);
+  const headers = new Headers(init?.headers);
+  const pass = readAccess('member') || readAccess('guest');
+  if (path && pass) headers.set('Authorization', `Bearer ${pass}`);
+  const response = await fetch(`${guestBase}/jobs${path}`, { ...init, headers });
   if (response.status === 403) throw Error('google_required');
   if (response.status === 401) throw Error('pass_expired');
   if (response.status === 409 || response.status === 422) {

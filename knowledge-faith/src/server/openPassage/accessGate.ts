@@ -32,6 +32,11 @@ export class OpenPassageGate {
     this.db.close();
   }
 
+  ownsRecoveredJob(raw: string, id: string): boolean {
+    return !!raw && !!this.db.prepare('SELECT 1 FROM passes WHERE token=? AND job=? AND expires>?')
+      .get(digest(raw), id, Math.floor(Date.now() / 1000));
+  }
+
   mint(member = false): string {
     const raw = randomBytes(32).toString('base64url');
     const now = Math.floor(Date.now() / 1000);
