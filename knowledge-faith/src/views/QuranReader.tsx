@@ -784,7 +784,7 @@ function Edition({
           }}
         />
       )}
-      <div className={bookLayout ? 'flex min-h-0 min-w-0 flex-1 flex-col' : 'mx-auto min-w-0 max-w-[46rem] space-y-4'}>
+      <div className={bookLayout ? 'flex min-h-0 min-w-0 flex-1 flex-col' : 'min-w-0 w-full space-y-4'}>
         {playbackStatus && (
           <p className="text-sm text-muted" role="status">
             {playbackStatus}

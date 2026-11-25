@@ -411,7 +411,7 @@ export function AppFrame({
           </div>
 
           {/* Row 2 on Mobile/Small screens: context-only desk tabs */}
-          {isKnowledgeDomainPath(path, segments) && (
+          {(isKnowledgeDomainPath(path, segments) || onFaithWall) && (
             <DeskHeaderTabs
               path={path}
               segments={segments}
@@ -419,7 +419,6 @@ export function AppFrame({
               className="border-t border-stone-200/60 py-1 md:hidden"
             />
           )}
-          <ReadingNav path={path} sub={segments[0]} signed={isAuthenticated} />
         </header>
       )}
 
