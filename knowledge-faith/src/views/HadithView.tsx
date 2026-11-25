@@ -12,6 +12,7 @@ import { HADITH_COLLECTIONS } from '../shared/sources.ts';
 import type { Hadith, HadithSection } from '../shared/types.ts';
 import { HadeethEncyclopedia } from './HadeethEncyclopedia.tsx';
 import { HadithEncyclopedia } from './HadithEncyclopedia.tsx';
+import {editionFileNumber} from '../shared/editionNumber.ts';
 import { KUTUB_AL_SITTAH } from './hadithEncyclopediaCopy.ts';
 import { ResearchDesk } from './ResearchDesk.tsx';
 
@@ -45,16 +46,16 @@ function SectionReader({ collection, section, onBack }: { collection: string; se
   );
 }
 
-function Lookup({ collection }: { collection: string }) {
+function Lookup({ collection,initial }: { collection: string;initial:number|null }) {
   const { t, lang } = useApp();
-  const [input, setInput] = useState('');
-  const [number, setNumber] = useState<number | null>(null);
+  const [input, setInput] = useState(initial ? String(initial) : '');
+  const [number, setNumber] = useState<number | null>(initial);
   const { data, error, loading } = useRemote<Hadith>(number ? `/api/hadith/${collection}/${number}?lang=${lang}&readerFallback=1` : null);
 
   function submit(e: FormEvent) {
     e.preventDefault();
     const n = Number(input);
-    if (Number.isInteger(n) && n > 0) setNumber(n);
+    if (editionFileNumber(n)) setNumber(n);
   }
 
   return (
@@ -65,9 +66,9 @@ function Lookup({ collection }: { collection: string }) {
         </label>
         <input
           id="hadith-number"
-          inputMode="numeric"
+          inputMode="decimal"
           value={input}
-          onChange={e => setInput(e.target.value.replace(/\D/g, ''))}
+          onChange={e => setInput(e.target.value.replace(/[^\d.]/g, ''))}
           placeholder={t.findHadith}
           className="w-48 max-w-full rounded-full border border-[#0E382B]/20 bg-white px-4 py-2 text-sm"
         />
@@ -86,7 +87,7 @@ function Lookup({ collection }: { collection: string }) {
   );
 }
 
-function CollectionBrowser({ book }: { book: string | null }) {
+function CollectionBrowser({ book,lookup }: { book: string | null;lookup:number|null }) {
   const { t, lang } = useApp();
   const { query } = useShell();
   const [collection, setCollection] = useStored<string>('kf-collection', 'bukhari');
@@ -162,7 +163,7 @@ function CollectionBrowser({ book }: { book: string | null }) {
             </SectionTitle>
             <Notice>{t.collectionsNote}</Notice>
             <div className="mt-4">
-              <Lookup key={collection} collection={collection} />
+              <Lookup key={`${collection}:${lookup}`} collection={collection} initial={book===collection?lookup:null} />
             </div>
             <h3 className="mb-2 font-display text-lg font-bold text-[#0E382B]">{t.books}</h3>
             <input
@@ -291,7 +292,7 @@ export default function HadithView({ sub, segments, params }: ViewProps) {
       {research ? (
         <ResearchDesk entry="hadith" desk="hadith" params={params ?? new URLSearchParams()} />
       ) : collections ? (
-        <CollectionBrowser book={params?.get('book') ?? null} />
+        <CollectionBrowser book={params?.get('book') ?? null} lookup={editionFileNumber(Number(params?.get('number'))) ? Number(params?.get('number')) : null} />
       ) : dossiers ? (
         <HadithDossiersDesk />
       ) : saved ? (

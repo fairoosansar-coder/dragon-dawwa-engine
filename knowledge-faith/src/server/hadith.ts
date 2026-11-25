@@ -3,6 +3,7 @@ import { segmentHadithRecord } from '../shared/hadithSegmentation.ts';
 import { passageSupportsTopic } from '../shared/research.ts';
 import { findCollection, hadithEdition, type Lang } from '../shared/sources.ts';
 import type { Grade, Hadith, HadithSection } from '../shared/types.ts';
+import {editionFileNumber,exactEditionRow} from '../shared/editionNumber.ts';
 import { localizeHadith, translateStudyTexts } from './hadithTranslate.ts';
 
 const BASE = 'https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1';
@@ -165,19 +166,21 @@ export function fillMissingEditionRows(primary: Hadith[], alternate: Hadith[]): 
 
 export async function getHadith(collectionId: string, number: number, lang: Lang): Promise<Hadith | null> {
   const collection = requireCollection(collectionId);
-  if (!Number.isInteger(number) || number < 1) return null;
+  const fileNumber=editionFileNumber(number);
+  if (!fileNumber) return null;
   const edition = hadithEdition(collection, lang);
   let translated: RawFile;
   try {
-    translated = await fetchJson<RawFile>(`${BASE}/editions/${edition.edition}/${number}.min.json`, 7 * DAY);
+    translated = await fetchJson<RawFile>(`${BASE}/editions/${edition.edition}/${fileNumber}.min.json`, 7 * DAY);
   } catch (err) {
     if (err instanceof UpstreamError && err.status === 404) return null;
     throw err;
   }
-  const arabic = await arabicFile(collection.id, String(number));
+  const arabic = await arabicFile(collection.id, String(fileNumber));
   const merged = merge(collection.id, translated.hadiths, arabic?.hadiths ?? [], edition.lang, translated.metadata.section);
-  if (!merged[0]) return null;
-  const [localized] = await localizeHadith(merged.slice(0, 1), lang, edition.lang);
+  const exact=exactEditionRow(merged,number);
+  if (!exact) return null;
+  const [localized] = await localizeHadith([exact], lang, edition.lang);
   if (!localized) return null;
   return {
     ...localized,

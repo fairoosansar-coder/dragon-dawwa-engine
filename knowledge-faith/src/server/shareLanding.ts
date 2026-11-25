@@ -161,12 +161,12 @@ export async function serveHadithShareLanding(req: Request, res: Response): Prom
   let description = 'Verified Prophetic Hadith · Dragon Dawwa Research Studio';
   let redirectHash = `#/hadith?lang=${lang}`;
 
-  if (numberParam && Number.isInteger(numberParam)) {
+  if (numberParam && Number.isFinite(numberParam)) {
     const hadith = await getHadith(idOrCollection, numberParam, lang).catch(() => null);
     if (hadith) {
       title = `${hadith.collectionName} #${hadith.number} · DRAGON DAWWA`;
       description = [hadith.arabic || '', hadith.text || ''].filter(Boolean).join('\n\n');
-      redirectHash = `#/hadith/collections?book=${encodeURIComponent(hadith.collection)}`;
+      redirectHash = `#/hadith/collections?book=${encodeURIComponent(hadith.collection)}&number=${hadith.number}`;
     }
   } else if (/^\d+$/.test(idOrCollection)) {
     const enc = await loadHadeeth(lang, idOrCollection).catch(() => null);
