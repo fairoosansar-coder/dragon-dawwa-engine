@@ -3,6 +3,9 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import { authenticateGoogleCredential, getRequestSeeker, setSeekerCookie, verifyGoogleIdToken } from '../seekerAuth.ts';
 import { UpstreamError } from '../http.ts';
 import { openPassageGoogleClientId, openPassagePublicEnabled } from './feature.ts';
+import { anthropicConfigured, anthropicSynthesisModel } from '../anthropic.ts';
+import { geminiConfigured, publicSpeechModelIds } from '../gemini.ts';
+import { GEMINI_SYNTHESIS_FALLBACK_MODEL } from '../research/finalSynthesis.ts';
 import {
   getOpenPassageGate,
   getOpenPassageJob,
@@ -194,6 +197,16 @@ export function openPassageRouter(): express.Router {
     const user=getRequestSeeker(req);
     if (!user) return res.status(401).json({error:'Sign in to see Saved.'});
     res.json({items:getOpenPassageGate().library(user.id)});
+  }));
+  router.get('/methods', route((_req,res) => {
+    const claude=anthropicSynthesisModel();
+    res.json({
+      research:[
+        ...(anthropicConfigured() && /^claude-[a-z0-9.-]{1,80}$/.test(claude) ? [claude] : []),
+        ...(geminiConfigured() ? [GEMINI_SYNTHESIS_FALLBACK_MODEL,'gemini-flash-latest'] : [])
+      ],
+      speech:geminiConfigured() ? publicSpeechModelIds() : [],
+    });
   }));
   router.get('/library/:id', route((req,res) => {
     const user=getRequestSeeker(req);

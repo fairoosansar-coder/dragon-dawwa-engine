@@ -31,6 +31,11 @@ const TTS_MODELS = (process.env.GEMINI_TTS_MODELS ?? 'gemini-3.8-flash-tts,gemin
 
 export const VOICES = ['Kore', 'Puck', 'Charon', 'Aoede', 'Zephyr', 'Fenrir', 'Orus'] as const;
 
+/** Model IDs only; do not expose provider credentials or arbitrary configuration. */
+export function publicSpeechModelIds() {
+  return TTS_MODELS.filter(id => /^gemini-[a-z0-9.-]{1,80}$/.test(id));
+}
+
 export function geminiConfigured(): boolean {
   return hasGeminiApiKey(process.env.GEMINI_API_KEY);
 }

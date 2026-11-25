@@ -220,7 +220,7 @@ export function OpenPassageHome() {
         </div>
         <SeekerAuthCard inline />
       </section>
-      <footer className="op-footer">Open Passage by Aegis Intelligence</footer>
+      <footer className="op-footer">Open Passage by Aegis Intelligence · <a className="underline" href="#/about">About the research and voices</a></footer>
     </div>
   );
 }
