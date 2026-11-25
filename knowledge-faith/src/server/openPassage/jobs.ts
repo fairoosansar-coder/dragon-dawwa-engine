@@ -17,6 +17,7 @@ export const OPEN_PASSAGE_QUESTION_MAX = 1200;
 
 export interface OpenPassageJob {
   id: string;
+  ownerId?: string;
   time: number;
   state: string;
   sources: OpenPassageSource[];
@@ -164,7 +165,7 @@ async function generate(job: OpenPassageJob, question: string): Promise<void> {
   }
 }
 
-export function startOpenPassageJob(token: string, questionRaw: string): { id: string } {
+export function startOpenPassageJob(token: string, questionRaw: string, ownerId?: string): { id: string } {
   expireJobs();
   const question = questionRaw.trim();
   if (question.length < 3) {
@@ -196,6 +197,7 @@ export function startOpenPassageJob(token: string, questionRaw: string): { id: s
   startQuota.push(Date.now());
   const job: OpenPassageJob = {
     id: key,
+    ownerId,
     time: Date.now(),
     state: 'Opening source passages',
     sources: [],

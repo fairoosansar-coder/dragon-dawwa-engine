@@ -9,6 +9,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useRemote } from '../lib/api.ts';
+import { useSeekerAuth } from '../lib/seekerAuth.ts';
 import {openPassageUiEnabled, productName} from '../lib/productBrand.ts';
 import {
   BOOK_PAGE_BOOKMARKS_KEY,
@@ -71,6 +72,20 @@ interface HistoryPayload {
 }
 
 export function SavedLibraryView() {
+  const { user }=useSeekerAuth();
+  return <SavedLibraryContent key={user?.id ?? 'guest'} accountLibrary={!!user && openPassageUiEnabled()} />;
+}
+
+function PersonalDocument({id}:{id:string}) {
+  const doc=useRemote<{document:string}>(`/api/open-passage/library/${encodeURIComponent(id)}`);
+  if (doc.error) return <ErrorNote message={doc.error} onRetry={doc.reload}/>;
+  if (!doc.data) return <Loading/>;
+  return <pre className="whitespace-pre-wrap break-words text-sm">{doc.data.document}</pre>;
+}
+
+function SavedLibraryContent({accountLibrary}:{accountLibrary:boolean}) {
+  const personal=useRemote<{items:{id:string;question:string}[]}>(accountLibrary?'/api/open-passage/library':null);
+  const [openedReport,setOpenedReport]=useState('');
   const { t, lang, uiTheme, saved, toggleDossier } = useApp();
   const isObsidian = uiTheme === 'obsidian';
   const [filter, setFilter] = useState<'all' | 'research' | 'quran' | 'hadith'>('all');
@@ -113,7 +128,9 @@ export function SavedLibraryView() {
   }, [filter]);
 
   const totalCount =
-    savedDossiers.length + saved.verses.length + saved.hadith.length;
+    savedDossiers.length + saved.verses.length + saved.hadith.length + pageBookmarks.length + (personal.data?.items.length ?? 0);
+  const countsPending=personal.loading || serverHistory.loading;
+  const countsUnavailable=!!(personal.error || serverHistory.error);
 
   return (
     <div
@@ -214,10 +231,10 @@ export function SavedLibraryView() {
         >
           {(
             [
-              { id: 'all', label: `All Saved (${totalCount})` },
+              { id: 'all', label: countsPending || countsUnavailable ? 'All Saved' : `All Saved (${totalCount})` },
               {
                 id: 'research',
-                label: `7-Agent Research (${savedDossiers.length})`,
+                label: countsPending || countsUnavailable ? '7-Agent Research' : `7-Agent Research (${savedDossiers.length + (personal.data?.items.length ?? 0)})`,
               },
               { id: 'quran', label: `Qur’an Verses (${saved.verses.length})` },
               { id: 'hadith', label: `Hadiths (${saved.hadith.length})` },
@@ -247,9 +264,19 @@ export function SavedLibraryView() {
         </div>
       </header>
 
-      {totalCount === 0 && (
-        <EmptyState>{t.savedEmpty}</EmptyState>
+      {countsPending && <p role="status">Loading your library…</p>}
+      {personal.error && <ErrorNote message="Your saved Open Passage reports could not be loaded." onRetry={personal.reload}/>}
+      {serverHistory.error && <ErrorNote message="Saved research dossiers could not be loaded." onRetry={serverHistory.reload}/>}
+      {!countsPending && !countsUnavailable && totalCount === 0 && (
+        <EmptyState>{accountLibrary ? 'Nothing saved yet. Choose “Save to my library” on a report started while signed in, or bookmark a verse, hadith, or book page. Downloading a report does not save it here.' : t.savedEmpty}</EmptyState>
       )}
+      {(filter==='all'||filter==='research') && !!personal.data?.items.length && <section className="space-y-3">
+        <h2>My Open Passage reports</h2>
+        {personal.data.items.map(r=><article className="rounded-xl border p-4" key={r.id}>
+          <button aria-expanded={openedReport===r.id} onClick={()=>setOpenedReport(openedReport===r.id?'':r.id)}>{r.question}</button>
+          {openedReport===r.id && <PersonalDocument id={r.id}/>}
+        </article>)}
+      </section>}
 
       {/* 1. Saved 7-Agent Research Dossiers & Roundtables */}
       {(filter === 'all' || filter === 'research') && savedDossiers.length > 0 && (

@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import express, { type NextFunction, type Request, type Response } from 'express';
-import { authenticateGoogleCredential, setSeekerCookie, verifyGoogleIdToken } from '../seekerAuth.ts';
+import { authenticateGoogleCredential, getRequestSeeker, setSeekerCookie, verifyGoogleIdToken } from '../seekerAuth.ts';
 import { UpstreamError } from '../http.ts';
 import { openPassageGoogleClientId, openPassagePublicEnabled } from './feature.ts';
 import {
@@ -142,7 +142,7 @@ export function openPassageRouter(): express.Router {
       try {
         const question = typeof req.body?.question === 'string' ? req.body.question : '';
         const token = bearer(req);
-        const started = startOpenPassageJob(token, question);
+        const started = startOpenPassageJob(token, question, getRequestSeeker(req)?.id);
         res.json(started);
       } catch (err) {
         if (gateError(err, res)) return;
@@ -189,6 +189,26 @@ export function openPassageRouter(): express.Router {
       }
     }),
   );
+
+  router.get('/library', route((req,res) => {
+    const user=getRequestSeeker(req);
+    if (!user) return res.status(401).json({error:'Sign in to see Saved.'});
+    res.json({items:getOpenPassageGate().library(user.id)});
+  }));
+  router.get('/library/:id', route((req,res) => {
+    const user=getRequestSeeker(req);
+    if (!user) return res.status(401).json({error:'Sign in to open this report.'});
+    const row=getOpenPassageGate().libraryDocument(user.id,String(req.params.id));
+    if (!row) return res.status(404).json({error:'Saved report not found.'});
+    res.json(row);
+  }));
+  router.post('/library/:id', route((req,res) => {
+    const user=getRequestSeeker(req);
+    if (!user) return res.status(401).json({error:'Sign in to save a report.'});
+    const job=getOpenPassageJob(String(req.params.id));
+    if (!getOpenPassageGate().saveReport(user.id,job)) return res.status(403).json({error:'Only reports started under this account can be saved here.'});
+    res.json({saved:true});
+  }));
 
   // Health / nonce helper for staging smoke without logging secrets.
   router.get(

@@ -37,6 +37,30 @@ export class OpenPassageGate {
       .get(digest(raw), id, Math.floor(Date.now() / 1000));
   }
 
+  private ensureLibrary() {
+    this.db.exec(`CREATE TABLE IF NOT EXISTS personal_report_library (
+      owner TEXT NOT NULL, job TEXT NOT NULL, question TEXT NOT NULL, document TEXT NOT NULL,
+      saved_at INTEGER NOT NULL, PRIMARY KEY(owner,job))`);
+  }
+
+  saveReport(owner: string, job: {id: string;ownerId?: string; result?: {question:string;markdown:string}}) {
+    if (!owner || job.ownerId !== owner || !job.result?.markdown) return false;
+    this.ensureLibrary();
+    this.db.prepare('INSERT OR IGNORE INTO personal_report_library VALUES(?,?,?,?,?)')
+      .run(owner,job.id,job.result.question,job.result.markdown,Date.now());
+    return true;
+  }
+
+  library(owner: string) {
+    this.ensureLibrary();
+    return this.db.prepare('SELECT job AS id,question FROM personal_report_library WHERE owner=? ORDER BY saved_at DESC,job').all(owner);
+  }
+
+  libraryDocument(owner: string,id: string) {
+    this.ensureLibrary();
+    return this.db.prepare('SELECT document FROM personal_report_library WHERE owner=? AND job=?').get(owner,id);
+  }
+
   mint(member = false): string {
     const raw = randomBytes(32).toString('base64url');
     const now = Math.floor(Date.now() / 1000);

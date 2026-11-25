@@ -574,9 +574,9 @@ export function AppFrame({
               </a>
 
               <a
-                href="#/saved"
+                href={openPassageUiEnabled() ? '#/hub/saved' : '#/saved'}
                 data-sidebar-wall-tab="saved"
-                onClick={event => handleNavClick(event, '#/saved', 'Saved Bookmarks')}
+                onClick={event => handleNavClick(event, openPassageUiEnabled() ? '#/hub/saved' : '#/saved', 'Saved Bookmarks')}
                 className={`mt-0.5 flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-medium transition ${
                   activeWallTab === 'saved' || (path === 'hub' && segments[0] === 'saved')
                     ? 'bg-emerald-50/90 font-semibold text-emerald-950'
@@ -591,7 +591,7 @@ export function AppFrame({
                   data-testid="sidebar-saved-bookmarks-count"
                   className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold text-stone-600"
                 >
-                  {savedPostsCount}
+                  {openPassageUiEnabled() ? 'Open' : savedPostsCount}
                 </span>
               </a>
 

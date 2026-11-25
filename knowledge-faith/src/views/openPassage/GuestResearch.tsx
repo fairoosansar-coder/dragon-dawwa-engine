@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { GoogleGate, guestBase, readAccess, researchPass, writeAccess } from './ResearchAccess.tsx';
+import { postJson } from '../../lib/api.ts';
+import { useSeekerAuth } from '../../lib/seekerAuth.ts';
 
 type Source = {
   id: string;
@@ -50,6 +52,9 @@ async function call(path: string, init?: RequestInit) {
 }
 
 export function GuestResearch({ question }: { question: string }) {
+  const {user}=useSeekerAuth();
+  const [savedId,setSavedId]=useState('');
+  const [saveError,setSaveError]=useState('');
   const root = useRef<HTMLElement>(null);
   const urls = useRef<string[]>([]);
   const [phase, setPhase] = useState('Opening source passages');
@@ -283,6 +288,11 @@ export function GuestResearch({ question }: { question: string }) {
           <button type="button" onClick={download}>
             Download research document (.md)
           </button>
+          {id && user && <button type="button" disabled={savedId===id} onClick={async()=>{
+            try { await postJson(`${guestBase}/library/${encodeURIComponent(id)}`,{}); setSavedId(id);setSaveError(''); }
+            catch(e){setSaveError(e instanceof Error ? e.message : 'Could not save. Your research document is still available to download.');}
+          }}>{savedId===id?'Saved to my library':'Save to my library'}</button>}
+          {saveError && <p role="alert">{saveError}</p>}
         </>
       )}
     </section>
