@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Check, ChevronDown, Copy, HelpCircle, LogIn, LogOut, Settings, ShieldCheck, Sparkles, User, X } from 'lucide-react';
 import { RubElHizb } from '../engine/ds/ornaments.tsx';
 import { ProfileSettingsPanel } from './ProfileSettingsPanel.tsx';
-import {productName, productWordmark} from '../lib/productBrand.ts';
+import {openPassageUiEnabled, productName, productWordmark} from '../lib/productBrand.ts';
 import {
   buildGoogleOAuthRedirectUrl,
   ensureGoogleGisLoaded,
@@ -523,7 +523,7 @@ export function SeekerAuthCard({
     }
 
     // Pre-check if the production Redirect URI is already registered in Google Cloud Console
-    if (typeof fetch === 'function') {
+    if (!openPassageUiEnabled() && googleAuth.hasClientSecret && typeof fetch === 'function') {
       try {
         const cfgRes = await fetch('/api/auth/google/config');
         if (cfgRes.ok) {
@@ -929,7 +929,8 @@ export function SeekerAuthCard({
 
       {/* 3. Continue with Google Button at Top with Clean White Surface (Popup postmessage / GIS — never triggers redirect_uri_mismatch) */}
       <div className="mt-4 space-y-2">
-        <div className="relative">
+        <div className={openPassageUiEnabled() ? 'relative op-google-login' : 'relative'}>
+          {openPassageUiEnabled() && <style>{`.op-google-login:has([data-gis-button-slot] iframe)>button{display:none}`}</style>}
           <button
             type="button"
             data-testid="auth-google-btn"
@@ -946,11 +947,11 @@ export function SeekerAuthCard({
           <div
             ref={gisContainerRef}
             data-gis-button-slot
-            className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden rounded-xl opacity-[0.01]"
+            className={openPassageUiEnabled() ? 'flex items-center justify-center' : 'pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden rounded-xl opacity-[0.01]'}
           />
         </div>
 
-        {showOAuthSetupHelp && (
+        {showOAuthSetupHelp && !openPassageUiEnabled() && (
           <div
             data-google-oauth-help
             className="space-y-1.5 rounded-xl border border-[#E6DEC8] bg-[#FAF7F0] p-2.5 text-[11px] text-stone-700"
