@@ -12,7 +12,9 @@ import { useRemote } from '../lib/api.ts';
 import { useShell } from '../lib/shell.tsx';
 import { useApp } from '../lib/store.tsx';
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
-import { hadeethShareText, textBeyondIntro, type EncyclopediaHadith, type HadeethCategory, type HadeethListPage, type HadeethSearchHit } from '../shared/hadeethenc.ts';
+import { HADEETH_UNAVAILABLE, hadeethShareText, textBeyondIntro, type EncyclopediaHadith, type HadeethCategory, type HadeethListPage, type HadeethSearchHit } from '../shared/hadeethenc.ts';
+import type { Hadith } from '../shared/types.ts';
+import { matchingTamilPassage, tamilMuslimReference } from '../shared/hadithReadingAlternative.ts';
 import type { ShareVerse } from '../lib/verseShare.ts';
 
 function useLocationHash(): string {
@@ -66,6 +68,33 @@ function shareVerse(hadith: EncyclopediaHadith): ShareVerse {
   };
 }
 
+function MissingEdition({id,lang}:{id:string;lang:Lang}) {
+  const ta = lang === 'ta', si = lang === 'si';
+  const ref = tamilMuslimReference(id,lang);
+  const alt = useRemote<Hadith>(ref ? `/api/hadith/muslim/${ref}?lang=ta` : null);
+  const passage = matchingTamilPassage(alt.data,ref);
+  const alternatives=(['en','ta','si'] as const).filter(x=>x!==lang);
+  const a=useRemote<EncyclopediaHadith>(`/api/hadeeth/${id}?lang=${alternatives[0]}`);
+  const b=useRemote<EncyclopediaHadith>(`/api/hadeeth/${id}?lang=${alternatives[1]}`);
+  return <section className="space-y-3" lang={lang} data-testid="hadith-missing-edition">
+    <p>{ta ? `ஹதீஸ் எண் ${id}க்கான தமிழ் மொழிபெயர்ப்பு HadeethEnc இல் கிடைக்கவில்லை.` :
+      si ? `HadeethEnc හි ${id} හදීසය සඳහා සිංහල පරිවර්තනයක් නොමැත.` :
+      `HadeethEnc does not provide an English edition of hadith ${id} here.`}</p>
+    {ref && <div className="space-y-2 rounded-2xl border border-pine/15 p-4" lang="ta">
+      <h2 className="font-semibold">ஸஹீஹ் முஸ்லிம் · தமிழ் பதிப்பு</h2>
+      {alt.loading ? <Loading/> : passage ?
+        <><p className="text-sm">உமர் (ரலி) அவர்களின் வெள்ளிக்கிழமை உரையில் இடம்பெறும் தொடர்புடைய பகுதி:</p>
+        <blockquote className="leading-relaxed">{passage}</blockquote>
+        <a className="underline" href={`https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/tam-muslim/${ref}.min.json`} target="_blank" rel="noreferrer">ஆதாரம்: தமிழ் பதிப்பு, பதிவு {ref}</a></> :
+        <a className="underline" href="https://islamkalvi.com/?p=1355" target="_blank" rel="noreferrer">இதே அறிவிப்பை இஸ்லாம்கல்வியில் தமிழில் படிக்கவும்</a>}
+    </div>}
+    <div className="flex flex-wrap gap-3">{[a.data,b.data].map((item,i)=>item?.id===id && item.lang===alternatives[i]?
+      <a key={item.lang} href={`#/hadith/${id}?lang=${item.lang}`} className="rounded-xl border px-3 py-2 underline" lang={item.lang}>
+        {item.lang==='en'?'Read in English':item.lang==='ta'?'தமிழில் படிக்கவும்':'සිංහලෙන් කියවන්න'}
+      </a>:null)}</div>
+  </section>;
+}
+
 function HadithReading({ id }: { id: string }) {
   const { t, lang, setLang } = useApp();
   const [activeSpeechPart, setActiveSpeechPart] = useState<ActiveHadithSpeechPart>(null);
@@ -103,7 +132,8 @@ function HadithReading({ id }: { id: string }) {
   return (
     <Card>
       {remote.loading && !hadith && <Loading />}
-      {remote.error && <ErrorNote message={remote.error} onRetry={remote.error === t.hadeethUnavailable ? undefined : remote.reload} />}
+      {remote.error === HADEETH_UNAVAILABLE ? <MissingEdition key={`${id}:${lang}`} id={id} lang={lang}/> :
+        remote.error && <ErrorNote message={remote.error} onRetry={remote.reload} />}
       {hadith && (
         <article className="space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
