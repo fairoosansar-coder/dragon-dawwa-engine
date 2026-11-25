@@ -145,6 +145,8 @@ export function DeskHeaderTabs({
     'inline-flex shrink-0 whitespace-nowrap items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold transition';
 
   const onQuranDesk = path === 'quran' && segments[0] !== 'wall';
+  const onFaithWall =
+    (path === 'quran' && segments[0] === 'wall') || (path === 'hub' && segments[0] === 'wall');
   const onHadithDesk = path === 'hadith';
   const onBooksDesk = path === 'books';
   const onWorshipDesk = path === 'spiritual';
@@ -155,7 +157,21 @@ export function DeskHeaderTabs({
   let ariaLabel = '';
   let testId = '';
 
-  if (onQuranDesk) {
+  if (onFaithWall) {
+    ariaLabel = 'Community Faith Wall';
+    testId = 'wall-tabs';
+    activeId =
+      hash.includes('view=mine') || hash.includes('tab=mine')
+        ? 'mine'
+        : hash.includes('view=saved') || hash.includes('tab=saved')
+          ? 'saved'
+          : 'community';
+    tabs = [
+      { id: 'community', href: '#/quran/wall', label: 'Community Feed' },
+      { id: 'mine', href: '#/quran/wall?view=mine', label: 'My Personal Wall' },
+      { id: 'saved', href: '#/saved', label: 'Saved Bookmarks' },
+    ];
+  } else if (onQuranDesk) {
     ariaLabel = t.quranTitle;
     testId = 'quran-tabs';
     activeId = quranSectionId(segments[0]);
