@@ -1,0 +1,39 @@
+/* Only the Sinhala subsets are served; Latin and Arabic keep their own faces. */
+@font-face {
+  font-family: 'OP Abhaya Libre';
+  src: url('/fonts/sinhala/abhaya-bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0964-0965,U+0D80-0DFF,U+1CF2,U+200C-200D,U+25CC,U+111E0-111FF;
+}
+@font-face {
+  font-family: 'OP Yaldevi';
+  src: url('/fonts/sinhala/yaldevi-variable.woff2') format('woff2');
+  font-weight: 200 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0964-0965,U+0D80-0DFF,U+1CF2,U+200C-200D,U+25CC,U+111E0-111FF;
+}
+:root {
+  --op-si-body: 'OP Yaldevi', 'Noto Sans Sinhala', Inter, system-ui, sans-serif;
+  --op-si-title: 'OP Abhaya Libre', 'Noto Serif Sinhala', Georgia, serif;
+}
+html:lang(si) { --font-sans: var(--op-si-body); --font-display: var(--op-si-title); }
+html body:lang(si), html [lang|='si'], html .font-profile-si, html .font-wall-si,
+html :is(p,li,blockquote,figcaption,textarea,input,button,select,label,summary):lang(si):not(:is([dir=rtl],.arabic,.quran-face,.font-arabic)) {
+  font-family: var(--op-si-body);
+}
+html :is(p,li,blockquote):lang(si):not(:is([dir=rtl],.arabic,.quran-face,.font-arabic)),
+html :is(.quran-prose,.quran-bismillah-meaning)[lang='si'] {
+  font-family: var(--op-si-body);
+  letter-spacing: normal;
+  line-height: 1.85;
+}
+html :is(h1,h2,h3,h4,h5,h6,.font-display,[role='heading']):lang(si):not(:is([dir=rtl],.arabic,.quran-face,.font-arabic)),
+html :is(.font-profile-si,.font-wall-si) :is(h1,h2,h3,h4,.font-display):not([lang]):not(:is([dir=rtl],.arabic,.quran-face,.font-arabic)) {
+  font-family: var(--op-si-title);
+  font-weight: 700;
+  letter-spacing: normal;
+  line-height: 1.4;
+}

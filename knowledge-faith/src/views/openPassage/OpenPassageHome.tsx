@@ -123,11 +123,10 @@ export function OpenPassageHome() {
           />
         </figure>
         <div className="op-intro">
-          <p className="op-kicker">A reading room for everyone</p>
+          <p className="op-kicker">{lang==='si'?'සැමට විවෘත කියවීම් කුටියක්':'A reading room for everyone'}</p>
           <h1 id="op-title">{lang==='ta'?'எதைப் பற்றி அறிய விரும்புகிறீர்கள்?':lang==='si'?'ඔබට දැනගැනීමට අවශ්‍ය කුමක්ද?':'What would you like to understand?'}</h1>
           <p className="op-lede">
-            Bring a question or something you’ve heard about Islam. Explore the Qur’an and Hadith,
-            read passages in context, and see what the sources say.
+            {lang==='si'?'ඉස්ලාමය ගැන ඔබට ඇති ප්‍රශ්නයක් හෝ ඔබ අසා ඇති දෙයක් මෙතැනින් විමසන්න. කුර්ආනය සහ හදීස් කියවා, අදාළ පාඨ ඒවායේ පසුබිමත් සමඟ විමසා බලන්න.':'Bring a question or something you’ve heard about Islam. Explore the Qur’an and Hadith, read passages in context, and see what the sources say.'}
           </p>
           <label className="mb-2 inline-flex items-center gap-2 text-sm" htmlFor="op-output-language">{lang==='ta'?'ஆய்வு மொழி':lang==='si'?'පර්යේෂණ භාෂාව':'Research language'}
             <select id="op-output-language" value={lang} onChange={e=>setLang(toLang(e.target.value))} className="rounded border px-2 py-1">

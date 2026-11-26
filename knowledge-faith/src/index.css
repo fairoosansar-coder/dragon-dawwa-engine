@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import './engine/engine.css';
 @import './spiritual/spiritual.css';
+@import './sinhala-type.css';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -88,12 +89,12 @@ body {
 
 /* Artistic Quote Wall Classes */
 .font-wall-ta { font-family: 'Arima', 'Kavivanar', serif; }
-.font-wall-si { font-family: 'Gemunu Libre', 'Abhaya Libre', serif; }
+.font-wall-si { font-family: var(--op-si-body); }
 .font-wall-en { font-family: 'Cinzel', 'Cormorant Garamond', serif; }
 
 /* Clean Profile & Feed Classes */
 .font-profile-ta { font-family: 'Anek Tamil', 'Noto Sans Tamil', sans-serif; }
-.font-profile-si { font-family: 'Anek Sinhala', 'Noto Sans Sinhala', sans-serif; }
+.font-profile-si { font-family: var(--op-si-body); }
 .font-profile-en { font-family: 'Plus Jakarta Sans', sans-serif; }
 
 .arabic {

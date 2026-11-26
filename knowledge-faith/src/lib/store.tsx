@@ -136,8 +136,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { data: config } = useRemote<AppConfig>('/api/config');
 
   useEffect(() => {
-    document.documentElement.lang = 'en';
-  }, []);
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
