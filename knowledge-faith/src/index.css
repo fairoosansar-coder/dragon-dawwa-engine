@@ -1,7 +1,6 @@
 @import 'tailwindcss';
 @import './engine/engine.css';
 @import './spiritual/spiritual.css';
-@import './sinhala-type.css';
 
 @custom-variant dark (&:where(.dark, .dark *));
 

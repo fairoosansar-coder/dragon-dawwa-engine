@@ -31,6 +31,7 @@ html :is(.quran-prose,.quran-bismillah-meaning)[lang='si'] {
   line-height: 1.85;
 }
 html :is(h1,h2,h3,h4,h5,h6,.font-display,[role='heading']):lang(si):not(:is([dir=rtl],.arabic,.quran-face,.font-arabic)),
+html [data-episode-heading] span[lang|='si'],
 html :is(.font-profile-si,.font-wall-si) :is(h1,h2,h3,h4,.font-display):not([lang]):not(:is([dir=rtl],.arabic,.quran-face,.font-arabic)) {
   font-family: var(--op-si-title);
   font-weight: 700;

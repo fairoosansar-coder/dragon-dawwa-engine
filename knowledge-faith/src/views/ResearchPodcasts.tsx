@@ -692,7 +692,7 @@ function EpisodeCard({
       <div className="pointer-events-none absolute inset-2 rounded-[1.35rem] border border-[#C9A14E]/28 sm:inset-2.5" />
       <div className="relative min-w-0 p-4 sm:p-6">
       <p className="inline-flex max-w-full items-center rounded-full border border-[#C9A14E]/75 bg-[#F9E7B9]/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#064936]">{label}</p>
-      <h3 className="mt-3 break-words font-display text-xl font-bold leading-snug text-pine sm:text-2xl"><ContentText text={question} /></h3>
+      <h3 data-episode-heading lang={language} className="mt-3 break-words font-display text-xl font-bold leading-snug text-pine sm:text-2xl"><ContentText text={question} /></h3>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink/75">Generated presenters. {hostLabel} is the studio partner beside the scholars. {hostLabel} did not speak or approve these words. They are not scholars.</p>
       <ul className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {participants.map(agent => (

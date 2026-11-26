@@ -1542,6 +1542,7 @@ const httpServer = http.createServer(app);
 if (isProduction) {
   const dist = path.resolve(import.meta.dirname, 'dist');
   app.get('/episodes/last-touch/ta', (_req,res)=>res.sendFile(path.join(dist,'episodes/last-touch/ta/index.html')));
+  app.get('/episodes/last-touch/si', (_req,res)=>res.sendFile(path.join(dist,'episodes/last-touch/si/index.html')));
   app.use(express.static(dist, { index: false, maxAge: '1h' }));
   app.get('/{*splat}', (_req, res) => res.sendFile(path.join(dist, 'index.html')));
 } else {
