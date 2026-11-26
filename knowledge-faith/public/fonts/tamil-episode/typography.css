@@ -1,0 +1,36 @@
+/* Mooniak's Tamil-capable Abhaya Libre v2.000 and Yaldevi Jaffna v1.040.
+   Keep these faces local to the Tamil episode, not the Sinhala or global UI. */
+@font-face {
+  font-family: 'Last Touch Abhaya';
+  src: url('./AbhayaLibre.woff2') format('woff2');
+  font-weight: 400 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Last Touch Yaldevi';
+  src: url('./YaldeviJaffna-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Last Touch Yaldevi';
+  src: url('./YaldeviJaffna-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-display: swap;
+}
+html:lang(ta) body {
+  font-family: 'Last Touch Yaldevi', Tamil, system-ui, sans-serif;
+}
+html:lang(ta) .hero h1 {
+  font: 600 clamp(30px, 4vw, 46px)/1.15 'Last Touch Abhaya', Georgia, serif;
+  letter-spacing: normal;
+}
+html:lang(ta) .hero h2, html:lang(ta) .text-head h2 {
+  font-family: 'Last Touch Abhaya', Tamil, serif;
+  font-weight: 700;
+  letter-spacing: normal;
+}
+html:lang(ta) .hero h2 { font-size: clamp(28px, 4.4vw, 46px); line-height: 1.45; }
+html:lang(ta) .text-head h2 { font-size: clamp(26px, 3.5vw, 33px); line-height: 1.45; }
+html:lang(ta) .turn p { line-height: 1.9; }
