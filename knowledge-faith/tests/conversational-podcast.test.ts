@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {citedRoundtableFromAgents,mergePostSynthesisTurns} from '../src/server/sevenAgentService.ts';
-import {speakableTurn} from '../src/shared/research/studioDialogue.ts';
+import {speakableTurn,listenerProbe,studioDirection} from '../src/shared/research/studioDialogue.ts';
 import {writeBroadcastScript} from '../src/server/research/broadcastScript.ts';
 
 type Payload=Parameters<typeof citedRoundtableFromAgents>[1];
@@ -35,4 +35,14 @@ test('broadcast speakers do not introduce themselves; absent agents never receiv
   const script=writeBroadcastScript({question:'இதற்கு என்ன பொருள்?',language:'ta',agents:cast});
   assert.match(script,/இதற்கு என்ன பொருள்\?/);
   assert.doesNotMatch(script,/இங்கே இருக்கிறேன்|Zainab:/);
+});
+test('Feroz can challenge a science claim and let the same guest narrow it before closing',()=>{
+  const base=citedRoundtableFromAgents('Who was studied?',fixture,[],'en');
+  const host=base.at(-1)!,science=base.at(-2)!;
+  const extended=[...base.slice(0,-1),{...host,text:'Wait, who was actually included in that study?'},{...science,text:'We cannot tell from this evidence.'},host];
+  assert.equal(mergePostSynthesisTurns(base,extended,'en')?.length,9);
+  assert.equal(mergePostSynthesisTurns(base,extended.map((t,i)=>i===6?{...t,text:'Thanks for the explanation.'}:t),'en'),null);
+  assert.equal(mergePostSynthesisTurns(base,extended.map((t,i)=>i===7?{...t,speaker:host.speaker}:t),'en'),null);
+  assert.match(listenerProbe('ta','ஆறு மடங்கு','source'),/கணக்கு யாரை/);
+  assert.match(studioDirection('ta'),/உம்மா and வாப்பா/);
 });

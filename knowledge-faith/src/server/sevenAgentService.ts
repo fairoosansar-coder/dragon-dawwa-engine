@@ -1,5 +1,5 @@
 import { Type, type Schema } from '@google/genai';
-import { studioDirection,studioCopy,speakableTurn } from '../shared/research/studioDialogue.ts';
+import { studioDirection,studioCopy,speakableTurn,listenerProbe } from '../shared/research/studioDialogue.ts';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -925,14 +925,14 @@ export function citedRoundtableFromAgents(
       voiceProfile: 'tariq',
       text: hadithBridge,
     },
-    host(ajwaSafety?safety.follow:c.law),
+    host(ajwaSafety?safety.follow:listenerProbe(language,hadithBridge,'source')),
     {
       speaker: 'Shaykh Farhan al-Rashed',
       role: 'Agent 04 · Classical Fiqh & Consensus Lead',
       voiceProfile: 'yusuf',
       text: ajwaSafety?safety.law:fiqhBridge,
     },
-    host(ajwaSafety?safety.science:c.science),
+    host(ajwaSafety?safety.science:listenerProbe(language,fiqhBridge,'application')),
     {
       speaker: 'Dr. Zainab al-Mubarak',
       role: 'Agent 06 · Modern Science & 1-Step-Ahead Foresight',
@@ -1053,7 +1053,7 @@ async function generateRoundtableAfterSynthesis(
     'Suggested exchanges (keep any safety advice; adapt transitions to this evidence):',
     ...fallback.map(turn=>`${turn.speaker}: ${turn.text}`),
     '',
-    `Return JSON { "turns": [ { "speaker": "...", "text": "..." }, ... ] } with exactly ${fallback.length} turns in that order.`,
+    `Return JSON { "turns": [ { "speaker": "...", "text": "..." }, ... ] } in that order. If the final specialist offers a number, a causal explanation or an unanswered claim worth challenging, insert one extra Host question and a reply by that same specialist immediately before the host closes. Never invent a study to answer it.`,
     'Every turn text MUST be written natively in the active UI language (keep Arabic quotes in Arabic).',
   ].join('\n');
 
@@ -1111,13 +1111,18 @@ export function mergePostSynthesisTurns(
   generated: Array<{ speaker?: string; text?: string }> | undefined,
   language:Lang,
 ): RoundtableTurn[] | null {
-  if (!Array.isArray(generated) || generated.length !== template.length) return null;
+  if (!Array.isArray(generated) || template.length<3) return null;
+  const last=template[template.length-1], guest=template[template.length-2];
+  const order=generated.length===template.length+2
+    ? [...template.slice(0,-1),last,guest,last] : template;
+  if (generated.length !== order.length) return null;
   const out: RoundtableTurn[] = [];
-  for (let i = 0; i < template.length; i++) {
+  for (let i = 0; i < order.length; i++) {
     const text = String(generated[i]?.text ?? '').trim();
-    if (generated[i]?.speaker?.trim()!==template[i].speaker || !speakableTurn(text,language)) return null;
+    if (generated[i]?.speaker?.trim()!==order[i].speaker || !speakableTurn(text,language)) return null;
+    if(i>0 && i<order.length-1 && order[i].speaker===last.speaker && !/[?؟]/u.test(text))return null;
     if (/awaiting live synthesis|opened sources only|retry when the live/i.test(text)) return null;
-    out.push({ ...template[i], text });
+    out.push({ ...order[i], text });
   }
   if (looksLikeMetaCacheIsolationDialogue(out)) return null;
   return out;
