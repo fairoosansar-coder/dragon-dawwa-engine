@@ -12,7 +12,7 @@ import { fetchMcpMorphology, fetchMcpTafsir, listMcpEditions, searchMcpQuran } f
 import { parseEditionId, readTafsirQuery, type McpEditionType } from './src/shared/quranMcp.ts';
 import { readEditionQuery } from './src/shared/quranenc.ts';
 import { getAsma } from './src/server/asma.ts';
-import { getHadith, getSection, listSections, readerArabicOnly } from './src/server/hadith.ts';
+import { getHadith, getSection, listSections, readClassicHadith } from './src/server/hadith.ts';
 import { getPrayerTimes } from './src/server/prayer.ts';
 import { getHijriMonth } from './src/server/hijriMonth.ts';
 import { suggestZakahFields } from './src/server/zakahDraft.ts';
@@ -363,11 +363,8 @@ app.get(
 app.get(
   '/api/hadith/:collection/:number',
   route(async (req, res) => {
-    let hadith = await getHadith(String(req.params.collection), Number(req.params.number), toLang(req.query.lang));
-    if (!hadith && req.query.readerFallback==='1' && req.query.lang==='ta') {
-      hadith=await getHadith(String(req.params.collection), Number(req.params.number),'en');
-    }
-    if (!hadith && req.query.readerFallback==='1') hadith=await readerArabicOnly(String(req.params.collection),Number(req.params.number),toLang(req.query.lang));
+    const lookup=req.query.readerFallback==='1'?readClassicHadith:getHadith;
+    const hadith=await lookup(String(req.params.collection),Number(req.params.number),toLang(req.query.lang));
     if (!hadith) throw new UpstreamError('Hadith not found', 404);
     res.json(hadith);
   }),

@@ -65,8 +65,22 @@ const ARABIC_MATN_BOUNDARY_PATTERNS: readonly RegExp[] = [
   /(?=عن\s+(?:رسول\s+الله|النبي)[^،:]{0,60}(?:قال|يقول))/u,
   /(?=سمعت\s+(?:رسول\s+الله|النبي))/u,
   /(?=رايت\s+(?:رسول\s+الله|النبي))/u,
-  /(?:حدثنا|اخبرنا|حدثني)(?:[^،:]+،\s*)*(?:عن\s+[^،:]+\s*،\s*)+(?:قال|قالت)\s+/u,
 ];
+
+/** Walk comma-separated source clauses once. If their structure is ambiguous, keep the complete text. */
+function chainSpeechStart(text:string):number {
+  let leader=false,previousFrom=false;
+  for (const match of text.matchAll(/[^،:]+|[،:]/gu)) {
+    const clause=match[0];
+    if(clause===':'){leader=false;previousFrom=false;continue;}
+    if(clause==='،')continue;
+    const speech=/^\s*(?:قال|قالت)\s+/u.exec(clause);
+    if(leader && previousFrom && speech)return match.index+speech[0].length;
+    if(/(?:^|\s)(?:حدثنا|اخبرنا|حدثني)\s/u.test(clause))leader=true;
+    previousFrom=/^\s*عن\s+\S/u.test(clause);
+  }
+  return -1;
+}
 
 /**
  * Tashkeel-preserving Arabic Hadith Isnad vs. Matn splitter.
@@ -96,7 +110,8 @@ export function splitArabicHadith(rawArabic: string): SegmentedArabicHadith {
     }
   }
 
-  if (bestStrippedStart <= 0 || bestStrippedStart >= rawIndices.length) {
+  if(bestStrippedStart<0)bestStrippedStart=chainSpeechStart(stripped);
+  if (bestStrippedStart < 12 || bestStrippedStart >= rawIndices.length) {
     return { isnad: '', matn: full, full };
   }
 

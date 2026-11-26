@@ -137,16 +137,18 @@ export async function getSection(
   const edition = hadithEdition(collection, lang);
   const [translated, arabic] = await Promise.all([
     editionJson<RawFile>(`${BASE}/editions/${edition.edition}/sections/${section}.min.json`, 7 * DAY).catch(err=>{
-      if (readerFallback && edition.lang==='ta' && err instanceof UpstreamError && err.status===404)
+      if (readerFallback && err instanceof UpstreamError && err.status===404)
         return {hadiths:[],metadata:{name:'',section:{}}} as RawFile;
       throw err;
     }),
-    arabicFile(collection.id, `sections/${section}`),
+    arabicFile(collection.id, `sections/${section}`,readerFallback),
   ]);
   let merged = merge(collection.id, translated.hadiths, arabic?.hadiths ?? [], edition.lang, translated.metadata.section);
-  if (readerFallback && edition.lang==='ta') {
-    const english = await editionJson<RawFile>(`${BASE}/editions/eng-${collection.id}/sections/${section}.min.json`,7*DAY).catch(()=>null);
-    if (english) merged=fillMissingEditionRows(merged,merge(collection.id,english.hadiths,arabic?.hadiths??[],'en',english.metadata.section));
+  if (readerFallback && collection.tamil) {
+    const other=edition.lang==='ta'?'en':'ta';
+    const alternate=await editionJson<RawFile>(`${BASE}/editions/${other==='en'?'eng':'tam'}-${collection.id}/sections/${section}.min.json`,7*DAY)
+      .catch(err=>{if(err instanceof UpstreamError && err.status===404)return null;throw err;});
+    if (alternate) merged=fillMissingEditionRows(merged,merge(collection.id,alternate.hadiths,arabic?.hadiths??[],other,alternate.metadata.section));
   }
   if (readerFallback && arabic) {
     const present=new Set(merged.map(h=>h.number));
@@ -156,14 +158,10 @@ export async function getSection(
   }
   const cap = limit && Number.isFinite(limit) ? Math.max(1, Math.min(Math.floor(limit), merged.length)) : merged.length;
   const sliced = merged.slice(0, cap);
-  // Warm remaining section items in background if a page limit was requested
-  if (cap < merged.length && lang !== 'en' && edition.lang === 'en') {
-    const rest = merged.slice(cap);
-    setImmediate(() => {
-      void localizeHadith(rest, lang, edition.lang).catch(() => {});
-    });
-  }
-  const items = (await localizeHadith(sliced, lang, edition.lang)).map(item => ({
+  // Do not submit unseen pages or published Tamil alternatives to the English translation pipeline.
+  const primary=sliced.filter(h=>!h.originalOnly && h.lang===edition.lang);
+  const localized=new Map((await localizeHadith(primary,lang,edition.lang)).map(h=>[h.number,h]));
+  const items = sliced.map(row=>localized.get(row.number)??row).map(item => ({
     ...item,
     segmented: segmentHadithRecord({
       arabic: item.arabic,
@@ -176,7 +174,7 @@ export async function getSection(
 
 export function fillMissingEditionRows(primary: Hadith[], alternate: Hadith[]): Hadith[] {
   const seen=new Set(primary.map(h=>`${h.collection}:${h.number}`));
-  return [...primary,...alternate.filter(h=>h.lang==='en' && h.text.trim() && !seen.has(`${h.collection}:${h.number}`))]
+  return [...primary,...alternate.filter(h=>(h.lang==='en'||h.lang==='ta') && h.text.trim() && !seen.has(`${h.collection}:${h.number}`))]
     .sort((a,b)=>a.number-b.number);
 }
 
@@ -214,6 +212,18 @@ export async function getHadith(collectionId: string, number: number, lang: Lang
       lang: localized.lang,
     }),
   };
+}
+
+/** Public reader and share previews may show another verified edition; evidence lookups stay strict. */
+export async function readClassicHadith(id:string,n:number,lang:Lang,read=getHadith,original=readerArabicOnly) {
+  const collection=requireCollection(id);
+  const primary=await read(id,n,lang);
+  if(primary)return primary;
+  if(collection.tamil){
+    const alternate=await read(id,n,lang==='ta'?'en':'ta');
+    if(alternate)return alternate;
+  }
+  return original(id,n,lang);
 }
 
 export interface StudyHadith extends Hadith {

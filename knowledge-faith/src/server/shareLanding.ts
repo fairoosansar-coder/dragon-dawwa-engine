@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { toLang, findCollection, type Lang } from '../shared/sources.ts';
 import {editionFileNumber} from '../shared/editionNumber.ts';
-import { getHadith } from './hadith.ts';
+import { readClassicHadith } from './hadith.ts';
 import { loadHadeeth } from './hadeethenc.ts';
 import { getVerses } from './quran.ts';
 
@@ -164,7 +164,7 @@ export async function serveHadithShareLanding(req: Request, res: Response): Prom
 
   if (numberParam && editionFileNumber(numberParam) && findCollection(idOrCollection)) {
     redirectHash = `#/hadith/collections?book=${encodeURIComponent(idOrCollection)}&number=${numberParam}&lang=${lang}`;
-    const hadith = await getHadith(idOrCollection, numberParam, lang).catch(() => null);
+    const hadith = await readClassicHadith(idOrCollection, numberParam, lang).catch(() => null);
     if (hadith) {
       title = `${hadith.collectionName} #${hadith.number} · Open Passage`;
       description = [hadith.arabic || '', hadith.text || ''].filter(Boolean).join('\n\n');
