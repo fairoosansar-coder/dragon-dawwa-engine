@@ -22,7 +22,8 @@ export async function castPcm(role:CastRole,text:string,lang:string):Promise<Buf
   if (!key) throw new Error('ElevenLabs podcast voices are not connected.');
   const response=await fetch('https://api.elevenlabs.io/v1/text-to-dialogue?output_format=pcm_24000',{
     method:'POST',headers:{'Content-Type':'application/json','xi-api-key':key},signal:AbortSignal.timeout(90000),
-    body:JSON.stringify({model_id:'eleven_v4',language_code:lang,inputs:[castInput(role,text)]})
+    // Eleven v4 rejects explicit "si"; let it infer Sinhala from the unchanged script.
+    body:JSON.stringify({model_id:'eleven_v4',...(lang==='si'?{}:{language_code:lang}),inputs:[castInput(role,text)]})
   });
   if(!response.ok) throw new Error(`ElevenLabs podcast voice is unavailable (${response.status}).`);
   const bytes=Buffer.from(await response.arrayBuffer());

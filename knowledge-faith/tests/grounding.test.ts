@@ -61,7 +61,7 @@ test('sanitizeParagraphs keeps uncited text only when the model flags insufficie
   assert.equal(sanitizeParagraphs([{ text: 'x', citations: [] }], evidence, true).length, 1);
 });
 
-test('podcast lines lose stage directions and invalid citations', async () => {
+test('podcast lines lose stage directions and invalid citations', () => {
   const evidence = verseEvidence([verse('1:1')]);
   const lines = sanitizeLines(
     [
@@ -76,8 +76,30 @@ test('podcast lines lose stage directions and invalid citations', async () => {
     { speaker: 'Host', text: 'Verse', citations: ['Q1'] },
   ]);
 
-  const script = await writePodcast('Patience', 'si', 2, evidence, scriptedModel([{ title: 'Ep', lines }]));
-  assert.equal(script.title, 'Ep');
+});
+
+test('writePodcast retains an accepted Sinhala script and its model title', async () => {
+  const evidence = verseEvidence([verse('1:1')]);
+  const lines = [{ speaker: 'Host', text: 'මේ පාඨයේ සඳහන් වන්නේ කුමක්ද?', citations: ['Q1'] }];
+  const script = await writePodcast('මූලාශ්‍රය', 'si', 2, evidence, scriptedModel([{ title: 'අපේ ප්‍රශ්නය', lines }]));
+  assert.equal(script.title, 'අපේ ප්‍රශ්නය');
+  assert.equal(script.model, 'fake');
+  assert.deepEqual(script.lines, lines);
   assert.equal(script.lang, 'si');
+});
+
+test('writePodcast does not pass off English dialogue as Sinhala', async () => {
+  const evidence = verseEvidence([verse('1:1')]);
+  const wrongText = 'Welcome to our discussion.';
+  const script = await writePodcast('මූලාශ්‍රය', 'si', 2, evidence, scriptedModel([{
+    title: 'Ep', lines: [{ speaker: 'Host', text: wrongText, citations: [] }],
+  }]));
+  assert.equal(script.model, 'quotation');
+  assert.equal(script.lang, 'si');
+  assert.ok(script.lines.length > 0);
+  assert.ok(script.lines.every(line => /[\u0d80-\u0dff]/u.test(line.text) && !line.text.includes(wrongText)));
+});
+
+test('writePodcast requires evidence', async () => {
   await assert.rejects(writePodcast('x', 'en', 2, [], scriptedModel([])), /No sources/);
 });
