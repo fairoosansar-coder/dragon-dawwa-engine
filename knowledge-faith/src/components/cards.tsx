@@ -295,10 +295,13 @@ export function HadithCard({ hadith }: { hadith: Hadith }) {
       )}
 
       {/* Two-Tier Translation Display: Companion Attribution + Prominent Matn */}
-      {hadith.lang==='en' && lang!=='en' && <p lang={lang} className="my-2 rounded-xl bg-parchment p-3 text-sm">
+      {hadith.originalOnly && <p lang={lang} className="my-2 rounded-xl bg-parchment p-3 text-sm">
+        {lang==='ta'?'மொழிபெயர்ப்பு கிடைக்கவில்லை. அரபு மூல உரை காட்டப்பட்டுள்ளது.':lang==='si'?'පරිවර්තනයක් නොමැත. මුල් අරාබි පාඨය පෙන්වා ඇත.':'No translation was found for this entry. The original Arabic is shown.'}
+      </p>}
+      {!hadith.originalOnly && hadith.lang==='en' && lang!=='en' && <p lang={lang} className="my-2 rounded-xl bg-parchment p-3 text-sm">
         {lang==='ta'?'இந்த அறிவிப்புக்குத் தமிழில் உரை கிடைக்கவில்லை. கீழே வெளியிடப்பட்ட ஆங்கிலப் பதிப்பு காட்டப்பட்டுள்ளது.':'මෙම වාර්තාව සඳහා සිංහල පාඨයක් නොලැබුණි. පහත දැක්වෙන්නේ ප්‍රකාශිත ඉංග්‍රීසි පාඨයයි.'}
       </p>}
-      <div
+      {!hadith.originalOnly && <div
         lang={hadith.lang}
         data-testid="hadith-translation-segmented"
         className={`${profileFontClass(hadith.lang, hadith.text)} rounded-2xl border border-stone-200/80 bg-white p-4 space-y-2.5`}
@@ -328,7 +331,7 @@ export function HadithCard({ hadith }: { hadith: Hadith }) {
             ? `“${seg.translation.matn}”`
             : seg.translation.matn || hadith.text}
         </p>
-      </div>
+      </div>}
 
       {/* Inline Share to Faith Wall Drawer */}
       {shareOpen && (

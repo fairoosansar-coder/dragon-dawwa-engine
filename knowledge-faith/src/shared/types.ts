@@ -45,6 +45,8 @@ export interface Grade {
 }
 
 export interface Hadith {
+  /** No translation was found; text is empty and arabic holds the actual source. */
+  originalOnly?: boolean;
   collection: string;
   collectionName: string;
   number: number;

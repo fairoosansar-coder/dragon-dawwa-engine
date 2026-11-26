@@ -138,6 +138,12 @@ export async function getSection(
     const english = await fetchJson<RawFile>(`${BASE}/editions/eng-${collection.id}/sections/${section}.min.json`,7*DAY).catch(()=>null);
     if (english) merged=fillMissingEditionRows(merged,merge(collection.id,english.hadiths,arabic?.hadiths??[],'en',english.metadata.section));
   }
+  if (readerFallback && arabic) {
+    const present=new Set(merged.map(h=>h.number));
+    const originals=merge(collection.id,arabic.hadiths,arabic.hadiths,lang,{}).filter(h=>!present.has(h.number))
+      .map(h=>({...h,text:'',arabic:h.text,section:null,originalOnly:true}));
+    merged=[...merged,...originals].sort((a,b)=>a.number-b.number);
+  }
   const cap = limit && Number.isFinite(limit) ? Math.max(1, Math.min(Math.floor(limit), merged.length)) : merged.length;
   const sliced = merged.slice(0, cap);
   // Warm remaining section items in background if a page limit was requested
@@ -162,6 +168,14 @@ export function fillMissingEditionRows(primary: Hadith[], alternate: Hadith[]): 
   const seen=new Set(primary.map(h=>`${h.collection}:${h.number}`));
   return [...primary,...alternate.filter(h=>h.lang==='en' && h.text.trim() && !seen.has(`${h.collection}:${h.number}`))]
     .sort((a,b)=>a.number-b.number);
+}
+
+export async function readerArabicOnly(collectionId:string,n:number,lang:Lang):Promise<Hadith|null> {
+  const bucket=editionFileNumber(n); if(!bucket) return null;
+  const c=requireCollection(collectionId), raw=await arabicFile(c.id,String(bucket));
+  if(!raw) return null;
+  const row=exactEditionRow(merge(c.id,raw.hadiths,raw.hadiths,lang,{}),n);
+  return row?{...row,text:'',arabic:row.text,section:null,originalOnly:true,machineTranslation:false}:null;
 }
 
 export async function getHadith(collectionId: string, number: number, lang: Lang): Promise<Hadith | null> {
