@@ -288,10 +288,9 @@ const podcastSchema: Schema = {
             type: Type.STRING,
             enum: [
               'Host',
-              "Dr. Layla (Qur'an Specialist)",
-              'Dr. Zainab (Hadith & Fiqh)',
-              'Shaykh Farhan (Contemporary Fatwa & Field Research)',
-              'Guest',
+              'Dr. Tariq (Hadith & Seerah)',
+              'Shaykh Farhan (Fiqh)',
+              'Dr. Zainab (Science)',
             ],
           },
           text: { type: Type.STRING },
@@ -511,6 +510,8 @@ export function narrateDialogue(lines: PodcastLine[], hostVoice: unknown, guestV
       voiceName = voice(guestVoice, 'Charon');
     } else if (/layla/i.test(speaker)) {
       voiceName = 'Kore';
+    } else if (/tariq/i.test(speaker)) {
+      voiceName = 'Fenrir';
     } else if (/zainab/i.test(speaker)) {
       voiceName = 'Zephyr';
     } else if (speaker === 'Host') {

@@ -68,7 +68,7 @@ export function useEpisodePlayback(lines: PodcastLine[], hostVoice: string, gues
     const voice =
       chunk.speaker === 'Host'
         ? voicesRef.current.hostVoice
-        : /layla/i.test(String(chunk.speaker))
+        : /tariq/i.test(String(chunk.speaker)) ? 'Fenrir' : /layla/i.test(String(chunk.speaker))
           ? 'Kore'
           : /zainab/i.test(String(chunk.speaker))
             ? 'Zephyr'

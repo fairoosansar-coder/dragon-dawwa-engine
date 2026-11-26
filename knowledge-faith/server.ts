@@ -1215,6 +1215,9 @@ app.post(
     const lines: PodcastLine[] = Array.isArray(req.body?.lines)
       ? (req.body.lines as PodcastLine[]).slice(0, 60).map(l => ({
           speaker: l.speaker === 'Guest'
+            || l.speaker === 'Dr. Tariq (Hadith & Seerah)'
+            || l.speaker === 'Shaykh Farhan (Fiqh)'
+            || l.speaker === 'Dr. Zainab (Science)'
             || l.speaker === "Dr. Layla (Qur'an Specialist)"
             || l.speaker === 'Dr. Zainab (Hadith & Fiqh)'
             || l.speaker === 'Shaykh Farhan (Contemporary Fatwa & Field Research)'

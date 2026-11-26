@@ -562,9 +562,9 @@ export function quoteFromEvidence(topic: string, lang: Lang, evidence: Evidence[
   if (!evidence.length) throw new UpstreamError('No sources could be retrieved for this topic.', 422);
   const welcome = generatedHostLine(topic, lang, hostName);
   const castSpeakers = [
-    "Dr. Layla (Qur'an Specialist)" as const,
-    'Dr. Zainab (Hadith & Fiqh)' as const,
-    'Shaykh Farhan (Contemporary Fatwa & Field Research)' as const,
+    'Dr. Tariq (Hadith & Seerah)' as const,
+    'Shaykh Farhan (Fiqh)' as const,
+    'Dr. Zainab (Science)' as const,
   ];
   const closingText = lang === 'ta'
     ? 'ஆதாரங்களின் அடிப்படையில் நாம் தெளிவுபடுத்திக் கொள்ளும் நடைமுறை வழிகாட்டல் இதுவே.'

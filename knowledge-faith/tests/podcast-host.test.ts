@@ -45,11 +45,11 @@ test('the podcast script prompt uses the host name and 4-persona roundtable guar
   assert.match(prompt, /Sister Maryam/);
   assert.match(prompt, /Open on the tension/);
   assert.match(prompt, /practical lesson/i);
-  assert.match(prompt, /Dr\. Layla \(Qur'an Specialist\)/);
-  assert.match(prompt, /Dr\. Zainab \(Hadith & Fiqh\)/);
-  assert.match(prompt, /Shaykh Farhan \(Contemporary Fatwa & Field Research\)/);
+  assert.match(prompt, /Dr\. Tariq \(Hadith & Seerah\)/);
+  assert.match(prompt, /Dr\. Zainab \(Science\)/);
+  assert.match(prompt, /Shaykh Farhan \(Fiqh\)/);
   assert.match(prompt, /Detailed synthesis on sabr/);
-  assert.match(prompt, /சூரத்துன் நிஸா 101-வது வசனத்தில்/);
+  assert.match(prompt, /ஒரு நிமிடம்/);
   assert.match(prompt, /BAN repetitive vocatives/i);
   assert.doesNotMatch(prompt, /I am a generated host|These citations are not read aloud/);
   assert.match(podcastPrompt('Patience', 'ta', [], 2), /everyday spoken Tamil/);

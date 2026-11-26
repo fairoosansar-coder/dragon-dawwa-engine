@@ -105,6 +105,9 @@ export interface AskResult {
 
 export type PodcastSpeaker =
   | 'Host'
+  | 'Dr. Tariq (Hadith & Seerah)'
+  | 'Shaykh Farhan (Fiqh)'
+  | 'Dr. Zainab (Science)'
   | 'Guest'
   | "Dr. Layla (Qur'an Specialist)"
   | 'Dr. Zainab (Hadith & Fiqh)'

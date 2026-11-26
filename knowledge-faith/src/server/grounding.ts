@@ -157,13 +157,13 @@ Use the selected language throughout. Explain an essential foreign term once in 
 
 ${followUpRebuttalSystemPrompt(lang)}
 
-${PODCAST_4_PERSONA_CAST}
+Cast for this episode: Host (${host}), Dr. Tariq (Hadith & Seerah), Shaykh Farhan (Fiqh), Dr. Zainab (Science). Use these speaker labels exactly, with "Host" as the host label. Only speak to findings supported by the packet. A specialist can ask a question rather than claim a finding.
 
 ${PODCAST_TONE_GUARDRAILS}
 
-${PODCAST_GOLDEN_FEW_SHOT}
+Example of a follow-up in Tamil, not content to copy: “ஒரு நிமிடம். நீங்கள் சொல்வது அந்தச் சம்பவத்தைப் பற்றியா, எல்லோருக்கும் பொருந்தும் விதியைப் பற்றியா?”
 
-Dr. Layla, Dr. Zainab, and Shaykh Farhan explain the human story, the historical moment, the classical jurisprudence, and the practical lesson. Put citations in the citations array only.
+Let the panel explain the practical lesson. Put citations in the citations array only.
 
 ${SAFETY_RULES}
 - When DEEP RESEARCH SYNTHESIS & DOSSIER FINDINGS are present, prioritize their detailed findings (such as Madhhab stay durations, travel distance thresholds, resident imam rules, and external research synthesis) over raw database stubs.
@@ -207,6 +207,7 @@ export function sanitizeParagraphs(
 
 function normalizePodcastSpeaker(raw: unknown): PodcastSpeaker {
   const s = String(raw ?? '').trim();
+  if(s==='Dr. Tariq (Hadith & Seerah)' || s==='Shaykh Farhan (Fiqh)' || s==='Dr. Zainab (Science)')return s;
   if (s === 'Guest') return 'Guest';
   if (/layla|qur['’]?an/i.test(s)) return "Dr. Layla (Qur'an Specialist)";
   if (/zainab|hadith|fiqh/i.test(s)) return 'Dr. Zainab (Hadith & Fiqh)';
