@@ -118,5 +118,7 @@ export function useRemote<T>(url: string | null): Remote<T> {
   }, [url, nonce]);
 
   const reload = useCallback(() => setNonce(n => n + 1), []);
+  // Effects run after render: do not expose the old language/record even for one paint.
+  if (loadedUrlRef.current !== url) return {data:null,error:null,loading:Boolean(url),reload};
   return { ...state, reload };
 }

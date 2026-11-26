@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import {inLang} from '../views/hadithEncyclopediaCopy.ts';
 import {
   BookOpen,
   Headphones,
@@ -117,6 +118,7 @@ export function HadithVoiceBar({
 
   const profile = resolveHadithVoiceProfile(voiceProfile);
   const langName = LANGUAGE_NAMES[lang]?.native ?? 'English';
+  const tr=(en:string,ta:string,si:string)=>inLang(lang,en,ta,si);
 
   const handleSpeedChange = (nextSpeed: HadithPlaybackSpeed) => {
     setSpeed(nextSpeed);
@@ -233,7 +235,7 @@ export function HadithVoiceBar({
             className="inline-flex items-center gap-1 rounded-full border border-[#D4AF37]/45 px-2.5 py-0.5 text-[11px] font-bold tracking-wide"
           >
             <Sparkles className="h-3 w-3 text-[#D4AF37]" aria-hidden />
-            <span>ElevenLabs v4 Voice · Line-by-Line</span>
+            <span>{tr('ElevenLabs v4 Voice · Line-by-Line','ElevenLabs v4 · வரிவரியாகக் கேட்க','ElevenLabs v4 · පේළියෙන් පේළියට සවන් දෙන්න')}</span>
           </span>
 
           {!compact && (
@@ -290,9 +292,9 @@ export function HadithVoiceBar({
                 title="Mode B: Recite only the core Prophetic Matn (saves 40–60% voice quota)"
               >
                 {lang === 'ta'
-                  ? 'சுருக்கமான மத்ன் (Matn Only)'
+                  ? 'ஹதீஸ் உரை மட்டும்'
                   : lang === 'si'
-                    ? 'මූලික හදීස් පාඨය (Matn Only)'
+                    ? 'හදීස් පාඨය පමණයි'
                     : 'Matn Only'}
               </button>
               <button
@@ -308,9 +310,9 @@ export function HadithVoiceBar({
                 title="Mode A: Recite Full Narrator Chain (Isnad) + Prophetic Matn"
               >
                 {lang === 'ta'
-                  ? 'இஸ்னாத் + மத்ன் (Full Chain)'
+                  ? 'அறிவிப்பாளர் தொடருடன்'
                   : lang === 'si'
-                    ? 'සම්පූර්ණ දාමය (Full Chain)'
+                    ? 'වාර්තා දාමය සමඟ'
                     : 'Full Chain (Isnad + Matn)'}
               </button>
             </div>
@@ -371,8 +373,8 @@ export function HadithVoiceBar({
               {isArLoading
                 ? loadingText
                 : isArPlaying
-                  ? 'Pause Arabic (عربي)'
-                  : 'Read Arabic (عربي)'}
+                  ? tr('Pause Arabic','அரபு வாசிப்பை இடைநிறுத்து','අරාබි කියවීම විරාම ගන්වන්න')
+                  : tr('Read Arabic','அரபு உரையைக் கேட்க','අරාබි පාඨයට සවන් දෙන්න')}
             </span>
           </button>
         )}
@@ -404,8 +406,8 @@ export function HadithVoiceBar({
               {isTrLoading
                 ? loadingText
                 : isTrPlaying
-                  ? `Pause ${langName}`
-                  : `Read Translation (${langName})`}
+                  ? tr(`Pause ${langName}`,'இடைநிறுத்து','විරාම ගන්වන්න')
+                  : tr(`Read Translation (${langName})`,'தமிழ் மொழிபெயர்ப்பைக் கேட்க','සිංහල පරිවර්තනයට සවන් දෙන්න')}
             </span>
           </button>
         )}
@@ -437,8 +439,8 @@ export function HadithVoiceBar({
               {isExLoading
                 ? loadingText
                 : isExPlaying
-                  ? `Pause Explanation`
-                  : `Read Explanation (${langName})`}
+                  ? tr('Pause explanation','இடைநிறுத்து','විරාම ගන්වන්න')
+                  : tr(`Read Explanation (${langName})`,'விளக்கத்தைக் கேட்க','විවරණයට සවන් දෙන්න')}
             </span>
           </button>
         )}
@@ -470,8 +472,8 @@ export function HadithVoiceBar({
               {isLsLoading
                 ? loadingText
                 : isLsPlaying
-                  ? `Pause Lessons`
-                  : `Read Lessons (${langName})`}
+                  ? tr('Pause lessons','இடைநிறுத்து','විරාම ගන්වන්න')
+                  : tr(`Read Lessons (${langName})`,'பாடங்களைக் கேட்க','පාඩම්වලට සවන් දෙන්න')}
             </span>
           </button>
         )}
@@ -510,7 +512,7 @@ export function HadithVoiceBar({
                 ? loadingText
                 : isBothPlaying
                   ? 'Playing Full Hadith…'
-                  : 'Arabic + Translation'}
+                  : tr('Arabic + Translation','அரபு உரையும் மொழிபெயர்ப்பும்','අරාබි පාඨය සහ පරිවර්තනය')}
             </span>
           </button>
         )}

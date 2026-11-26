@@ -28,6 +28,7 @@ import { DictationSession } from './dictationSession.ts';
 import { beginDictationTap, MICROPHONE_DENIED_MESSAGE, requestMicrophoneFromTap } from './microphoneTap.ts';
 import {
   confirmedCount,
+  inLang,domainCopy,chipLabel,collectionName,
   confirmedIndexLabel,
   ENCYCLOPEDIA_DOMAINS,
   FEATURED_HADEETH_ID,
@@ -59,6 +60,8 @@ function EncyclopediaSearch({
   onSearch: (value: string) => void;
 }) {
   const { lang } = useApp();
+  const tr=(en:string,ta:string,si:string)=>inLang(lang,en,ta,si);
+  const prompt=tr('Companion, narrator, topic, or matn','நபித்தோழர், அறிவிப்பாளர், தலைப்பு அல்லது ஹதீஸ் உரை','සහාබිවරයා, වාර්තාකරු, මාතෘකාව හෝ හදීස් පාඨය');
   const [camera, setCamera] = useState(false);
   const [recording, setRecording] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -96,7 +99,7 @@ function EncyclopediaSearch({
     };
     const base = valueRef.current.trim();
     setRecording(true);
-    setFeedback('Listening.');
+    setFeedback(tr('Listening.','கேட்கிறது.','සවන් දෙමින්.'));
     beginDictationTap({
       microphone,
       lang: dictationCode(lang),
@@ -104,10 +107,10 @@ function EncyclopediaSearch({
       isActive: current,
       onArmed: stop => {
         session.own(stop);
-        stopRef.current = () => finish('Microphone stopped.');
+        stopRef.current = () => finish(tr('Microphone stopped.','ஒலிப்பதிவு நிறுத்தப்பட்டது.','හඬ සටහන් කිරීම නැවැත්වීය.'));
       },
       onSpeechStart: () => {
-        if (current()) setFeedback('Listening. Speak a companion, narrator, topic, or matn.');
+        if (current()) setFeedback(prompt);
       },
       onSpeechResult: event => {
         if (!current()) return;
@@ -116,16 +119,16 @@ function EncyclopediaSearch({
         const text = spoken.trim();
         if (text) onChange(base ? `${base} ${text}` : text);
       },
-      onSpeechEnd: () => finish('Voice added to the search.'),
-      onNoSpeech: () => finish('No speech detected. Press the microphone to try again.'),
+      onSpeechEnd: () => finish(tr('Voice added to the search.','தேடலில் குரல் உரை சேர்க்கப்பட்டது.','හඬින් ලබාගත් පාඨය සෙවුමට එක් කළා.')),
+      onNoSpeech: () => finish(tr('No speech detected. Try again.','குரல் கேட்கவில்லை. மீண்டும் முயலவும்.','හඬ හඳුනාගත නොහැකි විය. නැවත උත්සාහ කරන්න.')),
       onGemini: stream => {
         stream.getTracks().forEach(track => {
           try { track.stop(); } catch { /* continue */ }
         });
-        finish('Speech recognition is not available in this browser. Type the search, or use the camera.');
+        finish(tr('Speech recognition is unavailable. Type your search or use the camera.','குரல் தேடல் கிடைக்கவில்லை. தட்டச்சு செய்யவும் அல்லது கேமராவைப் பயன்படுத்தவும்.','හඬ සෙවුම ලබා ගත නොහැක. ටයිප් කරන්න හෝ කැමරාව භාවිත කරන්න.'));
       },
-      onDenied: () => finish(MICROPHONE_DENIED_MESSAGE),
-      onUnavailable: message => finish(message),
+      onDenied: () => finish(tr(MICROPHONE_DENIED_MESSAGE,'மைக்ரோஃபோன் அனுமதி தேவை.','මයික්‍රොෆෝනය භාවිත කිරීමට අවසර අවශ්‍යයි.')),
+      onUnavailable: message => finish(tr(message,'குரல் தேடல் கிடைக்கவில்லை.','හඬ සෙවුම ලබා ගත නොහැක.')),
     });
   }
 
@@ -134,20 +137,20 @@ function EncyclopediaSearch({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <div className="flex min-w-0 flex-1 items-center rounded-full border border-[#0E382B]/15 bg-white shadow-sm">
           <label className="sr-only" htmlFor="hadith-encyclopedia-search">
-            Search by companion, narrator, topic, or matn
+            {prompt}
           </label>
           <input
             id="hadith-encyclopedia-search"
             value={value}
             onChange={event => onChange(event.target.value)}
-            placeholder="Companion, narrator, topic, or matn"
+            placeholder={prompt}
             className="min-w-0 flex-1 bg-transparent px-4 py-3 text-sm text-ink outline-none"
           />
           <button
             type="button"
             onClick={toggleMic}
             aria-pressed={recording}
-            aria-label={recording ? 'Stop dictation' : 'Dictate a search'}
+            aria-label={recording ? tr('Stop dictation','குரல் பதிவை நிறுத்தவும்','හඬ සටහන් කිරීම නවත්වන්න') : tr('Dictate a search','குரலில் தேடவும்','හඬින් සොයන්න')}
             className={`mr-1 inline-flex h-11 w-11 items-center justify-center rounded-full ${recording ? 'bg-red-700 text-white' : 'text-[#0E382B] hover:bg-[#E7F2EC]'}`}
           >
             {recording ? <MicOff className="h-4 w-4" aria-hidden /> : <Mic className="h-4 w-4" aria-hidden />}
@@ -155,14 +158,14 @@ function EncyclopediaSearch({
           <button
             type="button"
             onClick={() => setCamera(true)}
-            aria-label="Photograph a passage"
+            aria-label={tr('Photograph a passage','உரையைப் படம் எடுக்கவும்','පාඨයේ ඡායාරූපයක් ගන්න')}
             className="mr-1 inline-flex h-11 w-11 items-center justify-center rounded-full text-[#0E382B] hover:bg-[#E7F2EC]"
           >
             <Camera className="h-4 w-4" aria-hidden />
           </button>
         </div>
         <button type="submit" className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#0E382B] px-5 text-sm font-semibold text-white">
-          <Search className="h-4 w-4" aria-hidden /> Search
+          <Search className="h-4 w-4" aria-hidden /> {tr('Search','தேடுக','සොයන්න')}
         </button>
       </div>
       {feedback && <p className="text-xs text-[#3d4f47]">{feedback}</p>}
@@ -225,7 +228,7 @@ function SearchHits({ phrase, sahihOnly }: { phrase: string; sahihOnly: boolean 
     <section className="rounded-3xl border border-[#0E382B]/10 bg-[#fffdf8] p-4 sm:p-5">
       {remote.loading && !data && <Loading />}
       {remote.error && <ErrorNote message={remote.error} onRetry={remote.reload} />}
-      {sahihOnly && grading && <Loading label="Checking published grades" />}
+      {sahihOnly && grading && <Loading label={inLang(lang,'Checking published grades','வெளியிடப்பட்ட தரங்கள் சரிபார்க்கப்படுகின்றன','ප්‍රකාශිත ශ්‍රේණි පරීක්ෂා කරමින්')} />}
       {items && items.length === 0 && <EmptyState>{t.hadeethEmpty}</EmptyState>}
       <ul className="space-y-2">
         {items?.map(item => (
@@ -249,9 +252,9 @@ function FeaturedWisdom() {
   const search = useRemote<{ lang: Lang; phrase: string; items: HadeethSearchHit[] }>(
     needSearch ? `/api/hadeeth/search?lang=${lang}&q=${encodeURIComponent(phrase)}` : null,
   );
-  const fallbackId = search.data?.items.find(item => item.id !== FEATURED_HADEETH_ID)?.id ?? null;
+  const fallbackId = needSearch && search.data?.lang===lang && search.data.phrase===phrase ? search.data.items.find(item => item.id !== FEATURED_HADEETH_ID)?.id ?? null : null;
   const fallback = useRemote<EncyclopediaHadith>(fallbackId ? `/api/hadeeth/${fallbackId}?lang=${lang}` : null);
-  const fallbackMatch = fallback.data && fallback.data.id === fallbackId && isBrotherhoodRecord(fallback.data) ? fallback.data : null;
+  const fallbackMatch = fallback.data && fallback.data.lang===lang && fallback.data.id === fallbackId && isBrotherhoodRecord(fallback.data) ? fallback.data : null;
   const hadith = directMatch ?? fallbackMatch;
   const [activeSpeechPart, setActiveSpeechPart] = useState<ActiveHadithSpeechPart>(null);
   const grade = hadith ? sahihBadge(hadith.grade) : null;
@@ -259,14 +262,14 @@ function FeaturedWisdom() {
 
   return (
     <section data-testid="featured-wisdom" className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#0E382B] via-[#146044] to-[#071f18] p-5 text-[#FBF9F5] shadow-lg sm:p-8">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#E7C98A]">Hadith of the Day</p>
-      <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl">Featured prophetic wisdom</h2>
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#E7C98A]">{inLang(lang,'Hadith of the Day','இன்றைய ஹதீஸ்','අද හදීසය')}</p>
+      <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl">{inLang(lang,'Featured prophetic wisdom','தேர்ந்தெடுக்கப்பட்ட நபிமொழி','තෝරාගත් නබි වදන')}</h2>
       {(direct.loading || (needSearch && search.loading) || (fallbackId && fallback.loading && !hadith)) && (
-        <p className="mt-4 text-sm text-[#FBF9F5]/80">Opening the HadeethEnc record…</p>
+        <p className="mt-4 text-sm text-[#FBF9F5]/80">{inLang(lang,'Opening the HadeethEnc record…','ஹதீஸ் பதிவு திறக்கப்படுகிறது…','හදීස් වාර්තාව විවෘත කරමින්…')}</p>
       )}
       {direct.error && !hadith && <p className="mt-4 text-sm text-[#FBF9F5]/80">{direct.error}</p>}
       {!direct.loading && !search.loading && !fallback.loading && !hadith && (
-        <p className="mt-4 text-sm text-[#FBF9F5]/80">HadeethEnc did not return the brotherhood hadith in this language.</p>
+        <p className="mt-4 text-sm text-[#FBF9F5]/80">{inLang(lang,'The featured hadith is unavailable in this language.','தேர்ந்தெடுக்கப்பட்ட ஹதீஸ் இம்மொழியில் கிடைக்கவில்லை.','තෝරාගත් හදීසය මෙම භාෂාවෙන් ලබා ගත නොහැක.')}</p>
       )}
       {hadith && (
         <div className="mt-5 space-y-4">
@@ -287,7 +290,7 @@ function FeaturedWisdom() {
               {hadith.arabic}
             </p>
           ) : (
-            <p className="text-sm text-[#FBF9F5]/75">HadeethEnc did not include the Arabic for this hadith.</p>
+            <p className="text-sm text-[#FBF9F5]/75">{inLang(lang,'The source did not include the Arabic text.','இப்பதிவில் அரபு மூலம் இல்லை.','මෙම වාර්තාවේ අරාබි මුල් පාඨය නොමැත.')}</p>
           )}
           <p
             lang={hadith.lang}
@@ -298,11 +301,11 @@ function FeaturedWisdom() {
           >
             {hadith.text}
           </p>
-          {narrator && <p className="text-sm text-[#E7C98A]">Narrator: {narrator}</p>}
+          {narrator && <p className="text-sm text-[#E7C98A]">{inLang(lang,'Narrator','அறிவிப்பாளர்','වාර්තාකරු')}: {narrator}</p>}
 
           {/* ElevenLabs v4 Voice Bar (Arabic Matn + Translation + Sequential Play) */}
           <HadithVoiceBar
-            hadithKey={`featured-${hadith.id}`}
+            hadithKey={`featured-${hadith.id}-${lang}`}
             arabicText={hadith.arabic}
             translationText={hadith.text}
             explanationText={hadith.explanation}
@@ -313,13 +316,13 @@ function FeaturedWisdom() {
 
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <a href={researchStudioHref(hadith.text)} className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#FBF9F5]/40 px-4 text-sm font-semibold text-[#FBF9F5]">
-              விளக்கம் & ஆய்வு
+              {inLang(lang,'Explore this hadith','விளக்கம் மற்றும் ஆய்வு','හදීසය විමසන්න')}
             </a>
             <a href={`#/hadith/${hadith.id}?lang=${hadith.lang}`} className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#E7C98A]/70 px-4 text-sm font-semibold text-[#E7C98A]">
-              HadeethEnc explanation
+              {inLang(lang,'HadeethEnc explanation','HadeethEnc விளக்கம்','HadeethEnc විවරණය')}
             </a>
             <a href={researchStudioHref(hadith.text)} className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#E7C98A]/70 px-4 text-sm font-semibold text-[#E7C98A]">
-              Generate Podcast Episode
+              {inLang(lang,'Generate podcast episode','பாட்காஸ்ட் அத்தியாயத்தை உருவாக்கவும்','පොඩ්කාස්ට් කථාංගයක් සාදන්න')}
             </a>
           </div>
         </div>
@@ -336,19 +339,19 @@ function CollectionCount({ id }: { id: string }) {
 }
 
 function KutubShelf() {
+  const {lang}=useApp();
   return (
     <section data-testid="kutub-shelf" className="space-y-3">
       <div>
-        <h2 className="font-display text-2xl font-bold text-[#0E382B]">Kutub al-Sittah</h2>
-        <p lang="ta" className="text-sm text-[#3d4f47]">ஆறு நூல்கள். எண் வரம்பு ஆய்வுத் தொகுப்பு உறுதி செய்தால் மட்டும்.</p>
+        <h2 className="font-display text-2xl font-bold text-[#0E382B]">{inLang(lang,'The six hadith collections','ஆறு ஹதீஸ் தொகுப்புகள்','හදීස් සංග්‍රහ හය')}</h2>
+        <p className="text-sm text-[#3d4f47]">{inLang(lang,'Number ranges are shown when confirmed by the collection index.','தொகுப்பின் அட்டவணையில் உறுதிசெய்யப்பட்ட எண் வரம்புகள் காட்டப்படும்.','සංග්‍රහයේ දර්ශකයෙන් තහවුරු කළ අංක පරාස පෙන්වයි.')}</p>
       </div>
       <ul className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         {KUTUB_AL_SITTAH.map(book => (
           <li key={book.id}>
-            <a href={`#/hadith/collections?book=${book.id}`} className="flex h-full flex-col rounded-3xl border border-[#0E382B]/10 bg-[#fffdf8] p-4 transition hover:-translate-y-0.5 hover:border-emerald-700 hover:shadow-md">
+            <a href={`#/hadith/collections?book=${book.id}&lang=${lang}`} className="flex h-full flex-col rounded-3xl border border-[#0E382B]/10 bg-[#fffdf8] p-4 transition hover:-translate-y-0.5 hover:border-emerald-700 hover:shadow-md">
               <Library className="h-5 w-5 text-[#0E382B]" aria-hidden />
-              <span className="mt-3 block font-display text-lg font-bold text-[#0E382B]">{book.name}</span>
-              <span lang="ta" className="mt-1 block text-sm text-[#3d4f47]">{book.tamil}</span>
+              <span className="mt-3 block font-display text-lg font-bold text-[#0E382B]">{collectionName(book.id,book.name,lang)}</span>
               <CollectionCount id={book.id} />
             </a>
           </li>
@@ -365,14 +368,15 @@ function DomainGrid() {
   return (
     <section data-testid="domain-cards" className="space-y-3">
       <div>
-        <h2 className="font-display text-2xl font-bold text-[#0E382B]">Thematic domains</h2>
-        <p className="text-sm text-[#3d4f47]">HadeethEnc root categories. A count appears only when that list includes one.</p>
+        <h2 className="font-display text-2xl font-bold text-[#0E382B]">{inLang(lang,'Thematic domains','தலைப்பு வகைகள்','විෂය කාණ්ඩ')}</h2>
+        <p className="text-sm text-[#3d4f47]">{inLang(lang,'HadeethEnc categories. Counts are shown where available.','HadeethEnc வகைகள். எண்ணிக்கை கிடைக்கும்போது காட்டப்படும்.','HadeethEnc කාණ්ඩ. ලබා ගත හැකි විට හදීස් ගණන පෙන්වයි.')}</p>
       </div>
       {remote.error && <ErrorNote message={remote.error} onRetry={remote.reload} />}
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {ENCYCLOPEDIA_DOMAINS.map(domain => {
           const Icon = DOMAIN_ICONS[domain.id] ?? BookOpen;
           const count = counts.get(domain.id);
+          const copy=domainCopy(domain,lang);
           return (
             <li key={domain.id}>
               <a
@@ -380,9 +384,8 @@ function DomainGrid() {
                 className="flex h-full flex-col rounded-3xl border border-[#0E382B]/10 bg-[#fffdf8] p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-700 hover:shadow-md"
               >
                 <Icon className="h-5 w-5 text-emerald-800" aria-hidden />
-                <span lang="ta" className="mt-3 block font-display text-lg font-bold leading-snug text-[#0E382B]">{domain.tamil}</span>
-                <span className="mt-1 block text-xs font-semibold uppercase tracking-wide text-emerald-900">{domain.english}</span>
-                <span lang="ta" className="mt-2 line-clamp-2 text-sm leading-relaxed text-[#3d4f47]">{domain.description}</span>
+                <span lang={lang} className="mt-3 block font-display text-lg font-bold leading-snug text-[#0E382B]">{copy.title}</span>
+                <span lang={lang} className="mt-2 block text-sm leading-relaxed text-[#3d4f47]">{copy.description}</span>
                 {count != null && (
                   <span className="mt-3 inline-flex w-fit rounded-full bg-[#E7F2EC] px-3 py-1 text-xs font-semibold text-[#0E382B]">
                     {count.toLocaleString('en-US')}
@@ -406,7 +409,7 @@ export function HadithEncyclopedia() {
   const phrase = (submitted || query).trim();
 
   return (
-    <div data-testid="hadith-encyclopedia" className="space-y-5">
+    <div data-testid="hadith-encyclopedia" lang={lang} className="space-y-5">
       <header data-hadith-hero className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/40 bg-[#06281C]">
         <img
           src="/assets/geometric-carved-arch.jpg"
@@ -415,15 +418,14 @@ export function HadithEncyclopedia() {
         />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#041B14]/92 via-[#041B14]/58 to-[#041B14]/8" />
         <div className="relative max-w-[16rem] space-y-1.5 px-4 py-4 sm:max-w-md sm:px-6 sm:py-5">
-          <p lang="ta" className="text-xs font-semibold text-[#E6C665]">ஹதீஸ் களஞ்சியம்</p>
-          <h1 className="font-display text-lg font-bold text-[#F9E7B9] sm:text-xl">Hadith Encyclopedia</h1>
-          <p lang="ta" className="text-xs leading-relaxed text-stone-200">
-            அரபு மூலம், தமிழ் மொழிபெயர்ப்பு, மற்றும் வெளியிடப்பட்ட தரம். விளக்கம் அந்தப் பதிவில் இருந்தால் மட்டும்.
+          <h1 className="font-display text-lg font-bold text-[#F9E7B9] sm:text-xl">{inLang(lang,'Hadith Encyclopedia','ஹதீஸ் களஞ்சியம்','හදීස් විශ්වකෝෂය')}</h1>
+          <p className="text-xs leading-relaxed text-stone-200">
+            {inLang(lang,'Read the Arabic source alongside the English translation, with grades and explanations where available.','அரபு மூலத்துடன் தமிழ் மொழிபெயர்ப்பைப் படிக்கவும். தரமும் விளக்கமும் கிடைக்கும்போது காட்டப்படும்.','අරාබි මුල් පාඨය සමඟ සිංහල පරිවර්තනය කියවන්න. ශ්‍රේණිය සහ විවරණය ලබා ගත හැකි විට පෙන්වයි.')}
           </p>
         </div>
       </header>
       <EncyclopediaSearch value={draft} onChange={setDraft} onSearch={setSubmitted} />
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5" aria-label="Quick topics">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5" aria-label={inLang(lang,'Quick topics','தலைப்புகள்','මාතෘකා')}>
         {TOPIC_CHIPS.map(chip => {
           const active = chip.sahih ? sahihOnly : false;
           return (
@@ -448,7 +450,7 @@ export function HadithEncyclopedia() {
             >
               <span className={`pointer-events-none absolute right-0 top-0 h-5 w-5 border-b border-l ${active ? 'border-[#E6C665]' : 'border-[#D4AF37]'}`} aria-hidden />
               <span className={`mb-1.5 block font-serif text-[10px] tracking-[0.22em] ${active ? 'text-[#E6C665]' : 'text-[#C4A15A]'}`} aria-hidden>✦</span>
-              <span className="break-words">{chip.label}</span>
+              <span className="break-words">{chipLabel(chip.id,lang)}</span>
             </button>
           );
         })}

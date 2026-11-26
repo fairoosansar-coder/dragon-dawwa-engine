@@ -91,6 +91,34 @@ export const TOPIC_CHIPS: TopicChip[] = [
   { id: 'character', label: 'நற்குணம்', categoryId: '282' },
 ];
 
+export const inLang=(l:Lang,en:string,ta:string,si:string)=>l==='ta'?ta:l==='si'?si:en;
+const domains: Record<string,[string,string,string]> = {
+  '1':['The Qur’an, its interpretation, recitation, and verses.','අල් කුර්ආනය හා ඒ පිළිබඳ ශාස්ත්‍ර','කුර්ආනය, එහි විවරණය, පාරායනය සහ වැකි පිළිබඳ හදීස්.'],
+  '2':['Narrators, chains of transmission, and hadith methodology.','හදීස් ශාස්ත්‍රය','වාර්තාකරුවන්, වාර්තා දාම සහ හදීස් අධ්‍යයන ක්‍රම.'],
+  '3':['Faith, the oneness of God, and the foundations of belief.','ඉස්ලාමීය විශ්වාසය','ඊමානය, අල්ලාහ්ගේ ඒකත්වය සහ විශ්වාසයේ මූලික කරුණු.'],
+  '4':['Worship, family life, and rulings for everyday matters.','ඉස්ලාමීය නීතිය','වන්දනාමාන, පවුල් ජීවිතය සහ එදිනෙදා කරුණු පිළිබඳ නීති.'],
+  '5':['Good character, relationships, and conduct.','සදාචාරය','යහපත් ගතිගුණ, සබඳතා සහ හැසිරීම.'],
+  '6':['Inviting others to Islam, offering counsel, and social responsibility.','ඉස්ලාමය වෙත ඇරයුම් කිරීම','ඉස්ලාමය වෙත ඇරයුම් කිරීම, යහපත් උපදෙස් සහ සමාජ වගකීම්.'],
+  '7':['The Prophet’s life, mission, and history.','නබිතුමාගේ චරිතාපදානය','නබිතුමාගේ ජීවිතය, දූත මෙහෙවර සහ ඉතිහාසය.'],
+};
+export function domainCopy(d:EncyclopediaDomain,l:Lang){
+  const [en,si,description]=domains[d.id];
+  return {title:inLang(l,d.english,d.tamil,si),description:inLang(l,en,d.description,description)};
+}
+const names:Record<string,string>={
+  bukhari:'සහීහ් අල් බුහාරි',muslim:'සහීහ් මුස්ලිම්',abudawud:'සුනන් අබූ දාවූද්',tirmidhi:'ජාමිඋත් තිර්මිදි',nasai:'සුනන් අන් නසාඊ',ibnmajah:'සුනන් ඉබ්නු මාජාහ්',
+  malik:'මුවත්තා මාලික්',nawawi:'නවවිගේ හදීස් හතළිහ',qudsi:'කුද්සි හදීස් හතළිහ',
+};
+const extraTamil:Record<string,string>={malik:'முவத்தா மாலிக்',nawawi:'நவவியின் நாற்பது ஹதீஸ்கள்',qudsi:'நாற்பது குத்ஸி ஹதீஸ்கள்'};
+export function collectionName(id:string,en:string,l:Lang){
+  return inLang(l,en,KUTUB_AL_SITTAH.find(b=>b.id===id)?.tamil??extraTamil[id]??en,names[id]??en);
+}
+const chips:Record<string,[string,string,string]>={
+  sahih:['Sahih only','ஸஹீஹ் மட்டும்','සහීහ් පමණයි'],love:['Love and mercy','அன்பும் இரக்கமும்','ආදරය හා දයාව'],prayer:['Prayer','தொழுகை','සලාතය'],
+  family:['Family ties','குடும்ப உறவுகள்','පවුල් සබඳතා'],character:['Good character','நற்குணம்','යහපත් ගතිගුණ'],
+};
+export const chipLabel=(id:string,l:Lang)=>inLang(l,...chips[id]);
+
 const SAHIH_GRADE = /authentic|sahih|ṣaḥīḥ|sahīh|صحيح|சரியான|සහී|සහිහ්/i;
 
 /** The published grade, only when that text itself says the hadith is authentic. */

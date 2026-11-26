@@ -14,7 +14,8 @@ import type { Hadith, HadithSection } from '../shared/types.ts';
 import { HadeethEncyclopedia } from './HadeethEncyclopedia.tsx';
 import { HadithEncyclopedia } from './HadithEncyclopedia.tsx';
 import {editionFileNumber} from '../shared/editionNumber.ts';
-import { KUTUB_AL_SITTAH } from './hadithEncyclopediaCopy.ts';
+import { collectionName,inLang } from './hadithEncyclopediaCopy.ts';
+import {sharedLineTts} from '../lib/lineByLineTts.ts';
 import { ResearchDesk } from './ResearchDesk.tsx';
 
 const PAGE = 8;
@@ -40,7 +41,7 @@ function SectionReader({ collection, section, onBack }: { collection: string; se
       {data && shown < data.total && (
         <div className="mt-4 text-center">
           <Button variant="soft" onClick={() => setShown(s => s + PAGE)}>
-            {data.total - shown} more
+            {inLang(lang,`Show ${Math.min(PAGE,data.total-shown)} more`,`மேலும் ${Math.min(PAGE,data.total-shown)} பதிவுகளைக் காட்டவும்`,`තවත් ${Math.min(PAGE,data.total-shown)}ක් පෙන්වන්න`)}
           </Button>
         </div>
       )}
@@ -105,7 +106,6 @@ function CollectionBrowser({ book,lookup }: { book: string | null;lookup:number|
     `/api/hadith/${collection}/sections?lang=${lang}`,
   );
   const info = HADITH_COLLECTIONS.find(c => c.id === collection) ?? HADITH_COLLECTIONS[0];
-  const tamilName = KUTUB_AL_SITTAH.find(item => item.id === info.id)?.tamil;
   const q = query.trim().toLowerCase();
   const collectionMatches = !q || info.name.toLowerCase().includes(q) || info.id.includes(q);
   const sections = (index.data?.sections ?? []).filter(s => {
@@ -113,7 +113,7 @@ function CollectionBrowser({ book,lookup }: { book: string | null;lookup:number|
     const byShell = collectionMatches || s.title.toLowerCase().includes(q);
     return local && byShell;
   });
-  const open = section ? (index.data?.sections.find(s => s.id === section.id) ?? section) : null;
+  const open = section ? (index.data?.sections.find(s => s.id === section.id) ?? {...section,title:''}) : null;
 
   return (
     <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3">
@@ -129,7 +129,7 @@ function CollectionBrowser({ book,lookup }: { book: string | null;lookup:number|
             window.location.hash=`#/hadith/collections?book=${encodeURIComponent(id)}&lang=${lang}`;
           }}>
           {HADITH_COLLECTIONS.map(c=><option key={c.id} value={c.id}>
-            {lang==='ta' ? KUTUB_AL_SITTAH.find(item=>item.id===c.id)?.tamil || c.name : c.name}
+            {collectionName(c.id,c.name,lang)}
           </option>)}
         </select>
       </div>
@@ -140,8 +140,7 @@ function CollectionBrowser({ book,lookup }: { book: string | null;lookup:number|
         ) : (
           <>
             <SectionTitle sub={index.data ? `1–${index.data.last}` : undefined}>
-              {info.name}
-              {tamilName && <span lang="ta" className="mt-1 block text-base font-medium text-[#3d4f47]">{tamilName}</span>}
+              {collectionName(info.id,info.name,lang)}
             </SectionTitle>
             <Notice>{t.collectionsNote}</Notice>
             <div className="mt-4">
@@ -265,7 +264,8 @@ function HadithSavedDesk() {
 }
 
 export default function HadithView({ sub, segments, params }: ViewProps) {
-  const {setLang}=useApp();
+  const {setLang,lang}=useApp();
+  useEffect(()=>()=>{if(sharedLineTts.getSnapshot().sessionId?.startsWith('hadith-v4:')) sharedLineTts.stop();},[lang]);
   const requested=params?.get('lang');
   useEffect(()=>{if(requested==='en'||requested==='ta'||requested==='si') setLang(requested);},[requested,setLang]);
   const research = sub === 'research';
@@ -286,7 +286,7 @@ export default function HadithView({ sub, segments, params }: ViewProps) {
       ) : detail ? (
         <HadeethEncyclopedia sub={sub} segments={segments} />
       ) : (
-        <HadithEncyclopedia />
+        <HadithEncyclopedia key={lang} />
       )}
     </div>
   );

@@ -161,6 +161,9 @@ export function GradeList({ grades }: { grades: { name: string; grade: string }[
 
 export function HadithCard({ hadith }: { hadith: Hadith }) {
   const { t, lang, toggleHadith, isHadithSaved } = useApp();
+  const [openedEdition,setOpenedEdition]=useState('');
+  const editionKey=`${hadith.collection}:${hadith.number}:${lang}:${hadith.lang}`;
+  const showText=!hadith.originalOnly && (hadith.lang===lang || openedEdition===editionKey);
   const ref = { collection: hadith.collection, number: hadith.number };
   const saved = isHadithSaved(ref);
   const [shareOpen, setShareOpen] = useState(false);
@@ -299,16 +302,18 @@ export function HadithCard({ hadith }: { hadith: Hadith }) {
         {lang==='ta'?'மொழிபெயர்ப்பு கிடைக்கவில்லை. அரபு மூல உரை காட்டப்பட்டுள்ளது.':lang==='si'?'පරිවර්තනයක් නොමැත. මුල් අරාබි පාඨය පෙන්වා ඇත.':'No translation was found for this entry. The original Arabic is shown.'}
       </p>}
       {!hadith.originalOnly && hadith.lang==='en' && lang!=='en' && <p lang={lang} className="my-2 rounded-xl bg-parchment p-3 text-sm">
-        {lang==='ta'?'இந்த அறிவிப்புக்குத் தமிழில் உரை கிடைக்கவில்லை. கீழே வெளியிடப்பட்ட ஆங்கிலப் பதிப்பு காட்டப்பட்டுள்ளது.':'මෙම වාර්තාව සඳහා සිංහල පාඨයක් නොලැබුණි. පහත දැක්වෙන්නේ ප්‍රකාශිත ඉංග්‍රීසි පාඨයයි.'}
+        {lang==='ta'?'இந்தப் பதிவுக்குத் தமிழ் உரை கிடைக்கவில்லை.':'මෙම වාර්තාව සඳහා සිංහල පාඨයක් හමු නොවීය.'}
+        {' '}<button className="underline" aria-expanded={showText} onClick={()=>setOpenedEdition(showText?'':editionKey)}>{lang==='ta'?(showText?'ஆங்கில உரையை மறைக்கவும்':'ஆங்கிலப் பதிப்பைப் படிக்கவும்'):(showText?'ඉංග්‍රීසි පාඨය සඟවන්න':'ඉංග්‍රීසි සංස්කරණය කියවන්න')}</button>
       </p>}
       {!hadith.originalOnly && hadith.lang==='ta' && lang!=='ta' && <p lang={lang} className="my-2 rounded-xl bg-parchment p-3 text-sm">
-        {lang==='en'?'No English text was found for this entry. The published Tamil edition is shown.':'මෙම වාර්තාව සඳහා සිංහල පාඨයක් හමු නොවීය. පහත දැක්වෙන්නේ ප්‍රකාශිත දෙමළ පාඨයයි.'}
+        {lang==='en'?'No English text was found for this entry.':'මෙම වාර්තාව සඳහා සිංහල පාඨයක් හමු නොවීය.'}
+        {' '}<button className="underline" aria-expanded={showText} onClick={()=>setOpenedEdition(showText?'':editionKey)}>{lang==='en'?(showText?'Hide Tamil text':'Read the published Tamil edition'):(showText?'දෙමළ පාඨය සඟවන්න':'දෙමළ සංස්කරණය කියවන්න')}</button>
       </p>}
       {hadith.translationProvenance?.nativeReview==='pending' && <p data-testid="hadith-translation-provenance" lang="si" className="my-2 rounded-xl bg-parchment p-3 text-sm">
         දෙමළ භාෂාවෙන් පරිවර්තනය කරන ලදී. සිංහල මව්බස වන පාඨකයෙකුගේ සමාලෝචනය තවමත් සිදු කර නැත.{' '}
         <a href={hadith.translationProvenance.sourceUrl} target="_blank" rel="noreferrer" className="underline">දෙමළ මූලාශ්‍රය: TamililQuran</a>
       </p>}
-      {!hadith.originalOnly && <div
+      {showText && <div
         lang={hadith.lang}
         data-testid="hadith-translation-segmented"
         className={`${profileFontClass(hadith.lang, hadith.text)} min-w-0 [overflow-wrap:anywhere] rounded-2xl border border-stone-200/80 bg-white p-4 space-y-2.5`}
@@ -414,8 +419,8 @@ export function HadithCard({ hadith }: { hadith: Hadith }) {
         <HadithVoiceBar
           hadithKey={`card-${hadith.collection}-${hadith.number}-${lang}`}
           arabicText={hadith.arabic}
-          translationText={hadith.text}
-          lang={lang}
+          translationText={showText?hadith.text:''}
+          lang={showText?hadith.lang:lang}
           variant="light"
           compact
         />
