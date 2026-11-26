@@ -4,6 +4,8 @@ import { postJson } from '../../lib/api.ts';
 import { useSeekerAuth } from '../../lib/seekerAuth.ts';
 import type {Lang} from '../../shared/sources.ts';
 import {reportCopy} from '../../shared/openPassageLanguage.ts';
+import type {ResearchProgress as ProgressSnapshot} from '../../shared/openPassageProgress.ts';
+import {ResearchProgress} from './ResearchProgress.tsx';
 
 type Source = {
   id: string;
@@ -62,7 +64,7 @@ export function GuestResearch({ question,lang }: { question: string;lang:Lang })
   const [saveError,setSaveError]=useState('');
   const root = useRef<HTMLElement>(null);
   const urls = useRef<string[]>([]);
-  const [phase, setPhase] = useState('Opening source passages');
+  const [progress,setProgress]=useState<ProgressSnapshot|null>(null);
   const [report, setReport] = useState<Report | null>(null);
   const [displayQuestion,setDisplayQuestion]=useState('');
   const [err, setErr] = useState('');
@@ -136,7 +138,7 @@ export function GuestResearch({ question,lang }: { question: string;lang:Lang })
           if (payload.state === 'failed') {
             throw Error('The research could not finish. Please try again.');
           }
-          setPhase(payload.state);
+          setProgress(payload.progress??null);
           await new Promise(resolve => setTimeout(resolve, 1600));
         }
         if (!gone) throw Error('The research timed out. Please try again.');
@@ -202,8 +204,8 @@ export function GuestResearch({ question,lang }: { question: string;lang:Lang })
         />
       ) : !report ? (
         <>
-          <p role="status">{err || (lang==='en'?`${phase}…`:tr('','ஆய்வு நடைபெறுகிறது…','පර්යේෂණය සිදු කරමින්…'))}</p>
-          {sources.length > 0 && (
+          {err?<p role="alert">{err}</p>:progress?<ResearchProgress lang={lang} progress={progress}/>:<p role="status">{tr('Connecting to the research desk…','ஆய்வு மையத்துடன் இணைக்கிறது…','පර්යේෂණ අංශයට සම්බන්ධ වෙමින්…')}</p>}
+          {!progress && sources.length > 0 && (
             <p>
               {c.sources}: {sources.map(source => source.locator).join(' · ')}
             </p>
@@ -213,6 +215,7 @@ export function GuestResearch({ question,lang }: { question: string;lang:Lang })
               type="button"
               onClick={() => {
                 setErr('');
+                setProgress(null);setSources([]);setDisplayQuestion('');
                 setRound(round + 1);
               }}
             >

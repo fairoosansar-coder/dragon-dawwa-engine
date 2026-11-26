@@ -48,7 +48,8 @@ function loadVerseIndex(): VerseIndex {
   return cached;
 }
 
-export async function openPassageEvidence(question: string): Promise<OpenPassageSource[]> {
+export async function openPassageEvidence(question: string,onEvent?:(event:{search:'quran'|'hadith'}|{opened:string})=>void): Promise<OpenPassageSource[]> {
+  onEvent?.({search:'quran'});
   const index = loadVerseIndex();
   const terms = tokens(question);
   let refs = [...question.matchAll(/\b(\d{1,3}:\d{1,3})\b/g)].map(match => match[1]);
@@ -84,6 +85,7 @@ export async function openPassageEvidence(question: string): Promise<OpenPassage
       provider: 'Saheeh International \u00b7 local Qur\u2019an edition',
       canonicalUrl: `https://quran.com/${ref.replace(':', '/')}`,
     });
+    onEvent?.({opened:`quran:${ref}`});
     if (rows.length >= 6) break;
   }
 
@@ -91,6 +93,7 @@ export async function openPassageEvidence(question: string): Promise<OpenPassage
     try {
       const term = [...terms].sort((a, b) => b.length - a.length || a.localeCompare(b)).slice(0, 3).join(' ');
       if (term) {
+        onEvent?.({search:'hadith'});
         const hits = await searchHadeeth('en', term, 1);
         for (const hit of hits.items.slice(0, 2)) {
           const ident = String(hit.id);
@@ -105,6 +108,7 @@ export async function openPassageEvidence(question: string): Promise<OpenPassage
             publishedGrade: rec.grade ?? null,
             canonicalUrl: `https://hadeethenc.com/en/browse/hadith/${ident}`,
           });
+          onEvent?.({opened:`hadith:${ident}`});
         }
       }
     } catch {
@@ -119,7 +123,7 @@ import {reportCopy} from '../../shared/openPassageLanguage.ts';
 import {matchesResearchLanguage} from './localize.ts';
 
 /** Use a published counterpart for display; never turn an AI paraphrase into a source quotation. */
-export async function displaySources(rows:OpenPassageSource[],lang:Lang){
+export async function displaySources(rows:OpenPassageSource[],lang:Lang,onChecked?:()=>void){
   if(lang==='en')return rows;
   return Promise.all(rows.map(async s=>{
     const [kind,...parts]=s.id.split(':');
@@ -135,5 +139,5 @@ export async function displaySources(rows:OpenPassageSource[],lang:Lang){
       }
     }catch{/* The exact original remains accessible through its citation link. */}
     return {...s,text:reportCopy(lang).linkOnly,linkOnly:true,provider:kind==='quran'?'Saheeh International':'HadeethEnc'};
-  }));
+  }).map(task=>task.then(source=>{onChecked?.();return source;})));
 }

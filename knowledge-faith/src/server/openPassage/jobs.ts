@@ -9,6 +9,7 @@ import { openPassageEvidence,displaySources } from './evidence.ts';
 import {researchQuestion,researchText} from './localize.ts';
 import type {Lang} from '../../shared/sources.ts';
 import {reportCopy} from '../../shared/openPassageLanguage.ts';
+import {initialProgress,type ResearchProgress} from '../../shared/openPassageProgress.ts';
 import { renderOpenPassageAudio,isOpenPassageHostSpeaker, type OpenPassageAudioMode } from './audio.ts';
 import {
   finalizeOpenPassageReport,
@@ -19,6 +20,7 @@ import {
 export const OPEN_PASSAGE_QUESTION_MAX = 1200;
 
 export interface OpenPassageJob {
+  progress?:ResearchProgress;
   language?:Lang;
   displayQuestion?:string;
   id: string;
@@ -92,24 +94,34 @@ function toRetrieved(passages: OpenPassageSource[]): SevenAgentRetrievedPassage[
 }
 
 export async function generate(job: OpenPassageJob, input: string,lang:Lang='en',deps={question:researchQuestion,text:researchText,evidence:openPassageEvidence,display:displaySources,build:buildDynamicDossier}): Promise<void> {
+  const progress=job.progress=initialProgress();
   try {
     const c=reportCopy(lang);
     const question=await deps.question(input,lang);
     job.displayQuestion=question;
     job.language=lang;
     const query=lang==='en'?question:await deps.question(input,'en');
-    const sources = await deps.evidence(query);
-    job.sources = await deps.display(sources,lang);
+    progress.activity='quran';
+    const sources = await deps.evidence(query,event=>{
+      if('search' in event)progress.activity=event.search;
+      else if(!progress.opened.includes(event.opened))progress.opened.push(event.opened);
+    });
+    progress.opened=[...new Set(sources.map(s=>s.id))];
+    if(lang!=='en'&&sources.length){progress.activity='editions';progress.editionsTotal=sources.length;}
+    job.sources = await deps.display(sources,lang,()=>{progress.editionsChecked++;});
     job.state = 'Reviewing opened passages';
 
     let dossier: Awaited<ReturnType<typeof buildDynamicDossier>> | null = null;
     if (sources.length) {
+      progress.activity='analysis';
       dossier = await deps.build(question, lang, toRetrieved(sources), {
         openPassageDesk: true,
         useOpenedPassagesOnly: true,
+        onRoundtableStart:()=>{progress.activity='roundtable';},
       });
     }
 
+    progress.activity='writing';
     const full = dossier?.status === 'live_synthesis' && (dossier.agents?.length ?? 0) === 7;
     const rawSections = full
       ? dossier!.agents.slice(0, 7).map(agent => ({
@@ -162,8 +174,10 @@ export async function generate(job: OpenPassageJob, input: string,lang:Lang='en'
       reportOrigin: dossier?.reportOrigin,
     });
     job.state = 'ready';
+    progress.activity='ready';
   } catch {
     job.state = 'failed';
+    progress.activity='failed';
   } finally {
     getOpenPassageGate().finish(job.id, Boolean(job.result?.full));
   }

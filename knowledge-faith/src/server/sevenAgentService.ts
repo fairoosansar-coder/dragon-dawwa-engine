@@ -1190,7 +1190,7 @@ function withProvenance(
   };
 }
 
-export type BuildDynamicDossierOptions = {openPassageDesk?: boolean; useOpenedPassagesOnly?: boolean};
+export type BuildDynamicDossierOptions = {openPassageDesk?: boolean; useOpenedPassagesOnly?: boolean;onRoundtableStart?:()=>void};
 export async function buildDynamicDossier(
   question: string,
   language: Lang = 'en',
@@ -1223,6 +1223,7 @@ export async function buildDynamicDossier(
   const { payload: generated } = synthesized;
   const agents = agentsFromGeneratedPayload(generated, language);
   // Roundtable runs AFTER live synthesis so speakers can cite the completed cards.
+  options.onRoundtableStart?.();
   const turns = await generateRoundtableAfterSynthesis(question, generated, agents, language);
 
   return {

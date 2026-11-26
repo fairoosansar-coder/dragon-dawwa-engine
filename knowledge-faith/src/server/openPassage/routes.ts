@@ -161,8 +161,10 @@ export function openPassageRouter(): express.Router {
     route((req, res) => {
       try {
         const job = getOpenPassageJob(String(req.params.id), req.headers.authorization?.match(/^Bearer (.+)$/)?.[1]);
+        res.setHeader('Cache-Control','private, no-store');
         res.json({
           state: job.state,
+          progress:job.progress,
           language:job.language,
           displayQuestion:job.displayQuestion,
           sources: job.sources,
