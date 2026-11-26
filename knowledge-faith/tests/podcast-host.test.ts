@@ -43,7 +43,7 @@ test('the podcast script prompt uses the host name and 4-persona roundtable guar
   const prompt = podcastPrompt('Patience', 'en', [], 2, 'Sister Maryam', 'Detailed synthesis on sabr andmadhhab rulings.');
   assert.match(prompt, /HOST NAME/);
   assert.match(prompt, /Sister Maryam/);
-  assert.match(prompt, /Assalamu Alaikum wa Rahmatullahi wa Barakatuh/);
+  assert.match(prompt, /Open on the tension/);
   assert.match(prompt, /practical lesson/i);
   assert.match(prompt, /Dr\. Layla \(Qur'an Specialist\)/);
   assert.match(prompt, /Dr\. Zainab \(Hadith & Fiqh\)/);
@@ -52,7 +52,7 @@ test('the podcast script prompt uses the host name and 4-persona roundtable guar
   assert.match(prompt, /சூரத்துன் நிஸா 101-வது வசனத்தில்/);
   assert.match(prompt, /BAN repetitive vocatives/i);
   assert.doesNotMatch(prompt, /I am a generated host|These citations are not read aloud/);
-  assert.match(podcastPrompt('Patience', 'ta', [], 2), /அஸ்ஸலாமு அலைக்கும்/);
+  assert.match(podcastPrompt('Patience', 'ta', [], 2), /everyday spoken Tamil/);
   assert.match(podcastPrompt('Patience', 'ta', [], 2), /Seeker/);
-  assert.match(podcastPrompt('Patience', 'si', [], 2), /අස්සලාමු අලයිකුම්/);
+  assert.match(podcastPrompt('Patience', 'si', [], 2), /selected language throughout/);
 });
