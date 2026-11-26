@@ -113,3 +113,27 @@ export async function openPassageEvidence(question: string): Promise<OpenPassage
   }
   return rows.slice(0, 8);
 }
+import {getVerses} from '../quran.ts';
+import type {Lang} from '../../shared/sources.ts';
+import {reportCopy} from '../../shared/openPassageLanguage.ts';
+import {matchesResearchLanguage} from './localize.ts';
+
+/** Use a published counterpart for display; never turn an AI paraphrase into a source quotation. */
+export async function displaySources(rows:OpenPassageSource[],lang:Lang){
+  if(lang==='en')return rows;
+  return Promise.all(rows.map(async s=>{
+    const [kind,...parts]=s.id.split(':');
+    try{
+      if(kind==='quran'){
+        const [surah,ayah]=parts.map(Number);
+        const [v]=await getVerses([{surah,ayah}],lang);
+        if(v?.key===`${surah}:${ayah}`&&v.lang===lang&&matchesResearchLanguage(v.translation,lang))
+          return {...s,locator:`${lang==='ta'?'குர்ஆன்':'කුර්ආනය'} ${surah}:${ayah}`,text:v.translation,provider:v.translator};
+      }else if(kind==='hadith'){
+        const rec=await loadHadeeth(lang,parts[0]);
+        if(rec.id===parts[0]&&rec.lang===lang&&matchesResearchLanguage(rec.text,lang))return {...s,text:rec.text,canonicalUrl:rec.sourceUrl,publishedGrade:rec.grade};
+      }
+    }catch{/* The exact original remains accessible through its citation link. */}
+    return {...s,text:reportCopy(lang).linkOnly,linkOnly:true,provider:kind==='quran'?'Saheeh International':'HadeethEnc'};
+  }));
+}

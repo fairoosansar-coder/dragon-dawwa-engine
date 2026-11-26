@@ -11,10 +11,13 @@ import { LANGS, LANGUAGE_NAMES, toLang } from '../shared/sources.ts';
 export function ProfileSettingsPanel({ compact = false }: { compact?: boolean }) {
   const { lang, setLang, uiTheme, setUiTheme, fontScale, setFontScale, t } = useApp();
   function chooseLanguage(next:typeof lang) {
-    if (/^#\/hadith(?:[/?]|$)/.test(window.location.hash)) {
+    if (/^#\/hadith(?:[/?]|$)/.test(window.location.hash)||/^#\/(?:hub|quran|books)\/(?:research|fiqh|seerah)(?:[/?]|$)/.test(window.location.hash)) {
       const [route,query]=window.location.hash.split('?');
       const params=new URLSearchParams(query);
       params.set('lang',next);
+      if(next!==lang && /\/(?:research|fiqh|seerah)$/.test(route)){
+        for(const key of ['q','job','reportId','roundtable'])params.delete(key);
+      }
       if (route.startsWith('#/hadith/category/') && next!==lang) params.delete('page');
       window.history.replaceState(null,'',`${route}?${params}`);
       window.dispatchEvent(new HashChangeEvent('hashchange'));

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { GoogleGate, guestBase, readAccess, researchPass, writeAccess } from './ResearchAccess.tsx';
 import { postJson } from '../../lib/api.ts';
 import { useSeekerAuth } from '../../lib/seekerAuth.ts';
+import type {Lang} from '../../shared/sources.ts';
+import {reportCopy} from '../../shared/openPassageLanguage.ts';
 
 type Source = {
   id: string;
@@ -12,6 +14,7 @@ type Source = {
 };
 type Section = { title: string; summary: string; points: string[]; citations: string[] };
 type Report = {
+  language?:Lang;
   question: string;
   status: string;
   full: boolean;
@@ -51,7 +54,9 @@ async function call(path: string, init?: RequestInit) {
   return response;
 }
 
-export function GuestResearch({ question }: { question: string }) {
+export function GuestResearch({ question,lang }: { question: string;lang:Lang }) {
+  const c=reportCopy(lang);
+  const tr=(en:string,ta:string,si:string)=>lang==='ta'?ta:lang==='si'?si:en;
   const {user}=useSeekerAuth();
   const [savedId,setSavedId]=useState('');
   const [saveError,setSaveError]=useState('');
@@ -59,6 +64,7 @@ export function GuestResearch({ question }: { question: string }) {
   const urls = useRef<string[]>([]);
   const [phase, setPhase] = useState('Opening source passages');
   const [report, setReport] = useState<Report | null>(null);
+  const [displayQuestion,setDisplayQuestion]=useState('');
   const [err, setErr] = useState('');
   const [id, setId] = useState('');
   const [round, setRound] = useState(0);
@@ -77,7 +83,7 @@ export function GuestResearch({ question }: { question: string }) {
 
     const timer = setTimeout(async () => {
       try {
-        if (question === 'What does the Qur’an say about kindness?') {
+        if (lang==='en' && question === 'What does the Qur’an say about kindness?') {
           const path = `${import.meta.env?.BASE_URL || '/'}assets/guest-sample/`;
           const cached = await fetch(`${path}report.json`, { signal });
           if (cached.ok) {
@@ -97,7 +103,7 @@ export function GuestResearch({ question }: { question: string }) {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${await researchPass()}`,
               },
-              body: JSON.stringify({ question }),
+              body: JSON.stringify({ question,lang }),
               signal,
             })
           ).json();
@@ -120,8 +126,10 @@ export function GuestResearch({ question }: { question: string }) {
         for (let i = 0; i < 165 && !gone; i++) {
           const payload = await (await call(`/${start.id}`, { signal })).json();
           if (gone) return;
+          if(payload.displayQuestion && payload.language===lang)setDisplayQuestion(payload.displayQuestion);
           setSources(payload.sources || []);
           if (payload.result) {
+            if((payload.result.language??'en')!==lang)throw Error(c.failure);
             setReport(payload.result);
             return;
           }
@@ -138,7 +146,7 @@ export function GuestResearch({ question }: { question: string }) {
             writeAccess('draft', question);
             setGate(true);
           } else {
-            setErr(error instanceof Error ? error.message : 'Could not connect to the desk.');
+            setErr(lang!=='en'?c.failure:error instanceof Error ? error.message : 'Could not connect to the desk.');
           }
         }
       }
@@ -151,7 +159,7 @@ export function GuestResearch({ question }: { question: string }) {
       urls.current.forEach(url => URL.revokeObjectURL(url));
       urls.current = [];
     };
-  }, [question, round]);
+  }, [question, round,lang]);
 
   async function listen(mode: string) {
     if (making) return;
@@ -163,7 +171,7 @@ export function GuestResearch({ question }: { question: string }) {
       urls.current.push(url);
       setTracks(prev => ({ ...prev, [mode]: url }));
     } catch (error) {
-      setAudioError(error instanceof Error ? error.message : 'Audio is unavailable. Use the transcript.');
+      setAudioError(tr(error instanceof Error ? error.message : 'Audio is unavailable. Use the transcript.','ஒலி கிடைக்கவில்லை. உரையைப் படிக்கலாம்.','හඬ ලබා ගත නොහැක. ලිඛිත පිටපත කියවන්න.'));
     } finally {
       setMaking('');
     }
@@ -182,9 +190,9 @@ export function GuestResearch({ question }: { question: string }) {
   }
 
   return (
-    <section ref={root} tabIndex={-1} className="op-report" aria-label="Research document">
-      <p className="op-kicker">Open Passage / Research desk</p>
-      <h2>{question}</h2>
+    <section ref={root} tabIndex={-1} className="op-report" lang={lang} aria-label={tr('Research document','ஆய்வறிக்கை','පර්යේෂණ වාර්තාව')}>
+      <p className="op-kicker">Open Passage / {tr('Research desk','ஆய்வு மையம்','පර්යේෂණ අංශය')}</p>
+      <h2>{report?.question||displayQuestion||(lang==='en'?question:c.preparing)}</h2>
       {gate ? (
         <GoogleGate
           resume={() => {
@@ -194,10 +202,10 @@ export function GuestResearch({ question }: { question: string }) {
         />
       ) : !report ? (
         <>
-          <p role="status">{err || `${phase}…`}</p>
+          <p role="status">{err || (lang==='en'?`${phase}…`:tr('','ஆய்வு நடைபெறுகிறது…','පර්යේෂණය සිදු කරමින්…'))}</p>
           {sources.length > 0 && (
             <p>
-              {sources.length} passages opened: {sources.map(source => source.locator).join(' · ')}
+              {c.sources}: {sources.map(source => source.locator).join(' · ')}
             </p>
           )}
           {err && (
@@ -208,7 +216,7 @@ export function GuestResearch({ question }: { question: string }) {
                 setRound(round + 1);
               }}
             >
-              Retry research
+              {tr('Retry research','மீண்டும் முயலவும்','යළි උත්සාහ කරන්න')}
             </button>
           )}
         </>
@@ -218,15 +226,15 @@ export function GuestResearch({ question }: { question: string }) {
             {report.status}
             {report.revision ? ` · ${report.revision}` : ''}
           </p>
-          <h3>In plain language</h3>
+          <h3>{c.answer}</h3>
           <p>{report.summary}</p>
           <div className="op-listen">
-            <p className="op-kicker">Listening room · synthetic voices</p>
-            <h3>Listen to this research</h3>
+            <p className="op-kicker">{tr('Listening room · synthetic voices','செயற்கைக் குரல்கள்','කෘත්‍රිම හඬ')}</p>
+            <h3>{tr('Listen to this research','ஆய்வைக் கேட்க','පර්යේෂණයට සවන් දෙන්න')}</h3>
             {(
               [
-                ['brief', 'Narrated answer'],
-                ['podcast', 'Podcast discussion'],
+                ['brief', tr('Narrated answer','பதிலின் ஒலிவடிவம்','පිළිතුරේ හඬ පටිගත කිරීම')],
+                ['podcast', tr('Podcast discussion','ஒலிக்கலந்துரையாடல்','පොඩ්කාස්ට් සංවාදය')],
               ] as const
             ).map(([key, label]) => (
               <div className="op-track" key={key}>
@@ -235,14 +243,14 @@ export function GuestResearch({ question }: { question: string }) {
                   <audio controls preload="metadata" aria-label={label} src={tracks[key]} />
                 ) : (
                   <button type="button" disabled={!!making} onClick={() => listen(key)}>
-                    {making === key ? 'Preparing audio…' : 'Prepare audio'}
+                    {making === key ? tr('Preparing audio…','ஒலி தயாராகிறது…','හඬ සකසමින්…') : tr('Prepare audio','ஒலியைத் தயாரிக்கவும்','හඬ සකසන්න')}
                   </button>
                 )}
               </div>
             ))}
             {audioError && <p role="alert">{audioError}</p>}
             <details>
-              <summary>Read podcast transcript</summary>
+              <summary>{c.transcript}</summary>
               {report.turns.map((turn, index) => (
                 <p key={index}>
                   <b>{turn.speaker}:</b> {turn.text}
@@ -252,7 +260,7 @@ export function GuestResearch({ question }: { question: string }) {
           </div>
           {report.full && (
             <>
-              <h3>Seven specialist findings</h3>
+              <h3>{c.findings}</h3>
               {report.sections.map(section => (
                 <details key={section.title}>
                   <summary>{section.title}</summary>
@@ -263,13 +271,13 @@ export function GuestResearch({ question }: { question: string }) {
                     ))}
                   </ul>
                   {section.citations.length > 0 && (
-                    <p>Section references: {section.citations.join('; ')}</p>
+                    <p>{c.references}: {section.citations.join('; ')}</p>
                   )}
                 </details>
               ))}
             </>
           )}
-          <h3>Opened sources</h3>
+          <h3>{c.sources}</h3>
           {report.sources.length ? (
             report.sources.map(source => (
               <article key={source.id}>
@@ -281,17 +289,17 @@ export function GuestResearch({ question }: { question: string }) {
               </article>
             ))
           ) : (
-            <p>No matching source was opened.</p>
+            <p>{c.noSource}</p>
           )}
-          <h3>Limits of this report</h3>
+          <h3>{c.limits}</h3>
           <p>{report.limit}</p>
           <button type="button" onClick={download}>
-            Download research document (.md)
+            {tr('Download research document (.md)','ஆய்வறிக்கையைப் பதிவிறக்கவும் (.md)','පර්යේෂණ වාර්තාව බාගන්න (.md)')}
           </button>
           {id && user && <button type="button" disabled={savedId===id} onClick={async()=>{
             try { await postJson(`${guestBase}/library/${encodeURIComponent(id)}`,{}); setSavedId(id);setSaveError(''); }
             catch(e){setSaveError(e instanceof Error ? e.message : 'Could not save. Your research document is still available to download.');}
-          }}>{savedId===id?'Saved to my library':'Save to my library'}</button>}
+          }}>{savedId===id?tr('Saved to my library','நூலகத்தில் சேமிக்கப்பட்டது','පුස්තකාලයට සුරැකිණි'):tr('Save to my library','நூலகத்தில் சேமிக்கவும்','පුස්තකාලයට සුරකින්න')}</button>}
           {saveError && <p role="alert">{saveError}</p>}
         </>
       )}

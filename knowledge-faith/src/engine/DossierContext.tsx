@@ -324,7 +324,7 @@ export function DossierProvider({ children }: { children: ReactNode }) {
         if ((result.content_language && result.content_language !== requestLang) || !scriptMatchesLanguage(spoken, requestLang)) {
           throw new Error(languageFailureMessage(requestLang));
         }
-        const stamped: DragonDawwaAnalysis = { ...result, query_hadith: question, content_language: requestLang };
+        const stamped: DragonDawwaAnalysis = { ...result, query_hadith: result.query_hadith || question, content_language: requestLang };
         const identity = reportIdentity(stamped, reportIdFor(question), requestLang);
         setAnalysis(stamped);
         setReportOrigin('live');

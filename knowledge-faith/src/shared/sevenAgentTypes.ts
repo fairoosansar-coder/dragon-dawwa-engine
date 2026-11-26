@@ -78,6 +78,7 @@ export interface RoundtableTurn {
 }
 
 export interface SevenAgentResearchDossier {
+  inputQuestion?:string;
   id: string;
   question: string;
   lang: Lang;

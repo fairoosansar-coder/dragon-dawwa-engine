@@ -202,6 +202,7 @@ function ScholarDraft({ focus }: { focus: boolean }) {
 
 export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
   const { t, lang, saved } = useApp();
+  const latestLang=useRef(lang);latestLang.current=lang;
   const { query } = useShell();
   const [place] = useReadingPlace();
   const surah = place.surah;
@@ -250,13 +251,14 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
     setAskError(null);
     try {
       const started = await beginResearch({ question, entry: 'knowledge', desk: 'knowledge', lang, clarified });
+      if(latestLang.current!==lang)return;
       if (started.action === 'clarify' || !started.id || !started.scope) {
-        window.location.hash = `#/hub/research?lang=${encodeURIComponent(lang)}&q=${encodeURIComponent(question)}`;
+        window.location.hash = `#/hub/research?lang=${encodeURIComponent(lang)}&q=${encodeURIComponent(started.question??question)}`;
         return;
       }
-      window.location.hash = researchHref(started.scope, started.id, lang, started.action === 'forward', null, question);
-    } catch {
-      window.location.hash = `#/hub/research?lang=${encodeURIComponent(lang)}&q=${encodeURIComponent(question)}`;
+      window.location.hash = researchHref(started.scope, started.id, lang, started.action === 'forward', null, started.question??question);
+    } catch (e) {
+      if(latestLang.current===lang)setAskError(e instanceof Error?e.message:t.noResults);
     } finally {
       setBusy(false);
     }
@@ -371,7 +373,7 @@ export default function KnowledgeHub({ sub, segments = [] }: ViewProps) {
 
       <FaithWallFeed compact />
 
-      <AskPanel />
+      <AskPanel key={lang} />
       <ScholarDraft focus={sub === 'scholar'} />
 
       <Card>

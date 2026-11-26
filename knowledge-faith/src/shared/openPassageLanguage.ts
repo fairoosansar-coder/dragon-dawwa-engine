@@ -1,0 +1,18 @@
+import type {Lang} from './sources.ts';
+// Fail closed on a paragraph returned in a different supported language; do not rewrite source labels.
+export function matchesResearchLanguage(s:string,l:Lang){
+  const units=s.split(/[\n.!?。！？]+/u).filter(x=>/\p{L}/u.test(x));
+  return units.length>0 && units.every(x=>{
+    const ta=x.match(/[\u0B85-\u0BB9]/gu)?.length??0,si=x.match(/[\u0D85-\u0DC6]/gu)?.length??0,en=x.match(/[a-z]/gi)?.length??0;
+    return l==='en'?en>0&&!ta&&!si:l==='ta'?ta>0&&!si&&ta*2>=en:si>0&&!ta&&si*2>=en;
+  });
+}
+const labels={
+  en:['Plain-language answer','Seven specialist findings','Opened sources','Scope and limitations','Podcast transcript','Revision','References','None identified.','No matching source was opened.','Free to readers. Supported by Aegis Intelligence.','Seven-role AI research report','Sources only · no final conclusion','Insufficient evidence','Related passages were found, but a complete synthesis is unavailable. Retrieval alone does not establish an answer.','No supporting passage was located. That does not show the claim is false. Try the exact wording or a verse reference.','AI research, not a religious ruling. Read the cited passages in context; silence does not establish consensus.','Host','Analyst','The published excerpt is available at the source link.','Preparing the research question…','The research could not be completed in English. Please retry.'],
+  ta:['எளிய மொழியில் பதில்','ஏழு நிபுணர்களின் ஆய்வு முடிவுகள்','பார்வையிட்ட ஆதாரங்கள்','ஆய்வின் வரம்புகள்','ஒலிக்கலந்துரையாடல் உரை','பதிப்பு','மேற்கோள்கள்','எதுவும் கண்டறியப்படவில்லை.','பொருத்தமான ஆதாரம் கிடைக்கவில்லை.','வாசகர்களுக்கு இலவசம். ஆதரவு: Aegis Intelligence.','ஏழு கோணங்களில் செயற்கை நுண்ணறிவு ஆய்வறிக்கை','ஆதாரங்கள் மட்டும் · இறுதி முடிவு இல்லை','போதிய ஆதாரம் இல்லை','தொடர்புடைய ஆதாரங்கள் கிடைத்தன. முழுமையான ஆய்வு முடிவு கிடைக்கவில்லை. ஆதாரங்களைத் தேடிக் கண்டது மட்டுமே ஒரு முடிவை உறுதிப்படுத்தாது.','இந்தத் தேடலில் ஆதாரம் கிடைக்கவில்லை. அதனால் கூற்று தவறு என்று பொருளல்ல. சரியான வாசகத்தையோ வசன எண்ணையோ கொண்டு மீண்டும் முயலுங்கள்.','இது செயற்கை நுண்ணறிவு ஆய்வு; மார்க்கத் தீர்ப்பு அல்ல. மேற்கோள்களை அவற்றின் சூழலில் படிக்கவும். கருத்து தெரிவிக்காதது ஒருமித்த கருத்துக்கான ஆதாரம் அல்ல.','தொகுப்பாளர்','ஆய்வாளர்','வெளியிடப்பட்ட மூல உரையை ஆதார இணைப்பில் படிக்கலாம்.','கேள்வி தமிழில் தயாராகிறது…','ஆய்வைத் தமிழில் முடிக்க இயலவில்லை. மீண்டும் முயலுங்கள்.'],
+  si:['සරල පිළිතුර','විශේෂඥයන් හත් දෙනාගේ සොයාගැනීම්','පරීක්ෂා කළ මූලාශ්‍ර','පර්යේෂණයේ සීමා','සංවාදයේ ලිඛිත පිටපත','සංස්කරණය','යොමු','කිසිවක් හඳුනාගෙන නැත.','ගැළපෙන මූලාශ්‍රයක් හමු නොවීය.','පාඨකයන්ට නොමිලේ. අනුග්‍රහය: Aegis Intelligence.','විශේෂඥ භූමිකා හතකින් සකස් කළ කෘත්‍රිම බුද්ධි පර්යේෂණ වාර්තාව','මූලාශ්‍ර පමණි · අවසාන නිගමනයක් නැත','ප්‍රමාණවත් සාක්ෂි නැත','අදාළ මූලාශ්‍ර හමු වුවත් සම්පූර්ණ විග්‍රහයක් නොමැත. මූලාශ්‍ර හමු වූ පමණින් පිළිතුරක් තහවුරු නොවේ.','මෙම සෙවුමෙන් සාක්ෂියක් හමු නොවීය. එයින් ප්‍රකාශය අසත්‍ය බව තහවුරු නොවේ. නිවැරදි වචන හෝ වැකි අංකය සමඟ යළි උත්සාහ කරන්න.','මෙය කෘත්‍රිම බුද්ධි පර්යේෂණයකි; ආගමික තීන්දුවක් නොවේ. උපුටා දැක්වීම් ඒවායේ සන්දර්භය සමඟ කියවන්න. අදහසක් නොදැක්වීම එකඟතාවක් නොවේ.','මෙහෙයවන්නා','විශ්ලේෂකයා','ප්‍රකාශිත මුල් පාඨය මූලාශ්‍ර සබැඳියෙන් කියවිය හැක.','ප්‍රශ්නය සිංහලෙන් සකස් කරමින්…','පර්යේෂණය සිංහලෙන් සම්පූර්ණ කළ නොහැකි විය. යළි උත්සාහ කරන්න.'],
+} as const;
+export function reportCopy(lang:Lang){
+  const [answer,findings,sources,limits,transcript,revision,references,none,noSource,credit,full,partial,insufficient,partialBody,insufficientBody,limit,host,analyst,linkOnly,preparing,failure]=labels[lang];
+  return {answer,findings,sources,limits,transcript,revision,references,none,noSource,credit,full,partial,insufficient,partialBody,insufficientBody,limit,host,analyst,linkOnly,preparing,failure};
+}

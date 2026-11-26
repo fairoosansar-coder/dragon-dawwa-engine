@@ -145,7 +145,9 @@ export function openPassageRouter(): express.Router {
       try {
         const question = typeof req.body?.question === 'string' ? req.body.question : '';
         const token = bearer(req);
-        const started = startOpenPassageJob(token, question, getRequestSeeker(req)?.id);
+        const language=req.body?.lang??'en';
+        if(!['en','ta','si'].includes(language))return res.status(400).json({detail:'Unsupported research language.'});
+        const started = startOpenPassageJob(token, question, getRequestSeeker(req)?.id,language);
         res.json(started);
       } catch (err) {
         if (gateError(err, res)) return;
@@ -161,6 +163,8 @@ export function openPassageRouter(): express.Router {
         const job = getOpenPassageJob(String(req.params.id), req.headers.authorization?.match(/^Bearer (.+)$/)?.[1]);
         res.json({
           state: job.state,
+          language:job.language,
+          displayQuestion:job.displayQuestion,
           sources: job.sources,
           result: job.result,
         });

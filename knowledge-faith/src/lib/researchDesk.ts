@@ -72,6 +72,7 @@ export function rememberResearch(item: StoredResearch) {
 }
 
 export interface StartedResearch {
+  question?:string;
   action: 'research' | 'forward' | 'clarify';
   id?: string;
   scope?: ResearchScope;

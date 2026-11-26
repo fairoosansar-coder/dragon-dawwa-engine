@@ -1,4 +1,7 @@
+import type {Lang} from '../../shared/sources.ts';
+import {reportCopy} from '../../shared/openPassageLanguage.ts';
 export interface OpenPassageSource {
+  linkOnly?:boolean;
   id: string;
   locator: string;
   text: string;
@@ -15,11 +18,13 @@ export interface OpenPassageSection {
 }
 
 export interface OpenPassageTurn {
+  voiceRole?:'host'|'guest';
   speaker: string;
   text: string;
 }
 
 export interface OpenPassageReport {
+  language?:Lang;
   question: string;
   status: string;
   full: boolean;
@@ -40,7 +45,8 @@ export function finalizeOpenPassageReport(
   const revision =
     report.revision ||
     `op-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-  let md = `# ${report.question}\n\nOpen Passage | ${report.status}\n\nRevision: ${revision}\n\n## Plain-language answer\n\n${report.summary}`;
+  const c=reportCopy(report.language??'en');
+  let md = `# ${report.question}\n\nOpen Passage | ${report.status}\n\n${c.revision}: ${revision}\n\n## ${c.answer}\n\n${report.summary}`;
   const sections = report.sections.map(section => {
     const blob = [section.summary, ...section.points, ...section.citations].join(' ');
     const citations = report.sources
@@ -53,10 +59,10 @@ export function finalizeOpenPassageReport(
         }
       })
       .map(source => source.locator);
-    md += `\n\n## ${section.title}\n\n${section.summary}\n\n${section.points.map(p => `- ${p}`).join('\n')}\n\nOpened references identified in this section: ${citations.join('; ') || 'None identified.'}`;
+    md += `\n\n## ${section.title}\n\n${section.summary}\n\n${section.points.map(p => `- ${p}`).join('\n')}\n\n${!report.language||report.language==='en'?'Opened references identified in this section':c.references}: ${citations.join('; ') || c.none}`;
     return { ...section, citations };
   });
-  md += `\n\n## Opened sources\n\n${
+  md += `\n\n## ${c.sources}\n\n${
     report.sources.length
       ? report.sources
           .map(
@@ -64,11 +70,11 @@ export function finalizeOpenPassageReport(
               `### ${s.locator}\n${s.text}\n\n${s.provider} · ${s.canonicalUrl}`,
           )
           .join('\n\n')
-      : 'No matching source was opened.'
+      : c.noSource
   }`;
-  md += `\n\n## Scope and limitations\n\n${report.limit}\n\n## Podcast transcript\n\n${report.turns
+  md += `\n\n## ${c.limits}\n\n${report.limit}\n\n## ${c.transcript}\n\n${report.turns
     .map(t => `${t.speaker}: ${t.text}`)
-    .join('\n\n')}\n\nFree to readers. Supported by Aegis Intelligence.\n`;
+    .join('\n\n')}\n\n${c.credit}\n`;
   return { ...report, sections, markdown: md, revision };
 }
 

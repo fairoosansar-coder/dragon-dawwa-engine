@@ -14,6 +14,7 @@ import { readEditionQuery } from './src/shared/quranenc.ts';
 import { getAsma } from './src/server/asma.ts';
 import { getHadith, getSection, listSections, readClassicHadith } from './src/server/hadith.ts';
 import { getPrayerTimes } from './src/server/prayer.ts';
+import {researchQuestion,languageCheckedBoard} from './src/server/openPassage/localize.ts';
 import { getHijriMonth } from './src/server/hijriMonth.ts';
 import { suggestZakahFields } from './src/server/zakahDraft.ts';
 import { UpstreamError } from './src/server/http.ts';
@@ -515,7 +516,9 @@ const sevenAgentHandler = route(async (req, res) => {
   const lang = toLang(req.method === 'POST' ? req.body?.lang : req.query.lang);
   const jobRaw = req.method === 'POST' ? req.body?.jobId ?? req.body?.job : req.query.jobId ?? req.query.job;
   const jobId = typeof jobRaw === 'string' && jobRaw.trim() ? jobRaw.trim() : null;
-  res.json(await runSevenAgentResearch(question, lang, { jobId }));
+  const localized=await researchQuestion(question,lang);
+  const board=await runSevenAgentResearch(localized, lang, { jobId });
+  res.json({...await languageCheckedBoard(board,lang),question:localized,inputQuestion:question});
 });
 
 app.get('/api/research/seven-agents', sevenAgentHandler);
@@ -550,7 +553,7 @@ app.get(
     const jobId = typeof jobRaw === 'string' && jobRaw.trim() ? jobRaw.trim() : null;
     const found = await getSevenAgentDossierById(id, lang, { jobId });
     if (!found) throw new UpstreamError('Research dossier not found.', 404);
-    res.json(found);
+    res.json({...await languageCheckedBoard(found,lang),question:await researchQuestion(found.question,lang)});
   }),
 );
 
@@ -559,8 +562,9 @@ app.post(
   requireSeekerAuth,
   rateLimiter(20, 'Too many research jobs. Please wait a few minutes.'),
   route(async (req, res) => {
-    const question = text(req.body?.question, 4000, 'question');
     const lang = toLang(req.body?.lang);
+    const original=text(req.body?.question, 4000, 'question');
+    const question=await researchQuestion(original,lang);
     const entryRaw = typeof req.body?.entry === 'string' ? req.body.entry : '';
     const force = req.body?.force === true;
     const requestedHost = typeof req.body?.hostName === 'string' ? req.body.hostName : null;
@@ -573,7 +577,7 @@ app.post(
         }
       }
       const id = startSharedResearchJob(question, lang, undefined, { hostName: requestedHost });
-      res.status(202).json({ id, contractVersion: '1.0.0' });
+      res.status(202).json({ id, question, contractVersion: '1.0.0' });
       return;
     }
     const entries: ResearchScope[] = ['knowledge', 'quran', 'hadith', 'books'];
@@ -589,7 +593,7 @@ app.post(
       priorQuestion: typeof req.body?.priorQuestion === 'string' ? req.body.priorQuestion.slice(0, 4000) : null,
     });
     if (decision.action === 'clarify') {
-      res.json({ action: 'clarify', clarificationId: decision.clarificationId, contractVersion: '1.0.0' });
+      res.json({ action: 'clarify',question, clarificationId: decision.clarificationId, contractVersion: '1.0.0' });
       return;
     }
     const researched = decision.assignment.forwardedFrom ? `${question}` : question;
@@ -613,6 +617,7 @@ app.post(
     });
     res.status(202).json({
       action: decision.action,
+      question,
       id,
       scope: decision.assignment.scope,
       noticeId: decision.assignment.noticeId,
@@ -626,8 +631,8 @@ app.post(
   requireSeekerAuth,
   rateLimiter(20, 'Too many research jobs. Please wait a few minutes.'),
   route(async (req, res) => {
-    const question = text(req.body?.question ?? req.body?.topic, 4000, 'question');
     const lang = toLang(req.body?.lang);
+    const question = await researchQuestion(text(req.body?.question ?? req.body?.topic, 4000, 'question'),lang);
     const id = startSharedResearchJob(question, lang);
     res.status(202).json({ id, contractVersion: '1.0.0' });
   }),
@@ -1118,8 +1123,10 @@ app.post(
   requireSeekerAuth,
   aiLimiter,
   route(async (req, res) => {
-    const question = text(req.body?.question, 500, 'question');
-    res.json(await ask(question, toLang(req.body?.lang), fetchers));
+    const lang=toLang(req.body?.lang);
+    const question=await researchQuestion(text(req.body?.question,500,'question'),lang);
+    const result=await ask(question,lang,fetchers);
+    res.json({...result,question,lang,paragraphs:await Promise.all(result.paragraphs.map(async p=>({...p,text:await researchQuestion(p.text,lang)})))});
   }),
 );
 
@@ -1262,6 +1269,7 @@ function sendCompletedResearch(res: Response, replay: ResearchJobResponse, extra
   res.status(200).json({
     ...extra,
     id: replay.job.id,
+    question:replay.job.question,
     status: 'done',
     contractVersion: '1.0.0',
     job: replay.job,
@@ -1289,8 +1297,8 @@ app.post(
     const dossierId = text(req.body?.dossierId, 160, 'dossierId');
     const originalQuestion = typeof req.body?.originalQuestion === 'string' ? req.body.originalQuestion.slice(0, 4000) : '';
     const previousSynthesis = typeof req.body?.previousSynthesis === 'string' ? req.body.previousSynthesis.slice(0, 12000) : '';
-    const userCounterArgument = text(req.body?.userCounterArgument, 1200, 'userCounterArgument');
     const language = toLang(req.body?.language);
+    const userCounterArgument = await researchQuestion(text(req.body?.userCounterArgument,1200,'userCounterArgument'),language);
     const openedSources = Array.isArray(req.body?.openedSources)
       ? (req.body.openedSources as unknown[]).slice(0, 12).map(item => {
           const row = item && typeof item === 'object' ? (item as Record<string, unknown>) : {};
@@ -1333,9 +1341,11 @@ app.post(
   requireSeekerAuth,
   aiLimiter,
   route(async (req, res) => {
-    const hadith = text(req.body?.hadith_input, 4000, 'hadith_input');
+    const input = text(req.body?.hadith_input, 4000, 'hadith_input');
     const isnad = typeof req.body?.isnad_input === 'string' ? req.body.isnad_input.slice(0, 2000) : '';
     const language = toLang(req.body?.preferred_language);
+    // Translate questions, not a quoted narration or an isnad supplied for authentication.
+    const hadith=!isnad && (/[?？]$/.test(input)||/^(what|who|when|why|how|can|does|explain|compare|is it)\b/i.test(input))?await researchQuestion(input,language):input;
     const category = typeof req.body?.category === 'string' ? req.body.category.slice(0, 160) : '';
     const domain = category ? resolveDomainConfig(category) : null;
     if (category && !domain) throw new UpstreamError('This category has no research agents configured.', 400);

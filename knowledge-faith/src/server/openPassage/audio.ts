@@ -160,7 +160,7 @@ export async function renderOpenPassageAudio(
   try {
     if (mode === 'brief') {
       const spoken = `${report.question}. ${report.status}. ${report.summary}`;
-      const result = await narrate(spoken, 'Kore', 'Clear documentary narration', 'en');
+      const result = await narrate(spoken, 'Kore', 'Clear documentary narration', report.language??'en');
       const wav = wavBase64ToBuffer(result.audioBase64);
       try {
         return { bytes: await wavToMp3(wav), mimeType: 'audio/mpeg' };
@@ -169,18 +169,19 @@ export async function renderOpenPassageAudio(
       }
     }
     const lines = report.turns.map(turn => ({
-      speaker: (isOpenPassageHostSpeaker(turn.speaker) ? 'Host' : 'Guest') as 'Host' | 'Guest',
+      speaker: ((turn.voiceRole?turn.voiceRole==='host':isOpenPassageHostSpeaker(turn.speaker)) ? 'Host' : 'Guest') as 'Host' | 'Guest',
       text: turn.text,
       citations: [] as string[],
     }));
-    const result = await narrateDialogue(lines, 'Puck', 'Charon');
+    const result = await narrateDialogue(lines, 'Puck', 'Charon',report.language??'en');
     const wav = wavBase64ToBuffer(result.audioBase64);
     try {
       return { bytes: await wavToMp3(wav), mimeType: 'audio/mpeg' };
     } catch {
       return { bytes: wav, mimeType: result.mimeType || 'audio/wav' };
     }
-  } catch {
+  } catch (err) {
+    if(report.language && report.language!=='en')throw err;
     /* Fall through to offline flite renderer when Gemini voices are unavailable. */
   }
 

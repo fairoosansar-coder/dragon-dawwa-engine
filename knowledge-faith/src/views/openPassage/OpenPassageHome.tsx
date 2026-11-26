@@ -8,6 +8,8 @@ import {
 } from '../../lib/seekerAuth.ts';
 import { GuestResearch } from './GuestResearch.tsx';
 import { readAccess, writeAccess } from './ResearchAccess.tsx';
+import {useApp} from '../../lib/store.tsx';
+import {toLang,type Lang} from '../../shared/sources.ts';
 
 
 const sources = [
@@ -29,13 +31,14 @@ const example = 'What does the Qur’an say about kindness?';
 
 const PENDING_DESK_KEY = 'op-research-v1:pending-desk';
 
-function readPendingDesk(): { q: string; n: number } | null {
+type PendingDesk={q:string;n:number;lang:Lang};
+function readPendingDesk(): PendingDesk | null {
   try {
     const raw = sessionStorage.getItem(PENDING_DESK_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { q?: unknown; n?: unknown };
+    const parsed = JSON.parse(raw) as { q?: unknown; n?: unknown; lang?:unknown };
     if (typeof parsed.q === 'string' && parsed.q.trim().length >= 3 && typeof parsed.n === 'number') {
-      return { q: parsed.q.trim(), n: parsed.n };
+      return { q: parsed.q.trim(), n: parsed.n, lang:toLang(parsed.lang) };
     }
   } catch {
     /* ignore */
@@ -43,7 +46,7 @@ function readPendingDesk(): { q: string; n: number } | null {
   return null;
 }
 
-function writePendingDesk(next: { q: string; n: number } | null): void {
+function writePendingDesk(next: PendingDesk | null): void {
   try {
     if (next) sessionStorage.setItem(PENDING_DESK_KEY, JSON.stringify(next));
     else sessionStorage.removeItem(PENDING_DESK_KEY);
@@ -54,11 +57,13 @@ function writePendingDesk(next: { q: string; n: number } | null): void {
 
 /** Public Open Passage entrance — selective port from the Cursor kit (does not replace library auth). */
 export function OpenPassageHome() {
+  const {lang,setLang}=useApp();
   const staging = import.meta.env?.VITE_STAGING_READER === '1';
   const { loginOrRegister } = useSeekerAuth();
   const [question, setQuestion] = useState(() => readAccess('draft'));
   // Rehydrate after seeker-session remount so GoogleGate resume keeps the desk.
-  const [research, setResearch] = useState<{ q: string; n: number } | null>(() => readPendingDesk());
+  const [research, setResearch] = useState<PendingDesk | null>(() => readPendingDesk());
+  useEffect(()=>{if(research && research.lang!==lang){setResearch(null);writePendingDesk(null);}},[research,lang]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -100,7 +105,7 @@ export function OpenPassageHome() {
   function explore(value: string) {
     const trimmed = value.trim();
     if (trimmed.length < 3) return;
-    const next = { q: trimmed, n: (research?.n ?? 0) + 1 };
+    const next = { q: trimmed, n: (research?.n ?? 0) + 1,lang };
     writeAccess('draft', next.q);
     writePendingDesk(next);
     setResearch(next);
@@ -119,11 +124,16 @@ export function OpenPassageHome() {
         </figure>
         <div className="op-intro">
           <p className="op-kicker">A reading room for everyone</p>
-          <h1 id="op-title">What would you like to understand?</h1>
+          <h1 id="op-title">{lang==='ta'?'எதைப் பற்றி அறிய விரும்புகிறீர்கள்?':lang==='si'?'ඔබට දැනගැනීමට අවශ්‍ය කුමක්ද?':'What would you like to understand?'}</h1>
           <p className="op-lede">
             Bring a question or something you’ve heard about Islam. Explore the Qur’an and Hadith,
             read passages in context, and see what the sources say.
           </p>
+          <label className="mb-2 inline-flex items-center gap-2 text-sm" htmlFor="op-output-language">{lang==='ta'?'ஆய்வு மொழி':lang==='si'?'පර්යේෂණ භාෂාව':'Research language'}
+            <select id="op-output-language" value={lang} onChange={e=>setLang(toLang(e.target.value))} className="rounded border px-2 py-1">
+              <option value="en">English</option><option value="ta">தமிழ்</option><option value="si">සිංහල</option>
+            </select>
+          </label>
           <form
             className="op-search"
             onSubmit={event => {
@@ -138,8 +148,8 @@ export function OpenPassageHome() {
               minLength={3}
               maxLength={1200}
               pattern=".*\S.*\S.*\S.*"
-              aria-label="Search a topic, verse, or question"
-              placeholder="Search a topic, verse, or question"
+              aria-label={lang==='ta'?'ஆய்வுக் கேள்வி':lang==='si'?'පර්යේෂණ ප්‍රශ්නය':'Search a topic, verse, or question'}
+              placeholder={lang==='ta'?'கேள்வியை ஆங்கிலத்திலும் கேட்கலாம்':lang==='si'?'ප්‍රශ්නය ඉංග්‍රීසියෙන් වුවත් අසන්න':'Search a topic, verse, or question'}
               value={question}
               onChange={event => setQuestion(event.target.value)}
             />
@@ -164,7 +174,7 @@ export function OpenPassageHome() {
         Ask one research question as a guest. Continue with Google for more. Research and listening
         are free, supported by Aegis Intelligence.
       </p>
-      {research && <GuestResearch key={research.n} question={research.q} />}
+      {research && research.lang===lang && <GuestResearch key={`${research.n}:${lang}`} question={research.q} lang={lang} />}
       <section aria-label="Explore the sources" className="op-sources">
         {sources.map(({ name, body, href, icon: Icon }) => (
           <a

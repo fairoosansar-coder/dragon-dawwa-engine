@@ -5,8 +5,11 @@ import { UpstreamError } from '../http.ts';
 import { buildDynamicDossier } from '../sevenAgentService.ts';
 import type { SevenAgentRetrievedPassage } from '../../shared/sevenAgentTypes.ts';
 import { OpenPassageGate, defaultGateDbPath } from './accessGate.ts';
-import { openPassageEvidence } from './evidence.ts';
-import { renderOpenPassageAudio, type OpenPassageAudioMode } from './audio.ts';
+import { openPassageEvidence,displaySources } from './evidence.ts';
+import {researchQuestion,researchText} from './localize.ts';
+import type {Lang} from '../../shared/sources.ts';
+import {reportCopy} from '../../shared/openPassageLanguage.ts';
+import { renderOpenPassageAudio,isOpenPassageHostSpeaker, type OpenPassageAudioMode } from './audio.ts';
 import {
   finalizeOpenPassageReport,
   type OpenPassageReport,
@@ -16,6 +19,8 @@ import {
 export const OPEN_PASSAGE_QUESTION_MAX = 1200;
 
 export interface OpenPassageJob {
+  language?:Lang;
+  displayQuestion?:string;
   id: string;
   ownerId?: string;
   time: number;
@@ -86,22 +91,27 @@ function toRetrieved(passages: OpenPassageSource[]): SevenAgentRetrievedPassage[
   }));
 }
 
-async function generate(job: OpenPassageJob, question: string): Promise<void> {
+export async function generate(job: OpenPassageJob, input: string,lang:Lang='en',deps={question:researchQuestion,text:researchText,evidence:openPassageEvidence,display:displaySources,build:buildDynamicDossier}): Promise<void> {
   try {
-    const sources = await openPassageEvidence(question);
-    job.sources = sources;
+    const c=reportCopy(lang);
+    const question=await deps.question(input,lang);
+    job.displayQuestion=question;
+    job.language=lang;
+    const query=lang==='en'?question:await deps.question(input,'en');
+    const sources = await deps.evidence(query);
+    job.sources = await deps.display(sources,lang);
     job.state = 'Reviewing opened passages';
 
     let dossier: Awaited<ReturnType<typeof buildDynamicDossier>> | null = null;
     if (sources.length) {
-      dossier = await buildDynamicDossier(question, 'en', toRetrieved(sources), {
+      dossier = await deps.build(question, lang, toRetrieved(sources), {
         openPassageDesk: true,
         useOpenedPassagesOnly: true,
       });
     }
 
     const full = dossier?.status === 'live_synthesis' && (dossier.agents?.length ?? 0) === 7;
-    const sections = full
+    const rawSections = full
       ? dossier!.agents.slice(0, 7).map(agent => ({
           title: agent.title,
           summary: agent.summary,
@@ -109,18 +119,11 @@ async function generate(job: OpenPassageJob, question: string): Promise<void> {
           citations: agent.citations || [],
         }))
       : [];
-    const summary = full
-      ? dossier!.executiveSummary
-      : sources.length
-        ? 'Related passages were found, but a complete seven-role synthesis is unavailable. Read the passages below in context; retrieval alone does not establish an answer.'
-        : 'No supporting passage was located in this search. That does not show the claim is false. Try the exact wording or a verse reference.';
-    const status = full
-      ? 'Seven-role AI research report'
-      : sources.length
-        ? 'Sources only · no final conclusion'
-        : 'Insufficient evidence';
+    const sections=await Promise.all(rawSections.map(async s=>({...s,title:await deps.text(s.title,lang),summary:await deps.text(s.summary,lang),points:await Promise.all(s.points.map(p=>deps.text(p,lang)))})));
+    const summary=full?await deps.text(dossier!.executiveSummary,lang):sources.length?c.partialBody:c.insufficientBody;
+    const status=full?c.full:sources.length?c.partial:c.insufficient;
 
-    let turns =
+    let turns:OpenPassageReport['turns'] =
       full && dossier
         ? dossier.roundtableTurns
             .filter(turn => turn.text)
@@ -129,6 +132,8 @@ async function generate(job: OpenPassageJob, question: string): Promise<void> {
               text: turn.text,
             }))
         : [];
+    if(turns.length)turns=await Promise.all(turns.map(async t=>({...t,voiceRole:isOpenPassageHostSpeaker(t.speaker)?'host' as const:'guest' as const,text:await deps.text(t.text,lang),speaker:await deps.text(t.speaker,lang)})));
+    if (!turns.length && lang!=='en')turns=[{speaker:c.host,voiceRole:'host',text:question},{speaker:c.analyst,voiceRole:'guest',text:summary}];
     if (!turns.length) {
       turns = [
         { speaker: 'Host', text: `What did the research desk find about this question? ${question}` },
@@ -146,14 +151,13 @@ async function generate(job: OpenPassageJob, question: string): Promise<void> {
     }
 
     job.result = finalizeOpenPassageReport({
-      question,
+      question,language:lang,
       status,
       full,
       summary,
       sections,
-      sources,
-      limit:
-        'AI research, not a religious ruling. Check the cited passages in context. Silence in a specialist section is not evidence of consensus.',
+      sources:job.sources,
+      limit:c.limit,
       turns,
       reportOrigin: dossier?.reportOrigin,
     });
@@ -165,7 +169,7 @@ async function generate(job: OpenPassageJob, question: string): Promise<void> {
   }
 }
 
-export function startOpenPassageJob(token: string, questionRaw: string, ownerId?: string): { id: string } {
+export function startOpenPassageJob(token: string, questionRaw: string, ownerId?: string,lang:Lang='en'): { id: string } {
   expireJobs();
   const question = questionRaw.trim();
   if (question.length < 3) {
@@ -184,7 +188,7 @@ export function startOpenPassageJob(token: string, questionRaw: string, ownerId?
   const key = randomBytes(24).toString('base64url');
   const jobsView: Record<string, OpenPassageJob | undefined> = Object.fromEntries(jobs);
   // Reserve first so identical retries / replays reuse an existing job without consuming quotas.
-  const reserved = getOpenPassageGate().reserve(token, question, key, jobsView);
+  const reserved = getOpenPassageGate().reserve(token, question, key, jobsView,lang);
   if (reserved !== key) return { id: reserved };
 
   const active = [...jobs.values()].filter(job => job.state !== 'ready' && job.state !== 'failed').length;
@@ -204,7 +208,7 @@ export function startOpenPassageJob(token: string, questionRaw: string, ownerId?
     audio: {},
   };
   jobs.set(key, job);
-  void generate(job, question);
+  void generate(job, question,lang);
   return { id: key };
 }
 

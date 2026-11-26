@@ -497,7 +497,7 @@ async function speakWithDirection(text: string, voiceName: string, style: string
   }
 }
 
-export function narrateDialogue(lines: PodcastLine[], hostVoice: unknown, guestVoice: unknown): Promise<TtsResult> {
+export function narrateDialogue(lines: PodcastLine[], hostVoice: unknown, guestVoice: unknown, language:Lang='en'): Promise<TtsResult> {
   const script = lines.map(l => `${l.speaker}: ${l.text}`).join('\n');
   const uniqueSpeakers = [...new Set(lines.map(l => l.speaker))];
   const speakerVoiceConfigs = uniqueSpeakers.map(speaker => {
@@ -519,7 +519,7 @@ export function narrateDialogue(lines: PodcastLine[], hostVoice: unknown, guestV
   if (!speakerVoiceConfigs.some(c => c.speaker === 'Guest') && speakerVoiceConfigs.length < 2) {
     speakerVoiceConfigs.push({ speaker: 'Guest', voiceConfig: { prebuiltVoiceConfig: { voiceName: voice(guestVoice, 'Charon') } } });
   }
-  return generateSpeech(script, {
+  return generateSpeech(language==='en'?script:`Read the following dialogue exactly as written in ${language==='ta'?'Tamil':'Sinhala'}. Do not translate or read speaker labels aloud.\n${script}`, {
     multiSpeakerVoiceConfig: {
       speakerVoiceConfigs,
     },

@@ -21,6 +21,7 @@ import {
 import { DomainResearchForm } from './DomainResearchForm.tsx';
 import { questionsToResearch, separateQuestions } from '../shared/research/questions.ts';
 import { useApp } from '../lib/store.tsx';
+import {matchesResearchLanguage,reportCopy} from '../shared/openPassageLanguage.ts';
 import { Button, ErrorNote, Loading, Notice } from '../components/ui.tsx';
 import { FullReport } from './FullReport.tsx';
 
@@ -56,6 +57,7 @@ const DESK_FRAME: Record<Exclude<ResearchDeskName, 'hadith'>, { title: string; a
 
 export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchScope; desk?: ResearchDeskName; params: URLSearchParams }) {
   const { t, lang, setLang } = useApp();
+  const latestLang=useRef(lang);latestLang.current=lang;
   const paramLang = params.get('lang');
   const bookParam = params.get('book') ?? '';
   const bookId = Number(bookParam);
@@ -124,7 +126,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
       if (reportIdParam.startsWith('7agent-modern-') && dossier.id === reportIdParam) return true;
     }
     if (!activeResearchQuery) return Boolean(reportIdParam);
-    return researchQuestionsAlign(dossier.question, activeResearchQuery);
+    return researchQuestionsAlign(dossier.question, activeResearchQuery) || Boolean(dossier.inputQuestion && researchQuestionsAlign(dossier.inputQuestion,activeResearchQuery));
   };
   // While Ask is pending, ignore any still-mounted prior board — only the new query counts.
   const sevenAgentDossier = askPending
@@ -346,17 +348,14 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     try {
       const startedChapters: { id: string; scope: ResearchScope; question: string; forwarded: boolean }[] = [];
       for (const piece of pieces) {
-        const started = await researchOne(piece, extra).catch(() => ({
-          action: 'research' as const,
-          id: `7agent-${Date.now()}`,
-          scope: entry,
-        }));
+        const started = await researchOne(piece, extra);
+        if(latestLang.current!==lang){setAskPending(false);setPendingQuestion(null);setResearchInFlight(false);return;}
         const resolvedId = started.id || `7agent-${Date.now()}`;
         const resolvedScope = started.scope || entry;
         startedChapters.push({
           id: resolvedId,
           scope: resolvedScope,
-          question: piece,
+          question: started.question??piece,
           forwarded: started.action === 'forward',
         });
       }
@@ -392,14 +391,15 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     setError(null);
     try {
       const started = await researchOne(piece, { force: true });
+      if(latestLang.current!==lang)return;
       if (started.action === 'clarify' || !started.id || !started.scope) {
         setClarify(true);
         setQuestion(piece);
         return;
       }
       setClarify(false);
-      setQuestion(piece);
-      const href = hrefFor(started.scope, started.id, started.action === 'forward', piece);
+      setQuestion(started.question??piece);
+      const href = hrefFor(started.scope, started.id, started.action === 'forward', started.question??piece);
       if (window.location.hash !== href) {
         window.location.hash = href;
         return;
@@ -411,10 +411,12 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     }
   }
 
-  const savedReport = useMemo(() => history.find(item => item.id === jobId) ?? null, [history, jobId]);
-  const job = remote.data?.job ?? (remote.loading ? undefined : savedReport?.response.job);
-  const dossier = remote.data?.dossier ?? (remote.loading ? null : savedReport?.response.dossier ?? null);
-  const model = job ? buildReportModel(job, dossier) : null;
+  const savedReport = useMemo(() => history.find(item => item.id === jobId && item.language===researchLang) ?? null, [history, jobId,researchLang]);
+  const sameLanguage=remote.data?.job.language===researchLang?remote.data:null;
+  const job = sameLanguage?.job ?? (remote.loading ? undefined : savedReport?.response.job);
+  const dossier = sameLanguage?.dossier ?? (remote.loading ? null : savedReport?.response.dossier ?? null);
+  const candidate = job ? buildReportModel(job, dossier) : null;
+  const model = candidate && (!candidate.answer||matchesResearchLanguage(candidate.answer,researchLang))?candidate:null;
   const finished = job?.status === 'done' || job?.status === 'error' || job?.status === 'cancelled';
   const outcome = job && finished
     ? researchOutcome({
@@ -440,7 +442,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     setTimeout(() => URL.revokeObjectURL(href), 0);
   }
 
-  const liveModel = model ?? (savedReport && !remote.loading ? buildReportModel(savedReport.response.job, savedReport.response.dossier) : null);
+  const liveModel = model;
   const citedPassages = (liveModel?.passages ?? []).filter(
     passage => !passage.context?.startsWith('Neighbouring') && (liveModel?.citationIds.length ? liveModel.citationIds.includes(passage.id) : true),
   );
@@ -567,7 +569,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
       {isCountdownActive && (
         <SevenAgentCountdownCard
           key={activeResearchQuery || question || 'in-flight'}
-          question={activeResearchQuery || question}
+          question={matchesResearchLanguage(activeResearchQuery||question,lang)?(activeResearchQuery||question):reportCopy(lang).preparing}
           lang={lang}
         />
       )}

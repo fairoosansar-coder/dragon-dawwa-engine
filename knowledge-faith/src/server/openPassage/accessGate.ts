@@ -71,7 +71,7 @@ export class OpenPassageGate {
     return raw;
   }
 
-  reserve(raw: string, question: string, jobId: string, jobs: GateJobLookup): string {
+  reserve(raw: string, question: string, jobId: string, jobs: GateJobLookup,language:'en'|'ta'|'si'='en'): string {
     const row = this.db
       .prepare(
         'SELECT member, status, job, query_hash, touched FROM passes WHERE token = ? AND expires > ?',
@@ -81,7 +81,7 @@ export class OpenPassageGate {
       | undefined;
     if (!row) throw Object.assign(new Error('access_pass_required'), { status: 401 });
 
-    const sig = digest(question.toLowerCase().split(/\s+/).filter(Boolean).join(' '));
+    const sig = digest((language==='en'?'':language+'\0')+question.toLowerCase().split(/\s+/).filter(Boolean).join(' '));
     const previous = row.job || '';
     const previousJob = previous ? jobs[previous] : undefined;
     if (
