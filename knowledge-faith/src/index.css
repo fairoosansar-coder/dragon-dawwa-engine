@@ -887,3 +887,15 @@ body {
   from { transform: scale(1.04); }
   to { transform: scale(1.12) translate3d(-1.5%, -1%, 0); }
 }
+/* Keep the hadith text, not the combined rail + text group, on the page axis. */
+@media (min-width: 64rem) {
+  [data-workspace-container][data-collection-workspace] {
+    display: grid;
+    max-width: 112rem;
+    grid-template-columns: minmax(0,1fr) minmax(0,min(68rem,60%)) minmax(0,1fr);
+  }
+  [data-collection-workspace] > [data-left-social-rail] {
+    grid-column: 1; grid-row: 1; justify-self: end; width: min(100%,17rem);
+  }
+  [data-collection-workspace] > #main { grid-column: 2; grid-row: 1; }
+}

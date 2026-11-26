@@ -434,6 +434,7 @@ export function AppFrame({
       {/* Cohesive Centered 3-Column Workspace Container (Left Sidebar + Main Content grouped in max-w-[1440px] mx-auto) */}
       <div
         data-workspace-container
+        data-collection-workspace={path==='hadith' && segments[0]==='collections' ? '' : undefined}
         className={`mx-auto flex w-full max-w-[1440px] flex-1 justify-center gap-5 px-3 sm:px-5 lg:px-6 xl:gap-6 ${
           quranBook ? 'min-h-0 items-stretch overflow-hidden' : 'items-start'
         }`}

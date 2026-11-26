@@ -107,7 +107,6 @@ function CollectionBrowser({ book,lookup }: { book: string | null;lookup:number|
   const info = HADITH_COLLECTIONS.find(c => c.id === collection) ?? HADITH_COLLECTIONS[0];
   const tamilName = KUTUB_AL_SITTAH.find(item => item.id === info.id)?.tamil;
   const q = query.trim().toLowerCase();
-  const collections = HADITH_COLLECTIONS.filter(c => !q || c.name.toLowerCase().includes(q) || c.id.includes(q));
   const collectionMatches = !q || info.name.toLowerCase().includes(q) || info.id.includes(q);
   const sections = (index.data?.sections ?? []).filter(s => {
     const local = s.title.toLowerCase().includes(filter.trim().toLowerCase());
@@ -115,47 +114,27 @@ function CollectionBrowser({ book,lookup }: { book: string | null;lookup:number|
     return local && byShell;
   });
   const open = section ? (index.data?.sections.find(s => s.id === section.id) ?? section) : null;
-  const publishedTamil = lang === 'ta' && info.tamil;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
-      <Card className="bg-[#fffdf8] lg:p-4">
-        <h2 className="font-display text-xl font-bold text-[#0E382B]">Canonical Collections</h2>
-        <p lang="ta" className="mt-1 text-sm text-[#3d4f47]">நூல்கள்</p>
-        {collections.length === 0 && <EmptyState>{t.noResults}</EmptyState>}
-        <ul className="mt-3 space-y-1">
-          {collections.map(c => {
-            const localTamil = KUTUB_AL_SITTAH.find(item => item.id === c.id)?.tamil;
-            return (
-              <li key={c.id}>
-                <button
-                  type="button"
-                  aria-current={c.id === collection ? 'true' : undefined}
-                  onClick={() => {
-                    setCollection(c.id);
-                    setSection(null);
-                    setFilter('');
-                    if (typeof window !== 'undefined') {
-                      const nextUrl = `#/hadith/collections?book=${encodeURIComponent(c.id)}&lang=${lang}`;
-                      if (window.location.hash !== nextUrl) {
-                        window.history.replaceState(null, '', nextUrl);
-                        window.dispatchEvent(new HashChangeEvent('hashchange'));
-                      }
-                    }
-                  }}
-                  className={`w-full rounded-xl px-3 py-2 text-left text-sm ${c.id === collection ? 'bg-[#0E382B] text-white' : 'hover:bg-[#E7F2EC]'}`}
-                >
-                  <span className="block">{c.name}</span>
-                  {localTamil && <span lang="ta" className="mt-0.5 block text-xs opacity-80">{localTamil}</span>}
-                  {c.tamil && !localTamil && <span className="mt-0.5 block text-xs opacity-70">EN · தமிழ்</span>}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </Card>
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-2xl border border-pine/10 bg-parchment px-4 py-3">
+        <label htmlFor="hadith-collection" className="font-display text-lg font-bold text-pine">
+          {lang==='si'?'හදීස් එකතුව':lang==='ta'?'ஹதீஸ் தொகுப்பு':'Hadith collection'}
+        </label>
+        <select id="hadith-collection" value={collection}
+          className="min-h-11 w-full min-w-0 max-w-full rounded-xl border border-pine/20 bg-white px-3 text-sm text-pine sm:w-auto"
+          onChange={event=>{
+            const id=event.target.value;
+            setCollection(id);setSection(null);setFilter('');
+            window.location.hash=`#/hadith/collections?book=${encodeURIComponent(id)}&lang=${lang}`;
+          }}>
+          {HADITH_COLLECTIONS.map(c=><option key={c.id} value={c.id}>
+            {lang==='ta' ? KUTUB_AL_SITTAH.find(item=>item.id===c.id)?.tamil || c.name : c.name}
+          </option>)}
+        </select>
+      </div>
 
-      <Card className="bg-[#fffdf8]">
+      <Card className="min-w-0 bg-[#fffdf8]">
         {open ? (
           <SectionReader collection={collection} section={open} onBack={() => setSection(null)} />
         ) : (
