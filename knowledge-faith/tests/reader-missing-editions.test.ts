@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {fillMissingEditionRows} from '../src/server/hadith.ts';
+import {fillMissingEditionRows,editionJson} from '../src/server/hadith.ts';
+import {UpstreamError} from '../src/server/http.ts';
 import type {Hadith} from '../src/shared/types.ts';
 import {loadHadeethOriginal} from '../src/server/hadeethenc.ts';
 import {editionFileNumber,exactEditionRow} from '../src/shared/editionNumber.ts';
@@ -20,4 +21,12 @@ test('decimal edition references use the integer parent file but never borrow a 
   assert.equal(editionFileNumber(Infinity),null);
   assert.equal(exactEditionRow([{number:402},{number:402.2}],402.2)?.number,402.2);
   assert.equal(exactEditionRow([{number:402}],402.2),undefined);
+});
+test('unavailable CDN file uses the identical edition and release at the original repository',async()=>{
+  const seen:string[]=[];
+  const result=await editionJson('https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/eng-bukhari/2214.min.json',1000,500,async url=>{
+    seen.push(url);if(seen.length===1)throw new UpstreamError('CDN returned 403',502);return 'same edition';
+  });
+  assert.equal(result,'same edition');
+  assert.equal(seen[1],'https://raw.githubusercontent.com/fawazahmed0/hadith-api/1/editions/eng-bukhari/2214.min.json');
 });

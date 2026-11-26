@@ -148,7 +148,8 @@ async function fetchUpstream(url: string, timeoutMs: number): Promise<Response> 
 /** GET JSON from an allowlisted upstream with a timeout and a bounded in-memory TTL cache. */
 export async function fetchJson<T>(url: string, ttlMs: number, timeoutMs = 12_000): Promise<T> {
   const host = new URL(url).hostname;
-  if (!ALLOWED_HOSTS.has(host)) throw new UpstreamError(`Upstream host not allowed: ${host}`, 500);
+  const pinnedHadithFile = /^https:\/\/raw\.githubusercontent\.com\/fawazahmed0\/hadith-api\/1\/(?:info|editions\/(?:ara|eng|tam)-[a-z0-9]+(?:\/(?:sections\/)?[0-9]+)?)\.min\.json$/.test(url);
+  if (!ALLOWED_HOSTS.has(host) && !pinnedHadithFile) throw new UpstreamError(`Upstream host not allowed: ${host}`, 500);
 
   const hit = cache.get(url);
   if (hit && hit.expires > Date.now()) {

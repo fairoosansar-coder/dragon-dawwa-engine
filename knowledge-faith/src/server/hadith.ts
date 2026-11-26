@@ -7,6 +7,15 @@ import {editionFileNumber,exactEditionRow} from '../shared/editionNumber.ts';
 import { localizeHadith, translateStudyTexts } from './hadithTranslate.ts';
 
 const BASE = 'https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1';
+/** The CDN can refuse files from this large package. The upstream mirror serves the same edition/tag. */
+export async function editionJson<T>(url:string,ttl:number,timeout=12_000,read=fetchJson<T>):Promise<T> {
+  if (!url.startsWith(BASE+'/')) throw new Error('Not a versioned Hadith API URL');
+  try {return await read(url,ttl,timeout);}
+  catch(e) {
+    if (!(e instanceof UpstreamError) || (e.status!==404 && e.status!==502 && e.status!==504)) throw e;
+    return read('https://raw.githubusercontent.com/fawazahmed0/hadith-api/1/'+url.slice(BASE.length+1),ttl,timeout);
+  }
+}
 
 interface RawHadith {
   hadithnumber: number;
@@ -34,7 +43,7 @@ let sectionIndex: Promise<Map<string, { sections: HadithSection[]; last: number 
 
 /** The upstream index is several MB, so it is reduced once to section titles and ranges. */
 function loadSectionIndex() {
-  sectionIndex ??= fetchJson<RawInfo>(`${BASE}/info.min.json`, DAY, 30_000)
+  sectionIndex ??= editionJson<RawInfo>(`${BASE}/info.min.json`, DAY, 30_000)
     .then(info => {
       const map = new Map<string, { sections: HadithSection[]; last: number }>();
       for (const [id, { metadata }] of Object.entries(info)) {
@@ -109,7 +118,7 @@ function merge(
 
 async function arabicFile(collectionId: string, path: string): Promise<RawFile | null> {
   try {
-    return await fetchJson<RawFile>(`${BASE}/editions/ara-${collectionId}/${path}.min.json`, 7 * DAY);
+    return await editionJson<RawFile>(`${BASE}/editions/ara-${collectionId}/${path}.min.json`, 7 * DAY);
   } catch {
     return null;
   }
@@ -126,7 +135,7 @@ export async function getSection(
   if (!Number.isInteger(section) || section < 1) throw new UpstreamError('Invalid section', 400);
   const edition = hadithEdition(collection, lang);
   const [translated, arabic] = await Promise.all([
-    fetchJson<RawFile>(`${BASE}/editions/${edition.edition}/sections/${section}.min.json`, 7 * DAY).catch(err=>{
+    editionJson<RawFile>(`${BASE}/editions/${edition.edition}/sections/${section}.min.json`, 7 * DAY).catch(err=>{
       if (readerFallback && edition.lang==='ta' && err instanceof UpstreamError && err.status===404)
         return {hadiths:[],metadata:{name:'',section:{}}} as RawFile;
       throw err;
@@ -135,7 +144,7 @@ export async function getSection(
   ]);
   let merged = merge(collection.id, translated.hadiths, arabic?.hadiths ?? [], edition.lang, translated.metadata.section);
   if (readerFallback && edition.lang==='ta') {
-    const english = await fetchJson<RawFile>(`${BASE}/editions/eng-${collection.id}/sections/${section}.min.json`,7*DAY).catch(()=>null);
+    const english = await editionJson<RawFile>(`${BASE}/editions/eng-${collection.id}/sections/${section}.min.json`,7*DAY).catch(()=>null);
     if (english) merged=fillMissingEditionRows(merged,merge(collection.id,english.hadiths,arabic?.hadiths??[],'en',english.metadata.section));
   }
   if (readerFallback && arabic) {
@@ -185,7 +194,7 @@ export async function getHadith(collectionId: string, number: number, lang: Lang
   const edition = hadithEdition(collection, lang);
   let translated: RawFile;
   try {
-    translated = await fetchJson<RawFile>(`${BASE}/editions/${edition.edition}/${fileNumber}.min.json`, 7 * DAY);
+    translated = await editionJson<RawFile>(`${BASE}/editions/${edition.edition}/${fileNumber}.min.json`, 7 * DAY);
   } catch (err) {
     if (err instanceof UpstreamError && err.status === 404) return null;
     throw err;
@@ -260,7 +269,7 @@ export async function findStudyHadiths(
     const edition = hadithEdition(collection, 'en');
     let file: RawFile;
     try {
-      file = await fetchJson<RawFile>(`${BASE}/editions/${edition.edition}.min.json`, 7 * DAY, 20_000);
+      file = await editionJson<RawFile>(`${BASE}/editions/${edition.edition}.min.json`, 7 * DAY, 20_000);
     } catch (err) {
       if (err instanceof UpstreamError && err.status === 404) continue;
       throw err;
