@@ -32,6 +32,7 @@ import {
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
 import type { Hadith, Verse } from '../shared/types.ts';
 import { HadithCard, VerseCard } from '../components/cards.tsx';
+import {HadithSourceGap} from '../components/HadithSourceGap.tsx';
 import { SevenAgentResearchBoard } from '../components/research/SevenAgentResearchBoard.tsx';
 import { EmptyState } from '../components/shell/widgets.tsx';
 import { ErrorNote, Loading } from '../components/ui.tsx';
@@ -61,6 +62,7 @@ function SavedHadithItem({ collection, number }: { collection: string; number: n
   const { lang } = useApp();
   const { data, error, loading, reload } = useRemote<Hadith>(`/api/hadith/${collection}/${number}?lang=${lang}&readerFallback=1`);
   if (loading) return <Loading />;
+  if (error==='Hadith not found') return <HadithSourceGap collection={collection} number={number}/>;
   if (error) return <ErrorNote message={error} onRetry={reload} />;
   return data ? <HadithCard hadith={data} /> : null;
 }

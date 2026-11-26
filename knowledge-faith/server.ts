@@ -18,7 +18,7 @@ import { getHijriMonth } from './src/server/hijriMonth.ts';
 import { suggestZakahFields } from './src/server/zakahDraft.ts';
 import { UpstreamError } from './src/server/http.ts';
 import { encyclopediaEvidence, hadithEvidence, verseEvidence } from './src/server/grounding.ts';
-import { loadHadeeth, loadHadeethOriginal, loadHadeethCategories, loadHadeethList, searchHadeeth } from './src/server/hadeethenc.ts';
+import { readEncyclopediaEdition, loadHadeeth, loadHadeethOriginal, loadHadeethCategories, loadHadeethList, searchHadeeth } from './src/server/hadeethenc.ts';
 import { pageByRelevance } from './src/shared/hadeethenc.ts';
 import { askPilot, loadPilotEpisode } from './src/server/pilot.ts';
 import { loadKnowledgeShelf, loadLibrary, loadLibraryItem } from './src/server/islamhouse.ts';
@@ -400,6 +400,7 @@ app.get(
 );
 
 app.get('/api/hadeeth/:id', route(async (req, res) => res.json(await loadHadeeth(toLang(req.query.lang), String(req.params.id)))));
+app.get('/api/hadeeth/:id/reader', route(async (req,res) => res.json(await readEncyclopediaEdition(toLang(req.query.lang),String(req.params.id)))));
 app.get('/api/hadeeth/:id/original', route(async (req,res) => res.json(await loadHadeethOriginal(String(req.params.id)))));
 
 app.get(

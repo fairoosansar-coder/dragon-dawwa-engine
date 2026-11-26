@@ -10,6 +10,17 @@ import { LANGS, LANGUAGE_NAMES, toLang } from '../shared/sources.ts';
 
 export function ProfileSettingsPanel({ compact = false }: { compact?: boolean }) {
   const { lang, setLang, uiTheme, setUiTheme, fontScale, setFontScale, t } = useApp();
+  function chooseLanguage(next:typeof lang) {
+    if (/^#\/hadith(?:[/?]|$)/.test(window.location.hash)) {
+      const [route,query]=window.location.hash.split('?');
+      const params=new URLSearchParams(query);
+      params.set('lang',next);
+      if (route.startsWith('#/hadith/category/') && next!==lang) params.delete('page');
+      window.history.replaceState(null,'',`${route}?${params}`);
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    }
+    setLang(next);
+  }
 
   return (
     <div
@@ -41,7 +52,7 @@ export function ProfileSettingsPanel({ compact = false }: { compact?: boolean })
             id={compact ? 'profile-menu-lang-select' : 'profile-page-lang-select'}
             aria-label={t.language}
             value={lang}
-            onChange={event => setLang(toLang(event.target.value))}
+            onChange={event => chooseLanguage(toLang(event.target.value))}
             className="sr-only"
           >
             {LANGS.map(code => (
@@ -70,7 +81,7 @@ export function ProfileSettingsPanel({ compact = false }: { compact?: boolean })
                 role="radio"
                 aria-checked={active}
                 data-settings-lang={code}
-                onClick={() => setLang(code)}
+                onClick={() => chooseLanguage(code)}
                 className={`flex flex-col items-center justify-center rounded-xl border px-2 py-1.5 text-center transition ${
                   active
                     ? 'border-[#073C30] bg-[#073C30] text-[#F5EEDC] shadow-2xs'

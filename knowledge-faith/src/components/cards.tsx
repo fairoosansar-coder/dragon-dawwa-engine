@@ -195,7 +195,7 @@ export function HadithCard({ hadith }: { hadith: Hadith }) {
         reference: `${hadith.collectionName} #${hadith.number}`,
       },
       lang: hadith.lang,
-      url: `#/hadith/collections?book=${encodeURIComponent(hadith.collection)}`,
+      url: `#/hadith/collections?book=${encodeURIComponent(hadith.collection)}&number=${hadith.number}&lang=${lang}`,
       reflection: reflection.trim(),
     });
     setShareOpen(false);
@@ -206,9 +206,9 @@ export function HadithCard({ hadith }: { hadith: Hadith }) {
 
   const shareLandingUrl =
     typeof window !== 'undefined'
-      ? `${window.location.origin}/s/h/${encodeURIComponent(hadith.collection)}/${hadith.number}?lang=${hadith.lang}`
-      : `#/hadith/collections?book=${encodeURIComponent(hadith.collection)}`;
-  const shortWhatsAppText = `${hadith.collectionName} #${hadith.number} · Dragon Dawwa\n${shareLandingUrl}`;
+      ? `${window.location.origin}/s/h/${encodeURIComponent(hadith.collection)}/${hadith.number}?lang=${lang}`
+      : `#/hadith/collections?book=${encodeURIComponent(hadith.collection)}&number=${hadith.number}&lang=${lang}`;
+  const shortWhatsAppText = `${hadith.collectionName} #${hadith.number} · Open Passage\n${shareLandingUrl}`;
   const whatsappHref = `https://wa.me/?text=${encodeURIComponent(shortWhatsAppText)}`;
 
   return (

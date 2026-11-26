@@ -12,7 +12,8 @@ import { useRemote } from '../lib/api.ts';
 import { useShell } from '../lib/shell.tsx';
 import { useApp } from '../lib/store.tsx';
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
-import { HADEETH_UNAVAILABLE, hadeethShareText, textBeyondIntro, type EncyclopediaHadith, type HadeethCategory, type HadeethListPage, type HadeethSearchHit } from '../shared/hadeethenc.ts';
+import { hadeethShareText, textBeyondIntro, type EncyclopediaHadith, type HadeethCategory, type HadeethListPage, type HadeethSearchHit } from '../shared/hadeethenc.ts';
+import type {readEncyclopediaEdition} from '../server/hadeethenc.ts';
 import type { Hadith } from '../shared/types.ts';
 import { matchingTamilPassage, tamilMuslimReference } from '../shared/hadithReadingAlternative.ts';
 import type { ShareVerse } from '../lib/verseShare.ts';
@@ -68,7 +69,7 @@ function shareVerse(hadith: EncyclopediaHadith): ShareVerse {
   };
 }
 
-function MissingEdition({id,lang}:{id:string;lang:Lang}) {
+function MissingEdition({id,lang,arabic}:{id:string;lang:Lang;arabic:Extract<Awaited<ReturnType<typeof readEncyclopediaEdition>>,{kind:'original'}>['original']}) {
   const ta = lang === 'ta', si = lang === 'si';
   const ref = tamilMuslimReference(id,lang);
   const alt = useRemote<Hadith>(ref ? `/api/hadith/muslim/${ref}?lang=ta` : null);
@@ -76,8 +77,6 @@ function MissingEdition({id,lang}:{id:string;lang:Lang}) {
   const alternatives=(['en','ta','si'] as const).filter(x=>x!==lang);
   const a=useRemote<EncyclopediaHadith>(`/api/hadeeth/${id}?lang=${alternatives[0]}`);
   const b=useRemote<EncyclopediaHadith>(`/api/hadeeth/${id}?lang=${alternatives[1]}`);
-  const original=useRemote<{id:string;lang:string;text:string;sourceUrl:string}>(`/api/hadeeth/${id}/original`);
-  const arabic=original.data?.id===id && original.data.lang==='ar' ? original.data : null;
   return <section className="space-y-3" lang={lang} data-testid="hadith-missing-edition">
     <p>{ta ? `ஹதீஸ் எண் ${id}க்கான தமிழ் மொழிபெயர்ப்பு HadeethEnc இல் கிடைக்கவில்லை.` :
       si ? `HadeethEnc හි ${id} හදීසය සඳහා සිංහල පරිවර්තනයක් නොමැත.` :
@@ -95,7 +94,6 @@ function MissingEdition({id,lang}:{id:string;lang:Lang}) {
       <blockquote dir="rtl" lang="ar" className="whitespace-pre-line text-right leading-loose">{arabic.text}</blockquote>
       <a href={arabic.sourceUrl} target="_blank" rel="noreferrer" className="text-sm underline">HadeethEnc · {id}</a>
     </div>}
-    {original.error && <button onClick={original.reload} className="underline">{ta?'அரபு மூல உரையை மீண்டும் தேடவும்':si?'අරාබි පාඨය නැවත සොයන්න':'Retry original Arabic lookup'}</button>}
     <div className="flex flex-wrap gap-3">{[a.data,b.data].map((item,i)=>item?.id===id && item.lang===alternatives[i]?
       <a key={item.lang} href={`#/hadith/${id}?lang=${item.lang}`} className="rounded-xl border px-3 py-2 underline" lang={item.lang}>
         {item.lang==='en'?'Read in English':item.lang==='ta'?'தமிழில் படிக்கவும்':'සිංහලෙන් කියවන්න'}
@@ -104,15 +102,11 @@ function MissingEdition({id,lang}:{id:string;lang:Lang}) {
 }
 
 function HadithReading({ id }: { id: string }) {
-  const { t, lang, setLang } = useApp();
+  const { t, lang } = useApp();
   const [activeSpeechPart, setActiveSpeechPart] = useState<ActiveHadithSpeechPart>(null);
-  const hash = useLocationHash();
-  const requested = new URLSearchParams(hash.split('?')[1] ?? '').get('lang');
-  useEffect(() => {
-    if (requested === 'en' || requested === 'ta' || requested === 'si') setLang(requested);
-  }, [id, requested, setLang]);
-  const remote = useRemote<EncyclopediaHadith>(`/api/hadeeth/${id}?lang=${lang}`);
-  const hadith = remote.data && remote.data.id === id && remote.data.lang === lang ? remote.data : null;
+  const remote = useRemote<Awaited<ReturnType<typeof readEncyclopediaEdition>>>(`/api/hadeeth/${id}/reader?lang=${lang}`);
+  const result = remote.data?.id===id && remote.data.requested===lang ? remote.data : null;
+  const hadith = result?.kind==='edition' ? result.record : null;
 
   const hadithVoiceKey = hadith ? `hadeeth-${hadith.id}-${hadith.lang}` : `hadeeth-${id}`;
   const sessionPrefix = `hadith-v4:${hadithVoiceKey}:`;
@@ -140,8 +134,8 @@ function HadithReading({ id }: { id: string }) {
   return (
     <Card>
       {remote.loading && !hadith && <Loading />}
-      {remote.error === HADEETH_UNAVAILABLE ? <MissingEdition key={`${id}:${lang}`} id={id} lang={lang}/> :
-        remote.error && <ErrorNote message={remote.error} onRetry={remote.reload} />}
+      {result?.kind==='original' && <MissingEdition key={`${id}:${lang}`} id={id} lang={lang} arabic={result.original}/>}
+      {remote.error && <ErrorNote message={remote.error} onRetry={remote.reload} />}
       {hadith && (
         <article className="space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -404,14 +398,21 @@ function HadithReading({ id }: { id: string }) {
 function CategoryList({ categoryId }: { categoryId: string }) {
   const { t, lang } = useApp();
   const hash = useLocationHash();
-  const page = Number(new URLSearchParams(hash.split('?')[1] ?? '').get('page')) || 1;
+  const rawPage = Number(new URLSearchParams(hash.split('?')[1] ?? '').get('page'));
+  const page = Number.isInteger(rawPage) && rawPage>=1 && rawPage<=500 ? rawPage : 1;
   const remote = useRemote<HadeethListPage>(`/api/hadeeth/list?lang=${lang}&category=${categoryId}&page=${page}`);
   const data = remote.data && remote.data.lang === lang && remote.data.categoryId === categoryId && remote.data.page === page ? remote.data : null;
+  const last = data ? Math.max(1,data.pages) : page;
+  useEffect(()=>{
+    if (page<=last) return;
+    window.history.replaceState(null,'',`#/hadith/category/${categoryId}?lang=${lang}&page=${last}`);
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  },[categoryId,lang,page,last]);
   return (
     <Card>
       {remote.loading && !data && <Loading />}
       {remote.error && <ErrorNote message={remote.error} onRetry={remote.reload} />}
-      {data && data.items.length === 0 && <EmptyState>{t.libraryEmpty}</EmptyState>}
+      {data && page<=last && data.items.length === 0 && <EmptyState>{t.libraryEmpty}</EmptyState>}
       <ul className="space-y-2">
         {data?.items.map(item => (
           <li key={item.id}>

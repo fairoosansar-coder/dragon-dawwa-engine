@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
-import { toLang, type Lang } from '../shared/sources.ts';
+import { toLang, findCollection, type Lang } from '../shared/sources.ts';
+import {editionFileNumber} from '../shared/editionNumber.ts';
 import { getHadith } from './hadith.ts';
 import { loadHadeeth } from './hadeethenc.ts';
 import { getVerses } from './quran.ts';
@@ -157,21 +158,22 @@ export async function serveHadithShareLanding(req: Request, res: Response): Prom
   const lang: Lang = toLang(req.query.lang);
   const origin = requestPublicOrigin(req);
 
-  let title = 'Prophetic Hadith · DRAGON DAWWA';
-  let description = 'Verified Prophetic Hadith · Dragon Dawwa Research Studio';
+  let title = 'Hadith reader · Open Passage';
+  let description = 'Read the source and its available editions on Open Passage.';
   let redirectHash = `#/hadith?lang=${lang}`;
 
-  if (numberParam && Number.isFinite(numberParam)) {
+  if (numberParam && editionFileNumber(numberParam) && findCollection(idOrCollection)) {
+    redirectHash = `#/hadith/collections?book=${encodeURIComponent(idOrCollection)}&number=${numberParam}&lang=${lang}`;
     const hadith = await getHadith(idOrCollection, numberParam, lang).catch(() => null);
     if (hadith) {
-      title = `${hadith.collectionName} #${hadith.number} · DRAGON DAWWA`;
+      title = `${hadith.collectionName} #${hadith.number} · Open Passage`;
       description = [hadith.arabic || '', hadith.text || ''].filter(Boolean).join('\n\n');
-      redirectHash = `#/hadith/collections?book=${encodeURIComponent(hadith.collection)}&number=${hadith.number}`;
     }
-  } else if (/^\d+$/.test(idOrCollection)) {
+  } else if (!req.params.number && /^\d{1,12}$/.test(idOrCollection)) {
+    redirectHash = `#/hadith/${idOrCollection}?lang=${lang}`;
     const enc = await loadHadeeth(lang, idOrCollection).catch(() => null);
     if (enc) {
-      title = `${enc.title} (HadeethEnc #${enc.id}) · DRAGON DAWWA`;
+      title = `${enc.title} (HadeethEnc #${enc.id}) · Open Passage`;
       description = [enc.arabic || '', enc.text || ''].filter(Boolean).join('\n\n');
       redirectHash = `#/hadith/${enc.id}?lang=${lang}`;
     }

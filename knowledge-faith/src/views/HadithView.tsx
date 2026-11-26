@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowLeft, Bookmark, ScrollText } from 'lucide-react';
 import type { ViewProps } from '../App.tsx';
 import { HadithCard } from '../components/cards.tsx';
+import {HadithSourceGap} from '../components/HadithSourceGap.tsx';
 import { RecentSevenAgentDossiers } from '../components/research/RecentSevenAgentDossiers.tsx';
 import { EmptyState } from '../components/shell/widgets.tsx';
 import { Button, Card, ErrorNote, Loading, Notice, SectionTitle } from '../components/ui.tsx';
@@ -35,6 +36,7 @@ function SectionReader({ collection, section, onBack }: { collection: string; se
       {loading && <Loading />}
       {error && <ErrorNote message={error} onRetry={reload} />}
       {data?.items.map(h => <HadithCard key={h.number} hadith={h} />)}
+      {data?.total===0 && <EmptyState>{t.libraryEmpty}</EmptyState>}
       {data && shown < data.total && (
         <div className="mt-4 text-center">
           <Button variant="soft" onClick={() => setShown(s => s + PAGE)}>
@@ -50,7 +52,7 @@ function Lookup({ collection,initial }: { collection: string;initial:number|null
   const { t, lang } = useApp();
   const [input, setInput] = useState(initial ? String(initial) : '');
   const [number, setNumber] = useState<number | null>(initial);
-  const { data, error, loading } = useRemote<Hadith>(number ? `/api/hadith/${collection}/${number}?lang=${lang}&readerFallback=1` : null);
+  const { data, error, loading, reload } = useRemote<Hadith>(number ? `/api/hadith/${collection}/${number}?lang=${lang}&readerFallback=1` : null);
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -79,7 +81,7 @@ function Lookup({ collection,initial }: { collection: string;initial:number|null
       {loading && <Loading />}
       {error && (
         <div className="mt-3">
-          <ErrorNote message={error} />
+          {error==='Hadith not found' && number ? <HadithSourceGap collection={collection} number={number}/> : <ErrorNote message={error} onRetry={reload}/>}
         </div>
       )}
       {data && <HadithCard hadith={data} />}
@@ -134,9 +136,10 @@ function CollectionBrowser({ book,lookup }: { book: string | null;lookup:number|
                     setSection(null);
                     setFilter('');
                     if (typeof window !== 'undefined') {
-                      const nextUrl = `#/hadith/collections?book=${encodeURIComponent(c.id)}`;
+                      const nextUrl = `#/hadith/collections?book=${encodeURIComponent(c.id)}&lang=${lang}`;
                       if (window.location.hash !== nextUrl) {
                         window.history.replaceState(null, '', nextUrl);
+                        window.dispatchEvent(new HashChangeEvent('hashchange'));
                       }
                     }
                   }}
@@ -244,6 +247,7 @@ function SavedHadithItem({ collection, number }: { collection: string; number: n
   const { lang } = useApp();
   const { data, error, loading, reload } = useRemote<Hadith>(`/api/hadith/${collection}/${number}?lang=${lang}&readerFallback=1`);
   if (loading) return <Loading />;
+  if (error==='Hadith not found') return <HadithSourceGap collection={collection} number={number}/>;
   if (error) return <ErrorNote message={error} onRetry={reload} />;
   return data ? <HadithCard hadith={data} /> : null;
 }
@@ -282,6 +286,9 @@ function HadithSavedDesk() {
 }
 
 export default function HadithView({ sub, segments, params }: ViewProps) {
+  const {setLang}=useApp();
+  const requested=params?.get('lang');
+  useEffect(()=>{if(requested==='en'||requested==='ta'||requested==='si') setLang(requested);},[requested,setLang]);
   const research = sub === 'research';
   const collections = sub === 'collections';
   const dossiers = sub === 'dossiers';

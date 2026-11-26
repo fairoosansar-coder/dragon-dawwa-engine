@@ -84,8 +84,12 @@ export function applyMachineTranslation(texts: string[], translations: string[] 
     const rawNext = String(translations[i] ?? '').trim();
     if (!rawNext) return { text: original, machineTranslation: false };
     const cleaned = deduplicateHonorifics(lang === 'ta' ? withoutVanakkam(rawNext) : rawNext);
-    return { text: cleaned, machineTranslation: true };
+    return validRendering(original,cleaned,lang) ? { text: cleaned, machineTranslation: true } : {text:original,machineTranslation:false};
   });
+}
+
+function validRendering(source:string,value:string,lang:Lang) {
+  return value.trim()!==source.trim() && (lang==='ta' ? /[\u0B85-\u0BB9]/u : /[\u0D85-\u0DC6]/u).test(value);
 }
 
 function batchEnd(items: { text: string }[], start: number): number {
@@ -114,7 +118,7 @@ export async function translateStudyTexts(
     const hit = isCustomTranslator
       ? cache.get(cacheKey(lang, texts[i])) ?? null
       : readCachedTranslation(lang, texts[i]);
-    if (hit) result[i] = { text: hit, machineTranslation: true };
+    if (hit && validRendering(texts[i],hit,lang)) result[i] = { text: hit, machineTranslation: true };
     else missing.push({ index: i, text: texts[i] });
   }
   if (missing.length === 0) return result;

@@ -116,10 +116,11 @@ function merge(
     }));
 }
 
-async function arabicFile(collectionId: string, path: string): Promise<RawFile | null> {
+async function arabicFile(collectionId: string, path: string,required=false): Promise<RawFile | null> {
   try {
     return await editionJson<RawFile>(`${BASE}/editions/ara-${collectionId}/${path}.min.json`, 7 * DAY);
-  } catch {
+  } catch (err) {
+    if (required && !(err instanceof UpstreamError && err.status===404)) throw err;
     return null;
   }
 }
@@ -181,7 +182,7 @@ export function fillMissingEditionRows(primary: Hadith[], alternate: Hadith[]): 
 
 export async function readerArabicOnly(collectionId:string,n:number,lang:Lang):Promise<Hadith|null> {
   const bucket=editionFileNumber(n); if(!bucket) return null;
-  const c=requireCollection(collectionId), raw=await arabicFile(c.id,String(bucket));
+  const c=requireCollection(collectionId), raw=await arabicFile(c.id,String(bucket),true);
   if(!raw) return null;
   const row=exactEditionRow(merge(c.id,raw.hadiths,raw.hadiths,lang,{}),n);
   return row?{...row,text:'',arabic:row.text,section:null,originalOnly:true,machineTranslation:false}:null;

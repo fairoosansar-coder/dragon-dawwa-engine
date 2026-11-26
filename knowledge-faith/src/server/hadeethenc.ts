@@ -66,7 +66,7 @@ export async function loadHadeeth(lang: Lang, id: string): Promise<EncyclopediaH
   try {
     const body = await fetchJson<unknown>(`${ROOT}/hadeeths/one/?language=${lang}&id=${id}`, HADEETHENC_TTL_MS);
     const parsed = parseHadeeth(body, lang);
-    if (!parsed) throw new UpstreamError('HadeethEnc returned an unreadable record', 502);
+    if (!parsed || parsed.id!==id) throw new UpstreamError('HadeethEnc returned an unreadable record', 502);
     return parsed;
   } catch (err) {
     if (err instanceof UpstreamError && err.status === 404) throw new UpstreamError(HADEETH_UNAVAILABLE, 404);
@@ -79,5 +79,18 @@ export async function loadHadeethOriginal(id: string) {
   const body=await fetchJson<{id:unknown;hadeeth?:unknown}>(`${ROOT}/hadeeths/one/?language=ar&id=${id}`,HADEETHENC_TTL_MS);
   if (!body || String(body.id)!==id || typeof body.hadeeth!=='string' || !/[\u0621-\u064a]/u.test(body.hadeeth))
     throw new UpstreamError('HadeethEnc returned an unreadable Arabic record',502);
-  return {id,lang:'ar',text:body.hadeeth,sourceUrl:`https://hadeethenc.com/ar/browse/hadith/${id}`};
+  return {id,lang:'ar' as const,text:body.hadeeth,sourceUrl:`https://hadeethenc.com/ar/browse/hadith/${id}`};
+}
+
+/** Reader only: a missing translation is not a failed page. Research keeps strict edition semantics. */
+export async function readEncyclopediaEdition(lang:Lang,id:string,edition=loadHadeeth,original=loadHadeethOriginal) {
+  try { return {kind:'edition' as const,id,requested:lang,record:await edition(lang,id)}; }
+  catch (e) {
+    if (!(e instanceof UpstreamError) || e.status!==404) throw e;
+    try { return {kind:'original' as const,id,requested:lang,original:await original(id)}; }
+    catch (reason) {
+      if (reason instanceof UpstreamError && reason.status===404) throw new UpstreamError('Unknown hadith ID',404);
+      throw reason;
+    }
+  }
 }
