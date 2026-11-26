@@ -54,8 +54,9 @@ export interface Hadith {
   text: string;
   /** Language of `text`. English when no published edition exists and rendering did not run. */
   lang: Lang;
-  /** True when `text` is a study rendering of the published English edition, not a published translation. */
+  /** True when `text` is a machine rendering rather than a published edition. */
   machineTranslation?: boolean;
+  translationProvenance?: { sourceLanguage:'ta'; sourceUrl:string; nativeReview:'pending' };
   grades: Grade[];
   book: number;
   section: string | null;

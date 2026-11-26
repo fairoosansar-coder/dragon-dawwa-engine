@@ -304,6 +304,10 @@ export function HadithCard({ hadith }: { hadith: Hadith }) {
       {!hadith.originalOnly && hadith.lang==='ta' && lang!=='ta' && <p lang={lang} className="my-2 rounded-xl bg-parchment p-3 text-sm">
         {lang==='en'?'No English text was found for this entry. The published Tamil edition is shown.':'මෙම වාර්තාව සඳහා සිංහල පාඨයක් හමු නොවීය. පහත දැක්වෙන්නේ ප්‍රකාශිත දෙමළ පාඨයයි.'}
       </p>}
+      {hadith.translationProvenance?.nativeReview==='pending' && <p data-testid="hadith-translation-provenance" lang="si" className="my-2 rounded-xl bg-parchment p-3 text-sm">
+        දෙමළ භාෂාවෙන් පරිවර්තනය කරන ලදී. සිංහල මව්බස වන පාඨකයෙකුගේ සමාලෝචනය තවමත් සිදු කර නැත.{' '}
+        <a href={hadith.translationProvenance.sourceUrl} target="_blank" rel="noreferrer" className="underline">දෙමළ මූලාශ්‍රය: TamililQuran</a>
+      </p>}
       {!hadith.originalOnly && <div
         lang={hadith.lang}
         data-testid="hadith-translation-segmented"

@@ -157,7 +157,7 @@ export async function getSection(
     merged=[...merged,...originals].sort((a,b)=>a.number-b.number);
   }
   const cap = limit && Number.isFinite(limit) ? Math.max(1, Math.min(Math.floor(limit), merged.length)) : merged.length;
-  const sliced = merged.slice(0, cap);
+  const sliced = merged.slice(0, cap).map(h=>readerFallback ? sinhalaReaderDraft(h,lang) : h);
   // Do not submit unseen pages or published Tamil alternatives to the English translation pipeline.
   const primary=sliced.filter(h=>!h.originalOnly && h.lang===edition.lang);
   const localized=new Map((await localizeHadith(primary,lang,edition.lang)).map(h=>[h.number,h]));
@@ -217,6 +217,10 @@ export async function getHadith(collectionId: string, number: number, lang: Lang
 /** Public reader and share previews may show another verified edition; evidence lookups stay strict. */
 export async function readClassicHadith(id:string,n:number,lang:Lang,read=getHadith,original=readerArabicOnly) {
   const collection=requireCollection(id);
+  if(id==='abudawud' && n===1 && lang==='si'){
+    const source=await read(id,n,'en');
+    if(source){const draft=sinhalaReaderDraft(source,lang); if(draft!==source)return draft;}
+  }
   const primary=await read(id,n,lang);
   if(primary)return primary;
   if(collection.tamil){
@@ -224,6 +228,14 @@ export async function readClassicHadith(id:string,n:number,lang:Lang,read=getHad
     if(alternate)return alternate;
   }
   return original(id,n,lang);
+}
+
+function sinhalaReaderDraft(h:Hadith,requested:Lang):Hadith {
+  if(requested!=='si'||h.collection!=='abudawud'||h.number!==1||h.lang!=='en'||h.originalOnly)return h;
+  const text='මුගීරා ඉබ්නු ෂුඃබා (රළි) තුමා වාර්තා කළේය: “නබිතුමා ﷺ ශරීර කෘත්‍යය ඉටු කිරීමට පිටතට යන විට දුර බැහැර තැනකට ගියහ.”';
+  return {...h,lang:'si',text,machineTranslation:true,
+    translationProvenance:{sourceLanguage:'ta',nativeReview:'pending',sourceUrl:'https://tamililquran.com/hadith.php?book=1&collection=4'},
+    segmented:segmentHadithRecord({arabic:h.arabic,text,lang:'si'})};
 }
 
 export interface StudyHadith extends Hadith {
