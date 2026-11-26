@@ -8,7 +8,7 @@
 import { userFacingResearchQuestion } from '../../shared/modernWorldBenchmarks.ts';
 import { sanitizePodcastHostName } from '../../shared/podcastHost.ts';
 import type { Lang } from '../../shared/sources.ts';
-import { speakableTurn, studioCopy } from '../../shared/research/studioDialogue.ts';
+import { speakableTurn, studioCopy,listenerProbe } from '../../shared/research/studioDialogue.ts';
 
 export interface BroadcastAgent {
   id: string;
@@ -66,15 +66,15 @@ export function writeBroadcastScript(input: BroadcastScriptInput): string {
     '[AUDIO CUE: INTRO UP - POLISHED RADIO BEAT (4 SECONDS) THEN FADE UNDER]',
     `${label} ${generatedHostLine(input.question, input.language, hostName)}`,
   ];
-  let previousPersona: string | undefined;
+  let previousFinding: string | undefined;
   for (const agent of agentsThatRan(input.agents)) {
     if (isHostSpeaker(agent.speaker, label)) {
       lines.push(`${label} ${speakableTurn(agent.finding,input.language)?clean(agent.finding):studioCopy[input.language].end}`);
       continue;
     }
-    if(previousPersona && lines.length===3)lines.push(`${label} ${studioCopy[input.language].law}`);
+    if(previousFinding && lines.length===3)lines.push(`${label} ${listenerProbe(input.language,previousFinding,'source')}`);
     lines.push(`${agent.speaker} ${speakableTurn(agent.finding,input.language)?clean(agent.finding):studioCopy[input.language].limit}`);
-    previousPersona = agent.persona;
+    previousFinding = agent.finding;
   }
   lines.push('[AUDIO CUE: OUTRO THEME RISES AND FADES OUT]');
   return lines.join('\n\n');
