@@ -94,9 +94,10 @@ describe('DD-148 Hub research UI blink / flicker', () => {
     assert.match(apiSource, /Same-URL reload/);
   });
 
-  it('does not reset the research countdown clock while active stays true', () => {
-    assert.match(countdownSource, /wasActiveRef/);
-    assert.match(countdownSource, /Only reset the clock when a run starts/);
+  it('never turns elapsed time into a countdown, percentage, or an active agent', () => {
+    assert.match(countdownSource, /Date.now\(\)-opened/);
+    assert.doesNotMatch(countdownSource, /remainingSeconds|activeStageNumber|percent|totalSeconds/);
+    assert.match(deskSource,/remote\.loading \|\| remote\.error \|\| !jobPollNeeded/);
   });
 });
 

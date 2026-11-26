@@ -161,7 +161,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   }, [askPending, jobParam, askedParam, reportIdParam]);
 
   const jobStatus = remote.data?.job.status;
-  const jobIsLive = jobStatus === 'running' || jobStatus === 'queued';
+  const jobIsLive = !remote.error && (jobStatus === 'running' || jobStatus === 'queued');
 
   // Enter sticky flight when a run is clearly underway (Ask, reload into live job, or 7-agent fetch).
   useEffect(() => {
@@ -182,6 +182,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     if (sevenAgentRemote.loading || jobIsLive || remote.loading) return;
     const settledWithoutBoard =
       Boolean(sevenAgentRemote.error) ||
+      Boolean(remote.error) ||
       jobStatus === 'done' ||
       jobStatus === 'error' ||
       jobStatus === 'cancelled' ||
@@ -199,6 +200,7 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
     jobIsLive,
     jobStatus,
     remote.loading,
+    remote.error,
     activeResearchQuery,
     reportIdParam,
     jobId,
@@ -238,11 +240,11 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
   }, [entry, remote.data?.job.status]);
 
   useEffect(() => {
-    // Countdown chrome and unfinished job/Parallel revisions both need reloads.
-    if (!isCountdownActive && !jobPollNeeded) return;
-    const timer = window.setInterval(() => remote.reload(), parallelPending ? 2000 : 700);
-    return () => window.clearInterval(timer);
-  }, [isCountdownActive, jobPollNeeded, parallelPending, remote.reload]);
+    // Do not invalidate a slow response by polling again before it arrives.
+    if (!jobId || remote.loading || remote.error || !jobPollNeeded) return;
+    const timer = window.setTimeout(remote.reload, parallelPending ? 2000 : 1000);
+    return () => window.clearTimeout(timer);
+  }, [jobId, remote.loading, remote.error, jobPollNeeded, parallelPending, remote.reload]);
 
   // When the research job or Parallel revision finishes, re-fetch seven-agent so
   // board retrievedPassages stay shared with the job report — but never abort an
@@ -569,6 +571,8 @@ export function ResearchDesk({ entry, desk = entry, params }: { entry: ResearchS
       {isCountdownActive && (
         <SevenAgentCountdownCard
           key={activeResearchQuery || question || 'in-flight'}
+          status={!askPending && !remote.error ? remote.data?.job.status : undefined}
+          step={!askPending && !remote.error ? remote.data?.job.progress.step : undefined}
           question={matchesResearchLanguage(activeResearchQuery||question,lang)?(activeResearchQuery||question):reportCopy(lang).preparing}
           lang={lang}
         />

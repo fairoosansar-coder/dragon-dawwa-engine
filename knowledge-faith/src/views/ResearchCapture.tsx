@@ -4,7 +4,6 @@ import { HadithMediaUploadModal } from '../engine/components/HadithMediaUploadMo
 import { dictationCode, languageChip, languageLabel } from '../engine/utils/contentLanguage.ts';
 import { useApp } from '../lib/store.tsx';
 import { AudioLoadingSpinner } from '../components/AudioLoadingSpinner.tsx';
-import { useResearchCountdown } from '../components/research/SevenAgentCountdownCard.tsx';
 import { DictationSession } from './dictationSession.ts';
 import { beginDictationTap, MICROPHONE_DENIED_MESSAGE, requestMicrophoneFromTap, type SpeechEngine } from './microphoneTap.ts';
 
@@ -27,7 +26,6 @@ export function ResearchCapture({
   variant?: 'studio' | 'omni';
 }) {
   const { lang, setLang } = useApp();
-  const { remainingSeconds } = useResearchCountdown(Boolean(disabled), 12);
   const [mode, setMode] = useState<CaptureMode | null>(null);
   const [attachOpen, setAttachOpen] = useState(false);
   const attachRef = useRef<HTMLDivElement>(null);
@@ -477,10 +475,10 @@ export function ResearchCapture({
                 <AudioLoadingSpinner size={14} className="text-[#D4AF37]" />
                 <span style={{ color: '#FFFFFF' }}>
                   {lang === 'ta'
-                    ? `ஆய்வு நடக்கிறது · ${remainingSeconds}s…`
+                    ? 'ஆய்வு நடக்கிறது…'
                     : lang === 'si'
-                      ? `පර්යේෂණය ක්‍රියාත්මකයි · ${remainingSeconds}s…`
-                      : `Researching · ${remainingSeconds}s…`}
+                      ? 'පර්යේෂණය ක්‍රියාත්මකයි…'
+                      : 'Researching…'}
                 </span>
               </>
             ) : (
