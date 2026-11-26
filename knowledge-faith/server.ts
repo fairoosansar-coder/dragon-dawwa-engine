@@ -1203,6 +1203,10 @@ app.post(
   route(async (req, res) => {
     const body = text(req.body?.text, 3000, 'text');
     const style = typeof req.body?.style === 'string' ? req.body.style : '';
+    if(typeof req.body?.speaker==='string'){
+      const audio=await synthesizeHadithVoice({text:body,speaker:req.body.speaker.slice(0,80),lang:toLang(req.body?.lang)});
+      res.json(audio); return;
+    }
     res.json(await narrate(body, req.body?.voice, style, toLang(req.body?.lang)));
   }),
 );

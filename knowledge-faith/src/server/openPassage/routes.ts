@@ -5,6 +5,7 @@ import { UpstreamError } from '../http.ts';
 import { openPassageGoogleClientId, openPassagePublicEnabled } from './feature.ts';
 import { anthropicConfigured, anthropicSynthesisModel } from '../anthropic.ts';
 import { geminiConfigured, publicSpeechModelIds } from '../gemini.ts';
+import { elevenlabsConfigured } from '../elevenlabsTts.ts';
 import { GEMINI_SYNTHESIS_FALLBACK_MODEL } from '../research/finalSynthesis.ts';
 import {
   getOpenPassageGate,
@@ -211,7 +212,7 @@ export function openPassageRouter(): express.Router {
         ...(anthropicConfigured() && /^claude-[a-z0-9.-]{1,80}$/.test(claude) ? [claude] : []),
         ...(geminiConfigured() ? [GEMINI_SYNTHESIS_FALLBACK_MODEL,'gemini-flash-latest'] : [])
       ],
-      speech:geminiConfigured() ? publicSpeechModelIds() : [],
+      speech:[...(elevenlabsConfigured()?['eleven_v4']:[]),...(geminiConfigured()?publicSpeechModelIds():[])],
     });
   }));
   router.get('/library/:id', route((req,res) => {

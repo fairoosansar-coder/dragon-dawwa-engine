@@ -25,7 +25,7 @@ function OpenPassageAbout() {
       <p>Read a quotation separately from the panel’s interpretation. A report is not a fatwa, and a confident voice is not evidence of scholarly consensus.</p>
     </section>
     <section className="space-y-2"><h2 className={heading}>How the voices are made</h2>
-      <p>Research audio uses synthetic speech. With Google’s speech models, Kore narrates the brief; Puck voices the host and Charon voices the guests. If cloud speech is unavailable, the renderer can use local Flite voices (slt and rms), or Samantha and Daniel on supported Macs.</p>
+      <p>Research audio uses synthetic voices. Newly generated roundtables are designed for ElevenLabs v4: Brother Feroz hosts, and each research role has a separate voice. Delivery cues shape pacing and tone; they are not part of the transcript. Previously recorded episodes may use a different cast. The short research brief uses a separate narrator.</p>
       <p>Qur’an recitation in the reader is different: those are recordings of the selected reciter, not the roundtable’s synthetic voices.</p>
     </section>
     <section className="space-y-2"><h2 className={heading}>Models behind the desk</h2>

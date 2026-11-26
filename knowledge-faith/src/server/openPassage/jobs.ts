@@ -141,6 +141,7 @@ export async function generate(job: OpenPassageJob, input: string,lang:Lang='en'
             .filter(turn => turn.text)
             .map((turn, index) => ({
               speaker: turn.speaker || (index % 2 === 0 ? 'Host' : 'Analyst'),
+              castSpeaker: turn.speaker,
               text: turn.text,
             }))
         : [];

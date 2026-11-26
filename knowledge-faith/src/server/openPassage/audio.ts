@@ -2,7 +2,9 @@ import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { narrate, narrateDialogue } from '../gemini.ts';
+import { narrate } from '../gemini.ts';
+import { castPcm,castRole } from '../podcastCast.ts';
+import { pcmToWav } from '../wav.ts';
 import type { OpenPassageReport } from './reportFormat.ts';
 
 export type OpenPassageAudioMode = 'brief' | 'podcast';
@@ -157,6 +159,21 @@ export async function renderOpenPassageAudio(
   report: OpenPassageReport,
   mode: OpenPassageAudioMode,
 ): Promise<{ bytes: Buffer; mimeType: string }> {
+  if(mode==='podcast'){
+    const parts:Buffer[]=[];
+    for(const t of report.turns){
+      if(!t.text.trim())continue;
+      const role=t.voiceRole==='host'?'host':castRole(t.castSpeaker || t.speaker) ??
+        (!report.full && t.voiceRole==='guest'?'yusuf':undefined);
+      if(!role)throw new Error('Podcast cast is not available for this speaker.');
+      if(parts.length)parts.push(Buffer.alloc(9600));
+      parts.push(await castPcm(role,t.text,report.language || 'en'));
+    }
+    if(!parts.length)throw new Error('No podcast turns.');
+    const wav=pcmToWav(Buffer.concat(parts),24000);
+    try{return {bytes:await wavToMp3(wav),mimeType:'audio/mpeg'};}
+    catch{return {bytes:wav,mimeType:'audio/wav'};}
+  }
   try {
     if (mode === 'brief') {
       const spoken = `${report.question}. ${report.status}. ${report.summary}`;
@@ -168,30 +185,12 @@ export async function renderOpenPassageAudio(
         return { bytes: wav, mimeType: result.mimeType || 'audio/wav' };
       }
     }
-    const lines = report.turns.map(turn => ({
-      speaker: ((turn.voiceRole?turn.voiceRole==='host':isOpenPassageHostSpeaker(turn.speaker)) ? 'Host' : 'Guest') as 'Host' | 'Guest',
-      text: turn.text,
-      citations: [] as string[],
-    }));
-    const result = await narrateDialogue(lines, 'Puck', 'Charon',report.language??'en');
-    const wav = wavBase64ToBuffer(result.audioBase64);
-    try {
-      return { bytes: await wavToMp3(wav), mimeType: 'audio/mpeg' };
-    } catch {
-      return { bytes: wav, mimeType: result.mimeType || 'audio/wav' };
-    }
   } catch (err) {
     if(report.language && report.language!=='en')throw err;
     /* Fall through to offline flite renderer when Gemini voices are unavailable. */
   }
 
-  const lines =
-    mode === 'brief'
-      ? [{ voice: 'slt', text: `${report.question}. ${report.status}. ${report.summary}` }]
-      : report.turns.map(turn => ({
-          voice: isOpenPassageHostSpeaker(turn.speaker) ? 'slt' : 'rms',
-          text: turn.text,
-        }));
+  const lines = [{ voice: 'slt', text: `${report.question}. ${report.status}. ${report.summary}` }];
   const bytes = await offlineSpeak(lines);
   return { bytes, mimeType: 'audio/mpeg' };
 }

@@ -432,6 +432,7 @@ export function SevenAgentResearchBoard({
 
   return (
     <div data-testid="seven-agent-research-board" className={`${profileFontClass(lang)} space-y-6`}>
+      {lineTts.sessionId?.startsWith(sessionPrefix) && lineTts.castUnavailable && <p role="alert">{labelLang==='ta'?'பல்குரல் ஒலி தற்போது கிடைக்கவில்லை. உரையைப் படிக்கலாம்.':labelLang==='si'?'බහුහඬ පටිගත කිරීම දැනට ලබා ගත නොහැක. ඔබට පිටපත කියවිය හැකිය.':'The podcast voices are temporarily unavailable. You can still read the transcript.'}</p>}
       {/* 1. Light & Prestigious Executive Verdict Card */}
       <section
         data-testid="seven-agent-executive-banner"

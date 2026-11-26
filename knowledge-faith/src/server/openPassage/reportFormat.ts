@@ -18,6 +18,7 @@ export interface OpenPassageSection {
 }
 
 export interface OpenPassageTurn {
+  castSpeaker?: string;
   voiceRole?:'host'|'guest';
   speaker: string;
   text: string;

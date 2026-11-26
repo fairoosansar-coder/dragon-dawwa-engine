@@ -177,6 +177,7 @@ export function resolveSpeechStartChunkIndex(
 }
 
 export interface LineByLineSessionState {
+  castUnavailable?: boolean;
   sessionId: string | null;
   lines: string[];
   /** Parallel speaker labels for multi-voice roundtables; null = use session voiceProfile. */
@@ -406,6 +407,7 @@ export class LineByLineTtsController {
     const lineSpeakers = expanded.lineSpeakers;
     this.emit({
       sessionId: input.sessionId,
+      castUnavailable: false,
       lines,
       lineSpeakers,
       lineSourceIndices: expanded.lineTurnIndices,
@@ -447,6 +449,10 @@ export class LineByLineTtsController {
     if (token !== this.runToken) return;
 
     if (!src) {
+      if(this.state.lineSpeakers[index]){
+        this.emit({status:'idle',currentIndex:-1,castUnavailable:true});
+        return;
+      }
       // Fallback to browser SpeechSynthesis for this line if audio URL is unavailable
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         try {

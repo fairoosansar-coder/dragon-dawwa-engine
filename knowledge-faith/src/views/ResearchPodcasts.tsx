@@ -14,7 +14,6 @@ import { PodcastHostChip } from '../components/PodcastHostChip.tsx';
 import { ContentText } from '../components/ContentText.tsx';
 import { Button, ErrorNote, Notice } from '../components/ui.tsx';
 import { getPodcastHostLabel, PODCAST_HOST_EVENT } from '../lib/podcastHost.ts';
-import { geminiVoiceNameForSpeaker } from '../shared/geminiVoices.ts';
 import { PodcastPlayer } from './PodcastPlayer.tsx';
 
 type EpisodeState = 'script-ready' | 'audio-generating' | 'playable' | 'failed';
@@ -46,11 +45,6 @@ interface CommunityEpisode {
 }
 
 const KEY = 'kf-research-podcasts';
-
-function voiceFor(speaker: string, hostName: string): string {
-  if (speaker === hostName) return 'Puck';
-  return geminiVoiceNameForSpeaker(speaker);
-}
 
 /** One episode, several generated voices. Each clip is a standard 16-bit mono WAV. */
 function concatWavBase64(parts: string[]): string {
@@ -384,8 +378,7 @@ export default function ResearchPodcasts({ params }: { params?: URLSearchParams 
           body: JSON.stringify({
             text: line.text,
             lang: episode.language,
-            voice: voiceFor(line.speaker, episode.lines[0]?.speaker || getPodcastHostLabel()),
-            style: 'Calm and clear',
+            speaker: line.speaker===episode.lines[0]?.speaker?'host':line.speaker,
           }),
         });
         const bytes = await readResponseBytes(response, (loaded, total) => {

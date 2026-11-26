@@ -84,6 +84,8 @@ export interface HadithTtsResponse {
   mimeType: string;
   voiceProfile: HadithVoiceProfileId;
   voiceLabel: string;
+  /** ElevenLabs voice_id submitted for a cast turn; absent for legacy narration. */
+  voiceId?: string;
   modelUsed: string;
   engine: 'elevenlabs-v4' | 'elevenlabs' | 'gemini-tts' | 'neural-stream';
   lang: HadithSpeechLang;

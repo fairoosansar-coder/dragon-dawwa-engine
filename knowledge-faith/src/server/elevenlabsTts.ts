@@ -17,7 +17,7 @@ import {
   type GeminiPrebuiltVoiceName,
 } from '../shared/geminiVoices.ts';
 import type { Lang } from '../shared/sources.ts';
-import { synthesizeRoundtableVoice } from '../engine/server/geminiTtsService.ts';
+import { castRole, castPcm, podcastCast } from './podcastCast.ts';
 import { geminiConfigured, narrate } from './gemini.ts';
 import { persistRoot } from './persist.ts';
 import { createR2Client } from './r2Audio.ts';
@@ -367,8 +367,10 @@ export async function synthesizeHadithVoice(input: {
   const lang = normalizeHadithSpeechLang(input.lang);
   const speed = normalizeSpeed(input.speed);
   const speakerVoice = resolveSpeakerGeminiVoice(input.speaker, input.voiceName);
-  const cacheIdentity = speakerVoice
-    ? `speaker:${speakerVoice.speaker}:${speakerVoice.voice}`
+  const role = speakerVoice && castRole(speakerVoice.speaker);
+  if (speakerVoice && !role) throw new Error('No podcast voice is assigned to this speaker.');
+  const cacheIdentity = role
+    ? `expressive-v1:eleven_v4:${podcastCast[role][0]}:${podcastCast[role][1]}`
     : profile.id;
   const hash = computeCacheHash(cacheIdentity, lang, speed, cleaned);
 
@@ -383,7 +385,7 @@ export async function synthesizeHadithVoice(input: {
     return diskHit;
   }
 
-  const r2Hit = await readR2Cache(hash);
+  const r2Hit = role ? null : await readR2Cache(hash);
   if (r2Hit) {
     const entry: HadithTtsResponse = {
       audioBase64: r2Hit.audioBase64,
@@ -400,39 +402,16 @@ export async function synthesizeHadithVoice(input: {
     return entry;
   }
 
-  // Speaker-aware path: always use Gemini persona voice so each agent is distinct.
-  if (speakerVoice) {
-    const targetLang: Lang = lang === 'ta' ? 'ta' : lang === 'si' ? 'si' : 'en';
-    try {
-      const generated = await synthesizeRoundtableVoice(
-        cleaned,
-        speakerVoice.speaker,
-        speakerVoice.voice,
-        targetLang,
-      );
-      if (generated?.audioBase64) {
-        const entry: HadithTtsResponse = {
-          audioBase64: generated.audioBase64,
-          mimeType: generated.mimeType || 'audio/wav',
-          voiceProfile: profile.id,
-          voiceLabel: `${speakerVoice.speaker} · ${generated.voiceName}`,
-          modelUsed: generated.modelUsed || generated.voiceName,
-          engine: 'gemini-tts',
-          lang,
-          cached: false,
-        };
-        if (memoryTtsCache.size >= 150) {
-          const oldest = memoryTtsCache.keys().next().value;
-          if (oldest) memoryTtsCache.delete(oldest);
-        }
-        memoryTtsCache.set(hash, entry);
-        writeDiskCache(hash, entry);
-        void writeR2Cache(hash, entry.audioBase64, entry.mimeType);
-        return entry;
-      }
-    } catch {
-      /* fall through to Hadith profile path */
-    }
+  if (role) {
+    const entry:HadithTtsResponse = {
+      audioBase64:pcmToWav(await castPcm(role,cleaned,lang),24000).toString('base64'),
+      mimeType:'audio/wav',voiceProfile:profile.id,voiceLabel:speakerVoice!.speaker,
+      voiceId:podcastCast[role][0],modelUsed:'eleven_v4',engine:'elevenlabs-v4',lang,cached:false
+    };
+    if(memoryTtsCache.size>=150) memoryTtsCache.delete(memoryTtsCache.keys().next().value!);
+    memoryTtsCache.set(hash,entry);
+    writeDiskCache(hash,entry);
+    return entry;
   }
 
   // 1. Try ElevenLabs v4 -> v3 -> multilingual_v2
