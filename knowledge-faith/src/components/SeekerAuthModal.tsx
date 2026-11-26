@@ -471,7 +471,7 @@ export function SeekerAuthCard({
           size: 'large',
           shape: 'pill',
           text: 'continue_with',
-          width: 340,
+          width: Math.min(340, slot.clientWidth || 340, Math.max(200, window.innerWidth - 90)),
         });
       } catch {
         /* ignore GIS script initialization errors */

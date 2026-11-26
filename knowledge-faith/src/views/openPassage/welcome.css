@@ -44,3 +44,7 @@
 .op-report .op-progress-sources li{margin:0;padding:.1rem .55rem;border:1px solid #d4dece;border-radius:1rem;background:#fffdf6;font-size:.78rem}
 @keyframes op-progress-working{to{background-position:34px 0}}
 @media(prefers-reduced-motion:reduce){.op-progress-track .active{animation:none}}
+@media (max-width:760px) {
+  .op-home .ms-access { grid-template-columns:minmax(0,1fr); }
+  .op-home .ms-access > * { min-width:0; max-width:100%; }
+}
