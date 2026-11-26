@@ -5,6 +5,7 @@ import { TOPICS } from '../shared/topics.ts';
 import type { Lang } from '../shared/sources.ts';
 import type { Evidence, PodcastScript, Verse } from '../shared/types.ts';
 import { generatedHostLine } from './research/broadcastScript.ts';
+import { studioCopy,speakableTurn } from '../shared/research/studioDialogue.ts';
 import { UpstreamError } from './http.ts';
 import { parseRefs } from '../shared/refs.ts';
 import {
@@ -556,28 +557,6 @@ export function dossierEvidence(dossier: ResearchDossier) {
   return dossier.references.map(referenceEvidence);
 }
 
-function clipLesson(text: string): string {
-  const sentence = text.replace(/\s+/g, ' ').trim().split(/(?<=[.!?؟])\s+/)[0] ?? '';
-  return sentence.length > 160 ? `${sentence.slice(0, 157).trim()}…` : sentence;
-}
-
-function quotedLesson(lang: Lang, text: string): string {
-  const lesson = clipLesson(text);
-  if (lang === 'ta') {
-    const bridged = /[A-Za-z]/.test(lesson) && !/[\u0B80-\u0BFF]/.test(lesson)
-      ? `ஆங்கில மூலத்தின் பொருளைத் தமிழுடன் வைக்கிறேன்: ${lesson}`
-      : lesson;
-    return `நடைமுறைப் பாடம் இது. ${bridged}`;
-  }
-  if (lang === 'si') {
-    const bridged = /[A-Za-z]/.test(lesson) && !/[\u0D80-\u0DFF]/.test(lesson)
-      ? `ඉංග්‍රීසි මූලයේ අර්ථය සිංහල සමඟ තබමු: ${lesson}`
-      : lesson;
-    return `ප්‍රායෝගික පාඩම මෙයයි. ${bridged}`;
-  }
-  return `The practical lesson is ${lesson}`;
-}
-
 /** Spoken draft used when no script model is configured. Citation ids stay on the line data. */
 export function quoteFromEvidence(topic: string, lang: Lang, evidence: Evidence[], hostName?: string | null): PodcastScript {
   if (!evidence.length) throw new UpstreamError('No sources could be retrieved for this topic.', 422);
@@ -594,7 +573,7 @@ export function quoteFromEvidence(topic: string, lang: Lang, evidence: Evidence[
       : 'That brings together the textual foundation and the practical takeaway from our sources.';
   const specialistLines = evidence.slice(0, 3).map((item, idx) => ({
     speaker: castSpeakers[idx % castSpeakers.length],
-    text: quotedLesson(lang, item.text),
+    text: speakableTurn(item.text,lang)?item.text:studioCopy[lang].limit,
     citations: [item.id],
   }));
   return {
@@ -604,7 +583,7 @@ export function quoteFromEvidence(topic: string, lang: Lang, evidence: Evidence[
     createdAt: new Date().toISOString(),
     lines: [
       { speaker: 'Host', text: welcome, citations: [] },
-      ...specialistLines,
+      ...specialistLines.flatMap((line,i)=>i===1?[{speaker:'Host' as const,text:studioCopy[lang].law,citations:[]},line]:[line]),
       { speaker: 'Host', text: closingText, citations: [evidence[0].id] },
     ],
     evidence,

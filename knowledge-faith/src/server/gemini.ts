@@ -1,4 +1,5 @@
 import { GoogleGenAI, Type, type Schema } from '@google/genai';
+import { speakableTurn } from '../shared/research/studioDialogue.ts';
 import { randomUUID } from 'node:crypto';
 import { HADITH_COLLECTIONS, type Lang } from '../shared/sources.ts';
 import { dedupeRefs, parseRefs, refKey, type AyahRef, type HadithRef } from '../shared/refs.ts';
@@ -404,6 +405,10 @@ export async function writePodcast(
   );
   const lines = sanitizeLines(value.lines ?? [], evidence);
   if (lines.length === 0) throw new UpstreamError('The AI returned an empty script. Please try again.', 502);
+  if(lines.some(line=>!speakableTurn(line.text,lang))){
+    const {quoteFromEvidence}=await import('./research.ts');
+    return quoteFromEvidence(topic,lang,evidence,hostName);
+  }
   return {
     id: randomUUID(),
     title: String(value.title || topic).slice(0, 140),

@@ -1,4 +1,5 @@
 import type { EncyclopediaHadith } from '../shared/hadeethenc.ts';
+import { studioDirection } from '../shared/research/studioDialogue.ts';
 import { sanitizePodcastHostName } from '../shared/podcastHost.ts';
 import { LANGUAGE_NAMES, type Lang } from '../shared/sources.ts';
 import { withoutVanakkam } from '../engine/utils/tamilGreeting.ts';
@@ -94,12 +95,12 @@ export const PODCAST_TONE_GUARDRAILS = `ABSOLUTE TONE & DIALOGUE GUARDRAILS (PUR
   - "What the opened commentary does not state is left unnamed"
   - "Parallel is still running"
   - "அதை நாம் ஒரு புதிய தீர்ப்பாக ஆக்கவில்லை"
-- Natural Pacing: Dialogue must flow organically. Speakers should build on each other's points ("That is a vital foundation, Dr. Layla. When we look at how the Prophet ﷺ and the Sahaba applied this...", "அருமையான விளக்கம், டாக்டர் லைலா...").
+- Natural pacing: Answer the question just asked. A genuine follow-up beats a standing compliment.
 - Language Consistency: When generating in Tamil (ta), use dignified, natural scholarly Tamil without robotic mechanical translations.`;
 
 export const PODCAST_4_PERSONA_CAST = `THE 4-PERSONA STUDIO ROUNDTABLE CAST:
 1. **Host** (e.g., Brother Tariq / Anchor / Seeker Guide):
-   - Welcomes listeners warmly with an authentic Islamic greeting (Assalamu Alaikum wa Rahmatullahi wa Barakatuh / அஸ்ஸலாமு அலைக்கும் வரஹ்மத்துல்லாஹி வபரகாத்துஹ் / අස්සලාමු අලයිකුම් වරහ්මතුල්ලාහි වබරකාතුහු).
+   - Opens on the listener’s practical question. No roll call or self-introduction.
    - Frames the real-world dilemma with genuine empathy (e.g., "Many expatriates living and working overseas wonder if being away from their home country permanently qualifies them for Qasr...").
    - Keeps the discussion grounded, asks clarifying follow-ups, and summarizes actionable takeaways.
 2. **Dr. Layla (Qur'an Specialist)** (Qur'an & Revelation Specialist):
@@ -150,9 +151,9 @@ export function podcastPrompt(
     : '';
   return `You are the script writer for DRAGON DAWWA by Aegis Intelligence. Write a dynamic, intellectual 4-persona studio roundtable conversation in ${LANGUAGE_NAMES[lang].english}, about ${minutes} minute(s) when read aloud.
 
-The host profile name is in HOST NAME (${host}). Open with an authentic Islamic greeting (Assalamu Alaikum wa Rahmatullahi wa Barakatuh; in Tamil: அஸ்ஸலாமு அலைக்கும் வரஹ்மத்துல்லாஹி வபரகாத்துஹ்; in Sinhala: අස්සලාමු අලයිකුම් වරහ්මතුල්ලාහි වබරකාතුහු) and frame the seeker's question with genuine warmth and empathy. Do not add a spoken disclaimer about generation, scholarship, approval, a dossier, or citations. The page header already carries that note.
+The host profile name is in HOST NAME (${host}). Frame the question with warmth. Presenter disclosures belong on the About page, not in the script.
 
-If the episode language is Tamil, speak natural, dignified scholarly Tamil for the whole conversation, or smooth English with an intentional Tamil translation that you announce as a translation. Do not switch language mid-conversation without that reason. The same rule applies to Sinhala.
+Use the selected language throughout. Explain an essential foreign term once in that language.
 
 ${followUpRebuttalSystemPrompt(lang)}
 
@@ -169,7 +170,7 @@ ${SAFETY_RULES}
 - Every line that mentions a verse, hadith, or research finding must cite its evidence ID in citations. Purely conversational lines may have empty citations.
 - Tell the human story and the practical lesson. If a short phrase from the packet is essential, keep that phrase exact and brief. Do not recite a long uncontextualized verse or hadith.
 - Do not use sound-effect cues, stage directions or bracketed text.
-- Never write the Tamil greeting வணக்கம். If the language is Tamil, greet with அஸ்ஸலாமு அலைக்கும்.
+${studioDirection(lang)}
 
 HOST NAME (untrusted data):
 ${host}
