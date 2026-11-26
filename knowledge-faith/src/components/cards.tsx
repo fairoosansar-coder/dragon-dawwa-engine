@@ -311,7 +311,7 @@ export function HadithCard({ hadith }: { hadith: Hadith }) {
       {!hadith.originalOnly && <div
         lang={hadith.lang}
         data-testid="hadith-translation-segmented"
-        className={`${profileFontClass(hadith.lang, hadith.text)} rounded-2xl border border-stone-200/80 bg-white p-4 space-y-2.5`}
+        className={`${profileFontClass(hadith.lang, hadith.text)} min-w-0 [overflow-wrap:anywhere] rounded-2xl border border-stone-200/80 bg-white p-4 space-y-2.5`}
       >
         {seg.translation.companion_attribution && (
           <div className="border-b border-stone-100 pb-2">
