@@ -4,10 +4,17 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { OpenPassageGate, defaultGateDbPath } from '../src/server/openPassage/accessGate.ts';
+import {
+  OpenPassageGate,
+  defaultGateDbPath,
+  digestCaller,
+} from '../src/server/openPassage/accessGate.ts';
 import { finalizeOpenPassageReport } from '../src/server/openPassage/reportFormat.ts';
 import { openPassageEvidence } from '../src/server/openPassage/evidence.ts';
-import { isOpenPassageHostSpeaker } from '../src/server/openPassage/audio.ts';
+import {
+  isOpenPassageHostSpeaker,
+  OPEN_PASSAGE_HOST_VOICE_ID,
+} from '../src/server/openPassage/audio.ts';
 import {
   isOpenPassageFlagEnabled,
   openPassageGoogleClientId,
@@ -28,22 +35,52 @@ test('guest pass allows one successful custom report then requires Google', () =
   const dir = mkdtempSync(path.join(tmpdir(), 'op-gate-'));
   const gate = new OpenPassageGate(path.join(dir, 'gate.sqlite'));
   const jobs: Record<string, { result?: { full?: boolean } }> = {};
-  const pass = gate.mint(false);
+  const caller = digestCaller('guest-one-report');
+  const pass = gate.mint(false, caller);
   try {
-    assert.equal(gate.reserve(pass, 'Q1', 'a', jobs), 'a');
+    assert.equal(gate.reserve(pass, 'Q1', 'a', jobs, caller), 'a');
     jobs.a = {};
-    assert.throws(() => gate.reserve(pass, 'Q2', 'b', jobs), (err: Error & { status?: number }) => {
+    assert.throws(() => gate.reserve(pass, 'Q2', 'b', jobs, caller), (err: Error & { status?: number }) => {
       assert.equal(err.status, 409);
       return true;
     });
     gate.finish('a', true);
     jobs.a = { result: { full: true } };
-    assert.equal(gate.reserve(pass, 'Q1', 'c', jobs), 'a');
-    assert.throws(() => gate.reserve(pass, 'Q2', 'b', jobs), (err: Error & { status?: number }) => {
+    assert.equal(gate.reserve(pass, 'Q1', 'c', jobs, caller), 'a');
+    assert.throws(() => gate.reserve(pass, 'Q2', 'b', jobs, caller), (err: Error & { status?: number }) => {
       assert.equal(err.status, 403);
       assert.equal(err.message, 'google_required');
       return true;
     });
+  } finally {
+    gate.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('fresh guest token still requires Google after the same caller used their free report', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'op-gate-'));
+  const gate = new OpenPassageGate(path.join(dir, 'gate.sqlite'));
+  const jobs: Record<string, { result?: { full?: boolean } }> = {};
+  const caller = digestCaller('192.0.2.40');
+  try {
+    const first = gate.mint(false, caller);
+    assert.equal(gate.reserve(first, 'What is Qur’an 49:6?', 'job-1', jobs, caller), 'job-1');
+    jobs['job-1'] = {};
+    gate.finish('job-1', true);
+    jobs['job-1'] = { result: { full: true } };
+    assert.equal(gate.guestCallerConsumed(caller), true);
+
+    const reminted = gate.mint(false, caller);
+    assert.notEqual(reminted, first);
+    assert.throws(
+      () => gate.reserve(reminted, 'What does kindness mean in Islam?', 'job-2', jobs, caller),
+      (err: Error & { status?: number }) => {
+        assert.equal(err.status, 403);
+        assert.equal(err.message, 'google_required');
+        return true;
+      },
+    );
   } finally {
     gate.close();
     rmSync(dir, { recursive: true, force: true });
@@ -283,6 +320,19 @@ test('open-passage router is mounted under /api/open-passage with relative route
   assert.match(routesSrc, /limitGoogleIssuance/);
   assert.match(routesSrc, /beginGoogleVerifyForCaller[\s\S]*verifyGoogleIdToken[\s\S]*limitGoogleIssuance/);
   assert.match(routesSrc, /endGoogleVerifyForCaller/);
+  assert.match(routesSrc, /pruneCallerStore/);
+  assert.match(routesSrc, /evictOldestCallerKeys/);
+  assert.doesNotMatch(routesSrc, /store\.clear\s*\(/);
+  assert.match(routesSrc, /digestCaller\(callerKey\(req\)\)/);
+  assert.match(jobsSrc, /callerDigest/);
+  const audioSrc = readFileSync(path.join(root, '../src/server/openPassage/audio.ts'), 'utf8');
+  assert.match(audioSrc, /eleven_v4/);
+  assert.match(audioSrc, /renderViaElevenLabs/);
+  assert.match(audioSrc, /renderViaGemini/);
+  assert.match(audioSrc, /OPEN_PASSAGE_HOST_VOICE_ID/);
+  assert.equal(OPEN_PASSAGE_HOST_VOICE_ID, 'xSfzoa4Rf8qe7qNgSiq5');
+  assert.match(audioSrc, /Guest listening voices are unavailable/);
+  assert.doesNotMatch(audioSrc, /offlineSpeak|flite=/);
   assert.match(jobsSrc, /OPEN_PASSAGE_QUESTION_MAX/);
   assert.match(jobsSrc, /Keep questions under 1,200 characters/);
   assert.match(jobsSrc, /new UpstreamError\([\s\S]*429/);

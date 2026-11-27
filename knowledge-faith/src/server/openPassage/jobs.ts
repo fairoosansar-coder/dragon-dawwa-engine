@@ -162,7 +162,11 @@ async function generate(job: OpenPassageJob, question: string): Promise<void> {
   }
 }
 
-export function startOpenPassageJob(token: string, questionRaw: string): { id: string } {
+export function startOpenPassageJob(
+  token: string,
+  questionRaw: string,
+  callerDigest?: string,
+): { id: string } {
   expireJobs();
   const question = questionRaw.trim();
   if (question.length < 3) {
@@ -181,7 +185,8 @@ export function startOpenPassageJob(token: string, questionRaw: string): { id: s
   const key = randomBytes(24).toString('base64url');
   const jobsView: Record<string, OpenPassageJob | undefined> = Object.fromEntries(jobs);
   // Reserve first so identical retries / replays reuse an existing job without consuming quotas.
-  const reserved = getOpenPassageGate().reserve(token, question, key, jobsView);
+  // Caller digest binds the one free guest report across reminted guest tokens.
+  const reserved = getOpenPassageGate().reserve(token, question, key, jobsView, callerDigest);
   if (reserved !== key) return { id: reserved };
 
   const active = [...jobs.values()].filter(job => job.state !== 'ready' && job.state !== 'failed').length;

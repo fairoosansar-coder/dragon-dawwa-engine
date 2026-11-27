@@ -3,6 +3,7 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import { authenticateGoogleCredential, setSeekerCookie, verifyGoogleIdToken } from '../seekerAuth.ts';
 import { UpstreamError } from '../http.ts';
 import { openPassageGoogleClientId, openPassagePublicEnabled } from './feature.ts';
+import { digestCaller } from './accessGate.ts';
 import {
   getOpenPassageGate,
   getOpenPassageJob,
@@ -51,6 +52,28 @@ function callerKey(req: Request): string {
   return req.ip || req.socket?.remoteAddress || 'unknown';
 }
 
+const CALLER_STORE_MAX_KEYS = 10_000;
+
+/** Drop expired timestamps; never wipe the whole map (that fail-opens every budget). */
+function pruneCallerStore(store: Map<string, number[]>, windowMs: number, now = Date.now()): void {
+  for (const [entryKey, times] of store) {
+    const recent = times.filter(t => now - t < windowMs);
+    if (recent.length) store.set(entryKey, recent);
+    else store.delete(entryKey);
+  }
+}
+
+function evictOldestCallerKeys(store: Map<string, number[]>, keep: number): void {
+  if (store.size <= keep) return;
+  const ranked = [...store.entries()].sort((a, b) => {
+    const aLast = a[1][a[1].length - 1] ?? 0;
+    const bLast = b[1][b[1].length - 1] ?? 0;
+    return aLast - bLast;
+  });
+  const remove = store.size - keep;
+  for (let i = 0; i < remove; i++) store.delete(ranked[i]![0]);
+}
+
 function limitCallerWindow(
   store: Map<string, number[]>,
   key: string,
@@ -59,13 +82,16 @@ function limitCallerWindow(
   message: string,
 ): void {
   const now = Date.now();
+  pruneCallerStore(store, windowMs, now);
   const recent = (store.get(key) ?? []).filter(t => now - t < windowMs);
   if (recent.length >= max) {
     throw new UpstreamError(message, 429);
   }
   recent.push(now);
   store.set(key, recent);
-  if (store.size > 10_000) store.clear();
+  if (store.size > CALLER_STORE_MAX_KEYS) {
+    evictOldestCallerKeys(store, CALLER_STORE_MAX_KEYS);
+  }
 }
 
 function limitGuestIssuance(): void {
@@ -180,7 +206,8 @@ export function openPassageRouter(): express.Router {
       // Caller budget first so one visitor cannot exhaust the shared hour window.
       limitGuestIssuanceForCaller(req);
       limitGuestIssuance();
-      res.json({ token: getOpenPassageGate().mint(false) });
+      const caller = digestCaller(callerKey(req));
+      res.json({ token: getOpenPassageGate().mint(false, caller) });
     }),
   );
 
@@ -210,7 +237,7 @@ export function openPassageRouter(): express.Router {
         } catch {
           /* Research pass still issues even if seeker session linking fails transiently. */
         }
-        res.json({ token: getOpenPassageGate().mint(true), seeker });
+        res.json({ token: getOpenPassageGate().mint(true, digestCaller(callerKey(req))), seeker });
       } finally {
         endGoogleVerifyForCaller(verifyKey);
       }
@@ -223,7 +250,7 @@ export function openPassageRouter(): express.Router {
       try {
         const question = typeof req.body?.question === 'string' ? req.body.question : '';
         const token = bearer(req);
-        const started = startOpenPassageJob(token, question);
+        const started = startOpenPassageJob(token, question, digestCaller(callerKey(req)));
         res.json(started);
       } catch (err) {
         if (gateError(err, res)) return;
