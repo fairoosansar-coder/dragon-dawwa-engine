@@ -15,6 +15,9 @@ export type GateJobLookup = Record<string, { result?: { full?: boolean } } | und
 
 type GuestCallerState = 'pending' | 'consumed';
 
+/** Align with in-memory Open Passage job TTL (`jobs.ts` expireJobs = 1 hour). */
+export const GUEST_CALLER_PENDING_TTL_SEC = 3_600;
+
 export class OpenPassageGate {
   private readonly db: DatabaseSync;
 
@@ -63,6 +66,7 @@ export class OpenPassageGate {
   mint(member = false, callerDigest?: string): string {
     const raw = randomBytes(32).toString('base64url');
     const now = Math.floor(Date.now() / 1000);
+    this.expireStalePendingGuestCallers(now);
     this.db.prepare('DELETE FROM passes WHERE expires < ?').run(now);
     this.db
       .prepare(
@@ -85,11 +89,13 @@ export class OpenPassageGate {
     jobs: GateJobLookup,
     callerDigest?: string,
   ): string {
+    const nowSec = Math.floor(Date.now() / 1000);
+    this.expireStalePendingGuestCallers(nowSec);
     const row = this.db
       .prepare(
         'SELECT member, status, job, query_hash, touched, caller FROM passes WHERE token = ? AND expires > ?',
       )
-      .get(digest(raw), Math.floor(Date.now() / 1000)) as
+      .get(digest(raw), nowSec) as
       | {
           member: number;
           status: string;
@@ -105,7 +111,7 @@ export class OpenPassageGate {
     if (caller && caller !== row.caller) {
       this.db
         .prepare('UPDATE passes SET caller = ?, touched = ? WHERE token = ?')
-        .run(caller, Math.floor(Date.now() / 1000), digest(raw));
+        .run(caller, nowSec, digest(raw));
     }
 
     const sig = digest(question.toLowerCase().split(/\s+/).filter(Boolean).join(' '));
@@ -136,16 +142,15 @@ export class OpenPassageGate {
       }
     }
 
-    const now = Math.floor(Date.now() / 1000);
     this.db
       .prepare(
         "UPDATE passes SET status = 'pending', job = ?, query_hash = ?, touched = ?, caller = COALESCE(?, caller) WHERE token = ?",
       )
-      .run(jobId, sig, now, caller || null, digest(raw));
+      .run(jobId, sig, nowSec, caller || null, digest(raw));
 
     // Claim the free guest slot immediately so concurrent reminted tokens cannot race.
     if (!row.member && caller) {
-      this.claimGuestCaller(caller, 'pending', now);
+      this.claimGuestCaller(caller, 'pending', nowSec);
     }
     return jobId;
   }
@@ -178,8 +183,16 @@ export class OpenPassageGate {
     return state === 'pending' || state === 'consumed';
   }
 
+  /** Drop orphan pending claims after job TTL — consumed rows stay durable. */
+  expireStalePendingGuestCallers(now = Math.floor(Date.now() / 1000)): void {
+    this.db
+      .prepare(`DELETE FROM guest_callers WHERE state = 'pending' AND touched < ?`)
+      .run(now - GUEST_CALLER_PENDING_TTL_SEC);
+  }
+
   private guestCallerState(callerDigest: string): GuestCallerState | null {
     if (!callerDigest) return null;
+    this.expireStalePendingGuestCallers();
     const hit = this.db
       .prepare('SELECT state FROM guest_callers WHERE caller = ?')
       .get(callerDigest) as { state?: string } | undefined;

@@ -8,6 +8,7 @@ import {
   OpenPassageGate,
   defaultGateDbPath,
   digestCaller,
+  GUEST_CALLER_PENDING_TTL_SEC,
 } from '../src/server/openPassage/accessGate.ts';
 import { finalizeOpenPassageReport } from '../src/server/openPassage/reportFormat.ts';
 import { openPassageEvidence } from '../src/server/openPassage/evidence.ts';
@@ -116,6 +117,39 @@ test('in-flight guest reserve claims caller so a reminted token cannot race a se
     jobs['job-c'] = {};
     gate.finish('job-c', true);
     assert.equal(gate.guestCallerConsumed(caller), true);
+  } finally {
+    gate.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('stale pending guest claims expire after job TTL; consumed stays durable', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'op-gate-'));
+  const gate = new OpenPassageGate(path.join(dir, 'gate.sqlite'));
+  const jobs: Record<string, { result?: { full?: boolean } }> = {};
+  const pendingCaller = digestCaller('192.0.2.70');
+  const consumedCaller = digestCaller('192.0.2.71');
+  try {
+    const pendingPass = gate.mint(false, pendingCaller);
+    assert.equal(gate.reserve(pendingPass, 'What is wudu?', 'job-p', jobs, pendingCaller), 'job-p');
+    jobs['job-p'] = {};
+    assert.equal(gate.guestCallerBlocked(pendingCaller), true);
+
+    const future = Math.floor(Date.now() / 1000) + GUEST_CALLER_PENDING_TTL_SEC + 5;
+    gate.expireStalePendingGuestCallers(future);
+    assert.equal(gate.guestCallerBlocked(pendingCaller), false);
+    assert.equal(GUEST_CALLER_PENDING_TTL_SEC, 3_600);
+
+    const consumedPass = gate.mint(false, consumedCaller);
+    assert.equal(
+      gate.reserve(consumedPass, 'What is salah?', 'job-q', jobs, consumedCaller),
+      'job-q',
+    );
+    jobs['job-q'] = {};
+    gate.finish('job-q', true);
+    assert.equal(gate.guestCallerConsumed(consumedCaller), true);
+    gate.expireStalePendingGuestCallers(future);
+    assert.equal(gate.guestCallerConsumed(consumedCaller), true);
   } finally {
     gate.close();
     rmSync(dir, { recursive: true, force: true });
@@ -374,6 +408,8 @@ test('open-passage router is mounted under /api/open-passage with relative route
   assert.match(gateSrc, /claimGuestCaller/);
   assert.match(gateSrc, /releaseGuestCallerPending/);
   assert.match(gateSrc, /state = 'pending'/);
+  assert.match(gateSrc, /expireStalePendingGuestCallers/);
+  assert.match(gateSrc, /GUEST_CALLER_PENDING_TTL_SEC\s*=\s*3_600/);
   assert.match(jobsSrc, /OPEN_PASSAGE_QUESTION_MAX/);
   assert.match(jobsSrc, /Keep questions under 1,200 characters/);
   assert.match(jobsSrc, /new UpstreamError\([\s\S]*429/);
