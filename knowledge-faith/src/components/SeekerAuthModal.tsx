@@ -5,6 +5,9 @@ import { ProfileSettingsPanel } from './ProfileSettingsPanel.tsx';
 import {
   buildGoogleOAuthRedirectUrl,
   ensureGoogleGisLoaded,
+  ensureGoogleIdentityInitialized,
+  setGoogleGisActiveHandler,
+  subscribeGoogleGisCredential,
   SEEKER_EMBLEMS,
   useSeekerAuth,
   type SeekerEmblem,
@@ -385,7 +388,27 @@ export function SeekerAuthCard({
   useEffect(() => {
     if (user || !googleAuth.enabled || !googleAuth.clientId) return;
     let active = true;
-    void ensureGoogleGisLoaded().then(loaded => {
+    const handlerId = 'seeker-auth-card';
+    const unsubscribe = subscribeGoogleGisCredential(handlerId, credential => {
+      if (!active) return;
+      if (!credential) {
+        setError('Google Sign-In did not return a valid credential.');
+        return;
+      }
+      setBusy(true);
+      setError(null);
+      void signInWithGoogleCredential(credential)
+        .then(() => {
+          setStatusNote('Signed in with Google.');
+          dismiss();
+        })
+        .catch((err: unknown) => {
+          setError(err instanceof Error ? err.message : 'Google Sign-In failed.');
+        })
+        .finally(() => setBusy(false));
+    });
+    void (async () => {
+      const loaded = await ensureGoogleGisLoaded();
       if (!active || !loaded) return;
       const gId = window.google?.accounts?.id;
       const gOAuth2 = window.google?.accounts?.oauth2;
@@ -435,29 +458,12 @@ export function SeekerAuthCard({
 
       if (!gId || !slot) return;
       try {
-        gId.initialize({
-          client_id: googleAuth.clientId!,
-          ux_mode: 'popup',
-          itp_support: true,
-          callback: response => {
-            if (!response.credential) {
-              setError('Google Sign-In did not return a valid credential.');
-              return;
-            }
-            setBusy(true);
-            setError(null);
-            void signInWithGoogleCredential(response.credential)
-              .then(() => {
-                setStatusNote('Signed in with Google.');
-                dismiss();
-              })
-              .catch((err: unknown) => {
-                setError(err instanceof Error ? err.message : 'Google Sign-In failed.');
-              })
-              .finally(() => setBusy(false));
-          },
-        });
+        // Never call google.accounts.id.initialize here — shared dispatcher only.
+        if (!(await ensureGoogleIdentityInitialized(googleAuth.clientId!))) return;
+        if (!active) return;
+        setGoogleGisActiveHandler(handlerId);
         slot.innerHTML = '';
+        slot.onpointerenter = () => setGoogleGisActiveHandler(handlerId);
         gId.renderButton(slot, {
           type: 'standard',
           theme: 'outline',
@@ -469,9 +475,11 @@ export function SeekerAuthCard({
       } catch {
         /* ignore GIS script initialization errors */
       }
-    });
+    })();
     return () => {
       active = false;
+      unsubscribe();
+      if (gisContainerRef.current) gisContainerRef.current.onpointerenter = null;
     };
   }, [user, googleAuth.enabled, googleAuth.clientId, signInWithGoogleCredential, signInWithGoogleAccessToken, dismiss]);
 
