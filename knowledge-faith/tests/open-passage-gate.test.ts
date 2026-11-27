@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { OpenPassageGate } from '../src/server/openPassage/accessGate.ts';
+import { OpenPassageGate, defaultGateDbPath } from '../src/server/openPassage/accessGate.ts';
 import { finalizeOpenPassageReport } from '../src/server/openPassage/reportFormat.ts';
 import { openPassageEvidence } from '../src/server/openPassage/evidence.ts';
 import { isOpenPassageHostSpeaker } from '../src/server/openPassage/audio.ts';
@@ -288,6 +288,28 @@ test('open-passage router is mounted under /api/open-passage with relative route
   assert.match(sevenSrc, /export type BuildDynamicDossierOptions/);
   assert.match(sevenSrc, /openPassageDesk && retrievedPassages\.length/);
   assert.match(sevenSrc, /await retrieveSevenAgentEvidencePacket/);
+  // Public-desk restraint must be gated — Hub/custom research keeps Parallel evidence tone.
+  assert.match(sevenSrc, /OPEN_PASSAGE_EVIDENTIARY_RESTRAINT/);
+  assert.match(sevenSrc, /\.\.\.\(openPassageDesk \? \[OPEN_PASSAGE_EVIDENTIARY_RESTRAINT\] : \[\]\)/);
+  assert.match(sevenSrc, /synthesizeDynamicDossierPayload\(question, evidencePacket, language, openPassageDesk\)/);
+  assert.match(sevenSrc, /generateRoundtableAfterSynthesis\(question, generated, agents, language, openPassageDesk\)/);
+});
+
+test('guest gate ledger defaults under persistRoot, not ephemeral cwd', () => {
+  const prevGate = process.env.OPEN_PASSAGE_GATE_DB;
+  const prevPersist = process.env.DD_PERSIST_DIR;
+  try {
+    delete process.env.OPEN_PASSAGE_GATE_DB;
+    process.env.DD_PERSIST_DIR = '/tmp/op-persist-gate-test';
+    assert.match(defaultGateDbPath(), /\/tmp\/op-persist-gate-test\/open-passage\/gate\.sqlite$/);
+    process.env.OPEN_PASSAGE_GATE_DB = '/data/open-passage/gate.sqlite';
+    assert.equal(defaultGateDbPath(), '/data/open-passage/gate.sqlite');
+  } finally {
+    if (prevGate === undefined) delete process.env.OPEN_PASSAGE_GATE_DB;
+    else process.env.OPEN_PASSAGE_GATE_DB = prevGate;
+    if (prevPersist === undefined) delete process.env.DD_PERSIST_DIR;
+    else process.env.DD_PERSIST_DIR = prevPersist;
+  }
 });
 
 test('demo sample report carries a stable revision for matching audio', () => {

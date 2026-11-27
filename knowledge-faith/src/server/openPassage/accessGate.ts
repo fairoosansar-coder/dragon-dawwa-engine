@@ -6,6 +6,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { persistRoot } from '../persist.ts';
 
 export type GateJobLookup = Record<string, { result?: { full?: boolean } } | undefined>;
 
@@ -94,8 +95,10 @@ export function digest(value: string): string {
 }
 
 export function defaultGateDbPath(): string {
+  // Prefer an explicit path; otherwise keep the ledger on the durable persist volume
+  // (Railway container cwd is wiped on deploy — never default to ephemeral disk).
   return (
     process.env.OPEN_PASSAGE_GATE_DB ||
-    path.join(process.cwd(), '.guest-data', 'gate.sqlite')
+    path.join(persistRoot(), 'open-passage', 'gate.sqlite')
   );
 }
