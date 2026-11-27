@@ -7,6 +7,7 @@ import {
   writeSeekerSession,
   type SeekerUser,
 } from '../../lib/seekerAuth.ts';
+import { isOpenPassageDeskHash } from './OpenPassageHome.tsx';
 
 /** Same-origin Open Passage API (never hardcode preview ports). */
 export const guestBase = '/api/open-passage';
@@ -101,8 +102,11 @@ export function GoogleGate({ resume }: { resume: () => void }) {
             };
             if (!body.token) throw Error();
             writeAccess('member', body.token);
+            // Park on empty `#/` before seeker sync so App keeps OP (not Knowledge Hub).
+            if (typeof window !== 'undefined' && !isOpenPassageDeskHash(window.location.hash || '')) {
+              window.history.replaceState(null, '', '#/');
+            }
             // Resume the unlocked question while the research desk is still mounted.
-            // Seeker session sync below must not abandon the desk (App keeps OP home).
             if (active) done.current();
             try {
               await signInWithGoogleCredential(credential);

@@ -18,6 +18,18 @@ const route = (fn: Handler) => (req: Request, res: Response, next: NextFunction)
 const guestIssued: number[] = [];
 /** Verified Google research-pass minting after credential check. */
 const googleIssued: number[] = [];
+/** Per-caller guest mint attempts (before shared budget). */
+const guestByCaller = new Map<string, number[]>();
+/** Per-caller Google verify attempts (before outbound tokeninfo). */
+const googleVerifyByCaller = new Map<string, number[]>();
+/** In-flight Google verifications per caller. */
+const googleVerifyInflight = new Map<string, number>();
+
+const CALLER_GUEST_MAX = 12;
+const CALLER_GUEST_WINDOW_MS = 3_600_000;
+const CALLER_GOOGLE_VERIFY_MAX = 30;
+const CALLER_GOOGLE_VERIFY_WINDOW_MS = 15 * 60_000;
+const CALLER_GOOGLE_VERIFY_CONCURRENCY = 2;
 
 function limitWindow(bucket: number[], max: number, message: string): void {
   const now = Date.now();
@@ -28,12 +40,73 @@ function limitWindow(bucket: number[], max: number, message: string): void {
   bucket.push(now);
 }
 
+function callerKey(req: Request): string {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.trim()) {
+    return forwarded.split(',')[0]!.trim() || 'unknown';
+  }
+  if (Array.isArray(forwarded) && forwarded[0]) {
+    return String(forwarded[0]).split(',')[0]!.trim() || 'unknown';
+  }
+  return req.ip || req.socket?.remoteAddress || 'unknown';
+}
+
+function limitCallerWindow(
+  store: Map<string, number[]>,
+  key: string,
+  max: number,
+  windowMs: number,
+  message: string,
+): void {
+  const now = Date.now();
+  const recent = (store.get(key) ?? []).filter(t => now - t < windowMs);
+  if (recent.length >= max) {
+    throw new UpstreamError(message, 429);
+  }
+  recent.push(now);
+  store.set(key, recent);
+  if (store.size > 10_000) store.clear();
+}
+
 function limitGuestIssuance(): void {
   limitWindow(guestIssued, 240, 'The free desk is busy. Please try again later.');
 }
 
+function limitGuestIssuanceForCaller(req: Request): void {
+  limitCallerWindow(
+    guestByCaller,
+    callerKey(req),
+    CALLER_GUEST_MAX,
+    CALLER_GUEST_WINDOW_MS,
+    'The free desk is busy. Please try again later.',
+  );
+}
+
 function limitGoogleIssuance(): void {
   limitWindow(googleIssued, 240, 'Sign-in is busy. Please try again later.');
+}
+
+function beginGoogleVerifyForCaller(req: Request): string {
+  const key = callerKey(req);
+  limitCallerWindow(
+    googleVerifyByCaller,
+    key,
+    CALLER_GOOGLE_VERIFY_MAX,
+    CALLER_GOOGLE_VERIFY_WINDOW_MS,
+    'Sign-in is busy. Please try again later.',
+  );
+  const inflight = googleVerifyInflight.get(key) ?? 0;
+  if (inflight >= CALLER_GOOGLE_VERIFY_CONCURRENCY) {
+    throw new UpstreamError('Sign-in is busy. Please try again later.', 429);
+  }
+  googleVerifyInflight.set(key, inflight + 1);
+  return key;
+}
+
+function endGoogleVerifyForCaller(key: string): void {
+  const inflight = googleVerifyInflight.get(key) ?? 0;
+  if (inflight <= 1) googleVerifyInflight.delete(key);
+  else googleVerifyInflight.set(key, inflight - 1);
 }
 
 function bearer(req: Request): string {
@@ -103,7 +176,9 @@ export function openPassageRouter(): express.Router {
 
   router.post(
     '/access',
-    route((_req, res) => {
+    route((req, res) => {
+      // Caller budget first so one visitor cannot exhaust the shared hour window.
+      limitGuestIssuanceForCaller(req);
       limitGuestIssuance();
       res.json({ token: getOpenPassageGate().mint(false) });
     }),
@@ -120,19 +195,25 @@ export function openPassageRouter(): express.Router {
       if (!clientId) {
         throw new UpstreamError('Google sign-in is not configured for this preview.', 503);
       }
-      // Verify first — unverified spam must not consume the Google issuance budget.
-      await verifyGoogleIdToken(credential, clientId);
-      limitGoogleIssuance();
-      // Reuse the established seeker account/session so Saved works across devices.
-      let seeker: { token: string; user: unknown } | undefined;
+      // Rate-limit verify attempts/concurrency before outbound tokeninfo.
+      const verifyKey = beginGoogleVerifyForCaller(req);
       try {
-        const auth = await authenticateGoogleCredential({ credential });
-        setSeekerCookie(res, auth.token);
-        seeker = { token: auth.token, user: auth.user };
-      } catch {
-        /* Research pass still issues even if seeker session linking fails transiently. */
+        // Verify first — unverified spam must not consume the Google issuance budget.
+        await verifyGoogleIdToken(credential, clientId);
+        limitGoogleIssuance();
+        // Reuse the established seeker account/session so Saved works across devices.
+        let seeker: { token: string; user: unknown } | undefined;
+        try {
+          const auth = await authenticateGoogleCredential({ credential });
+          setSeekerCookie(res, auth.token);
+          seeker = { token: auth.token, user: auth.user };
+        } catch {
+          /* Research pass still issues even if seeker session linking fails transiently. */
+        }
+        res.json({ token: getOpenPassageGate().mint(true), seeker });
+      } finally {
+        endGoogleVerifyForCaller(verifyKey);
       }
-      res.json({ token: getOpenPassageGate().mint(true), seeker });
     }),
   );
 

@@ -277,9 +277,12 @@ test('open-passage router is mounted under /api/open-passage with relative route
   assert.doesNotMatch(routesSrc, /router\.(get|post)\(\s*['"]\/api\/open-passage/);
   assert.match(routesSrc, /router\.get\(\s*['"]\/health['"]/);
   assert.match(routesSrc, /router\.post\(\s*['"]\/google['"]/);
+  assert.match(routesSrc, /limitGuestIssuanceForCaller/);
   assert.match(routesSrc, /limitGuestIssuance/);
+  assert.match(routesSrc, /beginGoogleVerifyForCaller/);
   assert.match(routesSrc, /limitGoogleIssuance/);
-  assert.match(routesSrc, /verifyGoogleIdToken[\s\S]*limitGoogleIssuance/);
+  assert.match(routesSrc, /beginGoogleVerifyForCaller[\s\S]*verifyGoogleIdToken[\s\S]*limitGoogleIssuance/);
+  assert.match(routesSrc, /endGoogleVerifyForCaller/);
   assert.match(jobsSrc, /OPEN_PASSAGE_QUESTION_MAX/);
   assert.match(jobsSrc, /Keep questions under 1,200 characters/);
   assert.match(jobsSrc, /new UpstreamError\([\s\S]*429/);
@@ -338,20 +341,28 @@ test('SeekerAuthCard and GoogleGate share GIS init without direct initialize ove
   assert.equal((auth.match(/window\.google\.accounts\.id\.initialize/g) || []).length, 1);
 });
 
-test('GoogleGate resumes research before seeker session flip; App keeps OP desk on public home', () => {
+test('GoogleGate resumes research before seeker session flip; App keeps OP desk without replacing Hub', () => {
   const root = path.dirname(fileURLToPath(import.meta.url));
   const access = readFileSync(path.join(root, '../src/views/openPassage/ResearchAccess.tsx'), 'utf8');
   const app = readFileSync(path.join(root, '../src/App.tsx'), 'utf8');
   const home = readFileSync(path.join(root, '../src/views/openPassage/OpenPassageHome.tsx'), 'utf8');
+  const parkAt = access.indexOf("replaceState(null, '', '#/')");
   const resumeAt = access.indexOf('done.current()');
   const signInAt = access.indexOf('signInWithGoogleCredential(credential)');
-  assert.ok(resumeAt > 0 && signInAt > 0 && resumeAt < signInAt);
-  assert.match(app, /openPassageUiEnabled\(\)\s*&&\s*onPublicHome/);
+  assert.ok(parkAt > 0 && resumeAt > 0 && signInAt > 0);
+  assert.ok(parkAt < resumeAt && resumeAt < signInAt);
+  assert.match(access, /isOpenPassageDeskHash/);
+  assert.match(app, /keepAuthenticatedOpDesk/);
+  assert.match(app, /isOpenPassageDeskHash\(rawHash\)/);
   assert.match(app, /PublicHomeOverview/);
+  // Authenticated `#/hub` must reach KnowledgeHub — not OP via onPublicHome alone.
+  assert.doesNotMatch(app, /openPassageUiEnabled\(\)\s*&&\s*onPublicHome/);
   // Authenticated empty-home must not bounce to Faith Wall while OP is enabled.
   assert.match(app, /!openPassageUiEnabled\(\)/);
   assert.match(app, /#\/quran\/wall/);
   assert.match(home, /op-research-v1:pending-desk/);
+  assert.match(home, /export function isOpenPassageDeskHash/);
+  assert.match(home, /replaceState\(null, '', '#\/'\)/);
   assert.match(home, /readPendingDesk|writePendingDesk/);
 });
 

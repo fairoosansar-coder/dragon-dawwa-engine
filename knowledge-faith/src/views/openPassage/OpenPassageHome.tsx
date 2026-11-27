@@ -43,6 +43,12 @@ function readPendingDesk(): { q: string; n: number } | null {
   return null;
 }
 
+/** Empty `#/` keeps the OP desk after GoogleGate; `#/hub` is library home when signed in. */
+export function isOpenPassageDeskHash(rawHash: string): boolean {
+  const h = rawHash.trim();
+  return h === '' || h === '#' || h === '#/';
+}
+
 function writePendingDesk(next: { q: string; n: number } | null): void {
   try {
     if (next) sessionStorage.setItem(PENDING_DESK_KEY, JSON.stringify(next));
@@ -104,6 +110,10 @@ export function OpenPassageHome() {
     writeAccess('draft', next.q);
     writePendingDesk(next);
     setResearch(next);
+    // Park the desk on empty `#/` so authenticated `#/hub` stays Knowledge Hub.
+    if (typeof window !== 'undefined' && !isOpenPassageDeskHash(window.location.hash || '')) {
+      window.history.replaceState(null, '', '#/');
+    }
   }
 
   return (
