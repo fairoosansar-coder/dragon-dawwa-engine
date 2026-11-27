@@ -87,6 +87,41 @@ test('fresh guest token still requires Google after the same caller used their f
   }
 });
 
+test('in-flight guest reserve claims caller so a reminted token cannot race a second free report', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'op-gate-'));
+  const gate = new OpenPassageGate(path.join(dir, 'gate.sqlite'));
+  const jobs: Record<string, { result?: { full?: boolean } }> = {};
+  const caller = digestCaller('192.0.2.55');
+  try {
+    const first = gate.mint(false, caller);
+    assert.equal(gate.reserve(first, 'What is fasting?', 'job-a', jobs, caller), 'job-a');
+    jobs['job-a'] = {};
+    assert.equal(gate.guestCallerBlocked(caller), true);
+    assert.equal(gate.guestCallerConsumed(caller), false);
+
+    const reminted = gate.mint(false, caller);
+    assert.throws(
+      () => gate.reserve(reminted, 'What is zakat?', 'job-b', jobs, caller),
+      (err: Error & { status?: number }) => {
+        assert.equal(err.status, 403);
+        assert.equal(err.message, 'google_required');
+        return true;
+      },
+    );
+
+    gate.finish('job-a', false);
+    assert.equal(gate.guestCallerBlocked(caller), false);
+
+    assert.equal(gate.reserve(reminted, 'What is zakat?', 'job-c', jobs, caller), 'job-c');
+    jobs['job-c'] = {};
+    gate.finish('job-c', true);
+    assert.equal(gate.guestCallerConsumed(caller), true);
+  } finally {
+    gate.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('failed or sources-only completion does not consume the guest allowance', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'op-gate-'));
   const gate = new OpenPassageGate(path.join(dir, 'gate.sqlite'));
@@ -333,6 +368,12 @@ test('open-passage router is mounted under /api/open-passage with relative route
   assert.equal(OPEN_PASSAGE_HOST_VOICE_ID, 'xSfzoa4Rf8qe7qNgSiq5');
   assert.match(audioSrc, /Guest listening voices are unavailable/);
   assert.doesNotMatch(audioSrc, /offlineSpeak|flite=/);
+  assert.match(audioSrc, /libmp3lame/);
+  assert.doesNotMatch(audioSrc, /-c',\s*'copy'|'-c',\s*'copy'/);
+  const gateSrc = readFileSync(path.join(root, '../src/server/openPassage/accessGate.ts'), 'utf8');
+  assert.match(gateSrc, /claimGuestCaller/);
+  assert.match(gateSrc, /releaseGuestCallerPending/);
+  assert.match(gateSrc, /state = 'pending'/);
   assert.match(jobsSrc, /OPEN_PASSAGE_QUESTION_MAX/);
   assert.match(jobsSrc, /Keep questions under 1,200 characters/);
   assert.match(jobsSrc, /new UpstreamError\([\s\S]*429/);

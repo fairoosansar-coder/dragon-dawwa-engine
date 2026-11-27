@@ -3,6 +3,7 @@
  * Never store raw tokens or questions — only digests and opaque job ids.
  * Guest callers that finish one full report are blocked from another free report
  * even if they mint a fresh guest token (same caller digest).
+ * Pending rows are claimed at reserve() so concurrent reminted tokens cannot race.
  */
 import { createHash, randomBytes } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
@@ -11,6 +12,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { persistRoot } from '../persist.ts';
 
 export type GateJobLookup = Record<string, { result?: { full?: boolean } } | undefined>;
+
+type GuestCallerState = 'pending' | 'consumed';
 
 export class OpenPassageGate {
   private readonly db: DatabaseSync;
@@ -31,16 +34,25 @@ export class OpenPassageGate {
       );
       CREATE TABLE IF NOT EXISTS guest_callers (
         caller TEXT PRIMARY KEY,
+        state TEXT NOT NULL DEFAULT 'consumed',
         touched INTEGER NOT NULL
       );
     `);
     this.ensureCallerColumn();
+    this.ensureGuestCallerStateColumn();
   }
 
   private ensureCallerColumn(): void {
     const cols = this.db.prepare('PRAGMA table_info(passes)').all() as Array<{ name?: string }>;
     if (!cols.some(col => col.name === 'caller')) {
       this.db.exec('ALTER TABLE passes ADD COLUMN caller TEXT');
+    }
+  }
+
+  private ensureGuestCallerStateColumn(): void {
+    const cols = this.db.prepare('PRAGMA table_info(guest_callers)').all() as Array<{ name?: string }>;
+    if (!cols.some(col => col.name === 'state')) {
+      this.db.exec(`ALTER TABLE guest_callers ADD COLUMN state TEXT NOT NULL DEFAULT 'consumed'`);
     }
   }
 
@@ -119,15 +131,22 @@ export class OpenPassageGate {
       if (row.status === 'used') {
         throw Object.assign(new Error('google_required'), { status: 403 });
       }
-      if (caller && this.guestCallerConsumed(caller)) {
+      if (caller && this.guestCallerBlocked(caller)) {
         throw Object.assign(new Error('google_required'), { status: 403 });
       }
     }
+
+    const now = Math.floor(Date.now() / 1000);
     this.db
       .prepare(
         "UPDATE passes SET status = 'pending', job = ?, query_hash = ?, touched = ?, caller = COALESCE(?, caller) WHERE token = ?",
       )
-      .run(jobId, sig, Math.floor(Date.now() / 1000), caller || null, digest(raw));
+      .run(jobId, sig, now, caller || null, digest(raw));
+
+    // Claim the free guest slot immediately so concurrent reminted tokens cannot race.
+    if (!row.member && caller) {
+      this.claimGuestCaller(caller, 'pending', now);
+    }
     return jobId;
   }
 
@@ -141,21 +160,52 @@ export class OpenPassageGate {
         `UPDATE passes SET status = CASE WHEN member = 0 AND ? THEN 'used' ELSE 'new' END, touched = ? WHERE job = ?`,
       )
       .run(complete ? 1 : 0, now, jobId);
-    if (complete && row && row.member === 0 && row.caller) {
-      this.db
-        .prepare(
-          'INSERT INTO guest_callers(caller, touched) VALUES (?, ?) ON CONFLICT(caller) DO UPDATE SET touched = excluded.touched',
-        )
-        .run(row.caller, now);
+    if (!row || row.member !== 0 || !row.caller) return;
+    if (complete) {
+      this.claimGuestCaller(row.caller, 'consumed', now);
+    } else {
+      // Release only when the free report did not complete (failed / sources-only / quota rollback).
+      this.releaseGuestCallerPending(row.caller);
     }
   }
 
   guestCallerConsumed(callerDigest: string): boolean {
-    if (!callerDigest) return false;
+    return this.guestCallerState(callerDigest) === 'consumed';
+  }
+
+  guestCallerBlocked(callerDigest: string): boolean {
+    const state = this.guestCallerState(callerDigest);
+    return state === 'pending' || state === 'consumed';
+  }
+
+  private guestCallerState(callerDigest: string): GuestCallerState | null {
+    if (!callerDigest) return null;
     const hit = this.db
-      .prepare('SELECT 1 AS ok FROM guest_callers WHERE caller = ?')
-      .get(callerDigest) as { ok?: number } | undefined;
-    return Boolean(hit?.ok);
+      .prepare('SELECT state FROM guest_callers WHERE caller = ?')
+      .get(callerDigest) as { state?: string } | undefined;
+    if (!hit?.state) return null;
+    if (hit.state === 'pending' || hit.state === 'consumed') return hit.state;
+    return 'consumed';
+  }
+
+  private claimGuestCaller(caller: string, state: GuestCallerState, now: number): void {
+    this.db
+      .prepare(
+        `INSERT INTO guest_callers(caller, state, touched) VALUES (?, ?, ?)
+         ON CONFLICT(caller) DO UPDATE SET
+           state = CASE
+             WHEN guest_callers.state = 'consumed' THEN 'consumed'
+             ELSE excluded.state
+           END,
+           touched = excluded.touched`,
+      )
+      .run(caller, state, now);
+  }
+
+  private releaseGuestCallerPending(caller: string): void {
+    this.db
+      .prepare(`DELETE FROM guest_callers WHERE caller = ? AND state = 'pending'`)
+      .run(caller);
   }
 }
 

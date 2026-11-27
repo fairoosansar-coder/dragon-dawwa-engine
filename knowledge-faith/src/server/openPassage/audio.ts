@@ -90,6 +90,10 @@ async function wavToMp3(wav: Buffer): Promise<Buffer> {
   }
 }
 
+/**
+ * Decode each turn MP3 and re-encode one MPEG stream.
+ * Stream-copy concat keeps Xing/LAME headers that Safari/iOS truncate after the first turn.
+ */
 async function concatMp3(parts: Buffer[]): Promise<Buffer> {
   if (parts.length === 1) return parts[0]!;
   const dir = await mkdtemp(path.join(tmpdir(), 'op-concat-'));
@@ -115,8 +119,10 @@ async function concatMp3(parts: Buffer[]): Promise<Buffer> {
       '0',
       '-i',
       listPath,
-      '-c',
-      'copy',
+      '-codec:a',
+      'libmp3lame',
+      '-b:a',
+      '48k',
       '-f',
       'mp3',
       'pipe:1',
