@@ -2,6 +2,7 @@ import { ArrowUpRight, BookOpen, Bookmark, Library } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { SeekerAuthCard } from '../components/SeekerAuthModal.tsx';
 import { requestAuthenticatedNavigation, SEEKER_MODAL_EVENT, useSeekerAuth } from '../lib/seekerAuth.ts';
+import { OpenPassageHome, openPassageUiEnabled } from './openPassage/OpenPassageHome.tsx';
 
 const collections = [
   {
@@ -30,7 +31,7 @@ const collections = [
   },
 ];
 
-export function PublicHomeOverview() {
+function LegacyReadingLibraryHome() {
   const staging = import.meta.env?.VITE_STAGING_READER === '1';
   const { loginOrRegister } = useSeekerAuth();
   const [busy, setBusy] = useState(false);
@@ -152,4 +153,9 @@ export function PublicHomeOverview() {
       </section>
     </div>
   );
+}
+
+export function PublicHomeOverview() {
+  if (openPassageUiEnabled()) return <OpenPassageHome />;
+  return <LegacyReadingLibraryHome />;
 }

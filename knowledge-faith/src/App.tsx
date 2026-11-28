@@ -14,6 +14,10 @@ import {
   useSeekerAuth,
 } from './lib/seekerAuth.ts';
 import { PublicHomeOverview } from './views/PublicHomeOverview.tsx';
+import {
+  isOpenPassageDeskHash,
+  openPassageUiEnabled,
+} from './views/openPassage/OpenPassageHome.tsx';
 
 const KnowledgeHub = lazy(() => import('./views/KnowledgeHub.tsx'));
 const QuranReader = lazy(() => import('./views/QuranReader.tsx'));
@@ -108,12 +112,16 @@ function Shell() {
   const sectionTitle = opened?.desk === 'fiqh' ? 'Fiqh' : opened?.desk === 'seerah' ? 'Seerah' : location.path === 'quran' ? t.quranTitle : t[route.label];
   const routeKey = `${location.path}/${location.segments.join('/')}?${location.params.toString()}`;
   const rawHash = typeof window === 'undefined' ? '#/hub' : window.location.hash || '';
-  const onPublicHome = isPublicHomeHash(rawHash);
+  // Signed-in `#/hub` is always Knowledge Hub (library search). OP desk after
+  // GoogleGate lives on empty `#/` only (see OpenPassageHome / GoogleGate).
+  const keepAuthenticatedOpDesk = openPassageUiEnabled() && isOpenPassageDeskHash(rawHash);
 
   useEffect(() => {
     if (isAuthenticated && typeof window !== 'undefined') {
       const h = window.location.hash.trim();
-      if (h === '' || h === '#' || h === '#/') {
+      // Stay on Open Passage empty-home after GoogleGate seeker sync so resume
+      // can keep researching; do not bounce empty `#/` to the Faith Wall.
+      if (isOpenPassageDeskHash(h) && !openPassageUiEnabled()) {
         window.history.replaceState(null, '', '#/quran/wall');
         window.dispatchEvent(new HashChangeEvent('hashchange'));
         return;
@@ -138,7 +146,10 @@ function Shell() {
 
   useEffect(() => {
     if (location.path === 'spiritual' && isAuthenticated) return;
-    document.title = `${isAuthenticated ? sectionTitle : t.navHub} · DRAGON DAWWA`;
+    const publicTitle = openPassageUiEnabled()
+      ? 'Explore the Qur’an and Hadith · Open Passage'
+      : `${t.navHub} · DRAGON DAWWA`;
+    document.title = isAuthenticated ? `${sectionTitle} · DRAGON DAWWA` : publicTitle;
   }, [sectionTitle, location.path, isAuthenticated, t.navHub]);
 
   return (
@@ -150,7 +161,9 @@ function Shell() {
       <Suspense fallback={<Loading />}>
         {location.path === 'about' ? (
           <AboutView />
-        ) : !isAuthenticated ? (
+        ) : !isAuthenticated || keepAuthenticatedOpDesk ? (
+          // Guests see Open Passage on public home. Authenticated `#/hub` uses
+          // KnowledgeHub below; empty `#/` / pending desk keep OP after GoogleGate.
           <PublicHomeOverview />
         ) : opened && location.path !== 'hadith' ? (
           <ResearchDesk entry={opened.entry} desk={opened.desk} params={location.params} />

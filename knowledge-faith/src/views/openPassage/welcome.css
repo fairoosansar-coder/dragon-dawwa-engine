@@ -1,0 +1,34 @@
+.ms-public-header:has(.op-brand),.ms-public-main:has(.op-home){background:#fbf7ee;color:#123e37}
+.ms-public-header:has(.op-brand){min-height:76px}
+.op-brand img{display:block;width:49px;height:auto}
+.ms-brand.op-brand b{font:600 27px/1 Georgia,serif;letter-spacing:-.045em;border-left:1px solid #be9c5f;padding-left:12px}
+.op-locale{font:16px Georgia,serif}
+.ms-entrance.op-home{max-width:1330px;padding-top:clamp(24px,4vw,60px)}
+.op-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.13fr);gap:clamp(22px,4vw,64px);align-items:center}
+.op-hero figure{grid-column:2;grid-row:1;margin:0;display:flex;align-self:stretch;align-items:center}
+.op-hero figure img{width:100%;height:100%;min-height:270px;max-height:420px;object-fit:cover;object-position:55% center;mix-blend-mode:multiply;border-radius:4px;mask-image:linear-gradient(to right,transparent,#000 2.5%,#000 98%,transparent)}
+.op-intro{grid-column:1;grid-row:1;min-width:0}
+.op-kicker{font:650 11px/1.45 system-ui,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#796135}
+.op-intro h1{font:600 clamp(50px,5.4vw,79px)/.98 'Cormorant Garamond',Georgia,serif;letter-spacing:-.05em;color:#103d36;max-width:12em;margin:13px 0 20px;text-wrap:balance}
+.op-lede{font:19px/1.5 Georgia,serif;color:#38504a;max-width:50ch}
+.op-search{display:flex;align-items:center;gap:12px;border:1px solid #a99a7e;border-radius:12px;padding:7px 7px 7px 16px;margin-top:23px;background:#fffcf5}
+.op-search:focus-within{outline:2px solid #8c6a28;outline-offset:2px}
+.op-search input{min-width:0;flex:1;font:18px Georgia,serif;background:transparent;color:#123e37;border:0;outline:none!important}
+.op-search input::placeholder{color:#67645c}
+.op-search button{background:#0a5149;color:#fffdfa;display:grid;place-items:center;width:44px;height:44px;border-radius:8px;cursor:pointer}
+.op-example{display:flex;align-items:center;gap:10px;font:16px/1.5 Georgia,serif;text-align:left;min-height:44px;text-decoration:underline;text-decoration-color:#bd902e;text-underline-offset:5px;cursor:pointer}
+.op-example svg,.op-search svg,.op-community svg{flex:none}
+.op-sources{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:clamp(23px,4vw,55px)}
+.op-sources a{border:1px solid #c9bda4;border-radius:10px;display:flex;gap:20px;align-items:center;padding:26px;color:inherit;text-decoration:none}
+.op-sources a:hover,.op-community:hover{background:#f2eddf}
+.op-source-icon{width:40px;height:40px;stroke-width:1.35;color:#15564d}
+.op-sources h2{font:600 30px/1.1 'Cormorant Garamond',Georgia,serif;color:#133f38;margin:0}
+.op-sources p{margin-top:5px;color:#58635a;font:14px/1.5 system-ui,sans-serif}
+.op-arrow,.op-community svg:last-child{margin-left:auto;flex:none}
+.op-community{display:flex;align-items:center;gap:12px;margin:14px 0 28px;border-bottom:1px solid #d6cbb3;padding:16px 4px;color:inherit;text-decoration:none;font:600 19px/1.3 Georgia,serif}
+.op-home .ms-access{margin-top:30px}
+.op-footer{border-top:1px solid #d6cbb3;margin-top:42px;padding-top:16px;font:13px/1.6 system-ui,sans-serif;color:#52605a}
+@media(max-width:760px){.ms-public-header:has(.op-brand){padding-top:12px}.op-brand img{width:36px}.ms-brand.op-brand b{font-size:22px}.op-locale{font-size:14px}.ms-entrance.op-home{padding:16px 18px 30px}.op-hero{display:flex;flex-direction:column;align-items:stretch;gap:18px}.op-hero figure img{height:auto;min-height:0;max-height:240px;aspect-ratio:2.35;object-fit:cover}.op-intro h1{font-size:clamp(39px,9vw,62px);margin:8px 0 12px}.op-kicker{font-size:10px}.op-lede{font-size:16px;line-height:1.45}.op-search{margin-top:17px;gap:8px;padding-left:10px}.op-search input{font-size:16px}.op-example{font-size:15px}.op-sources{gap:10px;margin-top:17px}.op-sources a{flex-direction:column;text-align:center;padding:18px 8px;gap:8px}.op-sources h2{font-size:23px}.op-source-icon{height:30px;width:30px}.op-sources p,.op-arrow{display:none}.op-community{font-size:16px;margin-bottom:15px}}
+.op-free{font:14px/1.6 system-ui,sans-serif;color:#405d51;margin-top:18px}
+.op-report{margin:26px 0 38px;padding:clamp(18px,4vw,48px);border:1px solid #bdae8f;background:#fffdf6;border-radius:12px;overflow-wrap:anywhere;outline:none}
+.op-report h2{font-size:clamp(32px,4vw,58px);margin:10px 0 18px}.op-report h3{font-size:28px;margin:25px 0 10px}.op-report p,.op-report li,.op-report blockquote{max-width:85ch;line-height:1.65}.op-report button{border:1px solid #a99a7e;border-radius:7px;padding:9px 14px;cursor:pointer;margin:10px 0;color:#103f34}.op-status{font:600 14px system-ui;color:#5d532d}.op-listen{background:#eef2e9;border-radius:9px;padding:20px;margin:25px 0}.op-listen h3{margin-top:7px}.op-track{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid #c8d0c1;padding:6px 0}.op-track audio{max-width:100%;height:39px}.op-report details{border-bottom:1px solid #ddd5c2;padding:12px 0}.op-report summary{cursor:pointer;font-weight:600}.op-report article{border-left:2px solid #b49252;margin:14px 0;padding-left:14px}.op-report article a{color:#165c52;text-decoration:underline}.op-report ul{padding-left:22px;list-style:disc}

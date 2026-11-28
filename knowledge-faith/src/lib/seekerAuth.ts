@@ -496,6 +496,11 @@ export function buildGoogleOAuthRedirectUrl(returnTo?: string, callbackPath?: st
 }
 
 let gisScriptPromise: Promise<boolean> | null = null;
+let gisInitializedClientId: string | null = null;
+type GisCredentialHandler = (credential: string) => void | Promise<void>;
+const gisCredentialHandlers = new Map<string, GisCredentialHandler>();
+/** Which subscribed surface should receive the next GIS credential when several are mounted. */
+let gisActiveHandlerId: string | null = null;
 
 export function ensureGoogleGisLoaded(): Promise<boolean> {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
@@ -528,6 +533,62 @@ export function ensureGoogleGisLoaded(): Promise<boolean> {
     document.head.appendChild(script);
   });
   return gisScriptPromise;
+}
+
+function resolveGoogleGisCredentialHandler(): GisCredentialHandler | undefined {
+  if (gisActiveHandlerId) {
+    const active = gisCredentialHandlers.get(gisActiveHandlerId);
+    if (active) return active;
+  }
+  const handlers = [...gisCredentialHandlers.values()];
+  return handlers[handlers.length - 1];
+}
+
+/**
+ * Shared GIS Identity initialize so Open Passage GoogleGate and SeekerAuthCard
+ * do not overwrite each other's credential callback. Only this helper may call
+ * `google.accounts.id.initialize`.
+ */
+export async function ensureGoogleIdentityInitialized(clientId: string): Promise<boolean> {
+  const trimmed = clientId.trim();
+  if (!trimmed) return false;
+  if (!(await ensureGoogleGisLoaded()) || !window.google?.accounts?.id) return false;
+  if (gisInitializedClientId === trimmed) return true;
+  window.google.accounts.id.initialize({
+    client_id: trimmed,
+    ux_mode: 'popup',
+    itp_support: true,
+    callback: response => {
+      if (!response.credential) return;
+      const handler = resolveGoogleGisCredentialHandler();
+      if (handler) void handler(response.credential);
+    },
+  });
+  gisInitializedClientId = trimmed;
+  return true;
+}
+
+/** Mark which subscribed surface owns the next GIS button click. */
+export function setGoogleGisActiveHandler(id: string | null): void {
+  gisActiveHandlerId = id;
+}
+
+/** Register a credential handler for a surface. Returns unsubscribe. */
+export function subscribeGoogleGisCredential(
+  id: string,
+  handler: GisCredentialHandler,
+): () => void {
+  gisCredentialHandlers.set(id, handler);
+  if (!gisActiveHandlerId) gisActiveHandlerId = id;
+  return () => {
+    // Only clear/reassign active when this unsubscribe still owns the map entry.
+    if (gisCredentialHandlers.get(id) !== handler) return;
+    gisCredentialHandlers.delete(id);
+    if (gisActiveHandlerId === id) {
+      const remaining = [...gisCredentialHandlers.keys()];
+      gisActiveHandlerId = remaining[remaining.length - 1] ?? null;
+    }
+  };
 }
 
 export async function loginOrRegisterSeeker(input: {
