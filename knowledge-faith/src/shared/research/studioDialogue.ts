@@ -46,3 +46,32 @@ export const studioCopy = {
   ta:{hook:'நடைமுறையில் இதற்கு என்ன அர்த்தம்?',text:'ஹதீஸில் என்ன சொல்லப்பட்டிருக்கிறது?',law:'சரி, அதை வைத்து நாம் என்ன செய்யலாம்?',science:'அது வேறு கேள்வி. ஆய்வில் எதைச் சோதிக்க முடியும்?',limit:'இங்கே ஒரு நிபந்தனை இருக்கிறது. அதை விட்டுவிட்டுச் சொன்னால் அர்த்தம் மாறிவிடும்.',end:'இந்த வேறுபாடுதான் முக்கியம். முழு வாசகத்தையும் அறிக்கையில் படிக்கலாம்.'},
   si:{hook:'ඒක ජීවිතයට අදාළ වෙන්නේ කොහොමද?',text:'වාර්තාවේ ඇත්තටම කියන්නේ මොකක්ද?',law:'එහෙම නම් අපි කළ යුත්තේ මොකක්ද?',science:'ඒක වෙනත් ප්‍රශ්නයක්. පරීක්ෂා කර බලන්න පුළුවන් මොනවාද?',limit:'මෙතැන වචන වැදගත්. කොන්දේසිය අත්හැරලා කෙටියෙන් කිව්වොත් අර්ථය වෙනස් වෙන්න පුළුවන්.',end:'ඒ වෙනස වැදගත්. සම්පූර්ණ පාඨය වාර්තාවෙන් කියවන්න පුළුවන්.'},
 };
+
+const PODCAST_SPEAKER_LINE =
+  /^(?:BROTHER\s+FEROZ\s*\(HOST\)|HOST|DR\.\s*AMINA(?:\s+AL-KINDI)?|DR\.\s*LAYLA|DR\.\s*TARIQ|DR\.\s*ZAINAB|SHEIKH\s+IMRAN|SHEIKH\s+YUSUF|SHAYKH\s+FARHAN)\s*:/i;
+
+/** Speech beats from a labelled podcast_script (skips audio cues). */
+export function parsePodcastSpeechBeats(script: string): Array<{ speaker: string; text: string }> {
+  const beats: Array<{ speaker: string; text: string }> = [];
+  for (const raw of script.split(/\n+/)) {
+    const line = raw.trim();
+    if (!line || /^\[AUDIO CUE:/i.test(line)) continue;
+    const match = line.match(/^([^:]{2,80}):\s*(.+)$/);
+    if (!match || !PODCAST_SPEAKER_LINE.test(`${match[1]}:`)) continue;
+    beats.push({ speaker: match[1].trim(), text: match[2].trim() });
+  }
+  return beats;
+}
+
+/** True when consecutive speakers alternate and each beat stays speakable. */
+export function pacedStudioBeats(
+  beats: readonly { speaker: string; text: string }[],
+  lang?: Lang,
+): boolean {
+  if (beats.length < 2) return false;
+  for (let i = 0; i < beats.length; i++) {
+    if (!speakableTurn(beats[i].text, lang)) return false;
+    if (i > 0 && beats[i].speaker === beats[i - 1].speaker) return false;
+  }
+  return true;
+}
