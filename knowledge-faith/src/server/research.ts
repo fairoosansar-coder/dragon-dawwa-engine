@@ -5,7 +5,7 @@ import { TOPICS } from '../shared/topics.ts';
 import type { Lang } from '../shared/sources.ts';
 import type { Evidence, PodcastScript, Verse } from '../shared/types.ts';
 import { generatedHostLine } from './research/broadcastScript.ts';
-import { studioCopy,speakableTurn } from '../shared/research/studioDialogue.ts';
+import { studioCopy, spokenFinding } from '../shared/research/studioDialogue.ts';
 import { UpstreamError } from './http.ts';
 import { parseRefs } from '../shared/refs.ts';
 import {
@@ -573,7 +573,7 @@ export function quoteFromEvidence(topic: string, lang: Lang, evidence: Evidence[
       : 'That brings together the textual foundation and the practical takeaway from our sources.';
   const specialistLines = evidence.slice(0, 3).map((item, idx) => ({
     speaker: castSpeakers[idx % castSpeakers.length],
-    text: speakableTurn(item.text,lang)?item.text:studioCopy[lang].limit,
+    text: spokenFinding(item.text, lang),
     citations: [item.id],
   }));
   return {

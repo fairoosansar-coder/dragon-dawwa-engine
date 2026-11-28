@@ -8,7 +8,7 @@
 import { userFacingResearchQuestion } from '../../shared/modernWorldBenchmarks.ts';
 import { sanitizePodcastHostName } from '../../shared/podcastHost.ts';
 import type { Lang } from '../../shared/sources.ts';
-import { speakableTurn, studioCopy,listenerProbe } from '../../shared/research/studioDialogue.ts';
+import { spokenFinding, studioCopy, listenerProbe } from '../../shared/research/studioDialogue.ts';
 
 export interface BroadcastAgent {
   id: string;
@@ -51,7 +51,7 @@ function everydayQuestion(question: string): string {
 /** The saved host name is a player label. The first spoken line is the question. */
 export function generatedHostLine(question: string, language: Lang, hostName?: string | null): string {
   const asked = everydayQuestion(userFacingResearchQuestion(question));
-  return speakableTurn(asked,language)?asked:studioCopy[language].hook;
+  return spokenFinding(asked, language) || studioCopy[language].hook;
 }
 
 /** Agents that ran, in the order they were aggregated. The host disclosure is separate. */
@@ -69,11 +69,14 @@ export function writeBroadcastScript(input: BroadcastScriptInput): string {
   let previousFinding: string | undefined;
   for (const agent of agentsThatRan(input.agents)) {
     if (isHostSpeaker(agent.speaker, label)) {
-      lines.push(`${label} ${speakableTurn(agent.finding,input.language)?clean(agent.finding):studioCopy[input.language].end}`);
+      lines.push(`${label} ${spokenFinding(agent.finding, input.language)}`);
       continue;
     }
-    if(previousFinding && lines.length===3)lines.push(`${label} ${listenerProbe(input.language,previousFinding,'source')}`);
-    lines.push(`${agent.speaker} ${speakableTurn(agent.finding,input.language)?clean(agent.finding):studioCopy[input.language].limit}`);
+    if (previousFinding && lines.length === 3) {
+      lines.push(`${label} ${listenerProbe(input.language, previousFinding, 'source')}`);
+    }
+    // Shorten oversized findings; never drop the evidence for a generic placeholder.
+    lines.push(`${agent.speaker} ${spokenFinding(agent.finding, input.language)}`);
     previousFinding = agent.finding;
   }
   lines.push('[AUDIO CUE: OUTRO THEME RISES AND FADES OUT]');

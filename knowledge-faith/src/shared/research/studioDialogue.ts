@@ -41,6 +41,50 @@ export function speakableTurn(text:string,lang?:Lang):boolean {
   }
   return true;
 }
+
+/**
+ * Keep a substantive spoken excerpt from a research finding.
+ * Oversized findings are shortened — never replaced with a generic placeholder
+ * that drops the evidence.
+ */
+export function spokenFinding(text: string, lang?: Lang): string {
+  const stripped = text
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\bSurah\s+\d+\s*,\s*ayah\s+\d+\s*:\s*/gi, '')
+    .replace(/[“"][^”"]{120,}[”"]/g, ' ')
+    .replace(/\[[^\]]*\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const fallback = lang ? studioCopy[lang].limit : '';
+  if (!stripped) return fallback;
+  if (speakableTurn(stripped, lang)) return stripped;
+
+  const sentences = stripped
+    .split(/(?<=[.!?؟।])\s+/)
+    .map(part => part.trim())
+    .filter(part => part.length >= 12);
+  const candidates: string[] = [];
+  if (sentences.length) {
+    candidates.push(sentences[0]);
+    if (sentences[1]) candidates.push(`${sentences[0]} ${sentences[1]}`);
+    if (sentences[2]) candidates.push(`${sentences[0]} ${sentences[1]} ${sentences[2]}`);
+  }
+  const words = stripped.split(/\s+/u);
+  for (let n = Math.min(65, words.length); n >= 12; n -= 5) {
+    let clip = words.slice(0, n).join(' ');
+    if (!/[.!?؟।…]$/.test(clip)) clip = `${clip}…`;
+    candidates.push(clip);
+  }
+  for (const candidate of candidates) {
+    const clipped = candidate.length > 260 ? `${candidate.slice(0, 257).trim()}…` : candidate;
+    if (speakableTurn(clipped, lang)) return clipped;
+  }
+  // Last resort: keep the head of the finding, not a generic qualification.
+  const head = words.slice(0, Math.min(40, words.length)).join(' ');
+  return head ? (/[.!?؟।…]$/.test(head) ? head : `${head}…`) : fallback;
+}
+
 export const studioCopy = {
   en:{hook:'What would that mean in practice?',text:'What does the report actually say?',law:'Does that tell us what someone should do?',science:'That’s a different question. What can we test?',limit:'The wording matters here. I wouldn’t give a shorter answer that leaves out the qualification.',end:'The distinction is worth keeping. You can check the full wording alongside the discussion.'},
   ta:{hook:'நடைமுறையில் இதற்கு என்ன அர்த்தம்?',text:'ஹதீஸில் என்ன சொல்லப்பட்டிருக்கிறது?',law:'சரி, அதை வைத்து நாம் என்ன செய்யலாம்?',science:'அது வேறு கேள்வி. ஆய்வில் எதைச் சோதிக்க முடியும்?',limit:'இங்கே ஒரு நிபந்தனை இருக்கிறது. அதை விட்டுவிட்டுச் சொன்னால் அர்த்தம் மாறிவிடும்.',end:'இந்த வேறுபாடுதான் முக்கியம். முழு வாசகத்தையும் அறிக்கையில் படிக்கலாம்.'},

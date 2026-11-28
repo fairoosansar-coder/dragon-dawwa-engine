@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {citedRoundtableFromAgents,mergePostSynthesisTurns} from '../src/server/sevenAgentService.ts';
-import {speakableTurn,listenerProbe,studioDirection} from '../src/shared/research/studioDialogue.ts';
+import {speakableTurn,spokenFinding,listenerProbe,studioDirection,studioCopy} from '../src/shared/research/studioDialogue.ts';
 import {writeBroadcastScript} from '../src/server/research/broadcastScript.ts';
 
 type Payload=Parameters<typeof citedRoundtableFromAgents>[1];
@@ -45,4 +45,24 @@ test('Feroz can challenge a science claim and let the same guest narrow it befor
   assert.equal(mergePostSynthesisTurns(base,extended.map((t,i)=>i===7?{...t,speaker:host.speaker}:t),'en'),null);
   assert.match(listenerProbe('ta','ஆறு மடங்கு','source'),/கணக்கு யாரை/);
   assert.match(studioDirection('ta'),/உம்மா and வாப்பா/);
+});
+test('oversized broadcast findings keep a substantive excerpt instead of a generic placeholder',()=>{
+  const longFinding =
+    'The opened ayah establishes that Allah alone is worthy of worship. '.repeat(18) +
+    'Surah 2, ayah 255: ' +
+    '"'.repeat(2) +
+    'x'.repeat(140) +
+    '"'.repeat(2);
+  assert.equal(speakableTurn(longFinding,'en'),false);
+  const excerpt=spokenFinding(longFinding,'en');
+  assert.match(excerpt,/Allah alone is worthy of worship/);
+  assert.notEqual(excerpt,studioCopy.en.limit);
+  assert.ok(speakableTurn(excerpt,'en'));
+  const script=writeBroadcastScript({
+    question:'What does the verse say?',
+    language:'en',
+    agents:[{id:'mushaf',role:'Mushaf reading',persona:'Dr. Tariq al-Mansoor',speaker:'DR. TARIQ:',status:'ran',finding:longFinding}],
+  });
+  assert.match(script,/Allah alone is worthy of worship/);
+  assert.doesNotMatch(script,/I wouldn’t give a shorter answer that leaves out the qualification/);
 });

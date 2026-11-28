@@ -1,5 +1,5 @@
 import { Type, type Schema } from '@google/genai';
-import { studioDirection,studioCopy,speakableTurn,listenerProbe } from '../shared/research/studioDialogue.ts';
+import { studioDirection, studioCopy, speakableTurn, spokenFinding, listenerProbe } from '../shared/research/studioDialogue.ts';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -900,10 +900,14 @@ export function citedRoundtableFromAgents(
     si:{open:'අජ්වා රටඉඳි ගැන හදීසය ඇහුවාම ප්‍රශ්නයක් මතු වෙනවා. ආරක්ෂාව ගැන සඳහන් කිරීම ඒක අත්හදා බලන්න කියන එකද?',follow:'පොඩ්ඩක් ඉන්න. කෙනෙක් ඒක තමන්ම අත්හදා බලන්න හිතුවොත්?',law:'නැහැ. විශ්වාසය ඔප්පු කරන්න තමන් අනතුරකට දාගන්න ඕනෑ නැහැ.',science:'එහෙම නම් දැනටමත් විෂක් ශරීරගත වී ඇතැයි සැක නම්?',answer:'රටඉඳි කාලා බලාගෙන ඉන්න එපා. වහාම විෂ තොරතුරු මධ්‍යස්ථානයකට හෝ හදිසි වෛද්‍ය සේවාවකට කතා කරන්න.',close:'ඒ වෙනස වැදගත්. හදීසය තේරුම් ගන්න එකයි, තමන් අනතුරකට දාලා ඒක පරීක්ෂා කරන එකයි දෙකක්.'},
   }[language];
   const brief=(id:SpecialistAgentFinding['agentId'],summary:string)=>{
-    const options=[summary,...(agents.find(a=>a.agentId===id)?.keyPoints??[])];
-    return options.find(x=>x && speakableTurn(x,language)) ?? c.limit;
+    const options=[summary,...(agents.find(a=>a.agentId===id)?.keyPoints??[])].filter(Boolean);
+    for (const option of options) {
+      const spoken = spokenFinding(option, language);
+      if (spoken && spoken !== c.limit) return spoken;
+    }
+    return spokenFinding(summary, language) || c.limit;
   };
-  const hostOpen=ajwaSafety?safety.open:speakableTurn(cleanQ,language)?cleanQ:c.hook;
+  const hostOpen=ajwaSafety?safety.open:spokenFinding(cleanQ,language)||c.hook;
   const hadithBridge=ajwaSafety?{
     ta:'இல்லை, இரண்டுக்கும் வேறுபாடு இருக்கிறது. ஹதீஸ் பாதுகாப்பைப் பற்றிப் பேசுகிறது. “விஷத்தைச் சாப்பிட்டுப் பார்” என்பது அதன் வாசகம் அல்ல.',
     en:'Those are two different things. The report speaks of protection. “Try taking poison” is not what it says.',
@@ -942,7 +946,7 @@ export function citedRoundtableFromAgents(
       speaker: 'Brother Feroz (Host)',
       role: 'Executive Roundtable Moderator',
       voiceProfile: 'tariq',
-      text: ajwaSafety?safety.close:speakableTurn(generated.executiveSummary,language)?generated.executiveSummary:c.end,
+      text: ajwaSafety?safety.close:spokenFinding(generated.executiveSummary,language)||c.end,
     },
   ];
 }
