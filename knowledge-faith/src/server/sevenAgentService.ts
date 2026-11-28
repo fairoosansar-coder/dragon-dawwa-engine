@@ -893,7 +893,9 @@ export function citedRoundtableFromAgents(
 ): RoundtableTurn[] {
   const cleanQ = userFacingResearchQuestion(question);
   const c=studioCopy[language];
-  const ajwaSafety= /ajwa|அஜ்வா|අජ්වා/i.test(cleanQ) && /poison|toxi|விஷ|நஞ்ச|විෂ/i.test(cleanQ);
+  // விஷ(?!ய) matches poison/விஷம் but not விஷயம் (matter/topic).
+  const ajwaSafety =
+    /ajwa|அஜ்வா|අජ්වා/i.test(cleanQ) && /poison|toxi|விஷ(?!ய)|நஞ்ச|විෂ/i.test(cleanQ);
   const safety={
     ta:{open:'அஜ்வா பேரீச்சம்பழத்தைப் பற்றிய ஹதீஸைக் கேட்கும்போது ஒரு கேள்வி வருகிறது. பாதுகாப்பைப் பற்றிச் சொல்வதும், அதைச் சோதித்துப் பார்க்கச் சொல்வதும் ஒன்றா?',follow:'ஒரு நிமிடம். இதை ஒருவர் “நானே சோதித்துப் பார்க்கலாம்” என்று எடுத்துக்கொண்டால்?',law:'இல்லை. நம்பிக்கை இருக்கிறதா என்று நிரூபிக்க, ஒருவர் தன்னை ஆபத்தில் தள்ள வேண்டியதில்லை.',science:'அப்படியானால், விஷம் உடலில் சென்றிருக்கலாம் என்று சந்தேகம் வந்தால்?',answer:'பேரீச்சம்பழம் சாப்பிட்டுவிட்டுக் காத்திருக்கக் கூடாது. உடனே நஞ்சு குறித்த அவசர உதவி மையத்தையோ மருத்துவச் சேவையையோ தொடர்புகொள்ள வேண்டும்.',close:'இப்போது வேறுபாடு தெளிவாகிறது. ஹதீஸைப் புரிந்துகொள்வது ஒரு விஷயம். விஷத்தைச் சோதித்துப் பார்ப்பது வேறு; அதைச் செய்யாதீர்கள்.'},
     en:{open:'When people hear the hadith about Ajwa dates, one question comes up. Is a promise of protection an invitation to test it?',follow:'Hang on. What if someone hears that and says, “I’ll try it myself”?',law:'No. Nobody needs to put themselves in danger to prove their faith.',science:'What if someone thinks they may already have been exposed?',answer:'Don’t eat dates and wait to see what happens. Contact a poison center or emergency medical service right away.',close:'That’s the distinction I’d keep. Take the report seriously without turning it into a dare.'},

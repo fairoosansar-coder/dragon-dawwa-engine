@@ -64,5 +64,39 @@ test('oversized broadcast findings keep a substantive excerpt instead of a gener
     agents:[{id:'mushaf',role:'Mushaf reading',persona:'Dr. Tariq al-Mansoor',speaker:'DR. TARIQ:',status:'ran',finding:longFinding}],
   });
   assert.match(script,/Allah alone is worthy of worship/);
-  assert.doesNotMatch(script,/I wouldn’t give a shorter answer that leaves out the qualification/);
+  assert.doesNotMatch(script,/short spoken version in this language is not available/);
+});
+test('host probes alternate before each specialist and URLs stay out of speech',()=>{
+  const cast=[
+    {id:'a',persona:'Tariq',role:'Tariq',speaker:'DR. TARIQ:',status:'ran' as const,finding:'Allah alone is worthy of worship (https://example.com/ayah).'},
+    {id:'b',persona:'Layla',role:'Layla',speaker:'DR. LAYLA:',status:'ran' as const,finding:'Patience is mentioned beside that ayah.'},
+    {id:'c',persona:'Yusuf',role:'Yusuf',speaker:'SHEIKH YUSUF:',status:'ran' as const,finding:'The commentary keeps the same distinction.'},
+  ];
+  const script=writeBroadcastScript({question:'What does the verse say?',language:'en',agents:cast});
+  assert.doesNotMatch(script,/https?:\/\//i);
+  assert.match(script,/Allah alone is worthy of worship/);
+  const spoken=script.split(/\n\n/).filter(l=>!/^\[AUDIO CUE:/i.test(l));
+  // Host open, Tariq, Host probe, Layla, Host probe, Yusuf = 6 spoken beats
+  assert.equal(spoken.length,6);
+  assert.match(spoken[0],/\(HOST\):/);
+  assert.match(spoken[1],/DR\. TARIQ:/);
+  assert.match(spoken[2],/\(HOST\):/);
+  assert.match(spoken[3],/DR\. LAYLA:/);
+  assert.match(spoken[4],/\(HOST\):/);
+  assert.match(spoken[5],/SHEIKH YUSUF:/);
+});
+test('speakableTurn rejects arbitrary bracket cues and SSML; Ajwa nutrition is not poisoning',()=>{
+  assert.equal(speakableTurn('[thoughtful] Yes.','en'),false);
+  assert.equal(speakableTurn('<break time="300ms"/> Yes.','en'),false);
+  assert.equal(spokenFinding('English only source.','ta'),studioCopy.ta.limit);
+  const nutrition=citedRoundtableFromAgents(
+    'அஜ்வா பேரீச்சம்பழத்தின் சத்துக்கள் பற்றி சில விஷயங்கள் சொல்லுங்கள்?',
+    fixture,
+    [],
+    'ta',
+  );
+  assert.doesNotMatch(nutrition.map(t=>t.text).join(' '),/சோதித்துப் பார்க்க|மருத்துவச் சேவை|நஞ்சு/);
+  assert.match(nutrition[0].text,/சத்துக்கள்|விஷயங்கள்|நடைமுறையில்/);
+  const poison=citedRoundtableFromAgents('அஜ்வா பேரீச்சம்பழம் சாப்பிட்டால் விஷம் பாதிக்காதா?',fixture,[],'ta');
+  assert.match(poison[0].text,/சோதித்துப் பார்க்க/);
 });

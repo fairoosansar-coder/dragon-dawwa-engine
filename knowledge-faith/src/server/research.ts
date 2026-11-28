@@ -571,11 +571,16 @@ export function quoteFromEvidence(topic: string, lang: Lang, evidence: Evidence[
     : lang === 'si'
       ? 'මූලාශ්‍රවල පදනමින් අප පැහැදිලි කරගන්නා ප්‍රායෝගික මඟපෙන්වීම මෙයයි.'
       : 'That brings together the textual foundation and the practical takeaway from our sources.';
-  const specialistLines = evidence.slice(0, 3).map((item, idx) => ({
-    speaker: castSpeakers[idx % castSpeakers.length],
-    text: spokenFinding(item.text, lang),
-    citations: [item.id],
-  }));
+  const specialistLines = evidence.slice(0, 3).map((item, idx) => {
+    const text = spokenFinding(item.text, lang);
+    // Do not attach a source citation to the neutral "speech unavailable" fallback.
+    const citesEvidence = text !== studioCopy[lang].limit;
+    return {
+      speaker: castSpeakers[idx % castSpeakers.length],
+      text,
+      citations: citesEvidence ? [item.id] : [],
+    };
+  });
   return {
     id: randomUUID(),
     title: topic.slice(0, 140),

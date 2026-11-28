@@ -72,7 +72,10 @@ export function writeBroadcastScript(input: BroadcastScriptInput): string {
       lines.push(`${label} ${spokenFinding(agent.finding, input.language)}`);
       continue;
     }
-    if (previousFinding && lines.length === 3) {
+    const lastSpoken = lines[lines.length - 1] ?? '';
+    const lastIsHost = isHostSpeaker(lastSpoken.split(':')[0] + ':', label) || lastSpoken.startsWith(label);
+    // Alternate host probes before each specialist after the first — not only once by array length.
+    if (previousFinding && !lastIsHost) {
       lines.push(`${label} ${listenerProbe(input.language, previousFinding, 'source')}`);
     }
     // Shorten oversized findings; never drop the evidence for a generic placeholder.

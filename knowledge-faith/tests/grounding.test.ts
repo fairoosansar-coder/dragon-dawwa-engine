@@ -76,8 +76,32 @@ test('podcast lines lose stage directions and invalid citations', async () => {
     { speaker: 'Host', text: 'Verse', citations: ['Q1'] },
   ]);
 
-  const script = await writePodcast('Patience', 'si', 2, evidence, scriptedModel([{ title: 'Ep', lines }]));
+  const sinhalaLines = [
+    { speaker: 'Host' as const, text: 'අස්සලාමු අලයිකුම්. අද අපි ඉවසීම ගැන කතා කරමු.', citations: [] as string[] },
+    { speaker: 'Host' as const, text: 'මෙම පාඨය ඉවසීම ගැන කියයි.', citations: ['Q1'] },
+  ];
+  const script = await writePodcast(
+    'Patience',
+    'si',
+    2,
+    evidence,
+    scriptedModel([{ title: 'Ep', lines: sinhalaLines }]),
+  );
   assert.equal(script.title, 'Ep');
   assert.equal(script.lang, 'si');
+  assert.match(script.lines.map(l => l.text).join(' '), /ඉවසීම/);
+
+  // English lines for a Sinhala request fail speakableTurn and fall back to quotation draft.
+  const fallback = await writePodcast(
+    'Patience',
+    'si',
+    2,
+    evidence,
+    scriptedModel([{ title: 'Ep', lines }]),
+  );
+  assert.equal(fallback.model, 'quotation');
+  assert.equal(fallback.title, 'Patience');
+  assert.equal(fallback.lang, 'si');
+
   await assert.rejects(writePodcast('x', 'en', 2, [], scriptedModel([])), /No sources/);
 });

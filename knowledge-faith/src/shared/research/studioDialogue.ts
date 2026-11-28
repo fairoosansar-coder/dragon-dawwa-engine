@@ -28,8 +28,9 @@ export function listenerProbe(lang:Lang,claim:string,focus:'source'|'application
 
 /** Reject a lecture rather than cutting a qualification or a quotation in half. */
 export function speakableTurn(text:string,lang?:Lang):boolean {
-  if (!text.trim() || text.length>740 || text.trim().split(/\s+/u).length>70 ||
-      /\[(?:curious|firm|warm|engaging|pause|tone|reflective|audio cue|laugh|whisper)[^\]]*\]|<\/?speak\b/i.test(text))return false;
+  if (!text.trim() || text.length>740 || text.trim().split(/\s+/u).length>70) return false;
+  // Any bracketed performance cue or SSML/HTML tag is not spoken prose.
+  if (/\[[^\]]*\]|<\/?[a-z][^>]*>/i.test(text)) return false;
   const body=text.replace(/\b(?:Dr|Mr|Mrs|Prof|No)\./gi,'').replace(/(\d)\.(?=\d)/g,'$1');
   if(body.split(/[.!?؟।]+(?:\s|$)/u).filter(x=>x.trim()).length>4)return false;
   if(lang==='ta'||lang==='si'){
@@ -45,13 +46,15 @@ export function speakableTurn(text:string,lang?:Lang):boolean {
 /**
  * Keep a substantive spoken excerpt from a research finding.
  * Oversized findings are shortened — never replaced with a generic placeholder
- * that drops the evidence.
+ * that drops the evidence. URLs stay in the report, not in speech.
  */
 export function spokenFinding(text: string, lang?: Lang): string {
   const stripped = text
     .replace(/\s+/g, ' ')
     .trim()
     .replace(/\bSurah\s+\d+\s*,\s*ayah\s+\d+\s*:\s*/gi, '')
+    .replace(/\(\s*https?:\/\/[^)]+\)/gi, ' ')
+    .replace(/https?:\/\/\S+/gi, ' ')
     .replace(/[“"][^”"]{120,}[”"]/g, ' ')
     .replace(/\[[^\]]*\]/g, ' ')
     .replace(/\s+/g, ' ')
@@ -80,15 +83,14 @@ export function spokenFinding(text: string, lang?: Lang): string {
     const clipped = candidate.length > 260 ? `${candidate.slice(0, 257).trim()}…` : candidate;
     if (speakableTurn(clipped, lang)) return clipped;
   }
-  // Last resort: keep the head of the finding, not a generic qualification.
-  const head = words.slice(0, Math.min(40, words.length)).join(' ');
-  return head ? (/[.!?؟।…]$/.test(head) ? head : `${head}…`) : fallback;
+  // Wrong-language / uncued residue: say speech is unavailable — do not invent a qualification.
+  return fallback;
 }
 
 export const studioCopy = {
-  en:{hook:'What would that mean in practice?',text:'What does the report actually say?',law:'Does that tell us what someone should do?',science:'That’s a different question. What can we test?',limit:'The wording matters here. I wouldn’t give a shorter answer that leaves out the qualification.',end:'The distinction is worth keeping. You can check the full wording alongside the discussion.'},
-  ta:{hook:'நடைமுறையில் இதற்கு என்ன அர்த்தம்?',text:'ஹதீஸில் என்ன சொல்லப்பட்டிருக்கிறது?',law:'சரி, அதை வைத்து நாம் என்ன செய்யலாம்?',science:'அது வேறு கேள்வி. ஆய்வில் எதைச் சோதிக்க முடியும்?',limit:'இங்கே ஒரு நிபந்தனை இருக்கிறது. அதை விட்டுவிட்டுச் சொன்னால் அர்த்தம் மாறிவிடும்.',end:'இந்த வேறுபாடுதான் முக்கியம். முழு வாசகத்தையும் அறிக்கையில் படிக்கலாம்.'},
-  si:{hook:'ඒක ජීවිතයට අදාළ වෙන්නේ කොහොමද?',text:'වාර්තාවේ ඇත්තටම කියන්නේ මොකක්ද?',law:'එහෙම නම් අපි කළ යුත්තේ මොකක්ද?',science:'ඒක වෙනත් ප්‍රශ්නයක්. පරීක්ෂා කර බලන්න පුළුවන් මොනවාද?',limit:'මෙතැන වචන වැදගත්. කොන්දේසිය අත්හැරලා කෙටියෙන් කිව්වොත් අර්ථය වෙනස් වෙන්න පුළුවන්.',end:'ඒ වෙනස වැදගත්. සම්පූර්ණ පාඨය වාර්තාවෙන් කියවන්න පුළුවන්.'},
+  en:{hook:'What would that mean in practice?',text:'What does the report actually say?',law:'Does that tell us what someone should do?',science:'That’s a different question. What can we test?',limit:'A short spoken version in this language is not available from the opened text.',end:'The distinction is worth keeping. You can check the full wording alongside the discussion.'},
+  ta:{hook:'நடைமுறையில் இதற்கு என்ன அர்த்தம்?',text:'ஹதீஸில் என்ன சொல்லப்பட்டிருக்கிறது?',law:'சரி, அதை வைத்து நாம் என்ன செய்யலாம்?',science:'அது வேறு கேள்வி. ஆய்வில் எதைச் சோதிக்க முடியும்?',limit:'திறந்த வாசகத்திலிருந்து குறுகிய தமிழ் பேச்சு வடிவம் இப்போது இல்லை.',end:'இந்த வேறுபாடுதான் முக்கியம். முழு வாசகத்தையும் அறிக்கையில் படிக்கலாம்.'},
+  si:{hook:'ඒක ජීවිතයට අදාළ වෙන්නේ කොහොමද?',text:'වාර්තාවේ ඇත්තටම කියන්නේ මොකක්ද?',law:'එහෙම නම් අපි කළ යුත්තේ මොකක්ද?',science:'ඒක වෙනත් ප්‍රශ්නයක්. පරීක්ෂා කර බලන්න පුළුවන් මොනවාද?',limit:'විවෘත පාඨයෙන් කෙටි කථන අනුවාදයක් දැනට නැහැ.',end:'ඒ වෙනස වැදගත්. සම්පූර්ණ පාඨය වාර්තාවෙන් කියවන්න පුළුවන්.'},
 };
 
 const PODCAST_SPEAKER_LINE =
