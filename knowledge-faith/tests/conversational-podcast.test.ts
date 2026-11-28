@@ -1,8 +1,8 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {citedRoundtableFromAgents,mergePostSynthesisTurns} from '../src/server/sevenAgentService.ts';
-import {speakableTurn,spokenFinding,listenerProbe,studioDirection,studioCopy} from '../src/shared/research/studioDialogue.ts';
-import {writeBroadcastScript} from '../src/server/research/broadcastScript.ts';
+import {speakableTurn,spokenFinding,spokenHostOpen,listenerProbe,studioDirection,studioCopy} from '../src/shared/research/studioDialogue.ts';
+import {writeBroadcastScript,generatedHostLine} from '../src/server/research/broadcastScript.ts';
 
 type Payload=Parameters<typeof citedRoundtableFromAgents>[1];
 const fixture={hadithSummary:'The wording describes a gift, not an exchange.',fiqhSummary:'A gift does not require repayment.',scienceSummary:'No experiment was included in the evidence.',executiveSummary:'Look at whether repayment was agreed.'} as Payload;
@@ -89,6 +89,8 @@ test('speakableTurn rejects arbitrary bracket cues and SSML; Ajwa nutrition is n
   assert.equal(speakableTurn('[thoughtful] Yes.','en'),false);
   assert.equal(speakableTurn('<break time="300ms"/> Yes.','en'),false);
   assert.equal(spokenFinding('English only source.','ta'),studioCopy.ta.limit);
+  assert.equal(spokenHostOpen('What about Ajwa dates?', 'ta'), studioCopy.ta.hook);
+  assert.equal(generatedHostLine('What about Ajwa dates?', 'si'), studioCopy.si.hook);
   const nutrition=citedRoundtableFromAgents(
     'அஜ்வா பேரீச்சம்பழத்தின் சத்துக்கள் பற்றி சில விஷயங்கள் சொல்லுங்கள்?',
     fixture,
@@ -99,4 +101,9 @@ test('speakableTurn rejects arbitrary bracket cues and SSML; Ajwa nutrition is n
   assert.match(nutrition[0].text,/சத்துக்கள்|விஷயங்கள்|நடைமுறையில்/);
   const poison=citedRoundtableFromAgents('அஜ்வா பேரீச்சம்பழம் சாப்பிட்டால் விஷம் பாதிக்காதா?',fixture,[],'ta');
   assert.match(poison[0].text,/சோதித்துப் பார்க்க/);
+  const siTopic=citedRoundtableFromAgents('අජ්වා රටඉඳි ගැන විෂය කුමක්ද?',fixture,[],'si');
+  assert.doesNotMatch(siTopic.map(t=>t.text).join(' '),/විෂ තොරතුරු|හදිසි වෛද්‍ය/);
+  assert.notEqual(siTopic[0].text,studioCopy.si.limit);
+  const siPoison=citedRoundtableFromAgents('අජ්වා රටඉඳි කෑවොත් විෂ බල නොපායිද?',fixture,[],'si');
+  assert.match(siPoison[0].text,/අත්හදා බලන්න/);
 });

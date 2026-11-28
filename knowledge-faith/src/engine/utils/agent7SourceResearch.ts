@@ -250,7 +250,7 @@ export function buildPresetAgent7SourceResearch(
               'BROTHER FEROZ (HOST): Dr. Amina, what do the HadeethEnc records say about this intentions narration?',
               'DR. AMINA: #4560 and #66511 keep «إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ», the published translation, and the Authentic grade agreed upon by Al-Bukhari and Muslim.',
               'BROTHER FEROZ (HOST): Wait. Does #4560 also note the Bukhari wording variant Tariq raised?',
-              'DR. AMINA: Yes — right at the end of the Tamil edition text. Its first lesson also backs Zainab’s sincerity point, while keeping HadeethEnc commentary distinct from the matn.',
+              'DR. AMINA: Yes — right at the end of the record text. Its first lesson also backs Zainab’s sincerity point, while keeping HadeethEnc commentary distinct from the matn.',
             );
 
     const synthesisAddendum =

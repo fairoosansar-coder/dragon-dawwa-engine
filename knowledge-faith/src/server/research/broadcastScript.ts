@@ -8,7 +8,7 @@
 import { userFacingResearchQuestion } from '../../shared/modernWorldBenchmarks.ts';
 import { sanitizePodcastHostName } from '../../shared/podcastHost.ts';
 import type { Lang } from '../../shared/sources.ts';
-import { spokenFinding, studioCopy, listenerProbe } from '../../shared/research/studioDialogue.ts';
+import { spokenFinding, spokenHostOpen, studioCopy, listenerProbe } from '../../shared/research/studioDialogue.ts';
 
 export interface BroadcastAgent {
   id: string;
@@ -51,7 +51,7 @@ function everydayQuestion(question: string): string {
 /** The saved host name is a player label. The first spoken line is the question. */
 export function generatedHostLine(question: string, language: Lang, hostName?: string | null): string {
   const asked = everydayQuestion(userFacingResearchQuestion(question));
-  return spokenFinding(asked, language) || studioCopy[language].hook;
+  return spokenHostOpen(asked, language);
 }
 
 /** Agents that ran, in the order they were aggregated. The host disclosure is separate. */

@@ -87,6 +87,16 @@ export function spokenFinding(text: string, lang?: Lang): string {
   return fallback;
 }
 
+/**
+ * Host episode open: keep the question when it is speakable in-language;
+ * otherwise use the studio hook — never the “speech unavailable” finding fallback.
+ */
+export function spokenHostOpen(question: string, lang: Lang): string {
+  const spoken = spokenFinding(question, lang);
+  if (spoken && spoken !== studioCopy[lang].limit) return spoken;
+  return studioCopy[lang].hook;
+}
+
 export const studioCopy = {
   en:{hook:'What would that mean in practice?',text:'What does the report actually say?',law:'Does that tell us what someone should do?',science:'That’s a different question. What can we test?',limit:'A short spoken version in this language is not available from the opened text.',end:'The distinction is worth keeping. You can check the full wording alongside the discussion.'},
   ta:{hook:'நடைமுறையில் இதற்கு என்ன அர்த்தம்?',text:'ஹதீஸில் என்ன சொல்லப்பட்டிருக்கிறது?',law:'சரி, அதை வைத்து நாம் என்ன செய்யலாம்?',science:'அது வேறு கேள்வி. ஆய்வில் எதைச் சோதிக்க முடியும்?',limit:'திறந்த வாசகத்திலிருந்து குறுகிய தமிழ் பேச்சு வடிவம் இப்போது இல்லை.',end:'இந்த வேறுபாடுதான் முக்கியம். முழு வாசகத்தையும் அறிக்கையில் படிக்கலாம்.'},

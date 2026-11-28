@@ -2,7 +2,7 @@ import type { AgentContribution } from '../contracts/v1.ts';
 import { userFacingResearchQuestion } from '../modernWorldBenchmarks.ts';
 import { sanitizePodcastHostName } from '../podcastHost.ts';
 import type { Lang } from '../sources.ts';
-import { spokenFinding, studioCopy } from './studioDialogue.ts';
+import { spokenHostOpen } from './studioDialogue.ts';
 import { asksWhen, recordsPractice, timingClause } from './materialCoverage.ts';
 import { separateQuestions } from './questions.ts';
 
@@ -74,7 +74,7 @@ const PERSONAS: readonly Persona[] = [
 /** Authentic Islamic greeting and warm framing of the question. The page header carries any presenter note. */
 function generatedHost(question: string, language: Lang, _hostName: string): string {
   const asked = everydayQuestion(userFacingResearchQuestion(question));
-  return spokenFinding(asked, language) || studioCopy[language].hook;
+  return spokenHostOpen(asked, language);
 }
 
 /** Personas whose agents ran. The host is a generated presenter, not a research agent. */
