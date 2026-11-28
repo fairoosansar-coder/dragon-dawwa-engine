@@ -2,10 +2,15 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { executeDragonDawwaAnalysis } from '../src/engine/server/hadithEngine.ts';
 import { getAllPodcastPersonas, getGeminiVoiceForSpeaker } from '../src/engine/server/geminiTtsService.ts';
-import { buildFullReportMarkdown } from '../src/engine/utils/agent7SourceResearch.ts';
+import {
+  attachAgent7ToAnalysis,
+  buildFullReportMarkdown,
+  buildPresetAgent7SourceResearch,
+} from '../src/engine/utils/agent7SourceResearch.ts';
 import { getLocalizedAnalysis } from '../src/engine/utils/localizedAnalysis.ts';
 import { SAMPLE_HADITHS } from '../src/engine/data/sampleHadiths.ts';
 import { verifyClaim } from '../src/shared/research/claims.ts';
+import { pacedStudioBeats, parsePodcastSpeechBeats, speakableTurn } from '../src/shared/research/studioDialogue.ts';
 
 const TAMIL_SATURDAY_FASTING_SENTENCE =
   'கடமையாக்கப்பட்ட நோன்பைத் தவிர வேறு எதற்காகவும் சனிக்கிழமை நோன்பு நோற்காதீர்கள்; ஒரு திராட்சைத் தோல் அல்லது மரத்தின் கிளையைத் தவிர வேறெதுவும் கிடைக்காவிட்டாலும் அதனை மென்று விடவும்.';
@@ -118,5 +123,34 @@ describe('7-Agent Hadith Research & Roundtable with HadeethEnc (Agent 7)', () =>
     assert.notEqual(wordMatchOnly.support, 'supported');
     assert.equal(wordMatchOnly.support, 'insufficient');
     assert.match(wordMatchOnly.note, /Candidate passage identified by word match/);
+  });
+
+  it('keeps Tamil Agent 7 roundtable inserts as short alternating studio beats with evidence IDs', () => {
+    const cases: Array<{ query: string; ids: RegExp }> = [
+      { query: TAMIL_SATURDAY_FASTING_SENTENCE, ids: /4508|3546/ },
+      { query: TAMIL_INTENTIONS_SENTENCE, ids: /4560|66511/ },
+      { query: 'சீனா சென்றேனும் கல்வி கற்க', ids: /9944/ },
+    ];
+    for (const { query, ids } of cases) {
+      const { additionalRoundtableLines } = buildPresetAgent7SourceResearch(query, 'ta');
+      const beats = parsePodcastSpeechBeats(additionalRoundtableLines);
+      assert.ok(beats.length >= 4, query);
+      assert.equal(pacedStudioBeats(beats, 'ta'), true, query);
+      assert.match(additionalRoundtableLines, /DR\.\s*AMINA:/);
+      assert.match(additionalRoundtableLines, ids);
+      assert.equal(beats.some(b => /DR\.\s*AMINA/i.test(b.speaker)), true);
+      assert.equal(beats.some(b => /HOST/i.test(b.speaker)), true);
+      for (const beat of beats) assert.ok(speakableTurn(beat.text, 'ta'), beat.text);
+    }
+
+    const saturday = SAMPLE_HADITHS.find(h => h.id === 'saturday-fasting');
+    assert.ok(saturday);
+    const localized = getLocalizedAnalysis(saturday.defaultData, 'ta');
+    const withAgent7 = attachAgent7ToAnalysis(localized, 'ta');
+    const aminaBeats = parsePodcastSpeechBeats(withAgent7.agent_6_synthesis.podcast_script).filter(b =>
+      /DR\.\s*AMINA/i.test(b.speaker),
+    );
+    assert.ok(aminaBeats.length >= 1);
+    for (const beat of aminaBeats) assert.ok(speakableTurn(beat.text, 'ta'), beat.text);
   });
 });

@@ -2,6 +2,7 @@ import type { AgentContribution } from '../contracts/v1.ts';
 import { userFacingResearchQuestion } from '../modernWorldBenchmarks.ts';
 import { sanitizePodcastHostName } from '../podcastHost.ts';
 import type { Lang } from '../sources.ts';
+import { spokenHostOpen } from './studioDialogue.ts';
 import { asksWhen, recordsPractice, timingClause } from './materialCoverage.ts';
 import { separateQuestions } from './questions.ts';
 
@@ -71,15 +72,9 @@ const PERSONAS: readonly Persona[] = [
 ];
 
 /** Authentic Islamic greeting and warm framing of the question. The page header carries any presenter note. */
-function generatedHost(question: string, language: Lang, hostName: string): string {
+function generatedHost(question: string, language: Lang, _hostName: string): string {
   const asked = everydayQuestion(userFacingResearchQuestion(question));
-  if (language === 'ta') {
-    return `அஸ்ஸலாமு அலைக்கும் வரஹ்மத்துல்லாஹி வபரகாத்துஹ், ${hostName}. இன்று நாம் ஆராயும் முக்கியமான கேள்வி: ${asked} டாக்டர் லைலா, மூல ஆதாரங்களின் வழிகாட்டலோடு நாம் ஆரம்பிக்கலாமா?`;
-  }
-  if (language === 'si') {
-    return `අස්සලාමු අලයිකුම් වරහ්මතුල්ලාහි වබරකාතුහු, ${hostName}. අද අපි ඔබේ වැදගත් ප්‍රශ්නය සමඟ එක්වෙමු: ${asked} ආචාර්ය ලයිලා, අපි මූලාශ්‍රවල මඟපෙන්වීමෙන් ආරම්භ කරමුද?`;
-  }
-  return `Assalamu Alaikum wa Rahmatullahi wa Barakatuh, ${hostName}. Today we gather with our panel to explore an important question: ${asked} Dr. Layla, shall we begin with what the primary texts establish?`;
+  return spokenHostOpen(asked, language);
 }
 
 /** Personas whose agents ran. The host is a generated presenter, not a research agent. */
@@ -222,8 +217,8 @@ function voiced(language: Lang, lesson: string): string {
   const latin = /[A-Za-z]/.test(lesson);
   const tamil = /[\u0B80-\u0BFF]/.test(lesson);
   const sinhala = /[\u0D80-\u0DFF]/.test(lesson);
-  if (language === 'ta' && latin && !tamil) return `ஆங்கில மூலத்தின் பொருளைத் தமிழுடன் வைக்கிறேன்: ${lesson}`;
-  if (language === 'si' && latin && !sinhala) return `ඉංග්‍රීසි මූලයේ අර්ථය සිංහල සමඟ තබමු: ${lesson}`;
+  if (language === 'ta' && latin && !tamil) return 'இந்த வாசகத்துக்கான தமிழ் மொழிபெயர்ப்பு இப்போது இல்லை.';
+  if (language === 'si' && latin && !sinhala) return 'මෙම පාඨයට සිංහල පරිවර්තනයක් දැනට නැහැ.';
   if (language === 'en' && tamil && !latin) return `The Tamil wording, kept on purpose, is: ${lesson}`;
   if (language === 'en' && sinhala && !latin) return `The Sinhala wording, kept on purpose, is: ${lesson}`;
   return lesson;
@@ -403,8 +398,8 @@ function generalConversation(input: {
     ? primary.empirical
       ? `இது ஒரு அனுபவ ஆய்வுக் குறிப்பு, வேதவாக்கியமோ நபிமொழியோ அல்ல: ${primaryPoint}`
       : primary.explained
-        ? `மூல ஆதாரத்தின் விளக்கம் நமக்குக் காட்டுவது: ${primaryPoint}`
-        : `மூல ஆதாரத்தில் நாம் காணும் அடிப்படை வழிகாட்டல்: ${primaryPoint}`
+        ? `இது அந்த வாசகத்துக்கான விளக்கம்: ${primaryPoint}`
+        : primaryPoint
     : input.language === 'si'
       ? primary.empirical
         ? `මෙය අත්දැකීම් පර්යේෂණ සටහනකි, ශුද්ධ ලියවිල්ලක් හෝ හදීසයක් නොවේ: ${primaryPoint}`
@@ -414,17 +409,17 @@ function generalConversation(input: {
       : primary.empirical
         ? `This is an empirical finding, not scripture and not a narration. The documented observation is ${primaryPoint}`
         : primary.explained
-          ? `Turning to the scholarly commentary, the explanation highlights that ${primaryPoint}`
-          : `When we look directly at the primary source, the foundational lesson is ${primaryPoint}`;
+          ? `Here’s how the commentary reads it: ${primaryPoint}`
+          : primaryPoint;
 
   const ask = further
     ? input.language === 'ta'
-      ? `அருமையான விளக்கம். இதனோடு இணைந்த மற்றொரு ஆதாரம் இவ்வாறு கூறுகிறது: ${furtherPoint} இதை நாம் எவ்வாறு புரிந்துகொள்வது?`
+      ? `இன்னொரு வாசகத்தைப் பார்ப்போம்: ${furtherPoint} இரண்டையும் சேர்த்துப் படித்தால் என்ன புரிகிறது?`
       : input.language === 'si'
         ? `වැදගත් පැහැදිලි කිරීමක්. තවත් මූලාශ්‍රයක් මෙය එකතු කරයි: ${furtherPoint} මෙම කරුණු දෙක අපි තේරුම් ගන්නේ කෙසේද?`
-        : `That is a vital foundation. Another retrieved passage adds: ${furtherPoint} How does that inform our understanding of the question?`
+        : `But listen to this passage: ${furtherPoint} Does that change how you read the first one?`
     : input.language === 'ta'
-      ? `அருமையான விளக்கம். இந்த ஆதாரத்தின் வரம்பிற்குள் நின்று நாம் கவனிக்க வேண்டிய முக்கிய அம்சம் என்ன?`
+      ? `ஒரு நிமிடம். இந்த வாசகத்தில் எது தெளிவாக இருக்கிறது? எதை நாம் ஊகிக்கிறோம்?`
       : input.language === 'si'
         ? `පැහැදිලි විග්‍රහයක්. මෙම මූලාශ්‍රයේ සීමාව තුළ අප අවධානය යොමු කළ යුතු ප්‍රධාන කරුණ කුමක්ද?`
         : `That sets the foundation clearly. Looking closely at the scope of this text, what distinction should we keep in mind?`;
