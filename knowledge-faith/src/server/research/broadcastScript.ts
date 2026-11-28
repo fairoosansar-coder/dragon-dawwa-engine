@@ -8,6 +8,7 @@
 import { userFacingResearchQuestion } from '../../shared/modernWorldBenchmarks.ts';
 import { sanitizePodcastHostName } from '../../shared/podcastHost.ts';
 import type { Lang } from '../../shared/sources.ts';
+import { spokenFinding, spokenHostOpen, studioCopy, listenerProbe } from '../../shared/research/studioDialogue.ts';
 
 export interface BroadcastAgent {
   id: string;
@@ -47,56 +48,10 @@ function everydayQuestion(question: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/** A clear spoken lesson for the ear. Locators and long uncontextualized quotations stay out of the spoken line. */
-function spokenFinding(text: string): string {
-  const stripped = clean(text)
-    .replace(/\bSurah\s+\d+\s*,\s*ayah\s+\d+\s*:\s*/gi, '')
-    .replace(/[“"][^”"]{120,}[”"]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  const sentences = stripped.split(/(?<=[.!?؟])\s+/).map(part => part.trim()).filter(part => part.length >= 12);
-  let sentence = sentences[0] ?? stripped;
-  if (sentence.length < 60 && sentences[1]) sentence = `${sentence} ${sentences[1]}`;
-  return sentence.length > 260 ? `${sentence.slice(0, 257).trim()}…` : sentence;
-}
-
-/** One language for the conversation. A foreign sentence is introduced as a translation. */
-function inConversation(language: Lang, lesson: string): string {
-  const latin = /[A-Za-z]/.test(lesson);
-  const tamil = /[\u0B80-\u0BFF]/.test(lesson);
-  const sinhala = /[\u0D80-\u0DFF]/.test(lesson);
-  if (language === 'ta' && latin && !tamil) return `ஆங்கில மூலத்தின் பொருளைத் தமிழுடன் வைக்கிறேன்: ${lesson}`;
-  if (language === 'si' && latin && !sinhala) return `ඉංග්‍රීසි මූලයේ අර්ථය සිංහල සමඟ තබමු: ${lesson}`;
-  if (language === 'en' && tamil && !latin) return `The Tamil wording, kept on purpose, is: ${lesson}`;
-  if (language === 'en' && sinhala && !latin) return `The Sinhala wording, kept on purpose, is: ${lesson}`;
-  return lesson;
-}
-
-/** Islamic greeting, then the question. Disclaimers stay in the page header. */
+/** The saved host name is a player label. The first spoken line is the question. */
 export function generatedHostLine(question: string, language: Lang, hostName?: string | null): string {
-  const host = sanitizePodcastHostName(hostName);
   const asked = everydayQuestion(userFacingResearchQuestion(question));
-  if (language === 'ta') return `அஸ்ஸலாமு அலைக்கும் வரஹ்மத்துல்லாஹி வபரகாத்துஹ், ${host}. இன்று நாம் உங்கள் கேள்வியுடன் அமர்கிறோம்: ${asked}`;
-  if (language === 'si') return `අස්සලාමු අලයිකුම් වරහ්මතුල්ලාහි වබරකාතුහු, ${host}. අද අපි ඔබේ ප්‍රශ්නය සමඟ වාඩි වෙමු: ${asked}`;
-  return `Assalamu Alaikum wa Rahmatullahi wa Barakatuh, ${host}. Today we sit with your question: ${asked}`;
-}
-
-function contributorLine(agent: BroadcastAgent, language: Lang, hostName: string, previousPersona?: string): string {
-  const lesson = inConversation(language, spokenFinding(agent.finding));
-  const addressed = previousPersona ? previousPersona : hostName;
-  if (language === 'ta') {
-    return previousPersona
-      ? `அருமையான விளக்கம், ${addressed}. ${agent.persona} இங்கே இருக்கிறேன். நடைமுறைப் பாடத்தையும் மூலத்தின் வழிகாட்டலையும் சொல்கிறேன்: ${lesson}`
-      : `${hostName}, ${agent.persona} இங்கே இருக்கிறேன். தோழரின் தருணத்தையும் நடைமுறைப் பாடத்தையும் சொல்கிறேன். ${lesson}`;
-  }
-  if (language === 'si') {
-    return previousPersona
-      ? `වැදගත් පැහැදිලි කිරීමක්, ${addressed}. මම ${agent.persona}. ප්‍රායෝගික පාඩම කියමි: ${lesson}`
-      : `${hostName}, මම ${agent.persona}. සගයාගේ මොහොත සහ ප්‍රායෝගික පාඩම කියමි. ${lesson}`;
-  }
-  return previousPersona
-    ? `That is a vital foundation, ${addressed}. This is ${agent.persona}. Building on that point, the practical lesson is ${lesson}`
-    : `${hostName}, this is ${agent.persona}. Let us sit with the person and the moment. The practical lesson is ${lesson}`;
+  return spokenHostOpen(asked, language);
 }
 
 /** Agents that ran, in the order they were aggregated. The host disclosure is separate. */
@@ -111,14 +66,21 @@ export function writeBroadcastScript(input: BroadcastScriptInput): string {
     '[AUDIO CUE: INTRO UP - POLISHED RADIO BEAT (4 SECONDS) THEN FADE UNDER]',
     `${label} ${generatedHostLine(input.question, input.language, hostName)}`,
   ];
-  let previousPersona: string | undefined;
+  let previousFinding: string | undefined;
   for (const agent of agentsThatRan(input.agents)) {
     if (isHostSpeaker(agent.speaker, label)) {
-      lines.push(`${label} ${clean(agent.finding)}`);
+      lines.push(`${label} ${spokenFinding(agent.finding, input.language)}`);
       continue;
     }
-    lines.push(`${agent.speaker} ${contributorLine(agent, input.language, hostName, previousPersona)}`);
-    previousPersona = agent.persona;
+    const lastSpoken = lines[lines.length - 1] ?? '';
+    const lastIsHost = isHostSpeaker(lastSpoken.split(':')[0] + ':', label) || lastSpoken.startsWith(label);
+    // Alternate host probes before each specialist after the first — not only once by array length.
+    if (previousFinding && !lastIsHost) {
+      lines.push(`${label} ${listenerProbe(input.language, previousFinding, 'source')}`);
+    }
+    // Shorten oversized findings; never drop the evidence for a generic placeholder.
+    lines.push(`${agent.speaker} ${spokenFinding(agent.finding, input.language)}`);
+    previousFinding = agent.finding;
   }
   lines.push('[AUDIO CUE: OUTRO THEME RISES AND FADES OUT]');
   return lines.join('\n\n');

@@ -19,6 +19,11 @@ import { buildAsrAgent7 } from './asrPrayerSources.ts';
 
 export type LangCode = 'en' | 'ta' | 'si';
 
+/** Join short alternating studio beats for Agent 7 roundtable inserts. */
+function agent7Beats(...lines: string[]): string {
+  return `\n${lines.map(line => line.trim()).filter(Boolean).join('\n\n')}`;
+}
+
 export function buildPresetAgent7SourceResearch(
   queryHadith: string,
   lang: LangCode,
@@ -228,10 +233,25 @@ export function buildPresetAgent7SourceResearch(
 
     const additionalRoundtableLines =
       lang === 'ta'
-        ? `\nBROTHER FEROZ (HOST): இப்போது நமது 7-வது பிரிவான 'மூல ஆதார ஆய்வு' (Agent 7 — Source Research) மேஜைக்குச் செல்வோம். டாக்டர் அமீனா அல்-கிந்தி அவர்களே, HadeethEnc களஞ்சியத்திலிருந்து நீங்கள் நேரடியாகப் பெற்ற தமிழ் மற்றும் அரபு ஆதாரங்கள் என்ன கூறுகின்றன?\n\nDR. AMINA: அஸ்ஸலாமு அலைக்கும் சகோதரர் ஃபெரோஸ், டாக்டர் தாரிக் மற்றும் குழுவினரே! நான் டாக்டர் அமீனா அல்-கிந்தி, முகவர் 7 மூல ஆதார ஆய்வாளர். HadeethEnc களஞ்சியத்தில் பதிவு எண் 4560 மற்றும் 66511 ஆகியவற்றை நான் நேரடியாக ஆய்வு செய்தேன். அதில் நபி (ஸல்) அவர்களின் அரபு வாசகமான «إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ» என்பதோடு, 'செயல்கள் அனைத்தும் எண்ணங்களைப் பொருத்தே அமைகின்றன' என்ற வெளியிடப்பட்ட தமிழ் மொழிபெயர்ப்பும், இமாம் புஹாரி மற்றும் முஸ்லிம் பதிவு செய்துள்ள 'சரியானது' (Authentic) என்ற தரமும் இடம்பெற்றுள்ளன. டாக்டர் தாரிக் குறிப்பிட்ட புஹாரியின் வாசக வேறுபாட்டை HadeethEnc #4560 தனது தமிழ் பதிப்பின் இறுதியிலேயே தெளிவாகக் குறிப்பிடுகிறது! மேலும் டாக்டர் ஸைனப் கூறிய உளத்தூய்மை (இக்லாஸ்) கருத்தை HadeethEnc #4560-ன் முதல் படிப்பினை உறுதிப்படுத்துகிறது.`
+        ? agent7Beats(
+            'BROTHER FEROZ (HOST): டாக்டர் அமீனா, HadeethEnc இந்த எண்ணங்கள் ஹதீஸை என்ன சொல்கிறது?',
+            'DR. AMINA: #4560 மற்றும் #66511-ல் «إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ» உடன் தமிழ் மொழிபெயர்ப்பும், புஹாரி-முஸ்லிம் “சரியானது” தரமும் இருக்கின்றன.',
+            'BROTHER FEROZ (HOST): ஒரு நிமிஷம். தாரிக் சொன்ன புஹாரி வாசக வேறுபாடு அங்கே தெரிகிறதா?',
+            'DR. AMINA: ஆம் — #4560 தமிழ் பதிப்பின் இறுதியில் அதைக் குறிப்பிடுகிறது. #4560-ன் முதல் படிப்பினை ஸைனப் சொன்ன இக்லாஸையும் உறுதிப்படுத்துகிறது.',
+          )
         : lang === 'si'
-          ? `\nBROTHER FEROZ (HOST): දැන් අපගේ 7 වන අංශය වන මූලාශ්‍ර පර්යේෂණ (Agent 7 — Source Research) මේසය වෙත යොමු වෙමු. ආචාර්ය අමීනා අල්-කින්දි, HadeethEnc මූලාශ්‍රවලින් ඔබ සොයාගත් කරුණු මොනවාද?\n\nDR. AMINA: අස්සලාමු අලයිකුම් සහෝදර ෆෙරෝස් සහ විද්වත් මණ්ඩලය! මම ආචාර්ය අමීනා අල්-කින්දි (Agent 7 — Source Research). HadeethEnc හි #4560 සහ #66511 වාර්තා මගින් «إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ» යන අරාබි පාඨය, සිංහල පරිවර්තනය, විවරණය සහ බුහාරි හා මුස්ලිම් විසින් වාර්තා කළ 'صحيح' (Authentic) යන ප්‍රකාශිත ශ්‍රේණිය තහවුරු වෙනවා. මෙය ආචාර්ය තාරික් සහ ආචාර්ය සයිනබ් ඉදිරිපත් කළ කරුණු සමඟ මැනවින් සැසඳෙනවා.`
-          : `\nBROTHER FEROZ (HOST): Let us now bring in our seventh table — Agent 7, Source Research! Dr. Amina al-Kindi, how do the retrieved HadeethEnc records inform what Dr. Tariq, Dr. Zainab, and Sheikh Yusuf have presented?\n\nDR. AMINA: Assalamu alaikum Brother Feroz and colleagues! From the Agent 7 Source Research table, I retrieved HadeethEnc records #4560 and #66511 directly. Both records preserve the vocalized Arabic matn «إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ», the published translation, and the published grade "Authentic (Agreed upon by Al-Bukhari and Muslim)". Responding to Dr. Tariq’s Takhrij table, HadeethEnc #4560 explicitly notes Bukhari’s plural wording variant right in the text. And responding to Dr. Zainab and Sheikh Yusuf, HadeethEnc #66511’s published explanation attributes the consensus status to the two Shaykhs while our own analytical synthesis keeps the HadeethEnc commentary distinct from the primary matn.`;
+          ? agent7Beats(
+              'BROTHER FEROZ (HOST): ආචාර්ය අමීනා, HadeethEnc මෙම චේතනා හදීසය ගැන කුමක් කියයිද?',
+              'DR. AMINA: #4560 සහ #66511 මගින් «إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ», සිංහල පරිවර්තනය සහ බුහාරි-මුස්ලිම් “صحيح” ශ්‍රේණිය තහවුරු වෙනවා.',
+              'BROTHER FEROZ (HOST): පොඩ්ඩක් ඉන්න. තාරික් කිව්ව බුහාරි වදන් වෙනස එහි තියෙනවද?',
+              'DR. AMINA: ඔව් — #4560 එය සටහන් කරනවා. ඒ පාඩම සයිනබ් කිව්ව ඉක්ලාස් සමඟද ගැලපෙනවා.',
+            )
+          : agent7Beats(
+              'BROTHER FEROZ (HOST): Dr. Amina, what do the HadeethEnc records say about this intentions narration?',
+              'DR. AMINA: #4560 and #66511 keep «إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ», the published translation, and the Authentic grade agreed upon by Al-Bukhari and Muslim.',
+              'BROTHER FEROZ (HOST): Wait. Does #4560 also note the Bukhari wording variant Tariq raised?',
+              'DR. AMINA: Yes — right at the end of the record text. Its first lesson also backs Zainab’s sincerity point, while keeping HadeethEnc commentary distinct from the matn.',
+            );
 
     const synthesisAddendum =
       lang === 'ta'
@@ -323,8 +343,18 @@ export function buildPresetAgent7SourceResearch(
 
     const additionalRoundtableLines =
       lang === 'ta'
-        ? `\nBROTHER FEROZ (HOST): டாக்டர் அமீனா அல்-கிந்தி அவர்களே, முகவர் 7 மூல ஆதார மேஜையில் HadeethEnc களஞ்சியம் இந்த 'சீனா சென்றேனும் கல்வி' என்ற வாசகம் பற்றி என்ன காட்டுகிறது?\n\nDR. AMINA: அஸ்ஸலாமு அலைக்கும் சகோதரர் ஃபெரோஸ்! HadeethEnc களஞ்சியத்தை நாம் ஆராய்ந்தபோது, 'சீனா சென்றேனும் கல்வி கற்க' என்ற வாசகம் எந்தவொரு ஆதாரபூர்வப் பதிவிலும் இடம்பெறவில்லை. மாறாக, HadeethEnc #9944-ல் புஹாரி மற்றும் முஸ்லிம் ஆதாரத்துடன் 'அல்லாஹ் யாருக்கு நன்மையை நாடுகிறானோ அவருக்கு மார்க்கத்தில் விளக்கத்தை அளிக்கிறான்' என்ற சரியான நபிமொழியே உள்ளது. 'கல்வி' என்ற சொல் பொருந்துவதால் மட்டும் ஒரு வாசகத்தை 'Supported' என்று கூறிவிடக் கூடாது; ஷேக் இம்ரான் மற்றும் ஷேக் யூசுஃப் விளக்கியது போல் 'சீனா' என்ற கூடுதல் வாசகம் ஆதாரமற்றது என்பதை HadeethEnc-ன்த் தெரிவும் உறுதிப்படுத்துகிறது.`
-        : `\nBROTHER FEROZ (HOST): Dr. Amina al-Kindi at the Agent 7 Source Research table, what did HadeethEnc return for this narration?\n\nDR. AMINA: Assalamu alaikum Brother Feroz! Querying HadeethEnc confirms that the "even unto China" wording is completely absent from its verified corpus. While keyword searches on "knowledge" surface authentic Bukhari and Muslim narrations such as HadeethEnc #9944, a word match only identifies a candidate thematic passage and never labels the disputed China clause as "Supported". This aligns directly with Sheikh Imran and Sheikh Yusuf’s findings.`;
+        ? agent7Beats(
+            'BROTHER FEROZ (HOST): டாக்டர் அமீனா, “சீனா சென்றேனும் கல்வி” HadeethEnc-ல் இருக்கிறதா?',
+            'DR. AMINA: இல்லை. அந்த வாசகம் ஆதாரபூர்வப் பதிவில் இல்லை. #9944-ல் மார்க்க விளக்கம் பற்றிய சரியான நபிமொழிதான் உள்ளது.',
+            'BROTHER FEROZ (HOST): “கல்வி” என்ற சொல் பொருந்தினால் Supported ஆகுமா?',
+            'DR. AMINA: இல்லை. சொல் பொருத்தம் வேட்புப் பகுதி மட்டுமே. “சீனா” கூடுதல் வாசகம் ஆதாரமற்றது என்பதை HadeethEnc தெரிவும் உறுதிப்படுத்துகிறது.',
+          )
+        : agent7Beats(
+            'BROTHER FEROZ (HOST): Dr. Amina, does HadeethEnc keep the “even unto China” wording?',
+            'DR. AMINA: No. That clause is absent from its verified corpus. #9944 keeps the authentic narration on seeking religious understanding.',
+            'BROTHER FEROZ (HOST): So a “knowledge” keyword match never makes the China clause Supported?',
+            'DR. AMINA: Correct — word overlap only marks a candidate theme. That matches Imran and Yusuf: the China addition stays unsupported.',
+          );
 
     const synthesisAddendum =
       lang === 'ta'
@@ -523,10 +553,31 @@ export function buildPresetAgent7SourceResearch(
 
   const additionalRoundtableLines =
     lang === 'ta'
-      ? `\nBROTHER FEROZ (HOST): இப்போது நமது 7-வது பிரிவான 'மூல ஆதார ஆய்வு' (Agent 7 — Source Research) மேஜைக்குச் செல்வோம். டாக்டர் அமீனா அல்-கிந்தி அவர்களே, HadeethEnc களஞ்சியத்திலிருந்து நீங்கள் பெற்ற தமிழ் மற்றும் அரபு ஆதாரங்கள் மற்ற முகவர்களின் ஆய்வோடு எவ்வாறு இணைகின்றன?\n\nDR. AMINA: அஸ்ஸலாமு அலைக்கும் சகோதரர் ஃபெரோஸ், டாக்டர் தாரிக், டாக்டர் ஸைனப் மற்றும் குழுவினரே! நான் டாக்டர் அமீனா அல்-கிந்தி, முகவர் 7 மூல ஆதார ஆய்வாளர். நாம் ஆய்வு செய்யும் 'கடமையாக்கப்பட்ட நோன்பைத் தவிர வேறு எதற்காகவும் சனிக்கிழமை நோன்பு நோற்காதீர்கள்' என்ற வாசகத்திற்காக HadeethEnc தமிழ் களஞ்சியத்தை ஆராய்ந்தேன். அங்கே இரண்டு முக்கிய உண்மைகள் நிறுவப்படுகின்றன: முதலாவதாக, 'நோன்பைத் தவிர' மற்றும் 'கடமையாக்கப்பட்ட' என்ற சொற்கள் பொருந்துவதால் கிடைக்கும் HadeethEnc #3546 போன்ற பதிவுகள் வேட்புப் பகுதிகளே (Candidate Passages) தவிர, சொல் பொருத்தத்தால் மட்டும் இச்செய்தியை 'Supported' எனத் தானாக முத்திரையிடக் கூடாது. இரண்டாவதாக, HadeethEnc #4508-ல் இமாம் புஹாரி மற்றும் முஸ்லிம் ஆதாரத்துடன் («لَا يَتَقَدَّمَنَّ أَحَدُكُمْ رَمَضَانَ بِصَوْمِ يَوْمٍ أَوْ يَوْمَيْنِ») வழமையான நோன்பு நோற்பவருக்குக் குறிப்பிட்ட நாள் தடையிலிருந்து விலக்கு அளிக்கப்பட்டுள்ளது ('தரம்: சரியானது'). டாக்டர் ஸைனப் சுட்டிக்காட்டிய புஹாரி #1986 ஜுவைரிய்யா (ரழி) ஹதீஸோடும், ஷேக் யூசுஃப் விளக்கிய இமாம் திர்மிதி (#744) மற்றும் இப்னு ஹஜரின் சமரசத் தீர்ப்போடும் HadeethEnc #4508 நேரடியாக ஒத்துப்போகிறது!`
+      ? agent7Beats(
+          'BROTHER FEROZ (HOST): டாக்டர் அமீனா, HadeethEnc இந்தச் சனிக்கிழமை நோன்பு வாசகத்தை எப்படிப் பார்க்கிறது?',
+          'DR. AMINA: #3546 போன்ற சொல் பொருத்தங்கள் வேட்புப் பகுதிகளே. சொல் பொருந்தியதால் மட்டும் “Supported” என முத்திரையிடக் கூடாது.',
+          'BROTHER FEROZ (HOST): அப்படியானால் #4508 என்ன நிறுவுகிறது?',
+          'DR. AMINA: #4508 («لَا يَتَقَدَّمَنَّ أَحَدُكُمْ رَمَضَانَ بِصَوْمِ يَوْمٍ أَوْ يَوْمَيْنِ») புஹாரி-முஸ்லிம் தரத்தில், வழமையான நோன்பு நோற்பவருக்குக் குறிப்பிட்ட நாள் தடை பொருந்தாது என்பதைக் காட்டுகிறது.',
+          'BROTHER FEROZ (HOST): அது ஸைனப், யூசுஃப் சொன்னதோடு எப்படிப் பொருந்தும்?',
+          'DR. AMINA: புஹாரி #1986 ஜுவைரிய்யா அறிக்கையோடும் திர்மிதி #744 / இப்னு ஹஜர் சமரசத்தோடும் #4508 ஒத்துப்போகிறது.',
+        )
       : lang === 'si'
-        ? `\nBROTHER FEROZ (HOST): දැන් අපගේ 7 වන අංශය වන මූලාශ්‍ර පර්යේෂණ (Agent 7 — Source Research) මේසය වෙත යොමු වෙමු. ආචාර්ය අමීනා අල්-කින්දි, HadeethEnc මූලාශ්‍රවලින් ඔබ සොයාගත් කරුණු මොනවාද?\n\nDR. AMINA: අස්සලාමු අලයිකුම් සහෝදර ෆෙරෝස්! මම ආචාර්ය අමීනා අල්-කින්දි (Agent 7 — Source Research). සෙනසුරාදා උපවාසය පිළිබඳ විමසුමේදී HadeethEnc හි #4508 සහ #3546 ('صحيح' — බුහාරි හා මුස්ලිම්) වාර්තා අපි පරීක්ෂා කළා. වචන ගැළපීමකින් පමණක් ප්‍රකාශයක් 'Supported' ලෙස නම් කළ නොහැකියි. HadeethEnc #4508 මගින් පුරුද්දක් ලෙස උපවාස කරන්නාට විශේෂ දින තහනම අදාළ නොවන බව පෙන්වා දෙන අතර, එය ආචාර්ය සයිනබ් සහ ෂෙයික් යූසුෆ් පැහැදිලි කළ විද්වත් මතය තහවුරු කරනවා.`
-        : `\nBROTHER FEROZ (HOST): Let us now turn to our seventh specialist table — Agent 7, Source Research! Dr. Amina al-Kindi, what did HadeethEnc establish for this Saturday fasting narration, and how does it connect to Dr. Tariq, Dr. Zainab, and Sheikh Yusuf’s findings?\n\nDR. AMINA: Assalamu alaikum Brother Feroz and colleagues! At the Agent 7 Source Research table, we queried HadeethEnc for the Saturday fasting narration. First, while keyword searches on "obligatory" and "except fasting" surface candidate passages such as HadeethEnc #3546, a word match only identifies a candidate passage and never automatically labels a claim "Supported". Second, HadeethEnc #4508 («لَا يَتَقَدَّمَنَّ أَحَدُكُمْ رَمَضَانَ بِصَوْمِ يَوْمٍ أَوْ يَوْمَيْنِ», Grade: Authentic, Agreed upon by Al-Bukhari and Muslim) establishes the foundational principle that a person with an established fast is exempted from day-specific voluntary fasting restrictions. Responding to Dr. Tariq, Dr. Zainab, and Sheikh Yusuf, HadeethEnc’s omission of the contested Abu Dawud #2421 report from its unqualified rules — paired with #4508 and Sahih al-Bukhari #1986 — directly supports Imam al-Tirmidhi and Ibn Hajar’s harmonization that the restriction applies only to singling out Saturday alone without cause.`;
+        ? agent7Beats(
+            'BROTHER FEROZ (HOST): ආචාර්ය අමීනා, HadeethEnc සෙනසුරාදා උපවාසය ගැන කුමක් පෙන්වයිද?',
+            'DR. AMINA: #3546 වැනි වචන ගැළපුම් අපේක්ෂක පාඨ පමණයි. ඒකෙන්ම “Supported” කියන්න බැහැ.',
+            'BROTHER FEROZ (HOST): එහෙම නම් #4508 තහවුරු කරන්නේ මොකක්ද?',
+            'DR. AMINA: #4508 («لَا يَتَقَدَّمَنَّ أَحَدُكُمْ رَمَضَانَ بِصَوْمِ يَوْمٍ أَوْ يَوْمَيْنِ») බුහාරි-මුස්ලිම් ශ්‍රේණියෙන්, පුරුද්දට උපවාස කරන්නාට විශේෂ දින තහනම අදාළ නොවන බව පෙන්වනවා.',
+            'BROTHER FEROZ (HOST): ඒක සයිනබ් සහ යූසුෆ් කිව්ව දේට ගැලපෙනවද?',
+            'DR. AMINA: ඔව් — බුහාරි #1986 සහ තිර්මිදි #744 / ඉබ්නු හජර් සංහිඳියාව සමඟ #4508 එකට යනවා.',
+          )
+        : agent7Beats(
+            'BROTHER FEROZ (HOST): Dr. Amina, how does HadeethEnc read this Saturday fasting wording?',
+            'DR. AMINA: Matches like #3546 are candidate passages only. Word overlap never auto-labels the claim Supported.',
+            'BROTHER FEROZ (HOST): Then what does #4508 actually establish?',
+            'DR. AMINA: #4508 («لَا يَتَقَدَّمَنَّ أَحَدُكُمْ رَمَضَانَ بِصَوْمِ يَوْمٍ أَوْ يَوْمَيْنِ»), Authentic by Bukhari and Muslim, exempts a habitual faster from day-specific voluntary bans.',
+            'BROTHER FEROZ (HOST): How does that sit with Zainab and Yusuf?',
+            'DR. AMINA: It lines up with Bukhari #1986 on Juwayriyah and with Tirmidhi #744 / Ibn Hajar’s harmonization.',
+          );
 
   const synthesisAddendum =
     lang === 'ta'

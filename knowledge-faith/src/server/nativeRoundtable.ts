@@ -4,6 +4,7 @@
  */
 
 import { Type, type Schema } from '@google/genai';
+import { studioDirection,speakableTurn } from '../shared/research/studioDialogue.ts';
 import type { RoundtableTurn } from '../shared/sevenAgentTypes.ts';
 import type { Lang } from '../shared/sources.ts';
 import { anthropicConfigured, completeAnthropicJson } from './anthropic.ts';
@@ -35,7 +36,7 @@ function nativeLanguageRules(lang: Lang): string {
       'NEVER transliterate English into Tamil letters (forbidden examples: "டீசிங் புக் அண்ட் விஸ்டம்", "முகவர்", "Wahy" written as Latin inside Tamil prose).',
       'Use proper Tamil equivalents: வஹீ (for Wahy), வேதத்தையும் ஞானத்தையும் கற்பித்தல், ஆய்வுக் குழு, நாகரிக எழுச்சி, வெளிப்படுத்தல்.',
       'Keep speaker display names in English for UI (Brother Feroz, Dr. Tariq, etc.).',
-      'Greeting must be அஸ்ஸலாமு அலைக்கும் — never வணக்கம்.',
+      'Open with the question itself, not a ceremonial introduction.',
     ].join('\n');
   }
   if (lang === 'si') {
@@ -43,7 +44,7 @@ function nativeLanguageRules(lang: Lang): string {
       'Compose every spoken turn in natural, scholarly Sinhala (සිංහල script).',
       'Do not transliterate English phrases into Sinhala letters.',
       'Keep speaker display names in English for UI.',
-      'Greeting must be අස්සලාමු අලයිකුම්.',
+      'Open with the question itself.',
     ].join('\n');
   }
   return 'Compose in natural English.';
@@ -58,6 +59,7 @@ function systemPrompt(lang: Lang): string {
     'FORBIDDEN in spoken dialogue: QA/debug narration, cache isolation talk, “we refuse to paste gold-ring / Muslim 2089 / prior dossier” meta, software placeholders, or comments about unrelated previous research jobs.',
     'Answer only the seeker’s scholarly question with Qur’an, Seerah, Hadith, fiqh, and hikmah evidence.',
     nativeLanguageRules(lang),
+    studioDirection(lang),
   ].join('\n');
 }
 
@@ -91,7 +93,7 @@ export async function composeNativeRoundtableTurns(
       const { value } = await completeAnthropicJson<{
         turns?: Array<{ speaker?: string; text?: string }>;
       }>({ system, user });
-      const next = mergeNativeTurns(turns, value?.turns);
+      const next = mergeNativeTurns(turns, value?.turns,lang);
       if (next) return next;
     } catch (err) {
       console.error('Native roundtable (Claude) failed:', (err as Error)?.message ?? err);
@@ -103,7 +105,7 @@ export async function composeNativeRoundtableTurns(
       const { value } = await generateJsonWithModels<{
         turns: Array<{ speaker: string; text: string }>;
       }>(`${system}\n\n${user}`, turnSchema, ['gemini-3.8-flash', 'gemini-flash-latest']);
-      const next = mergeNativeTurns(turns, value?.turns);
+      const next = mergeNativeTurns(turns, value?.turns,lang);
       if (next) return next;
     } catch (err) {
       console.error('Native roundtable (Gemini) failed:', (err as Error)?.message ?? err);
@@ -116,12 +118,13 @@ export async function composeNativeRoundtableTurns(
 function mergeNativeTurns(
   source: readonly RoundtableTurn[],
   generated: Array<{ speaker?: string; text?: string }> | undefined,
+  lang:Lang,
 ): RoundtableTurn[] | null {
   if (!Array.isArray(generated) || generated.length !== source.length) return null;
   const out: RoundtableTurn[] = [];
   for (let i = 0; i < source.length; i++) {
     const text = String(generated[i]?.text ?? '').trim();
-    if (text.length < 12) return null;
+    if(generated[i]?.speaker?.trim()!==source[i].speaker || !speakableTurn(text,lang))return null;
     out.push({
       ...source[i],
       speaker: source[i].speaker,
